@@ -4036,11 +4036,6 @@
       document.getElementById('breadcrumbTitleText').textContent = note.title || 'Untitled Document';
       updateWordCount(note);
       renderSidebar();
-      // Check mobile / IME autocorrect word delimiter
-      if (e.data === ' ' || e.data === '.' || e.data === ',' || e.data === '!' || e.data === '?' || e.data === ';' || e.data === ':') {
-        triggerAutocorrectCheck(el, blockId);
-      }
-
       renderInspector();
       persistState();
     }
@@ -4062,6 +4057,13 @@
       const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (!block) return;
+
+      // Autocorrect check on typing delimiter, mobile input, or autocomplete
+      if (e.data && /[\s.,!?;:]/.test(e.data)) {
+        triggerAutocorrectCheck(el, blockId);
+      } else if (e.inputType === 'insertText' && (!e.data || /[\s.,!?;:]$/.test(el.innerText))) {
+        triggerAutocorrectCheck(el, blockId);
+      }
 
       block.content = serializeEditableBlock(el);
       note.updatedAt = TODAY_KEY;
@@ -6000,7 +6002,7 @@
         } else {
           menuItems.push(
             { label: 'Append Block', shortcut: '+', icon: 'document', action: () => appendBlockAtEnd() },
-            { label: 'Add Todo Item', shortcut: '☑', icon: 'checkSquare', action: () => appendTodoAtEnd() },
+            { label: 'Add Todo Item', shortcut: '[]', icon: 'checkSquare', action: () => appendTodoAtEnd() },
             { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
           );
         }
@@ -6945,14 +6947,14 @@
             <p class="text-xs">PK Note fixes frequent typos (e.g. <em>teh &rarr; the</em>, <em>dont &rarr; don't</em>, <em>cant &rarr; can't</em>, <em>i &rarr; I</em>) and capitalizes sentence starts automatically. If you didn't want the correction:</p>
             <ul class="space-y-1 list-disc list-inside text-xs">
               <li><strong>Backspace to Undo:</strong> Hit <kbd class="px-1 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono">Backspace</kbd> immediately to revert back to your exact typed letters.</li>
-              <li><strong>Floating Chip:</strong> Click the floating undo chip (<code class="font-mono text-[var(--accent-vermilion)]">the ↩ "teh"</code>) to revert and save the word to your accepted dictionary.</li>
+              <li><strong>Floating Chip:</strong> Click the floating undo chip (<code class="font-mono text-[var(--accent-vermilion)]">the [undo] "teh"</code>) to revert and save the word to your accepted dictionary.</li>
               <li><strong>Toggle Autocorrect:</strong> Open Command Palette (<kbd>⌘K</kbd>) &rarr; select <em>Toggle Autocorrect</em>.</li>
             </ul>
           </div>
 
           <div class="space-y-2">
             <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">3. Mobile Formatting Accessory Toolbar</h4>
-            <p class="text-xs">When typing on your phone, a compact formatting bar sits right above the virtual keyboard with 1-tap buttons for <strong>H1</strong>, <strong>H2</strong>, <strong>• Bullet</strong>, <strong>☑ Todo</strong>, <strong>[[ WikiLink</strong>, and <strong>DONE</strong>.</p>
+            <p class="text-xs">When typing on your phone, a compact formatting bar sits right above the virtual keyboard with 1-tap buttons for <strong>H1</strong>, <strong>H2</strong>, <strong>• Bullet</strong>, <strong>Todo</strong>, <strong>[[ WikiLink</strong>, and <strong>DONE</strong>.</p>
           </div>
         </div>
       `,
@@ -7316,52 +7318,101 @@
 
 
 
-    // =========================================================================
-    // 21. STANDARD AUTOCORRECT ENGINE & MOBILE ERGONOMICS
+// =========================================================================
+    // 21. ADVANCED AUTOCORRECT ENGINE & MOBILE ERGONOMICS (PRECISION & FUZZY)
     // =========================================================================
 
-    // Comprehensive Dictionary of Common English Misspellings, Contractions & Transpositions
+    // Comprehensive High-Frequency Dictionary of English Contractions, Common Misspellings & Transpositions
     const AUTOCORRECT_DICTIONARY = {
       // Common Contractions without apostrophe
       'dont': "don't", 'cant': "can't", 'wont': "won't", 'didnt': "didn't",
       'isnt': "isn't", 'arent': "aren't", 'couldnt': "couldn't", 'wouldnt': "wouldn't",
       'shouldnt': "shouldn't", 'youre': "you're", 'theyre': "they're", 'weve': "we've",
-      'ive': "I've", 'im': "I'm", 'thats': "that's", 'whats': "what's", 'theres': "there's",
-      'hasnt': "hasn't", 'havent': "haven't", 'wasnt': "wasn't", 'werent': "weren't",
-      'lets': "let's", 'hows': "how's", 'whos': "who's", 'wheres': "where's",
-      'doesnt': "doesn't", 'mustnt': "mustn't", 'hadnt': "hadn't",
+      'ive': "I've", 'im': "I'm", 'id': "I'd", 'thats': "that's", 'whats': "what's",
+      'theres': "there's", 'heres': "here's", 'hasnt': "hasn't", 'havent': "haven't",
+      'wasnt': "wasn't", 'werent': "weren't", 'lets': "let's", 'hows': "how's",
+      'whos': "who's", 'wheres': "where's", 'doesnt': "doesn't", 'mustnt': "mustn't",
+      'hadnt': "hadn't", 'aint': "ain't", 'youll': "you'll", 'theyll': "they'll",
+      'theyve': "they've", 'youve': "you've", 'couldve': "could've", 'wouldve': "would've",
+      'shouldve': "should've", 'mightve': "might've", 'mustve': "must've",
+      'youd': "you'd", 'theyd': "they'd", 'wed': "we'd",
 
-      // Common Transpositions & Rapid-Typing Typos
+      // Common Typographical Errors & Misspellings
+      'corret': 'correct', 'corretly': 'correctly', 'corretion': 'correction',
+      'corretions': 'corrections', 'correting': 'correcting', 'correted': 'corrected',
+      'somtimes': 'sometimes', 'sometim': 'sometime', 'sometiems': 'sometimes',
+      'somethign': 'something', 'somthing': 'something', 'anythign': 'anything',
+      'notihng': 'nothing', 'everyting': 'everything',
       'teh': 'the', 'taht': 'that', 'waht': 'what', 'adn': 'and', 'nad': 'and',
       'fo': 'of', 'ot': 'to', 'ti': 'it', 'si': 'is', 'ahve': 'have', 'haev': 'have',
-      'woudl': 'would', 'coudl': 'could', 'shoudl': 'should',
-      'becuase': 'because', 'beacuse': 'because', 'definately': 'definitely', 'definatly': 'definitely',
-      'seperate': 'separate', 'occured': 'occurred', 'recieve': 'receive', 'untill': 'until',
-      'truely': 'truly', 'wierd': 'weird', 'beleive': 'believe', 'neccessary': 'necessary',
-      'necesary': 'necessary', 'goverment': 'government', 'enviroment': 'environment',
-      'tommorow': 'tomorrow', 'tommorrow': 'tomorrow', 'accomodate': 'accommodate',
-      'calender': 'calendar', 'embarass': 'embarrass', 'mispell': 'misspell', 'peice': 'piece',
-      'freind': 'friend', 'acheive': 'achieve', 'relevent': 'relevant', 'writting': 'writing',
-      'begining': 'beginning', 'thier': 'their', 'alot': 'a lot', 'noone': 'no one',
-      'everytime': 'every time', 'infront': 'in front', 'aswell': 'as well',
-      'occurence': 'occurrence', 'existance': 'existence', 'maintainance': 'maintenance',
-      'arguement': 'argument', 'privilege': 'privilege', 'privelege': 'privilege',
-      'suprise': 'surprise', 'succesful': 'successful', 'pronounciation': 'pronunciation',
-      'refered': 'referred', 'refering': 'referring', 'guarentee': 'guarantee',
-      'possession': 'possession', 'posession': 'possession', 'possesion': 'possession',
-      'comming': 'coming', 'accross': 'across', 'basicly': 'basically', 'completly': 'completely',
-      'dissapear': 'disappear', 'dissappoint': 'disappoint', 'fourty': 'forty',
-      'finaly': 'finally', 'heigth': 'height', 'independant': 'independent',
-      'knowlege': 'knowledge', 'libary': 'library', 'milennium': 'millennium',
-      'millenium': 'millennium', 'noticable': 'noticeable', 'persue': 'pursue',
-      'rythm': 'rhythm', 'rhythim': 'rhythm', 'tendancy': 'tendency', 'tatoo': 'tattoo',
-      'unfortunatly': 'unfortunately', 'wich': 'which', 'whitch': 'which'
+      'hvae': 'have', 'woudl': 'would', 'coudl': 'could', 'shoudl': 'should',
+      'becuase': 'because', 'beacuse': 'because', 'becasue': 'because', 'bause': 'because',
+      'definately': 'definitely', 'definatly': 'definitely', 'definitly': 'definitely',
+      'seperate': 'separate', 'seperately': 'separately', 'seperation': 'separation',
+      'occured': 'occurred', 'occuring': 'occurring', 'occurence': 'occurrence',
+      'recieve': 'receive', 'recieved': 'received', 'recieving': 'receiving',
+      'untill': 'until', 'truely': 'truly', 'wierd': 'weird', 'wierdly': 'weirdly',
+      'beleive': 'believe', 'beleif': 'belief', 'neccessary': 'necessary',
+      'necesary': 'necessary', 'necessery': 'necessary', 'goverment': 'government',
+      'enviroment': 'environment', 'tommorow': 'tomorrow', 'tommorrow': 'tomorrow',
+      'tomorow': 'tomorrow', 'accomodate': 'accommodate', 'accomodation': 'accommodation',
+      'calender': 'calendar', 'calandar': 'calendar',
+      'embarass': 'embarrass', 'embarassed': 'embarrassed', 'embarassing': 'embarrassing',
+      'mispell': 'misspell', 'mispelled': 'misspelled', 'peice': 'piece',
+      'freind': 'friend', 'freinds': 'friends', 'acheive': 'achieve',
+      'acheived': 'achieved', 'acheivement': 'achievement', 'relevent': 'relevant',
+      'writting': 'writing', 'begining': 'beginning', 'thier': 'their',
+      'alot': 'a lot', 'noone': 'no one', 'everytime': 'every time',
+      'infront': 'in front', 'aswell': 'as well', 'existance': 'existence',
+      'maintainance': 'maintenance', 'arguement': 'argument',
+      'privilege': 'privilege', 'privelege': 'privilege',
+      'suprise': 'surprise', 'suprised': 'surprised',
+      'succesful': 'successful', 'succesfully': 'successfully',
+      'pronounciation': 'pronunciation', 'refered': 'referred', 'refering': 'referring',
+      'guarentee': 'guarantee', 'possession': 'possession', 'posession': 'possession',
+      'possesion': 'possession', 'comming': 'coming', 'accross': 'across',
+      'basicly': 'basically', 'completly': 'completely', 'dissapear': 'disappear',
+      'dissappoint': 'disappoint', 'fourty': 'forty', 'finaly': 'finally',
+      'heigth': 'height', 'independant': 'independent', 'knowlege': 'knowledge',
+      'libary': 'library', 'milennium': 'millennium', 'millenium': 'millennium',
+      'noticable': 'noticeable', 'persue': 'pursue', 'rythm': 'rhythm',
+      'rhythim': 'rhythm', 'tendancy': 'tendency', 'tatoo': 'tattoo',
+      'unfortunatly': 'unfortunately', 'wich': 'which', 'whitch': 'which',
+      'alwasy': 'always', 'alway': 'always', 'beutiful': 'beautiful',
+      'developement': 'development', 'happended': 'happened', 'lenght': 'length',
+      'strenght': 'strength', 'probelm': 'problem', 'porblem': 'problem',
+      'funciton': 'function', 'fucntion': 'function', 'udpate': 'update',
+      'upadte': 'update', 'chaneg': 'change', 'cahnge': 'change',
+      'retrun': 'return', 'exmaple': 'example', 'widnow': 'window',
+      'messgae': 'message', 'mesage': 'message', 'docuemnt': 'document',
+      'documetn': 'document', 'schdule': 'schedule', 'scheudle': 'schedule',
+      'remidner': 'reminder', 'remidners': 'reminders', 'diffrent': 'different',
+      'familar': 'familiar', 'foriegn': 'foreign', 'interupt': 'interrupt',
+      'neccessity': 'necessity', 'publically': 'publicly', 'questionaire': 'questionnaire',
+      'realy': 'really', 'reciept': 'receipt', 'restarant': 'restaurant',
+      'restaraunt': 'restaurant', 'sensative': 'sensitive', 'therfore': 'therefore',
+      'threshhold': 'threshold', 'unconscious': 'unconscious', 'usally': 'usually',
+      'usuallly': 'usually', 'visable': 'visible', 'whereever': 'wherever',
+      'whithout': 'without', 'witout': 'without', 'wrok': 'work', 'owrk': 'work'
     };
 
-    // Tracking for Undo
+    // High-frequency target vocabulary for Distance-1 Levenshtein matching
+    const FUZZY_VOCABULARY = [
+      'about', 'after', 'again', 'against', 'always', 'another', 'because', 'before',
+      'between', 'calendar', 'change', 'could', 'different', 'document', 'enough',
+      'example', 'first', 'friend', 'function', 'great', 'important', 'message',
+      'nothing', 'number', 'people', 'problem', 'really', 'remember', 'return',
+      'schedule', 'screen', 'second', 'should', 'something', 'sometimes', 'still',
+      'their', 'there', 'things', 'thought', 'through', 'together', 'update',
+      'without', 'window', 'words', 'world', 'would', 'write', 'writing', 'correct'
+    ];
+
+    // Tracking for Undo and Throttle
     let lastAutocorrect = null;
     let autocorrectUndoTimeout = null;
     let activeEditingBlockId = null;
+    let lastAutocorrectCheckTime = 0;
+    let lastAutocorrectTargetEl = null;
 
     // Build Accepted Legitimate Vocabulary Set (names, tags, folders, vault words)
     function getAcceptedVocabulary() {
@@ -7371,7 +7422,7 @@
         'evt', 'cmd', 'h1', 'h2', 'h3', 'todo', 'log', 'v1', 'v2', 'v3'
       ]);
 
-      if (state && Array.isArray(state.notes)) {
+      if (window.state && Array.isArray(state.notes)) {
         state.notes.forEach(n => {
           if (n.title) {
             n.title.toLowerCase().split(/[^\w']+/).forEach(w => { if (w.length > 2) set.add(w); });
@@ -7382,13 +7433,13 @@
         });
       }
 
-      if (state && Array.isArray(state.folders)) {
+      if (window.state && Array.isArray(state.folders)) {
         state.folders.forEach(f => {
           f.toLowerCase().split(/[^\w']+/).forEach(w => { if (w.length > 2) set.add(w); });
         });
       }
 
-      if (state && Array.isArray(state.acceptedCustomWords)) {
+      if (window.state && Array.isArray(state.acceptedCustomWords)) {
         state.acceptedCustomWords.forEach(w => set.add(w.toLowerCase()));
       }
 
@@ -7402,26 +7453,120 @@
       if (source[0] === source[0].toUpperCase()) {
         return target[0].toUpperCase() + target.slice(1);
       }
-      return target.toLowerCase();
+      return target;
+    }
+
+    // Fast Damerau-Levenshtein check (distance <= 1)
+    function isDistanceOne(s1, s2) {
+      const lenDiff = Math.abs(s1.length - s2.length);
+      if (lenDiff > 1 || s1 === s2) return false;
+      if (s1[0] !== s2[0] && (s1.length < 2 || s2.length < 2 || s1[0] !== s2[1] || s1[1] !== s2[0])) {
+        return false;
+      }
+      let i = 0, j = 0, diffs = 0;
+      while (i < s1.length && j < s2.length) {
+        if (s1[i] !== s2[j]) {
+          diffs++;
+          if (diffs > 1) return false;
+          if (i + 1 < s1.length && j + 1 < s2.length && s1[i] === s2[j + 1] && s1[i + 1] === s2[j]) {
+            i += 2;
+            j += 2;
+            continue;
+          }
+          if (s1.length > s2.length) {
+            i++;
+          } else if (s1.length < s2.length) {
+            j++;
+          } else {
+            i++;
+            j++;
+          }
+        } else {
+          i++;
+          j++;
+        }
+      }
+      if (i < s1.length || j < s2.length) diffs++;
+      return diffs === 1;
+    }
+
+    // Resolve spelling or typographical match with morphology
+    function resolveWordCorrection(wordLower) {
+      // 1. Direct dictionary lookup
+      if (AUTOCORRECT_DICTIONARY[wordLower]) {
+        return AUTOCORRECT_DICTIONARY[wordLower];
+      }
+
+      // 2. Morphological suffix resolution (e.g. corretly -> correct + ly)
+      const suffixes = ['ly', 'ing', 'ed', 's', 'es', 'ment', 'tion'];
+      for (const suffix of suffixes) {
+        if (wordLower.endsWith(suffix) && wordLower.length > suffix.length + 2) {
+          const base = wordLower.slice(0, -suffix.length);
+          if (AUTOCORRECT_DICTIONARY[base]) {
+            const targetBase = AUTOCORRECT_DICTIONARY[base];
+            return targetBase + suffix;
+          }
+        }
+      }
+
+      // 3. Fast Distance-1 fuzzy matching against core vocabulary
+      if (wordLower.length >= 4 && wordLower.length <= 12) {
+        for (const candidate of FUZZY_VOCABULARY) {
+          if (isDistanceOne(wordLower, candidate)) {
+            return candidate;
+          }
+        }
+      }
+
+      return null;
     }
 
     function triggerAutocorrectCheck(el, blockId) {
       if (!el || state.autocorrectEnabled === false) return false;
+
+      // Throttle rapid duplicate checks within 25ms
+      const now = Date.now();
+      if (lastAutocorrectTargetEl === el && now - lastAutocorrectCheckTime < 25) {
+        return false;
+      }
+      lastAutocorrectCheckTime = now;
+      lastAutocorrectTargetEl = el;
+
+      // Guard checks: code block, code tag, monospace element
+      if (el.closest('pre, code, .font-mono')) return false;
+      if (blockId) {
+        const note = getActiveNote();
+        const blk = note.blocks.find(b => b.id === blockId);
+        if (blk && (blk.type === 'code' || blk.type === 'divider')) return false;
+      }
 
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount) return false;
       const range = sel.getRangeAt(0);
       if (!range.collapsed) return false;
 
-      const node = range.startContainer;
-      if (node.nodeType !== Node.TEXT_NODE) return false;
+      let node = range.startContainer;
+      let offset = range.startOffset;
+
+      // Drill down if caret is placed on an element container
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (offset > 0 && node.childNodes[offset - 1]) {
+          let child = node.childNodes[offset - 1];
+          while (child && child.lastChild) child = child.lastChild;
+          if (child && child.nodeType === Node.TEXT_NODE) {
+            node = child;
+            offset = node.textContent.length;
+          }
+        }
+      }
+
+      if (!node || node.nodeType !== Node.TEXT_NODE) return false;
 
       const text = node.textContent;
-      const offset = range.startOffset;
       const textBefore = text.slice(0, offset);
 
       // Extract the word preceding the delimiter
-      const match = textBefore.match(/(?:^|\s)([\w']+)(\s|[.,!?;:])$/);
+      const match = textBefore.match(/(?:^|[\s\(\[\{"'“‘—–])([a-zA-Z0-9']+)([\s.,!?;:\)\]\}"'”’])$/);
       if (!match) return false;
 
       const rawWord = match[1];
@@ -7429,50 +7574,69 @@
       const wordStartInText = offset - rawWord.length - delimiter.length;
       const wordLower = rawWord.toLowerCase();
 
-      // Guard checks: numbers, URLs, emails, wiki links, code, accepted vocabulary
-      if (/\d/.test(rawWord) || rawWord.includes('http') || rawWord.includes('@')) return false;
+      // Guard checks: numbers, URLs, emails, wiki links, tags
+      if (/\d/.test(rawWord) || rawWord.includes('http') || rawWord.includes('@') || rawWord.startsWith('#')) return false;
 
       const accepted = getAcceptedVocabulary();
       if (accepted.has(wordLower)) return false;
 
       let correctedWord = null;
 
-      // 1. Contraction / spelling replacement
-      if (AUTOCORRECT_DICTIONARY[wordLower]) {
-        correctedWord = matchCasing(rawWord, AUTOCORRECT_DICTIONARY[wordLower]);
+      // Check spelling / contraction / fuzzy dictionary
+      const resolved = resolveWordCorrection(wordLower);
+      if (resolved) {
+        correctedWord = matchCasing(rawWord, resolved);
       } else if (rawWord === 'i') {
         // Standalone lowercase 'i' -> 'I'
         correctedWord = 'I';
       }
 
-      // 2. Sentence start capitalization check
+      // Sentence start capitalization check
       const preceding = text.slice(0, wordStartInText).trim();
-      const isSentenceStart = preceding === '' || /[.!?]$/.test(preceding);
+      const isBlockStart = wordStartInText === 0 || preceding === '';
+      const isSentenceStart = isBlockStart || /[.!?]\s*$/.test(preceding);
+
       if (isSentenceStart) {
         if (correctedWord) {
           correctedWord = correctedWord[0].toUpperCase() + correctedWord.slice(1);
-        } else if (rawWord === rawWord.toLowerCase() && rawWord.length > 1 && !AUTOCORRECT_DICTIONARY[wordLower]) {
-          // Check if it should be capitalized at sentence start (e.g. "this is" -> "This is")
+        } else if (rawWord === rawWord.toLowerCase() && rawWord.length > 1 && !resolveWordCorrection(wordLower)) {
+          // Capitalize start of sentence word
           correctedWord = rawWord[0].toUpperCase() + rawWord.slice(1);
         }
       }
 
       if (!correctedWord || correctedWord === rawWord) return false;
 
-      // Apply safe DOM replacement
-      const beforeWord = text.slice(0, wordStartInText);
-      const afterDelimiter = text.slice(offset);
-      const newText = beforeWord + correctedWord + delimiter + afterDelimiter;
+      // Safe DOM Replacement using Range
+      const replaceRange = document.createRange();
+      replaceRange.setStart(node, wordStartInText);
+      replaceRange.setEnd(node, offset);
 
-      node.textContent = newText;
-
-      // Restore cursor position right after delimiter
-      const newCursorPos = beforeWord.length + correctedWord.length + delimiter.length;
-      const newRange = document.createRange();
-      newRange.setStart(node, Math.min(newCursorPos, node.textContent.length));
-      newRange.setEnd(node, Math.min(newCursorPos, node.textContent.length));
       sel.removeAllRanges();
-      sel.addRange(newRange);
+      sel.addRange(replaceRange);
+
+      const replacementText = correctedWord + delimiter;
+      let replaced = false;
+      try {
+        replaced = document.execCommand('insertText', false, replacementText);
+      } catch (err) {
+        replaced = false;
+      }
+
+      if (!replaced) {
+        // Fallback: direct textNode slicing
+        const beforeWord = text.slice(0, wordStartInText);
+        const afterDelimiter = text.slice(offset);
+        const newText = beforeWord + replacementText + afterDelimiter;
+        node.textContent = newText;
+
+        const newCursorPos = beforeWord.length + replacementText.length;
+        const newRange = document.createRange();
+        newRange.setStart(node, Math.min(newCursorPos, node.textContent.length));
+        newRange.setEnd(node, Math.min(newCursorPos, node.textContent.length));
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
 
       // Save Undo State
       lastAutocorrect = {
@@ -7485,7 +7649,7 @@
         timestamp: Date.now()
       };
 
-      // Show subtle floating Undo Chip
+      // Show floating Undo Chip
       showAutocorrectUndoChip(correctedWord, rawWord);
 
       // Persist active note changes
@@ -7497,13 +7661,20 @@
           updateWordCount(note);
           persistState();
         }
+      } else if (el.id === 'docTitleInput') {
+        const note = getActiveNote();
+        note.title = el.innerText.trim();
+        const breadcrumb = document.getElementById('breadcrumbTitleText');
+        if (breadcrumb) breadcrumb.textContent = note.title || 'Untitled Document';
+        renderSidebar();
+        persistState();
       }
 
       return true;
     }
 
     function checkAutocorrectUndoOnBackspace(e, blockId) {
-      if (!lastAutocorrect || (Date.now() - lastAutocorrect.timestamp > 3500)) {
+      if (!lastAutocorrect || (Date.now() - lastAutocorrect.timestamp > 4000)) {
         return false;
       }
 
@@ -7592,6 +7763,17 @@
             if (block) {
               const el = document.querySelector(`[data-block-id="${blockId}"]`);
               if (el) block.content = serializeEditableBlock(el);
+              updateWordCount(note);
+              persistState();
+            }
+          } else {
+            const titleEl = document.getElementById('docTitleInput');
+            if (titleEl) {
+              const note = getActiveNote();
+              note.title = titleEl.innerText.trim();
+              const breadcrumb = document.getElementById('breadcrumbTitleText');
+              if (breadcrumb) breadcrumb.textContent = note.title || 'Untitled Document';
+              renderSidebar();
               persistState();
             }
           }
@@ -7602,7 +7784,7 @@
     }
 
     function handleTitleInputAutocorrect(e) {
-      if (e.data === ' ' || e.data === '.' || e.data === ',' || e.data === '!') {
+      if ((e.data && /[\s.,!?;:]/.test(e.data)) || e.inputType === 'insertText') {
         const el = document.getElementById('docTitleInput');
         if (el) triggerAutocorrectCheck(el, null);
       }
@@ -8295,7 +8477,13 @@
   <!-- Floating Autocorrect Undo Chip -->
   <div id="pkAutocorrectChip" onclick="undoLastAutocorrection()" title="Click to undo correction and accept word">
     <span id="pkAutocorrectCurrentWord" class="font-medium">the</span>
-    <span class="undo-hint">↩ <span id="pkAutocorrectOriginalWord">"teh"</span></span>
+    <span class="undo-hint flex items-center gap-1">
+      <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
+        <polyline points="7 6 3 10 7 14"></polyline>
+      </svg>
+      <span id="pkAutocorrectOriginalWord">"teh"</span>
+    </span>
   </div>
 
 
@@ -8427,8 +8615,11 @@
       <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
         •
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
-        ☑
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center" title="Todo block">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <polyline points="9 11 12 14 22 4"></polyline>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
       </button>
       <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
         "
@@ -8437,7 +8628,10 @@
         [[
       </button>
       <button type="button" onmousedown="event.preventDefault(); undoLastAutocorrection()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] min-w-[34px] min-h-[34px] flex items-center justify-center" title="Undo correction">
-        ↩
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
+          <polyline points="7 6 3 10 7 14"></polyline>
+        </svg>
       </button>
     </div>
     <button type="button" onmousedown="event.preventDefault(); dismissMobileKeyboard()" class="shrink-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] min-h-[34px] flex items-center gap-1 font-mono">

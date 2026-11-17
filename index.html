@@ -2,10 +2,22 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PK Note — Archival Knowledge &amp; Block Workspace</title>
+  
+  <!-- Mobile & PWA App Configuration -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#181817" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#F9F8F6" media="(prefers-color-scheme: light)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PK Note" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="PK Note" />
+  
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="alternate icon" href="pk-note-icon.svg" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="alternate icon" type="image/png" href="icon-192.png" />
 
   <!-- Editorial & Technical Typefaces: Newsreader, Inter, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -203,6 +215,32 @@
       outline-offset: -1px;
     }
 
+    
+    /* Mobile Safe Area & PWA Enhancements */
+    :root {
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sat: env(safe-area-inset-top, 0px);
+    }
+    body {
+      padding-top: var(--sat);
+      padding-bottom: var(--sab);
+    }
+    @media (max-width: 768px) {
+      #documentScrollArea {
+        padding-bottom: calc(6rem + var(--sab)) !important;
+      }
+      #calendarViewport {
+        padding-bottom: calc(4.5rem + var(--sab)) !important;
+      }
+    }
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    #documentScrollArea, [contenteditable="true"], .select-text {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+
     /* Native date/time picker theme harmonization */
     html.dark input[type="date"],
     html.dark input[type="datetime-local"] {
@@ -217,12 +255,14 @@
 <body class="h-screen w-screen flex select-none text-[13px] overflow-hidden">
 
   <!-- Mobile Sidebar Backdrop -->
-  <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-black/50 z-20 md:hidden"></div>
+    <!-- Mobile Backdrops -->
+  <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-black/55 z-40 md:hidden backdrop-blur-xs transition-opacity"></div>
+  <div id="mobileInspectorBackdrop" onclick="closeRightSidebar()" class="hidden fixed inset-0 bg-black/55 z-40 lg:hidden backdrop-blur-xs transition-opacity"></div>
 
   <!-- =====================================================================
        LEFT SIDEBAR: ARCHIVAL INDEX, MODE SWITCHER & MINI CALENDAR
        ===================================================================== -->
-  <aside id="leftSidebar" class="panel-transition fixed md:static inset-y-0 left-0 h-full w-64 shrink-0 flex flex-col border-r border-[var(--border-hairline)] bg-[var(--bg-panel)] z-30 overflow-hidden">
+  <aside id="leftSidebar" class="panel-transition fixed md:static inset-y-0 left-0 h-full w-72 max-w-[85vw] shrink-0 flex flex-col border-r border-[var(--border-hairline)] bg-[var(--bg-panel)] z-50 overflow-hidden shadow-2xl md:shadow-none">
     
     <!-- Workspace Header -->
     <div class="h-11 px-3 flex items-center justify-between border-b border-[var(--border-hairline)] shrink-0">
@@ -379,6 +419,10 @@
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
             <circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/>
           </svg>
+        </button>
+        <button onclick="openInstallModal()" id="pwaInstallBtn" title="Install PK Note Native App" class="px-2 py-1 rounded-[3px] text-[var(--accent-vermilion)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1 font-mono text-[10px]">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="hidden sm:inline">INSTALL</span>
         </button>
         <button onclick="toggleTheme()" id="themeToggleBtn" title="Switch Carbon / Archival Vellum" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
           <svg id="iconSun" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -670,7 +714,7 @@
   <!-- =====================================================================
        RIGHT CONTEXTUAL INSPECTOR (WORKSPACE MODE): GRAPH, BACKLINKS & OUTLINE
        ===================================================================== -->
-  <aside id="rightSidebar" class="panel-transition h-full w-80 shrink-0 hidden lg:flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] z-20 overflow-hidden">
+  <aside id="rightSidebar" class="panel-transition fixed lg:static inset-y-0 right-0 h-full w-80 max-w-[88vw] flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] z-50 overflow-hidden shadow-2xl lg:shadow-none">
     
     <!-- Segmented Tab Header -->
     <div class="h-11 px-3 flex items-center justify-between border-b border-[var(--border-hairline)] shrink-0">
@@ -687,7 +731,7 @@
         </button>
       </div>
 
-      <button onclick="toggleRightSidebar()" title="Close Inspector" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
+      <button onclick="closeRightSidebar()" title="Close Inspector" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -1671,8 +1715,9 @@
     // =========================================================================
     function setAppMode(mode) {
       state.appMode = mode === 'calendar' ? 'calendar' : 'workspace';
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         closeMobileSidebar();
+        closeRightSidebar();
       }
       renderAll();
       persistState();
@@ -1862,6 +1907,9 @@
         // Hide document graph inspector in calendar mode (calendar has its own right agenda inspector)
         rightSidebar.style.width = '0px';
         rightSidebar.style.opacity = '0';
+        const inspectorBackdrop = document.getElementById('mobileInspectorBackdrop');
+        if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+        updateMobileNavState();
 
         modeBtnCal.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)]';
         modeBtnWs.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
@@ -1876,13 +1924,33 @@
         wsControls.classList.remove('hidden');
         calControls.classList.add('hidden');
 
-        if (state.rightSidebarOpen && window.innerWidth >= 1024) {
+        const isMobileScreen = window.innerWidth < 1024;
+        const inspectorBackdrop = document.getElementById('mobileInspectorBackdrop');
+
+        if (isMobileScreen) {
           rightSidebar.style.width = '20rem';
-          rightSidebar.style.opacity = '1';
+          if (state.rightSidebarOpen) {
+            rightSidebar.style.transform = 'translateX(0)';
+            rightSidebar.style.opacity = '1';
+            if (inspectorBackdrop) inspectorBackdrop.classList.remove('hidden');
+          } else {
+            rightSidebar.style.transform = 'translateX(100%)';
+            if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+          }
         } else {
-          rightSidebar.style.width = '0px';
-          rightSidebar.style.opacity = '0';
+          if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+          rightSidebar.style.transform = 'translateX(0)';
+          if (state.rightSidebarOpen) {
+            rightSidebar.style.width = '20rem';
+            rightSidebar.style.opacity = '1';
+          } else {
+            rightSidebar.style.width = '0px';
+            rightSidebar.style.opacity = '0';
+          }
         }
+
+        // Update Mobile Bottom Nav Active Highlighting
+        updateMobileNavState();
 
         modeBtnWs.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)]';
         modeBtnCal.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
@@ -2044,8 +2112,9 @@
       state.calendarSelectedDate = dateKey;
       state.calendarCursorDate = dateKey;
       state.appMode = 'calendar';
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         closeMobileSidebar();
+        closeRightSidebar();
       }
       renderAll();
       persistState();
@@ -3317,7 +3386,7 @@
       const richContent = renderRichBlockHTML(block.content);
 
       const gutter = `
-        <div class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center gap-0.5 pr-1.5 pt-1 select-none shrink-0 -ml-11 w-11 justify-end">
+        <div class="opacity-60 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center gap-0.5 pr-1 pt-1 select-none shrink-0 -ml-7 sm:-ml-11 w-7 sm:w-11 justify-end">
           <button onclick="insertBlockAfter('${block.id}')" title="Insert block below" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -3924,8 +3993,9 @@
     function selectNote(noteId) {
       state.activeNoteId = noteId;
       state.appMode = 'workspace';
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         closeMobileSidebar();
+        closeRightSidebar();
       }
       closeSlashMenu();
       closeWikiLinkMenu();
@@ -4806,6 +4876,147 @@
       }
     });
 
+    
+    // =========================================================================
+    // 17. MOBILE NAVIGATION, DRAWERS & TOUCH WORKSPACE CONTROLS
+    // =========================================================================
+    function closeRightSidebar() {
+      state.rightSidebarOpen = false;
+      applyThemeAndLayout();
+      persistState();
+    }
+
+    function mobileNavSelect(action) {
+      if (action === 'notes') {
+        if (state.appMode === 'workspace') {
+          toggleLeftSidebar();
+        } else {
+          setAppMode('workspace');
+          closeRightSidebar();
+        }
+      } else if (action === 'calendar') {
+        setAppMode('calendar');
+        closeMobileSidebar();
+        closeRightSidebar();
+      } else if (action === 'graph') {
+        state.appMode = 'workspace';
+        closeMobileSidebar();
+        openRightInspector('graph');
+      }
+      updateMobileNavState();
+    }
+
+    function updateMobileNavState() {
+      const navNotes = document.getElementById('mobileNavNotes');
+      const navCal = document.getElementById('mobileNavCalendar');
+      const navGraph = document.getElementById('mobileNavGraph');
+      if (!navNotes || !navCal || !navGraph) return;
+
+      const isCal = state.appMode === 'calendar';
+      const isGraphOpen = !isCal && state.rightSidebarOpen;
+
+      if (isCal) {
+        navCal.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] font-medium transition-colors';
+        navNotes.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+        navGraph.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+      } else if (isGraphOpen) {
+        navGraph.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-ochre)] font-medium transition-colors';
+        navNotes.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+        navCal.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+      } else {
+        navNotes.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] font-medium transition-colors';
+        navCal.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+        navGraph.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+      }
+    }
+
+    function openMobileQuickMenu() {
+      document.getElementById('mobileQuickMenuBackdrop').classList.remove('hidden');
+    }
+
+    function closeMobileQuickMenu() {
+      document.getElementById('mobileQuickMenuBackdrop').classList.add('hidden');
+    }
+
+    function appendTodoAtEnd() {
+      state.appMode = 'workspace';
+      closeMobileSidebar();
+      closeRightSidebar();
+      const note = getActiveNote();
+      const newBlock = {
+        id: generateId('b'),
+        type: 'todo',
+        checked: false,
+        content: ''
+      };
+      note.blocks.push(newBlock);
+      renderBlocks(note);
+      focusBlock(newBlock.id, true);
+      persistState();
+    }
+
+    // =========================================================================
+    // 18. PROGRESSIVE WEB APP (PWA) INSTALLATION & OFFLINE ENGINE
+    // =========================================================================
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    function openInstallModal() {
+      const modal = document.getElementById('pwaInstallModal');
+      const instructions = document.getElementById('pwaInstallInstructions');
+      const triggerBtn = document.getElementById('pwaInstallTriggerBtn');
+      
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+      if (isStandalone) {
+        instructions.innerHTML = '<strong>PK Note is already installed</strong> and running in standalone native app mode!';
+        triggerBtn.style.display = 'none';
+      } else if (isIOS) {
+        instructions.innerHTML = 'To install on iPhone / iPad: Tap the <strong>Share</strong> button <svg class="inline w-3.5 h-3.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> at the bottom of Safari, then select <strong>Add to Home Screen</strong> [+]';
+        triggerBtn.style.display = 'none';
+      } else if (deferredInstallPrompt) {
+        instructions.textContent = 'Click Install App to install PK Note directly on your computer or mobile phone.';
+        triggerBtn.style.display = 'inline-block';
+      } else {
+        instructions.innerHTML = 'To install on desktop: Click the <strong>Install</strong> icon in your browser address bar (Edge / Chrome / Brave) or use the browser menu &rarr; <em>Apps &rarr; Install PK Note</em>.';
+        triggerBtn.style.display = 'none';
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeInstallModal() {
+      document.getElementById('pwaInstallModal').classList.add('hidden');
+    }
+
+    function triggerPwaInstall() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(choiceResult => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User installed PK Note');
+          }
+          deferredInstallPrompt = null;
+          closeInstallModal();
+        });
+      }
+    }
+
+    // Register Service Worker for 100% offline functionality
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('PK Note ServiceWorker active:', reg.scope))
+          .catch(err => console.warn('ServiceWorker registration:', err));
+      });
+    }
+
     window.addEventListener('load', () => {
       // Collapse sidebar by default on mobile viewports so canvas has full width
       if (window.innerWidth < 768) {
@@ -4818,5 +5029,93 @@
       runGraphLoop();
     });
   </script>
+
+  <!-- Mobile Bottom Navigation Bar (Visible on mobile screens < md) -->
+  <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] z-30 flex items-center justify-around px-2 select-none">
+    <!-- Notes Tab -->
+    <button onclick="mobileNavSelect('notes')" id="mobileNavNotes" class="flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span class="text-[9px] font-mono tracking-tight font-medium">NOTES</span>
+    </button>
+
+    <!-- Schedule Tab -->
+    <button onclick="mobileNavSelect('calendar')" id="mobileNavCalendar" class="flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="1"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span class="text-[9px] font-mono tracking-tight">SCHEDULE</span>
+    </button>
+
+    <!-- Center Elevated Quick Action -->
+    <button onclick="openMobileQuickMenu()" class="w-10 h-10 -mt-3 rounded-full bg-[var(--accent-vermilion)] text-white shadow-lg flex items-center justify-center hover:opacity-95 transition-transform active:scale-95" title="Quick Add">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
+    <!-- Graph / Inspector Tab -->
+    <button onclick="mobileNavSelect('graph')" id="mobileNavGraph" class="flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+      <svg class="w-4 h-4 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/></svg>
+      <span class="text-[9px] font-mono tracking-tight">GRAPH</span>
+    </button>
+
+    <!-- Search Tab -->
+    <button onclick="openCommandPalette()" class="flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
+      <span class="text-[9px] font-mono tracking-tight">FIND</span>
+    </button>
+  </nav>
+
+  <!-- Mobile Quick Action Sheet -->
+  <div id="mobileQuickMenuBackdrop" onclick="closeMobileQuickMenu()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-sm rounded-t-xl sm:rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-4 space-y-3 pb-8 sm:pb-4 shadow-2xl animate-menu">
+      <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
+        <span class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Quick Create</span>
+        <button onclick="closeMobileQuickMenu()" class="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-xs">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="closeMobileQuickMenu(); createNewNote('General')" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="font-medium text-xs text-[var(--text-primary)]">New Note</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Blank working document</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); openEventModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <svg class="w-5 h-5 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="1"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span class="font-medium text-xs text-[var(--text-primary)]">New Event</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Add schedule item</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); openOrCreateDailyNote()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+          <span class="font-medium text-xs text-[var(--text-primary)]">Today's Log</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Daily synthesis note</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); appendTodoAtEnd()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span class="font-medium text-xs text-[var(--text-primary)]">Add Todo</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Checklist entry</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-App PWA Install Dialog / Banner -->
+  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-5 space-y-4 shadow-2xl animate-menu">
+      <div class="flex items-center gap-3">
+        <img src="icon-192.png" alt="PK Note App Icon" class="w-12 h-12 rounded-lg border border-[var(--border-hairline)] shrink-0" />
+        <div>
+          <h3 class="font-semibold text-sm text-[var(--text-primary)]">Install PK Note</h3>
+          <p class="text-[11px] text-[var(--text-secondary)]">Native app for Computer &amp; Phone</p>
+        </div>
+      </div>
+      <p id="pwaInstallInstructions" class="text-xs text-[var(--text-secondary)] leading-relaxed">
+        Install PK Note for full-screen desktop window mode, instant offline access, and mobile home screen launching.
+      </p>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-hairline)]">
+        <button onclick="closeInstallModal()" class="px-3 py-1.5 rounded font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Dismiss</button>
+        <button id="pwaInstallTriggerBtn" onclick="triggerPwaInstall()" class="px-3 py-1.5 rounded font-mono text-xs bg-[var(--accent-vermilion)] text-white font-medium hover:opacity-90">Install App</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

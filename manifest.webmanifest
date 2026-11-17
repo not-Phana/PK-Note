@@ -1,0 +1,63 @@
+{
+  "id": "pk-note-workspace",
+  "name": "PK Note — Archival Knowledge & Block Workspace",
+  "short_name": "PK Note",
+  "description": "Tactile ink & paper personal knowledge graph, block markdown editor, and time-safe calendar chronology workspace.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#121211",
+  "theme_color": "#181817",
+  "categories": ["productivity", "notes", "utilities"],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Note",
+      "short_name": "New Note",
+      "description": "Create a new working note",
+      "url": "./index.html?action=new-note",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calendar & Schedule",
+      "short_name": "Calendar",
+      "description": "Open integrated calendar",
+      "url": "./index.html?mode=calendar",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Today's Daily Log",
+      "short_name": "Daily Log",
+      "description": "Open or create today's daily log",
+      "url": "./index.html?action=daily-log",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

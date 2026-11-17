@@ -2,41 +2,52 @@
 
 A local-first personal knowledge management (PKM) and block calendar workspace built on tactile ink & paper aesthetics, Swiss grid typography, and force-directed graph topology.
 
+Designed to run natively across **Computer** (Windows, macOS, Linux) and **Mobile Phone** (iOS, Android).
+
 ---
 
-## 🎨 Visual Identity & Logo System
+## 📱 Mobile & Native App Features
 
-The visual identity of **PK Note** is inspired by Swiss modernist typography, archival ledger bindings, and mathematical knowledge graphs.
+- **📱 Mobile Ergonomic Layout**:
+  - **Bottom Navigation Bar**: One-thumb access to Notes, Calendar, Force-Directed Graph Inspector, and Search.
+  - **Quick Action Center (`+`)**: Instant creation of blank working notes, calendar events, today's daily log, or checklist tasks.
+  - **Touch Drawers**: Left index sidebar and right knowledge graph inspector slide in as smooth drawers on phones/tablets with background dimming.
+  - **Safe-Area Inset Support**: Full compatibility with iPhone notch / dynamic island and Android gesture navigation bars.
+  - **Touch-Optimized Editing**: Clear touch gutters and formatting options without relying on desktop mouse hover.
 
-### Design Concepts & Geometry:
-- **The Archival Spine (`P`)**: A strong vertical anchor spine representing a bound archival notebook, ledger, or core vertex.
-- **The Knowledge Branches (`K`)**: Two 45° dynamic diagonal vectors emerging from the waist junction, symbolizing semantic wiki-links and relational thought expansion.
-- **The Vermilion Vertex Node**: An accent node rendered in signature Vermilion (`#C8462B` / `#D95338`), representing an active atomic note or synthesis milestone.
+- **💻 Native Desktop Experience**:
+  - Wide dual-sidebar layout with Swiss editorial grid and real-time topology physics.
+  - **One-Click Windows Launcher**: Double-click [`PK Note.bat`](file:///e:/Code/for%20note/PK%20Note.bat) to launch as a standalone desktop window without browser bars.
 
-### Vector Assets:
+- **⚡ Native Cross-Platform Installation (PWA)**:
+  - **Computer (Windows / Mac / Linux)**: Click the **Install** button in the sidebar or the install icon in your browser address bar (Chrome, Edge, Brave) to install PK Note as a desktop application with desktop shortcuts.
+  - **Mobile (Android)**: Open in Chrome/Firefox and tap **Install** or **Add to Home Screen** to install as a native Android app with splash screen and icon.
+  - **Mobile (iPhone / iPad)**: Open in Safari, tap **Share** (bottom bar), and choose **Add to Home Screen**. Runs full-screen in standalone app mode with zero Safari browser chrome.
+  - **100% Offline Capability**: Powered by Service Worker (`sw.js`) and Cache API. Works completely offline without internet connection.
+
+---
+
+## 🎨 Visual Identity & Vector Assets
+
+The visual identity combines the foundational spine of archival ledgers (`P`) with dynamic knowledge graph branching (`K`) and an active Vermilion synthesis node (`#C8462B`):
+
 | File | Description |
 |---|---|
-| [`pk-note-logo.svg`](file:///e:/Code/for%20note/pk-note-logo.svg) | Responsive universal horizontal brand lockup (Dark & Light auto-detect) |
-| [`pk-note-logo-dark.svg`](file:///e:/Code/for%20note/pk-note-logo-dark.svg) | High-contrast horizontal lockup for dark surfaces |
-| [`pk-note-logo-light.svg`](file:///e:/Code/for%20note/pk-note-logo-light.svg) | High-contrast horizontal lockup for archival vellum / light surfaces |
-| [`pk-note-icon.svg`](file:///e:/Code/for%20note/pk-note-icon.svg) | Standalone app icon / square monogram badge |
+| [`pk-note-logo.svg`](file:///e:/Code/for%20note/pk-note-logo.svg) | Responsive universal horizontal brand lockup |
+| [`pk-note-logo-dark.svg`](file:///e:/Code/for%20note/pk-note-logo-dark.svg) | High-contrast lockup for dark surfaces |
+| [`pk-note-logo-light.svg`](file:///e:/Code/for%20note/pk-note-logo-light.svg) | High-contrast lockup for archival vellum / light surfaces |
+| [`pk-note-icon.svg`](file:///e:/Code/for%20note/pk-note-icon.svg) | Standalone vector app icon / monogram mark |
 | [`favicon.svg`](file:///e:/Code/for%20note/favicon.svg) | Scalable high-contrast browser favicon |
-| [`logo-showcase.html`](file:///e:/Code/for%20note/logo-showcase.html) | Interactive brand guide, construction grid, and optical scaling tester |
+| [`icon-192.png`](file:///e:/Code/for%20note/icon-192.png) | 192×192 PWA & mobile app icon |
+| [`icon-512.png`](file:///e:/Code/for%20note/icon-512.png) | 512×512 PWA & desktop splash icon |
+| [`icon-maskable.png`](file:///e:/Code/for%20note/icon-maskable.png) | 512×512 Android adaptive maskable icon |
+| [`apple-touch-icon.png`](file:///e:/Code/for%20note/apple-touch-icon.png) | iOS Safari home screen touch icon |
+| [`logo-showcase.html`](file:///e:/Code/for%20note/logo-showcase.html) | Interactive brand guide & construction grid |
 
 ---
 
-## 🚀 Workspace Files
+## 🚀 Running & Installing
 
-- **[`index.html`](file:///e:/Code/for%20note/index.html)** / **[`pk_note_workspace.html`](file:///e:/Code/for%20note/pk_note_workspace.html)**: The complete, standalone single-file PK Note application. Open in any modern web browser or serve with any static HTTP server.
-- **[`aether_archival_knowledge_calendar_workspace.html`](file:///e:/Code/for%20note/aether_archival_knowledge_calendar_workspace.html)**: Original source file, updated with PK Note branding and backwards-compatible storage migration.
-
----
-
-## 🛠️ Key Capabilities
-
-- **Block Note Editor**: Paragraphs, Headings (H1/H2/H3), Code blocks with syntax highlighting, Callouts, Blockquotes, Checklists, Bullet lists, Dividers, and Document Glyphs.
-- **Timezone-Safe Chrono Engine**: Multi-day calendar scheduling, ISO 8601 UTC timestamp storage, month/week/day views, color-coded categories, and note backlinks.
-- **Interactive Force-Directed Topology Graph**: Real-time D3-style damped velocity-Verlet physics simulation linking documents via semantic wiki-links (`[[Note Name]]`).
-- **Command Palette (`⌘K` / `Ctrl+K`)**: Rapid navigation, full-text fuzzy search, quick actions, and mode switching.
-- **Local-First Persistence**: Instant localStorage caching under `pk_note_vault_v2` with seamless automatic migration from legacy vaults.
-# PK-Note
+1. **Desktop Web**: Open [`index.html`](file:///e:/Code/for%20note/index.html) or [`pk_note_workspace.html`](file:///e:/Code/for%20note/pk_note_workspace.html) in any modern browser.
+2. **Desktop Native Window**: Double-click [`PK Note.bat`](file:///e:/Code/for%20note/PK%20Note.bat) to launch in dedicated standalone window mode.
+3. **PWA Install**: Click the **INSTALL** button in the sidebar utility bar to install to your device.

@@ -968,8 +968,9 @@
         <div class="px-2 flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Tags</span>
-            <button onclick="toggleStarredSidebarFilter()" id="sidebarStarredFilterBtn" class="px-1.5 py-0.5 rounded-[2px] font-mono text-[9px] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] transition-colors">
-              ★ Starred
+            <button onclick="toggleStarredSidebarFilter()" id="sidebarStarredFilterBtn" class="flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] font-mono text-[9px] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] transition-colors">
+              <svg class="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>Starred</span>
             </button>
           </div>
           <button id="clearTagFilterBtn" onclick="clearTagFilter()" class="hidden font-mono text-[10px] text-[var(--accent-vermilion)] hover:underline">Clear</button>
@@ -1349,7 +1350,7 @@
           <!-- Color Filter Dot Pills -->
           <div id="calendarColorFilterBar" class="hidden lg:flex items-center gap-1 px-1.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"></div>
 
-          <!-- Month / Week / Day View Switcher -->
+          <!-- Month / Week / Day / Year View Switcher -->
           <div class="flex items-center p-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
             <button id="calViewBtnMonth" onclick="setCalendarView('month')" title="Month View (M)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
               Month
@@ -1360,7 +1361,16 @@
             <button id="calViewBtnDay" onclick="setCalendarView('day')" title="Day View (D)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
               Day
             </button>
+            <button id="calViewBtnYear" onclick="setCalendarView('year')" title="Year Matrix View (Y)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
+              Year
+            </button>
           </div>
+
+          <!-- Direct RFC 5545 iCalendar (.ics) Export -->
+          <button id="calExportIcsBtn" onclick="exportCalendarToICS()" title="Export to iCalendar .ICS (E)" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="hidden xl:inline">Export .ics</span>
+          </button>
 
           <!-- Day Ledger / Agenda Sidebar Toggle Button -->
           <button id="calToggleAgendaBtn" onclick="toggleCalendarAgendaSidebar()" title="Toggle Day Ledger (L)" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
@@ -1379,7 +1389,7 @@
       <!-- Calendar Main Body: Grid Canvas + Contextual Day Agenda Sidebar -->
       <div class="flex-1 flex min-h-0 overflow-hidden">
         
-        <!-- Primary Calendar Grid Container (Month / Week / Day rendered dynamically) -->
+        <!-- Primary Calendar Grid Container (Month / Week / Day / Year rendered dynamically) -->
         <div id="calendarGridContainer" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden"></div>
 
         <!-- Right Contextual Day Ledger & Daily Log Bridge (Desktop lg+ or Mobile Selected Day Drawer) -->
@@ -1387,6 +1397,22 @@
           <div id="calendarAgendaContent" class="p-3.5 space-y-4"></div>
         </aside>
 
+      </div>
+
+      <!-- Calendar Tactical Bottom HUD Bar -->
+      <div id="calendarBottomHud" class="border-t border-[var(--border-hairline)] bg-[var(--bg-panel)]/80 backdrop-blur-xs px-3.5 py-1.5 flex items-center justify-between text-[11px] font-mono text-[var(--text-tertiary)] shrink-0 select-none">
+        <div class="flex items-center gap-3 overflow-x-auto py-0.5">
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">M</kbd> Month</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">W</kbd> Week</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">D</kbd> Day</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">Y</kbd> Year</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">T</kbd> Today</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">C</kbd> Event</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">L</kbd> Agenda</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">E</kbd> Export</span>
+          <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">[ / ]</kbd> Step</span>
+        </div>
+        <div id="calendarHudStats" class="hidden sm:flex items-center gap-2 text-[var(--text-secondary)]"></div>
       </div>
 
       <!-- Mobile Selected-Day Agenda Strip (Visible < xl when in Month view) -->
@@ -1602,7 +1628,7 @@
               <span class="truncate text-[var(--text-tertiary)] font-mono text-[11px]">— None (Unlinked) —</span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
-              <span id="eventLinkedNoteClearBtn" onclick="clearEventLinkedNote(event)" title="Remove link" class="hidden p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] font-mono text-xs">✕</span>
+              <span id="eventLinkedNoteClearBtn" onclick="clearEventLinkedNote(event)" title="Remove link" class="hidden p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] flex items-center justify-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></span>
               <svg id="eventLinkedNoteChevron" class="w-3 h-3 text-[var(--text-tertiary)] transition-transform duration-150" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
           </button>
@@ -1981,7 +2007,7 @@
 
     const DEFAULT_VAULT = {
       appMode: 'workspace', // 'workspace' | 'calendar'
-      calendarView: 'month', // 'month' | 'week' | 'day'
+      calendarView: 'month', // 'month' | 'week' | 'day' | 'year'
       calendarCursorDate: TODAY_KEY,
       calendarSelectedDate: TODAY_KEY,
       activeNoteId: 'note-welcome',
@@ -2296,7 +2322,7 @@
     }
 
     function setCalendarView(view) {
-      if (!['month', 'week', 'day'].includes(view)) return;
+      if (!['month', 'week', 'day', 'year'].includes(view)) return;
       state.calendarView = view;
       state.appMode = 'calendar';
       if (view === 'week' || view === 'day') {
@@ -2934,7 +2960,9 @@
 
     function navigateCalendar(delta) {
       const cursor = parseLocalDateKey(state.calendarCursorDate || TODAY_KEY);
-      if (state.calendarView === 'month') {
+      if (state.calendarView === 'year') {
+        cursor.setFullYear(cursor.getFullYear() + delta);
+      } else if (state.calendarView === 'month') {
         cursor.setMonth(cursor.getMonth() + delta, 1);
       } else if (state.calendarView === 'week') {
         cursor.setDate(cursor.getDate() + delta * 7);
@@ -2975,7 +3003,7 @@
       if (tzBadge) tzBadge.textContent = getLocalTimezoneBadgeLabel();
 
       // Update View Switcher Buttons
-      ['month', 'week', 'day'].forEach(v => {
+      ['month', 'week', 'day', 'year'].forEach(v => {
         const btn = document.getElementById(`calViewBtn${v.charAt(0).toUpperCase() + v.slice(1)}`);
         if (!btn) return;
         if (state.calendarView === v) {
@@ -3006,7 +3034,9 @@
       // Compute Period Title
       const cursor = parseLocalDateKey(state.calendarCursorDate || TODAY_KEY);
       let periodTitle = '';
-      if (state.calendarView === 'month') {
+      if (state.calendarView === 'year') {
+        periodTitle = `${cursor.getFullYear()}`;
+      } else if (state.calendarView === 'month') {
         periodTitle = `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`;
       } else if (state.calendarView === 'week') {
         const weekDays = getWeekDatesMondayFirst(cursor);
@@ -3028,7 +3058,9 @@
 
       // Render Active View Grid
       const gridContainer = document.getElementById('calendarGridContainer');
-      if (state.calendarView === 'month') {
+      if (state.calendarView === 'year') {
+        renderYearMatrixView(gridContainer, cursor);
+      } else if (state.calendarView === 'month') {
         renderMonthView(gridContainer, cursor);
       } else if (state.calendarView === 'week') {
         renderTimeGridView(gridContainer, getWeekDatesMondayFirst(cursor), 'week');
@@ -3036,9 +3068,111 @@
         renderTimeGridView(gridContainer, [cursor], 'day');
       }
 
+      // Update Tactical HUD Stats Bar
+      const hudStats = document.getElementById('calendarHudStats');
+      if (hudStats) {
+        const filteredCount = getFilteredEvents().length;
+        hudStats.innerHTML = `<span class="text-[var(--accent-vermilion)] font-medium">${filteredCount}</span> event${filteredCount === 1 ? '' : 's'} in index`;
+      }
+
       // Render Right Contextual Day Agenda & Mobile Agenda Bar
       renderCalendarAgendaInspector();
       applyCalendarAgendaSidebarState();
+    }
+
+    // -------------------------------------------------------------------------
+    // 9A0. YEAR MATRIX VIEW (12-Month Tactical Grid with Event Density Heatmap)
+    // -------------------------------------------------------------------------
+    function renderYearMatrixView(container, cursorDate) {
+      const year = cursorDate.getFullYear();
+      const selectedKey = state.calendarSelectedDate || TODAY_KEY;
+
+      const monthsHtml = [];
+      for (let m = 0; m < 12; m++) {
+        const firstOfMonth = new Date(year, m, 1);
+        const startOffset = firstOfMonth.getDay() === 0 ? 6 : firstOfMonth.getDay() - 1; // Mon=0..Sun=6
+        const daysInMonth = new Date(year, m + 1, 0).getDate();
+
+        let monthEventCount = 0;
+        const daysCells = [];
+
+        // Leading blanks
+        for (let b = 0; b < startOffset; b++) {
+          daysCells.push('<div class="h-6 sm:h-7"></div>');
+        }
+
+        // Days
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateKey = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const isToday = dateKey === TODAY_KEY;
+          const isSelected = dateKey === selectedKey;
+          const events = getEventsForDateKey(dateKey);
+          if (events.length > 0) monthEventCount += events.length;
+
+          let heatIndicator = '';
+          if (events.length === 1) {
+            heatIndicator = '<span class="w-1 h-1 rounded-full bg-[var(--accent-vermilion)] shrink-0"></span>';
+          } else if (events.length >= 2 && events.length <= 3) {
+            heatIndicator = '<span class="flex items-center gap-0.5"><span class="w-1 h-1 rounded-full bg-[var(--accent-vermilion)]"></span><span class="w-1 h-1 rounded-full bg-[var(--accent-vermilion)]"></span></span>';
+          } else if (events.length > 3) {
+            heatIndicator = '<span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-vermilion)] ring-2 ring-[var(--accent-vermilion)]/30"></span>';
+          }
+
+          const cellClass = isToday
+            ? 'border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-bold bg-[var(--accent-vermilion-tint)]/45'
+            : isSelected
+              ? 'border border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)] font-medium'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]/70 border border-transparent';
+
+          daysCells.push(`
+            <button type="button"
+                    onclick="selectCalendarDate('${dateKey}', true)"
+                    title="${dateKey} · ${events.length} event(s)"
+                    class="h-6 sm:h-7 rounded-[3px] flex flex-col items-center justify-center transition-all cursor-pointer ${cellClass} relative group">
+              <span class="text-[10px] leading-none">${d}</span>
+              ${heatIndicator ? `<span class="mt-0.5 flex justify-center">${heatIndicator}</span>` : ''}
+            </button>
+          `);
+        }
+
+        // Trailing blanks
+        const totalSlots = startOffset + daysInMonth;
+        const trailingBlanks = (7 - (totalSlots % 7)) % 7;
+        for (let t = 0; t < trailingBlanks; t++) {
+          daysCells.push('<div class="h-6 sm:h-7"></div>');
+        }
+
+        monthsHtml.push(`
+          <div class="rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)]/40 hover:border-[var(--border-strong)] p-3 transition-colors flex flex-col">
+            <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)] mb-2">
+              <button type="button"
+                      onclick="state.calendarCursorDate='${year}-${String(m+1).padStart(2,'0')}-01'; setCalendarView('month')"
+                      title="Open ${MONTH_NAMES[m]} view"
+                      class="group/mbtn flex items-center gap-1 font-serif text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-vermilion)] transition-colors text-left cursor-pointer">
+                <span>${MONTH_NAMES[m]}</span>
+                <svg class="w-3 h-3 opacity-0 group-hover/mbtn:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <span class="font-mono text-[9px] px-1.5 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-tertiary)]">
+                ${monthEventCount} evt
+              </span>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center font-mono text-[9px] text-[var(--text-tertiary)] mb-1 uppercase">
+              <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+            </div>
+            <div class="grid grid-cols-7 gap-1 font-mono">
+              ${daysCells.join('')}
+            </div>
+          </div>
+        `);
+      }
+
+      container.innerHTML = `
+        <div class="flex-1 overflow-y-auto p-3.5 sm:p-5 bg-[var(--bg-canvas)]">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 max-w-7xl mx-auto">
+            ${monthsHtml.join('')}
+          </div>
+        </div>
+      `;
     }
 
     // -------------------------------------------------------------------------
@@ -3387,11 +3521,20 @@
           `;
         }).join('');
 
-        // Current Time Red Line Indicator on Today
+        // Current Time Red Line Indicator on Today (Pulsing Radar + Laser + Time Chip)
+        const nowH = now.getHours();
+        const nowM = now.getMinutes();
+        const nowTimeStr = `${String(nowH).padStart(2, '0')}:${String(nowM).padStart(2, '0')}`;
+        const topPx = (nowMinutes / 60) * HOUR_ROW_HEIGHT;
+
         const currentTimeIndicator = isToday ? `
-          <div style="top: ${(nowMinutes / 60) * HOUR_ROW_HEIGHT}px;" class="absolute left-0 right-0 z-20 pointer-events-none flex items-center">
-            <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)] -ml-1 shrink-0"></span>
-            <div class="flex-1 h-[1.5px] bg-[var(--accent-vermilion)]"></div>
+          <div id="liveTimelineIndicator_${key}" style="top: ${topPx}px;" class="now-pulse-line absolute left-0 right-0 z-30 pointer-events-none flex items-center">
+            <span class="relative flex h-3 w-3 -ml-1.5 shrink-0 items-center justify-center">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent-vermilion)] opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent-vermilion)] ring-2 ring-[var(--bg-canvas)]"></span>
+            </span>
+            <div class="flex-1 h-[2px] bg-gradient-to-r from-[var(--accent-vermilion)] via-[var(--accent-vermilion)] to-transparent opacity-90 shadow-[0_0_8px_rgba(235,94,85,0.4)]"></div>
+            <span class="now-time-tag absolute -top-3.5 left-3 px-1 py-0.2 rounded font-mono text-[9px] font-bold bg-[var(--accent-vermilion)] text-white shadow select-none pointer-events-none">${nowTimeStr}</span>
           </div>
         ` : '';
 
@@ -3431,8 +3574,13 @@
 
             <!-- Scrollable 24-Hour Grid -->
             <div id="timelineScrollBody" class="flex-1 overflow-y-auto flex">
-              <div class="w-14 shrink-0 border-r border-[var(--border-hairline)] bg-[var(--bg-panel)]/40 select-none">
+              <div class="w-14 shrink-0 border-r border-[var(--border-hairline)] bg-[var(--bg-panel)]/40 select-none relative">
                 ${timeAxisLabelsHtml}
+                ${daysArray.some(d => formatLocalDateKey(d) === TODAY_KEY) ? `
+                  <div id="liveTimeAxisPill" style="top: ${(nowMinutes / 60) * HOUR_ROW_HEIGHT - 8}px;" class="now-time-axis-pill absolute right-1 z-30 pointer-events-none px-1 py-0.2 rounded font-mono text-[9px] font-bold bg-[var(--accent-vermilion)] text-white shadow select-none">
+                    ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}
+                  </div>
+                ` : ''}
               </div>
               <div class="flex-1 flex relative" style="height: ${24 * HOUR_ROW_HEIGHT}px;">
                 ${dayColumnsHtml}
@@ -3452,6 +3600,35 @@
           weekTimelineInitialScrollDone = true;
         }
       }
+    }
+
+    function updateLiveTimelineIndicators() {
+      const now = new Date();
+      const nowH = now.getHours();
+      const nowM = now.getMinutes();
+      const nowMinutes = nowH * 60 + nowM;
+      const nowTimeStr = `${String(nowH).padStart(2, '0')}:${String(nowM).padStart(2, '0')}`;
+      const topPx = (nowMinutes / 60) * HOUR_ROW_HEIGHT;
+
+      document.querySelectorAll('.now-pulse-line').forEach(el => {
+        el.style.top = `${topPx}px`;
+        const tag = el.querySelector('.now-time-tag');
+        if (tag) tag.textContent = nowTimeStr;
+      });
+
+      const axisPill = document.getElementById('liveTimeAxisPill');
+      if (axisPill) {
+        axisPill.style.top = `${topPx - 8}px`;
+        axisPill.textContent = nowTimeStr;
+      }
+    }
+
+    if (!window.calLiveClockTimer) {
+      window.calLiveClockTimer = setInterval(() => {
+        if (state.appMode === 'calendar' && (state.calendarView === 'week' || state.calendarView === 'day')) {
+          updateLiveTimelineIndicators();
+        }
+      }, 30000);
     }
 
     // -------------------------------------------------------------------------
@@ -3565,6 +3742,17 @@
 
       const headerLabel = `${DAY_NAMES_FULL[selectedDate.getDay()]}, ${MONTH_SHORT[selectedDate.getMonth()]} ${selectedDate.getDate()}`;
 
+      // Calculate total scheduled duration
+      let totalMins = 0;
+      dayEvents.forEach(e => {
+        const n = normalizeEventRange(e);
+        if (!n.allDay && n.start && n.end) {
+          totalMins += Math.max(0, (n.end.getTime() - n.start.getTime()) / 60000);
+        }
+      });
+      const hoursScheduled = (totalMins / 60).toFixed(1);
+      const durationBadge = totalMins > 0 ? `${hoursScheduled}h scheduled` : `${dayEvents.length} item(s)`;
+
       const eventsListHtml = dayEvents.length > 0
         ? dayEvents.map(evt => {
             const col = resolveEventColor(evt.color_code);
@@ -3577,13 +3765,18 @@
             return `
               <div onclick="openEventPreview(event, '${evt.id}')"
                    data-event-id="${evt.id}"
-                   class="p-2.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] cursor-pointer transition-colors space-y-1.5">
+                   class="group/agenda p-2.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] cursor-pointer transition-colors space-y-1.5">
                 <div class="flex items-center justify-between gap-2">
                   <span class="inline-flex items-center gap-1.5 font-mono text-[10px]" style="color: ${col.hex}">
                     <span class="w-2 h-2 rounded-[1px]" style="background-color: ${col.hex}"></span>
                     ${timeSummary}
                   </span>
-                  <span class="font-mono text-[9px] text-[var(--text-tertiary)]">EDIT</span>
+                  <div class="flex items-center gap-1 opacity-0 group-hover/agenda:opacity-100 transition-opacity">
+                    <button type="button" onclick="event.stopPropagation(); createMeetingNoteForEvent('${evt.id}')" class="px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] hover:text-white text-[var(--accent-vermilion)] font-mono text-[9px]" title="Create or open meeting note">
+                      ${linkedNote ? 'NOTE →' : '+ NOTE'}
+                    </button>
+                    <span class="font-mono text-[9px] text-[var(--text-tertiary)]">EDIT</span>
+                  </div>
                 </div>
                 <div class="text-xs font-medium text-[var(--text-primary)] leading-snug">${escapeHtml(evt.title)}</div>
                 ${evt.location ? `
@@ -3618,7 +3811,10 @@
               <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Selected Day Ledger</span>
               ${selectedKey === TODAY_KEY ? `<span class="font-mono text-[9px] px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)]">TODAY</span>` : ''}
             </div>
-            <h3 class="font-serif text-lg font-medium text-[var(--text-primary)]">${headerLabel}</h3>
+            <div class="flex items-baseline justify-between gap-2">
+              <h3 class="font-serif text-lg font-medium text-[var(--text-primary)]">${headerLabel}</h3>
+              <span class="font-mono text-[10px] text-[var(--text-tertiary)]">${durationBadge}</span>
+            </div>
             <div class="pt-1 flex items-center gap-1.5">
               <button onclick="openQuickAddPopover(event, { dateKey: '${selectedKey}' })" class="flex-1 py-1.5 px-2 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-medium hover:opacity-90">
                 + QUICK EVENT
@@ -5563,6 +5759,12 @@
 
       const allActions = [
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
+        { kind: 'action', label: 'Calendar: Export to iCalendar (.ics)', hint: 'Download RFC 5545 standard .ics file for Apple/Google/Outlook', glyph: 'calendar', shortcut: 'E', run: () => exportCalendarToICS() },
+        { kind: 'action', label: 'Calendar: Year Matrix View', hint: '12-month activity heatmap overview', glyph: 'calendar', shortcut: 'Y', run: () => setCalendarView('year') },
+        { kind: 'action', label: 'Calendar: Month View', hint: 'Editorial 7-column hairline grid', glyph: 'calendar', shortcut: 'M', run: () => setCalendarView('month') },
+        { kind: 'action', label: 'Calendar: Week Timeline View', hint: 'Hourly schedule grid with concurrency columns', glyph: 'calendar', shortcut: 'W', run: () => setCalendarView('week') },
+        { kind: 'action', label: 'Calendar: Day Timeline View', hint: 'Detailed single-day schedule inspector', glyph: 'calendar', shortcut: 'D', run: () => setCalendarView('day') },
+        { kind: 'action', label: 'Calendar: Jump to Today', hint: 'Reset calendar cursor to current date', glyph: 'calendar', shortcut: 'T', run: () => jumpCalendarToday() },
         { kind: 'action', label: 'Change Document Banner', hint: 'Set gradient, pattern, photo or custom URL', glyph: 'document', shortcut: 'Cover', run: () => openCustomizerModal('banner') },
         { kind: 'action', label: 'Typography: Open Reading & Font Studio', hint: 'Customize fonts, measure, size & styling', glyph: 'quote', shortcut: 'Font', run: () => openCustomizerModal('layout') },
         { kind: 'action', label: 'Typography: Increase Font Size (A+)', hint: 'Step body scale larger', glyph: 'sliders', shortcut: 'A+', run: () => stepFontSize(1) },
@@ -5819,8 +6021,11 @@
         if (key === 'm') { e.preventDefault(); setCalendarView('month'); }
         else if (key === 'w') { e.preventDefault(); setCalendarView('week'); }
         else if (key === 'd') { e.preventDefault(); setCalendarView('day'); }
+        else if (key === 'y') { e.preventDefault(); setCalendarView('year'); }
         else if (key === 't') { e.preventDefault(); jumpCalendarToday(); }
+        else if (key === 'l') { e.preventDefault(); toggleCalendarAgendaSidebar(); }
         else if (key === 'c' || key === 'n') { e.preventDefault(); openEventModal(); }
+        else if (key === 'e') { e.preventDefault(); exportCalendarToICS(); }
         else if (e.key === '[' || e.key === 'ArrowLeft') { e.preventDefault(); navigateCalendar(-1); }
         else if (e.key === ']' || e.key === 'ArrowRight') { e.preventDefault(); navigateCalendar(1); }
       }
@@ -6831,6 +7036,226 @@
       }
     }
 
+    // -------------------------------------------------------------------------
+    // NATURAL LANGUAGE EVENT QUICK-PARSER
+    // -------------------------------------------------------------------------
+    function parseNaturalLanguageEvent(inputStr, baseDateKey = null) {
+      if (!inputStr || !inputStr.trim()) return null;
+      let text = inputStr.trim();
+      const now = new Date();
+      const base = baseDateKey ? parseLocalDateKey(baseDateKey) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      let targetDate = new Date(base.getTime());
+      let startTimeStr = '09:00';
+      let endTimeStr = '10:00';
+      let isAllDay = false;
+      let location = '';
+
+      // 1. Location match: "in <place>", "via <service>"
+      const locMatch = text.match(/\b(?:in|via)\s+([A-Za-z0-9\s#\-\.]+?)(?=\s+(?:at\s+\d|on|for|from|to|tomorrow|today|next|$)|$)/i);
+      if (locMatch) {
+        location = locMatch[1].trim();
+        text = text.replace(locMatch[0], ' ');
+      }
+
+      // 2. Relative dates
+      if (/\b(today|tonight)\b/i.test(text)) {
+        targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        text = text.replace(/\b(today|tonight)\b/gi, ' ');
+      } else if (/\btomorrow\b/i.test(text)) {
+        targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        text = text.replace(/\btomorrow\b/gi, ' ');
+      } else if (/\byesterday\b/i.test(text)) {
+        targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        text = text.replace(/\byesterday\b/gi, ' ');
+      } else {
+        const dowNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dowRegex = new RegExp(`\\b(?:(next|this|on)\\s+)?(${dowNames.join('|')})\\b`, 'i');
+        const dowMatch = text.match(dowRegex);
+        if (dowMatch) {
+          const modifier = (dowMatch[1] || '').toLowerCase();
+          const dayName = dowMatch[2].toLowerCase();
+          const targetDow = dowNames.indexOf(dayName);
+          const currentDow = now.getDay();
+          let diff = targetDow - currentDow;
+          if (diff <= 0 || modifier === 'next') diff += 7;
+          targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+          text = text.replace(dowMatch[0], ' ');
+        } else {
+          const isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+          if (isoMatch) {
+            targetDate = new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10) - 1, parseInt(isoMatch[3], 10));
+            text = text.replace(isoMatch[0], ' ');
+          } else {
+            const monthNames = ['jan(?:uary)?', 'feb(?:ruary)?', 'mar(?:ch)?', 'apr(?:il)?', 'may', 'jun(?:e)?', 'jul(?:y)?', 'aug(?:ust)?', 'sep(?:tember)?', 'oct(?:ober)?', 'nov(?:ember)?', 'dec(?:ember)?'];
+            const dateMatch = text.match(new RegExp(`\\b(${monthNames.join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i'));
+            if (dateMatch) {
+              const mStr = dateMatch[1].slice(0, 3).toLowerCase();
+              const shortMonths = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+              const mIdx = shortMonths.indexOf(mStr);
+              const dayNum = parseInt(dateMatch[2], 10);
+              targetDate = new Date(now.getFullYear(), mIdx, dayNum);
+              text = text.replace(dateMatch[0], ' ');
+            }
+          }
+        }
+      }
+
+      // 3. All Day
+      if (/\ball[\s-]day\b/i.test(text)) {
+        isAllDay = true;
+        text = text.replace(/\ball[\s-]day\b/gi, ' ');
+      }
+
+      // 4. Duration
+      let parsedStartHour = null;
+      let parsedStartMin = 0;
+      let parsedEndHour = null;
+      let parsedEndMin = 0;
+      let durationMinutes = null;
+
+      const durMatch = text.match(/\bfor\s+(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)\b/i);
+      if (durMatch) {
+        const val = parseFloat(durMatch[1]);
+        const unit = durMatch[2].toLowerCase();
+        if (unit.startsWith('h')) {
+          durationMinutes = Math.round(val * 60);
+        } else {
+          durationMinutes = Math.round(val);
+        }
+        text = text.replace(durMatch[0], ' ');
+      }
+
+      // 5. Time Range
+      const rangeMatch = text.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+      if (rangeMatch) {
+        let sh = parseInt(rangeMatch[1], 10);
+        let sm = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : 0;
+        const sAmpm = (rangeMatch[3] || rangeMatch[6] || '').toLowerCase();
+
+        let eh = parseInt(rangeMatch[4], 10);
+        let em = rangeMatch[5] ? parseInt(rangeMatch[5], 10) : 0;
+        const eAmpm = (rangeMatch[6] || sAmpm).toLowerCase();
+
+        if (sAmpm === 'pm' && sh < 12) sh += 12;
+        if (sAmpm === 'am' && sh === 12) sh = 0;
+        if (eAmpm === 'pm' && eh < 12) eh += 12;
+        if (eAmpm === 'am' && eh === 12) eh = 0;
+
+        parsedStartHour = sh;
+        parsedStartMin = sm;
+        parsedEndHour = eh;
+        parsedEndMin = em;
+        text = text.replace(rangeMatch[0], ' ');
+      } else {
+        const singleTimeMatch = text.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b|\bat\s+(\d{1,2}):(\d{2})\b/i);
+        if (singleTimeMatch) {
+          if (singleTimeMatch[1] !== undefined) {
+            let h = parseInt(singleTimeMatch[1], 10);
+            let m = singleTimeMatch[2] ? parseInt(singleTimeMatch[2], 10) : 0;
+            const ampm = (singleTimeMatch[3] || '').toLowerCase();
+            if (ampm === 'pm' && h < 12) h += 12;
+            if (ampm === 'am' && h === 12) h = 0;
+            parsedStartHour = h;
+            parsedStartMin = m;
+          } else {
+            parsedStartHour = parseInt(singleTimeMatch[4], 10);
+            parsedStartMin = parseInt(singleTimeMatch[5], 10);
+          }
+          text = text.replace(singleTimeMatch[0], ' ');
+        }
+      }
+
+      if (parsedStartHour !== null) {
+        startTimeStr = `${String(parsedStartHour).padStart(2, '0')}:${String(parsedStartMin).padStart(2, '0')}`;
+        if (parsedEndHour !== null) {
+          endTimeStr = `${String(parsedEndHour).padStart(2, '0')}:${String(parsedEndMin).padStart(2, '0')}`;
+        } else if (durationMinutes !== null) {
+          const endTotalMins = parsedStartHour * 60 + parsedStartMin + durationMinutes;
+          const eh = Math.min(23, Math.floor(endTotalMins / 60));
+          const em = endTotalMins % 60;
+          endTimeStr = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+        } else {
+          const eh = Math.min(23, parsedStartHour + 1);
+          endTimeStr = `${String(eh).padStart(2, '0')}:${String(parsedStartMin).padStart(2, '0')}`;
+        }
+      } else if (durationMinutes !== null) {
+        const endTotalMins = 9 * 60 + durationMinutes;
+        const eh = Math.min(23, Math.floor(endTotalMins / 60));
+        const em = endTotalMins % 60;
+        startTimeStr = '09:00';
+        endTimeStr = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+      }
+
+      let cleanTitle = text.replace(/\s+/g, ' ').trim();
+      cleanTitle = cleanTitle.replace(/^(?:at|on|for|in|-)\s+/i, '');
+      cleanTitle = cleanTitle.replace(/\s+(?:at|on|for|in|-)$/i, '');
+      if (!cleanTitle) cleanTitle = 'New Event';
+
+      const dateKey = formatLocalDateKey(targetDate);
+
+      return {
+        title: cleanTitle,
+        dateKey: dateKey,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
+        isAllDay: isAllDay,
+        location: location
+      };
+    }
+
+    function handleQuickAddNaturalInput(val) {
+      const feedback = document.getElementById('quickAddNaturalFeedback');
+      const feedbackText = document.getElementById('quickAddNaturalFeedbackText');
+      if (!val || !val.trim()) {
+        if (feedback) feedback.classList.add('hidden');
+        return;
+      }
+      const parsed = parseNaturalLanguageEvent(val, quickAddActiveDateKey);
+      if (!parsed) {
+        if (feedback) feedback.classList.add('hidden');
+        return;
+      }
+
+      const titleInput = document.getElementById('quickAddTitle');
+      const dateLabel = document.getElementById('quickAddDateLabel');
+      const allDayCheck = document.getElementById('quickAddAllDay');
+      const startTimeInput = document.getElementById('quickAddStartTime');
+      const endTimeInput = document.getElementById('quickAddEndTime');
+      const timeRow = document.getElementById('quickAddTimeRow');
+
+      if (titleInput && parsed.title) titleInput.value = parsed.title;
+      if (parsed.dateKey) {
+        quickAddActiveDateKey = parsed.dateKey;
+        if (dateLabel) dateLabel.textContent = parsed.dateKey;
+      }
+      if (allDayCheck) {
+        allDayCheck.checked = Boolean(parsed.isAllDay);
+        if (timeRow) timeRow.classList.toggle('hidden', Boolean(parsed.isAllDay));
+      }
+      if (!parsed.isAllDay) {
+        if (startTimeInput && parsed.startTime) startTimeInput.value = parsed.startTime;
+        if (endTimeInput && parsed.endTime) endTimeInput.value = parsed.endTime;
+      }
+
+      if (feedback && feedbackText) {
+        feedback.classList.remove('hidden');
+        const timeBadge = parsed.isAllDay ? 'All-Day' : `${parsed.startTime} – ${parsed.endTime}`;
+        feedbackText.textContent = `${parsed.dateKey} · ${timeBadge}${parsed.location ? ' · ' + parsed.location : ''}`;
+      }
+    }
+
+    function handleQuickAddNaturalKeydown(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) {
+          handleQuickAddNaturalInput(val);
+          submitQuickAddEvent(e);
+        }
+      }
+    }
+
     function openQuickAddPopover(e, options = {}) {
       closeEventPreviewPopover();
       closeDayOverflowPopover();
@@ -6841,6 +7266,8 @@
 
       const popover = document.getElementById('calQuickAddPopover');
       const titleInput = document.getElementById('quickAddTitle');
+      const naturalInput = document.getElementById('quickAddNaturalInput');
+      const naturalFeedback = document.getElementById('quickAddNaturalFeedback');
       const dateLabel = document.getElementById('quickAddDateLabel');
       const allDayCheck = document.getElementById('quickAddAllDay');
       const timeRow = document.getElementById('quickAddTimeRow');
@@ -6852,6 +7279,8 @@
       if (!popover || !titleInput) return;
 
       titleInput.value = '';
+      if (naturalInput) naturalInput.value = '';
+      if (naturalFeedback) naturalFeedback.classList.add('hidden');
       dateLabel.textContent = quickAddActiveDateKey;
       allDayCheck.checked = Boolean(allDay);
       timeRow.classList.toggle('hidden', Boolean(allDay));
@@ -6894,7 +7323,10 @@
       popover.style.left = `${posX}px`;
       popover.style.top = `${posY}px`;
 
-      requestAnimationFrame(() => titleInput.focus());
+      requestAnimationFrame(() => {
+        if (naturalInput) naturalInput.focus();
+        else titleInput.focus();
+      });
     }
 
     function toggleQuickAddAllDay(isAllDay) {
@@ -6944,12 +7376,19 @@
         end_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${eTime}`);
       }
 
+      let location = '';
+      const naturalInput = document.getElementById('quickAddNaturalInput');
+      if (naturalInput && naturalInput.value.trim()) {
+        const parsed = parseNaturalLanguageEvent(naturalInput.value.trim(), quickAddActiveDateKey);
+        if (parsed && parsed.location) location = parsed.location;
+      }
+
       const newEvt = {
         id: generateId('evt'),
         title: title,
         start_datetime: start_datetime,
         end_datetime: end_datetime,
-        location: '',
+        location: location,
         color_code: quickAddSelectedColor,
         all_day: isAllDay,
         linkedNoteId: state.appMode === 'workspace' ? (state.activeNoteId || '') : '',
@@ -7041,6 +7480,11 @@
         notesRow.classList.add('hidden');
       }
 
+      const noteBtnText = document.getElementById('previewMeetingNoteBtnText');
+      if (noteBtnText) {
+        noteBtnText.textContent = evt.linkedNoteId ? 'Open Note' : '+ Note';
+      }
+
       popover.style.display = 'block';
       popover.classList.remove('hidden');
 
@@ -7105,6 +7549,201 @@
         state.appMode = 'workspace';
         selectNote(evt.linkedNoteId);
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // 1-CLICK STRUCTURED MEETING NOTE GENERATOR
+    // -------------------------------------------------------------------------
+    function createMeetingNoteForEvent(eventId) {
+      closeEventPreviewPopover();
+      const evt = state.events.find(e => e.id === eventId);
+      if (!evt) return;
+
+      if (evt.linkedNoteId) {
+        const existing = state.notes.find(n => n.id === evt.linkedNoteId);
+        if (existing) {
+          state.appMode = 'workspace';
+          selectNote(existing.id);
+          renderAll();
+          showToast(`Opened linked meeting note: [[${existing.title}]]`);
+          return;
+        }
+      }
+
+      const norm = normalizeEventRange(evt);
+      const timeStr = norm.allDay
+        ? (norm.isMultiDay ? `${norm.startDateKey} → ${norm.endDateKey} (All-Day)` : `${norm.startDateKey} (All-Day)`)
+        : `${norm.startDateKey} ${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
+
+      const noteId = generateId('note');
+      const noteTitle = `Meeting: ${evt.title} (${norm.startDateKey})`;
+
+      const newNote = {
+        id: noteId,
+        title: noteTitle,
+        folderId: state.folders[0]?.id || 'f_general',
+        tags: ['meeting', 'calendar'],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        blocks: [
+          {
+            id: generateId('b'),
+            type: 'callout',
+            content: `**Meeting Overview**\n- **Event:** ${evt.title}\n- **Date & Time:** ${timeStr}\n- **Location:** ${evt.location || 'Remote / Unspecified'}\n- **Calendar Reference:** Event #${evt.id}`
+          },
+          {
+            id: generateId('b'),
+            type: 'heading2',
+            content: 'Agenda & Discussion'
+          },
+          {
+            id: generateId('b'),
+            type: 'bullet',
+            content: 'Key discussion item 1'
+          },
+          {
+            id: generateId('b'),
+            type: 'bullet',
+            content: 'Key discussion item 2'
+          },
+          {
+            id: generateId('b'),
+            type: 'heading2',
+            content: 'Action Items'
+          },
+          {
+            id: generateId('b'),
+            type: 'todo',
+            content: 'Follow up on key decisions with attendees',
+            checked: false
+          },
+          {
+            id: generateId('b'),
+            type: 'todo',
+            content: 'Share meeting minutes & documentation',
+            checked: false
+          },
+          {
+            id: generateId('b'),
+            type: 'heading2',
+            content: 'Notes & Key Takeaways'
+          },
+          {
+            id: generateId('b'),
+            type: 'paragraph',
+            content: evt.notes ? evt.notes : 'Document meeting minutes, decisions, and outcomes here...'
+          }
+        ]
+      };
+
+      state.notes.unshift(newNote);
+      evt.linkedNoteId = noteId;
+      persistState();
+      state.appMode = 'workspace';
+      selectNote(noteId);
+      renderAll();
+      showToast('Created & linked Meeting Note');
+    }
+
+    function previewCreateMeetingNote() {
+      if (activePreviewEventId) {
+        createMeetingNoteForEvent(activePreviewEventId);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // RFC 5545 iCALENDAR (.ICS) EXPORT ENGINE
+    // -------------------------------------------------------------------------
+    function exportCalendarToICS() {
+      const events = state.events || [];
+      if (events.length === 0) {
+        showToast('No events in calendar to export');
+        return;
+      }
+
+      function escapeIcsText(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/\\/g, '\\\\')
+          .replace(/;/g, '\\;')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n');
+      }
+
+      function formatIcsDateTime(isoStr, isAllDay = false) {
+        if (!isoStr) return '';
+        if (isAllDay) {
+          const clean = isoStr.split('T')[0].replace(/-/g, '');
+          return `;VALUE=DATE:${clean}`;
+        }
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return '';
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        const s = String(d.getUTCSeconds()).padStart(2, '0');
+        return `:${y}${m}${day}T${h}${min}${s}Z`;
+      }
+
+      const now = new Date();
+      const dtStamp = formatIcsDateTime(now.toISOString(), false).replace(':', '');
+
+      let ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//PK Note//Archival Knowledge Calendar//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'X-WR-CALNAME:PK Note Calendar'
+      ];
+
+      events.forEach(evt => {
+        const norm = normalizeEventRange(evt);
+        ics.push('BEGIN:VEVENT');
+        ics.push(`UID:${evt.id}@pknote.local`);
+        ics.push(`DTSTAMP:${dtStamp}`);
+        if (norm.allDay) {
+          ics.push(`DTSTART${formatIcsDateTime(norm.startDateKey, true)}`);
+          const nextDay = parseLocalDateKey(norm.endDateKey);
+          nextDay.setDate(nextDay.getDate() + 1);
+          ics.push(`DTEND${formatIcsDateTime(formatLocalDateKey(nextDay), true)}`);
+        } else {
+          ics.push(`DTSTART${formatIcsDateTime(norm.start.toISOString(), false)}`);
+          ics.push(`DTEND${formatIcsDateTime(norm.end.toISOString(), false)}`);
+        }
+        ics.push(`SUMMARY:${escapeIcsText(evt.title)}`);
+        if (evt.location) {
+          ics.push(`LOCATION:${escapeIcsText(evt.location)}`);
+        }
+        let desc = evt.notes || '';
+        if (evt.linkedNoteId) {
+          const linked = state.notes.find(n => n.id === evt.linkedNoteId);
+          if (linked) {
+            desc += `\nLinked Note: [[${linked.title}]]`;
+          }
+        }
+        if (desc.trim()) {
+          ics.push(`DESCRIPTION:${escapeIcsText(desc.trim())}`);
+        }
+        ics.push('STATUS:CONFIRMED');
+        ics.push('END:VEVENT');
+      });
+
+      ics.push('END:VCALENDAR');
+
+      const icsString = ics.join('\r\n');
+      const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pk-note-calendar-${TODAY_KEY}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${events.length} event${events.length === 1 ? '' : 's'} to .ics`);
     }
 
     // =========================================================================
@@ -7303,8 +7942,28 @@
             <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Key Capabilities</h4>
             <div class="space-y-2">
               <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
-                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">1. 1-Second Inline Quick-Add</div>
-                <p class="text-xs">Single-click any day cell in Month view or any hour slot in Week/Day views. A lightweight popover appears right under your cursor. Type the title, pick a color dot, hit <kbd>Enter</kbd> — event created in 1 second.</p>
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">1. Natural Language Event Parser & Quick-Add</div>
+                <p class="text-xs">Single-click any day or slot, or press <kbd>C</kbd>. Type naturally, e.g. <code class="font-mono text-[var(--accent-vermilion)]">"Team sync tomorrow at 3pm for 45m in Room B"</code>. Date, start time, end time, duration, and location are automatically extracted and populated in real time.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">2. 12-Month Year Matrix View & Density Heatmap</div>
+                <p class="text-xs">Press <kbd>Y</kbd> to view all 12 months at a glance. Each date square indicates schedule density with glowing vermilion activity dots. Click any month heading to open its Month view, or click any day to jump straight to its 24-hour timeline.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">3. 1-Click Meeting Note Generator</div>
+                <p class="text-xs">Click any event in the calendar or in the Day Agenda Ledger and click <code class="font-mono text-[var(--accent-vermilion)]">+ Note</code>. PK Note instantly synthesizes a structured meeting document with pre-filled time callouts, agenda topics, and action item checkboxes, bidirectionally linked to the event.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">4. RFC 5545 iCalendar (.ics) Sync & Export</div>
+                <p class="text-xs">Click <code class="font-mono text-[var(--text-primary)]">Export .ics</code> or press <kbd>E</kbd> in calendar mode to download a standardized <code class="font-mono">.ics</code> file containing your complete schedule, compatible with Apple Calendar, Google Calendar, and Microsoft Outlook.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">5. Live "Now" Timeline Radar & Laser Line</div>
+                <p class="text-xs">In Week and Day timeline views, the current time is rendered with an animated radar ping dot, laser line, and floating digital clock badge that updates automatically every 30 seconds.</p>
               </div>
 
               <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
@@ -7395,8 +8054,28 @@
                   <td class="p-2 text-[var(--text-tertiary)]">Global</td>
                 </tr>
                 <tr>
-                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">M / W / D</td>
-                  <td class="p-2 text-[var(--text-primary)]">Switch to Month / Week / Day View</td>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">M / W / D / Y</td>
+                  <td class="p-2 text-[var(--text-primary)]">Switch to Month / Week / Day / Year Matrix View</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Calendar</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">C / N</td>
+                  <td class="p-2 text-[var(--text-primary)]">Quick Add / Create New Calendar Event</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Calendar</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">L</td>
+                  <td class="p-2 text-[var(--text-primary)]">Toggle Day Agenda Ledger Sidebar</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Calendar</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">E</td>
+                  <td class="p-2 text-[var(--text-primary)]">Export Calendar to iCalendar (.ics)</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Calendar</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">[ / ]</td>
+                  <td class="p-2 text-[var(--text-primary)]">Navigate to Previous / Next Period</td>
                   <td class="p-2 text-[var(--text-tertiary)]">Calendar</td>
                 </tr>
                 <tr>
@@ -9537,7 +10216,7 @@
     <div onclick="event.stopPropagation()" class="w-full sm:max-w-sm rounded-t-xl sm:rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-4 space-y-3 pb-8 sm:pb-4 shadow-2xl animate-menu">
       <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
         <span class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Quick Create</span>
-        <button onclick="closeMobileQuickMenu()" class="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-xs">✕</button>
+        <button onclick="closeMobileQuickMenu()" class="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></button>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <button onclick="closeMobileQuickMenu(); createNewNote('General')" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
@@ -9600,9 +10279,9 @@
   </div>
 
 
-  <!-- Calendar Quick Add Popover (Floating Inline Fast Creation) -->
-  <div id="calQuickAddPopover" class="hidden fixed z-[950] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-3.5 w-80 max-w-[92vw] animate-menu select-none">
-    <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)] mb-3">
+  <!-- Calendar Quick Add Popover (Floating Inline Fast Creation & Natural Language Parser) -->
+  <div id="calQuickAddPopover" class="hidden fixed z-[950] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-3.5 w-84 max-w-[94vw] animate-menu select-none">
+    <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)] mb-2.5">
       <div class="flex items-center gap-1.5">
         <span id="quickAddColorIndicator" class="w-2.5 h-2.5 rounded-full bg-[var(--accent-vermilion)]"></span>
         <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-medium">Quick Event</span>
@@ -9610,6 +10289,25 @@
       <button type="button" onclick="closeQuickAddPopover()" class="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
+    </div>
+
+    <!-- Natural Language Smart Prompt Input Bar -->
+    <div class="relative mb-2.5">
+      <div class="relative flex items-center">
+        <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] absolute left-2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <input id="quickAddNaturalInput"
+               type="text"
+               placeholder="Smart: Sync tomorrow at 2pm for 45m in Room B..."
+               oninput="handleQuickAddNaturalInput(this.value)"
+               onkeydown="handleQuickAddNaturalKeydown(event)"
+               class="w-full pl-7 pr-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] focus:border-[var(--accent-vermilion)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none transition-colors" />
+      </div>
+      <div id="quickAddNaturalFeedback" class="hidden mt-1 px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/30 font-mono text-[10px] text-[var(--accent-vermilion)] flex items-center justify-between">
+        <span id="quickAddNaturalFeedbackText" class="truncate"></span>
+        <span class="text-[9px] opacity-75 font-sans shrink-0 ml-1">Enter</span>
+      </div>
     </div>
 
     <form onsubmit="submitQuickAddEvent(event)" class="space-y-3">
@@ -9697,13 +10395,17 @@
     </div>
 
     <!-- Action buttons -->
-    <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between text-xs">
-      <div class="flex items-center gap-1.5">
+    <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between text-xs flex-wrap gap-1.5">
+      <div class="flex items-center gap-1.5 flex-wrap">
         <button type="button" onclick="previewEditEvent()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] transition-colors font-mono text-[11px] cursor-pointer">
           Edit
         </button>
         <button type="button" onclick="previewDuplicateEvent()" class="px-2.5 py-1 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors font-mono text-[11px] cursor-pointer">
           Duplicate
+        </button>
+        <button type="button" id="previewMeetingNoteBtn" onclick="previewCreateMeetingNote()" class="flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] hover:text-white border border-[var(--accent-vermilion)]/30 text-[var(--accent-vermilion)] transition-all font-mono text-[11px] cursor-pointer" title="Create or open linked meeting note">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span id="previewMeetingNoteBtnText">+ Note</span>
         </button>
       </div>
       <button type="button" onclick="previewDeleteEvent()" class="px-2.5 py-1 rounded-[3px] text-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-tint)] transition-colors font-mono text-[11px] cursor-pointer">

@@ -8451,6 +8451,46 @@
     // =========================================================================
     // NATURAL TEXT NORMALIZATION & SENTENCE CHUNKING (FOR NATURAL SPEECH)
     // =========================================================================
+    // Real letter-by-letter acronyms that SHOULD be spelled out; all other
+    // ALL-CAPS words with vowels (e.g. "KON", "NOTE", "HELLO", "WORK") are
+    // converted to Title Case so Kokoro & Device TTS pronounce them as real words!
+    const TRUE_SPELLED_ACRONYMS = new Set([
+      'AI', 'ML', 'DL', 'NLP', 'LLM', 'API', 'SDK', 'CLI', 'GUI', 'UI', 'UX',
+      'OS', 'PC', 'CPU', 'GPU', 'NPU', 'TPU', 'RAM', 'ROM', 'SSD', 'HDD',
+      'USB', 'HDMI', 'URL', 'URI', 'HTTP', 'HTTPS', 'HTML', 'CSS', 'JS', 'TS',
+      'JSX', 'TSX', 'SQL', 'XML', 'YAML', 'CSV', 'PDF', 'PNG', 'JPG', 'JPEG',
+      'GIF', 'SVG', 'MP3', 'MP4', 'WAV', 'TTS', 'STT', 'ASR', 'PWA', 'VPN',
+      'DNS', 'TCP', 'UDP', 'IP', 'SSH', 'SSL', 'TLS', 'FTP', 'JWT', 'AWS',
+      'GCP', 'CI', 'CD', 'PR', 'QA', 'DB', 'DOM', 'CDN', 'SEO', 'VR', 'AR',
+      'XR', 'RGB', 'FPS', 'DPI', 'LED', 'LCD', 'OLED', 'HDR', 'NFC', 'GPS',
+      'LTE', 'SMS', 'SIM', 'QR', 'ID', 'UUID', 'PK',
+      'US', 'USA', 'UK', 'EU', 'UN', 'FBI', 'CIA', 'NSA', 'FDA', 'CDC',
+      'CEO', 'CTO', 'CFO', 'COO', 'VP', 'HR', 'IT', 'ROI', 'KPI', 'B2B', 'B2C',
+      'FAQ', 'DIY', 'FYI', 'BTW', 'VIP', 'RSVP', 'ETA', 'ASAP', 'ATM', 'TV',
+      'DVD', 'FM', 'AM', 'PM', 'BC', 'AD', 'BCE', 'CE', 'IQ', 'EQ', 'MD',
+      'RN', 'JD', 'MBA', 'BA', 'BS', 'MS', 'NY', 'LA', 'SF', 'DC', 'OK',
+      'OMG', 'BRB', 'TBD', 'TBA'
+    ]);
+
+    function normalizeUppercaseWordsForNaturalSpeech(text) {
+      if (!text) return '';
+      // Match ALL-CAPS words of 2+ letters (including possessives like KON'S)
+      return text.replace(/\b([A-Z]{2,})('S)?\b/g, (match, word, possessive) => {
+        // Keep real acronyms (AI, API, PK, USA, etc.) uppercase so they read naturally
+        if (TRUE_SPELLED_ACRONYMS.has(word)) {
+          return possessive ? `${word}'s` : word;
+        }
+        // Keep short consonant-only clusters (no vowels A/E/I/O/U/Y, e.g. TXT, BBC, CNN) uppercase
+        if (word.length <= 4 && !/[AEIOUY]/.test(word)) {
+          return possessive ? `${word}'s` : word;
+        }
+        // Pronounceable ALL-CAPS word (e.g. KON, KUROSAKI, NOTE, TODO, IMPORTANT) -> Title Case
+        // Prevents espeak/Kokoro & Device TTS from spelling "KON" out as "K O N"!
+        const titleCased = word.charAt(0) + word.slice(1).toLowerCase();
+        return possessive ? `${titleCased}'s` : titleCased;
+      });
+    }
+
     function normalizeTextForNaturalSpeech(rawText) {
       if (!rawText) return '';
       let text = String(rawText);
@@ -8512,7 +8552,10 @@
         .replace(/\s*\+\s*/g, ' plus ')
         .replace(/[#*_~\\|{}[\]<>]/g, ' ');
 
-      // 5. Tidy punctuation and whitespace for smooth breathing cadence
+      // 5. Fix ALL-CAPS words (e.g. KON -> Kon, NOTE -> Note) so they are spoken as natural words
+      text = normalizeUppercaseWordsForNaturalSpeech(text);
+
+      // 6. Tidy punctuation and whitespace for smooth breathing cadence
       text = text
         .replace(/\s+([,.;:!?])/g, '$1')
         .replace(/([.!?]){2,}/g, '$1')
@@ -8986,9 +9029,12 @@
       const targetId = voiceId || settings.kokoroVoiceId || 'af_heart';
       const voiceMeta = KOKORO_VOICE_CATALOG.find(v => v.id === targetId) || KOKORO_VOICE_CATALOG[0];
 
-      const sampleText = voiceMeta.gender === 'male'
-        ? `Hello, I am ${voiceMeta.name}, running natively on Kokoro 82M right inside P K Note. Your notes are read clearly, naturally, and privately with zero server required.`
-        : `Hi there, I'm ${voiceMeta.name}, powered by Kokoro 82M directly on your device. Every note and idea sounds clear, expressive, and completely natural.`;
+      const customInput = document.getElementById('voiceCustomTestInput');
+      const customRaw = customInput ? customInput.value.trim() : '';
+      const rawSample = customRaw || (voiceMeta.gender === 'male'
+        ? `Hello, I am ${voiceMeta.name}, running natively on Kokoro 82M right inside PK Note. Your notes are read clearly, naturally, and privately with zero server required.`
+        : `Hi there, I'm ${voiceMeta.name}, powered by Kokoro 82M directly on your device. Every note and idea sounds clear, expressive, and completely natural.`);
+      const sampleText = ensureTerminalPunctuation(normalizeTextForNaturalSpeech(rawSample));
 
       showToast(
         kokoroEngineState === 'ready'
@@ -9039,7 +9085,11 @@
       const settings = getVoiceSettings();
       const voice = targetVoice || getSelectedVoiceModel();
 
-      const text = "PK Note device voice ready. Instant on-device speech synthesis with zero server dependencies.";
+      const customInput = document.getElementById('voiceCustomTestInput');
+      const customRaw = customInput ? customInput.value.trim() : '';
+      const text = normalizeTextForNaturalSpeech(
+        customRaw || "PK Note device voice ready. Instant on-device speech synthesis with zero server dependencies."
+      );
       const utterance = new SpeechSynthesisUtterance(text);
       if (voice) utterance.voice = voice;
       utterance.rate = settings.rate || 1.0;
@@ -14906,6 +14956,21 @@
               <button onclick="setVoicePitchPreset(1.0)" class="hover:underline cursor-pointer">Default (1.0)</button>
               <button onclick="setVoicePitchPreset(1.15)" class="hover:underline cursor-pointer">High (1.15)</button>
             </div>
+          </div>
+        </div>
+
+        <!-- Custom Pronunciation Audition Input -->
+        <div class="space-y-1 pt-2 border-t border-[var(--border-hairline)]">
+          <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Custom Voice Test (Optional)</label>
+          <div class="flex items-center gap-1.5">
+            <input type="text"
+                   id="voiceCustomTestInput"
+                   placeholder="Type anything to test (e.g. Hello KON, read this note naturally!)"
+                   onkeydown="if (event.key === 'Enter') testSelectedVoice()"
+                   class="flex-1 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
+            <button onclick="testSelectedVoice()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-[var(--text-primary)] hover:text-white font-mono text-[10px] transition-colors cursor-pointer shrink-0">
+              ▶ Speak
+            </button>
           </div>
         </div>
 

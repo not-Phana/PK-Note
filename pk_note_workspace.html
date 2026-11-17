@@ -824,6 +824,149 @@
        1000X COOLER: AMBIENT AURA, ZEN FOCUS, SHIMMER & CELEBRATION PARTICLES
        ========================================================================= */
     /* Living Breathing Atmospheric Aura Glow */
+    /* Ambient Cursor Spotlight Glow */
+    #pkCursorSpotlight {
+      background: radial-gradient(600px circle at var(--cursor-x, -500px) var(--cursor-y, -500px), rgba(var(--accent-vermilion-rgb, 229, 77, 46), 0.055), transparent 75%);
+      will-change: background;
+      pointer-events: none;
+    }
+    body.theme-light #pkCursorSpotlight {
+      background: radial-gradient(550px circle at var(--cursor-x, -500px) var(--cursor-y, -500px), rgba(200, 70, 43, 0.04), transparent 70%);
+    }
+
+    /* Right-Click Tactical Sonar Wave & Micro-Sparks */
+    .pk-sonar-wave {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+    }
+    .pk-sonar-wave::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 16px;
+      height: 16px;
+      margin: -8px 0 0 -8px;
+      border-radius: 50%;
+      border: 1.5px solid var(--accent-vermilion);
+      box-shadow: 0 0 18px var(--accent-vermilion), inset 0 0 10px var(--accent-vermilion-tint);
+      animation: sonarRingPulse 0.44s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .pk-sonar-wave::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      margin: -3px 0 0 -3px;
+      border-radius: 50%;
+      background: var(--accent-vermilion);
+      box-shadow: 0 0 12px var(--accent-vermilion);
+      animation: sonarCorePulse 0.32s ease-out forwards;
+    }
+    @keyframes sonarRingPulse {
+      0% {
+        transform: scale(0.3);
+        opacity: 0.95;
+      }
+      100% {
+        transform: scale(5.2);
+        opacity: 0;
+      }
+    }
+    @keyframes sonarCorePulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(2.4);
+        opacity: 0;
+      }
+    }
+    .pk-sonar-spark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 3px;
+      height: 3px;
+      margin: -1.5px 0 0 -1.5px;
+      border-radius: 50%;
+      background: var(--accent-vermilion);
+      box-shadow: 0 0 8px var(--accent-vermilion);
+      animation: sonarSparkShoot 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes sonarSparkShoot {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--tx), var(--ty)) scale(0.2);
+        opacity: 0;
+      }
+    }
+
+    /* Context Menu High-Tech Spring Entrance & Item Stagger */
+    .pk-context-animate {
+      animation: pkContextPop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      will-change: transform, opacity, filter;
+    }
+    @keyframes pkContextPop {
+      0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(-6px);
+        filter: blur(8px);
+      }
+      60% {
+        opacity: 1;
+        transform: scale(1.018) translateY(1px);
+        filter: blur(0px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0px);
+      }
+    }
+    .pk-context-item {
+      animation: pkContextItemIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      animation-delay: calc(var(--item-idx, 0) * 14ms);
+      will-change: transform, opacity;
+    }
+    @keyframes pkContextItemIn {
+      0% {
+        opacity: 0;
+        transform: translateY(4px) scale(0.98);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Audio Equalizer Waveform Bars */
+    .pk-eq-bar {
+      display: inline-block;
+      width: 2.5px;
+      height: 12px;
+      background: var(--accent-vermilion);
+      border-radius: 1px;
+      animation: eqPulse 0.6s ease-in-out infinite alternate;
+    }
+    .pk-eq-bar:nth-child(2) { animation-delay: 0.15s; height: 16px; }
+    .pk-eq-bar:nth-child(3) { animation-delay: 0.3s; height: 10px; }
+    .pk-eq-bar:nth-child(4) { animation-delay: 0.45s; height: 18px; }
+    .pk-eq-bar:nth-child(5) { animation-delay: 0.2s; height: 14px; }
+    @keyframes eqPulse {
+      0% { transform: scaleY(0.3); opacity: 0.5; }
+      100% { transform: scaleY(1); opacity: 1; }
+    }
+
     @keyframes auraBreathe {
       0%, 100% {
         transform: translateX(-50%) scale(1) translateY(0);
@@ -886,6 +1029,12 @@
 </style>
 </head>
 <body class="h-screen w-screen flex select-none text-[13px] overflow-hidden">
+
+  <!-- Ambient Cursor Spotlight Glow -->
+  <div id="pkCursorSpotlight" class="pointer-events-none fixed inset-0 z-[1] transition-opacity duration-300" style="--cursor-x: -500px; --cursor-y: -500px;"></div>
+
+  <!-- Right-Click Tactical Sonar Ripple Shockwave Container -->
+  <div id="pkContextMenuShockwaveContainer" class="pointer-events-none fixed inset-0 z-[998] overflow-hidden"></div>
 
   <!-- Document Live Reading Progress Bar -->
   <div id="docReadingProgressBar" class="fixed top-0 left-0 h-[2.5px] bg-gradient-to-r from-[var(--accent-vermilion)] via-[var(--accent-ochre)] to-[var(--accent-vermilion)] z-[1000] transition-all duration-75 pointer-events-none" style="width: 0%"></div>
@@ -1886,7 +2035,13 @@
       pin: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
       minus: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
       sliders: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
-      archive: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`
+      archive: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+      volume: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
+      sun: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+      sparkles: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+      copy: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+      chevronUp: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>`,
+      chevronDown: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>`
     };
 
     const GLYPH_KEYS = Object.keys(SVG_GLYPHS);
@@ -2111,6 +2266,8 @@
       showHeaderGrid: true,
       soundEnabled: true,
       ambientAura: true,
+      cursorSpotlight: true,
+      mechanicalTyping: true,
       zenMode: false,
       leftSidebarOpen: true,
       rightSidebarOpen: true,
@@ -5873,7 +6030,11 @@
         { kind: 'action', label: 'Toggle Zen Focus Mode', hint: 'Distraction-free writing sanctuary with block focus', glyph: 'alert', shortcut: '⌘D', run: () => toggleZenMode() },
         { kind: 'action', label: 'Toggle Tactile Haptic Audio', hint: 'Mechanical switch & chime micro-feedback', glyph: 'sliders', shortcut: 'Audio', run: () => toggleSoundSetting() },
         { kind: 'action', label: 'Toggle Dynamic Ambient Aura', hint: 'Breathing atmospheric hero glow lighting', glyph: 'sliders', shortcut: 'Aura', run: () => toggleAmbientAura() },
-        { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'alert', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
+        { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'sparkles', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
+        { kind: 'action', label: 'Toggle Magnetic Cursor Spotlight', hint: 'Luminous ambient spotlight following cursor', glyph: 'sun', shortcut: 'Spotlight', run: () => toggleCursorSpotlight() },
+        { kind: 'action', label: 'Toggle Mechanical Typing Audio', hint: 'Tactile switch audio feedback while typing', glyph: 'terminal', shortcut: 'Typing', run: () => toggleMechanicalTyping() },
+        { kind: 'action', label: 'Read Document Aloud (Voice Synth)', hint: 'Synthesize speech from active document or selection', glyph: 'volume', shortcut: 'Voice', run: () => toggleReadingNoteAloud() },
+        { kind: 'action', label: 'Stop Voice Reading', hint: 'Halt active speech synthesizer audio reader', glyph: 'volume', shortcut: 'Stop', run: () => stopReadingAloud() },
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
         { kind: 'action', label: 'Calendar: Export to iCalendar (.ics)', hint: 'Download RFC 5545 standard .ics file for Apple/Google/Outlook', glyph: 'calendar', shortcut: 'E', run: () => exportCalendarToICS() },
         { kind: 'action', label: 'Calendar: Year Matrix View', hint: '12-month activity heatmap overview', glyph: 'calendar', shortcut: 'Y', run: () => setCalendarView('year') },
@@ -6586,6 +6747,183 @@
     let activeContextMenuEventId = null;
     let activeContextMenuDateKey = null;
     let activeSubmenuTimeout = null;
+    let contextFocusedIdx = -1;
+    let currentSpeechUtterance = null;
+
+    // Tactical Right-Click Sonar Wave & Micro-Spark Shockwave
+    function triggerRightClickShockwave(x, y) {
+      const container = document.getElementById('pkContextMenuShockwaveContainer');
+      if (!container) return;
+
+      const wave = document.createElement('div');
+      wave.className = 'pk-sonar-wave';
+      wave.style.left = `${x}px`;
+      wave.style.top = `${y}px`;
+
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * 60) * (Math.PI / 180);
+        const dist = 18 + Math.random() * 12;
+        const px = Math.cos(angle) * dist;
+        const py = Math.sin(angle) * dist;
+        const spark = document.createElement('span');
+        spark.className = 'pk-sonar-spark';
+        spark.style.setProperty('--tx', `${px}px`);
+        spark.style.setProperty('--ty', `${py}px`);
+        wave.appendChild(spark);
+      }
+
+      container.appendChild(wave);
+      setTimeout(() => wave.remove(), 600);
+    }
+
+    // Web Speech API Voice Reader
+    function readTextAloud(text, title = 'Selection') {
+      if (!('speechSynthesis' in window)) {
+        showToast('Speech synthesis not supported in this browser', 'info');
+        return;
+      }
+      window.speechSynthesis.cancel();
+      if (!text || !text.trim()) {
+        showToast('No text available to read', 'info');
+        return;
+      }
+
+      const cleanText = text.replace(/[*_#`[\]()~>]/g, ' ').replace(/\s+/g, ' ').trim();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Alex')));
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      currentSpeechUtterance = utterance;
+
+      const hud = document.getElementById('pkAudioReaderHUD');
+      const label = document.getElementById('pkAudioReaderLabel');
+      if (hud && label) {
+        label.textContent = `Reading ${title.length > 24 ? title.slice(0, 24) + '…' : title}`;
+        hud.classList.remove('hidden');
+      }
+
+      utterance.onend = () => { stopReadingAloud(); };
+      utterance.onerror = () => { stopReadingAloud(); };
+
+      window.speechSynthesis.speak(utterance);
+      playChimeSound();
+    }
+
+    function stopReadingAloud() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      currentSpeechUtterance = null;
+      const hud = document.getElementById('pkAudioReaderHUD');
+      if (hud) hud.classList.add('hidden');
+    }
+
+    function toggleReadingNoteAloud() {
+      if (currentSpeechUtterance && window.speechSynthesis.speaking) {
+        stopReadingAloud();
+      } else {
+        const note = getActiveNote();
+        if (!note) return;
+        const allText = [note.title, ...note.blocks.map(b => b.content || '')].join('. ');
+        readTextAloud(allText, note.title);
+      }
+    }
+
+    function formatSelectionAsTodo() {
+      const sel = window.getSelection().toString().trim();
+      if (!sel) return;
+      const note = getActiveNote();
+      if (!note) return;
+      const newBlock = {
+        id: `blk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        type: 'todo',
+        content: sel,
+        checked: false
+      };
+      note.blocks.push(newBlock);
+      scheduleSave();
+      renderBlocks();
+      playPopSound();
+      showToast('Created action item from selection', 'info');
+    }
+
+    function showSelectionStats() {
+      const sel = window.getSelection().toString().trim();
+      if (!sel) return;
+      const chars = sel.length;
+      const words = sel.split(/\s+/).filter(Boolean).length;
+      const lines = sel.split('\n').length;
+      const estMins = Math.max(1, Math.ceil(words / 200));
+      showToast(`Selection: ${words} words · ${chars} chars · ${lines} lines · ~${estMins}m read`, 'info');
+    }
+
+    function moveBlockRelative(blockId, direction) {
+      const note = getActiveNote();
+      if (!note || !note.blocks) return;
+      const idx = note.blocks.findIndex(b => b.id === blockId);
+      if (idx === -1) return;
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= note.blocks.length) return;
+      
+      const temp = note.blocks[idx];
+      note.blocks[idx] = note.blocks[newIdx];
+      note.blocks[newIdx] = temp;
+      
+      scheduleSave();
+      renderBlocks();
+      playMechanicalClick(1.4);
+      showToast(direction > 0 ? 'Moved block down' : 'Moved block up', 'info');
+    }
+
+    function toggleCursorSpotlight() {
+      state.cursorSpotlight = !state.cursorSpotlight;
+      const el = document.getElementById('pkCursorSpotlight');
+      if (el) {
+        el.style.opacity = state.cursorSpotlight ? '1' : '0';
+      }
+      scheduleSave();
+      playMechanicalClick(1.2);
+      showToast(`Magnetic Cursor Spotlight: ${state.cursorSpotlight ? 'ENABLED' : 'DISABLED'}`, 'info');
+    }
+
+    function toggleMechanicalTyping() {
+      state.mechanicalTyping = !state.mechanicalTyping;
+      scheduleSave();
+      playMechanicalClick(1.5);
+      showToast(`Mechanical Typing Sounds: ${state.mechanicalTyping ? 'ENABLED' : 'DISABLED'}`, 'info');
+    }
+
+    function quickContextAction(type) {
+      playMechanicalClick(1.3);
+      if (type === 'copy') {
+        const sel = window.getSelection().toString().trim();
+        if (sel) {
+          navigator.clipboard.writeText(sel).then(() => showToast('Copied selection to clipboard', 'info'));
+        } else if (activeContextMenuBlockId) {
+          copyBlockContent(activeContextMenuBlockId);
+        } else {
+          copyActiveNoteMarkdown();
+        }
+      } else if (type === 'speak') {
+        const sel = window.getSelection().toString().trim();
+        if (sel) {
+          readTextAloud(sel, 'Selection');
+        } else {
+          toggleReadingNoteAloud();
+        }
+      } else if (type === 'zen') {
+        toggleZenMode();
+      } else if (type === 'burst') {
+        const menu = document.getElementById('pkContextMenu');
+        const rect = menu ? menu.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+        triggerCelebration(rect.left + 50, rect.top, 50);
+      }
+      closeContextMenu();
+    }
 
     document.addEventListener('contextmenu', e => {
       // Shift + Right Click allows power-users to open the native browser inspect/menu
@@ -6593,6 +6931,13 @@
 
       e.preventDefault();
       closeContextMenu();
+
+      // Trigger tactile sonar pulse & audio
+      triggerRightClickShockwave(e.clientX, e.clientY);
+      playContextMenuSound();
+      if (navigator.vibrate) {
+        navigator.vibrate([6, 10]);
+      }
 
       const target = e.target;
       const blockEl = target.closest('[data-block-id]') || target.closest('.block-row');
@@ -6604,6 +6949,7 @@
 
       let menuItems = [];
       let headerText = '';
+      let badgeIcon = 'pkLogo';
 
       // CONTEXT A: Note Block or Text Selection
       if (blockEl || docAreaEl) {
@@ -6613,19 +6959,26 @@
         const block = note ? note.blocks.find(b => b.id === blockId) : null;
         const hasSelection = window.getSelection().toString().trim().length > 0;
 
-        headerText = block ? `BLOCK: ${block.type.toUpperCase()}` : 'DOCUMENT';
-
         if (hasSelection) {
+          const selText = window.getSelection().toString().trim();
+          headerText = `SELECTION (${selText.length} CHARS)`;
+          badgeIcon = 'quote';
           menuItems.push(
             { label: 'Bold', shortcut: '⌘B', icon: 'hash', action: () => document.execCommand('bold') },
             { label: 'Italic', shortcut: '⌘I', icon: 'quote', action: () => document.execCommand('italic') },
             { label: 'Inline Code', shortcut: '`', icon: 'terminal', action: () => formatSelectionWithCode() },
             { label: 'Link to Note', shortcut: '[[', icon: 'link', action: () => formatSelectionWithWikiLink() },
+            { label: 'Turn into Action Checkbox', shortcut: '- [ ]', icon: 'checkSquare', action: () => formatSelectionAsTodo() },
+            { label: 'Read Selection Aloud', shortcut: 'Speak', icon: 'volume', action: () => readTextAloud(selText, 'Selection') },
+            { label: 'Selection Statistics', shortcut: 'Stats', icon: 'grid', action: () => showSelectionStats() },
             { type: 'divider' },
-            { label: 'Copy Selection', shortcut: '⌘C', icon: 'document', action: () => document.execCommand('copy') },
+            { label: 'Copy Selection', shortcut: '⌘C', icon: 'copy', action: () => document.execCommand('copy') },
             { label: 'Cut Selection', shortcut: '⌘X', icon: 'minus', action: () => document.execCommand('cut') },
             { type: 'divider' }
           );
+        } else {
+          headerText = block ? `BLOCK: ${block.type.toUpperCase()}` : 'DOCUMENT';
+          badgeIcon = block ? 'layers' : 'document';
         }
 
         if (block) {
@@ -6646,10 +6999,12 @@
                 { label: 'Callout', icon: 'alert', action: () => convertBlockType(block.id, 'callout') }
               ]
             },
+            { label: 'Move Block Up', shortcut: 'Alt+↑', icon: 'chevronUp', action: () => moveBlockRelative(block.id, -1) },
+            { label: 'Move Block Down', shortcut: 'Alt+↓', icon: 'chevronDown', action: () => moveBlockRelative(block.id, 1) },
             { label: 'Insert Block Above', shortcut: '⇧↵', icon: 'document', action: () => insertBlockBefore(block.id) },
             { label: 'Insert Block Below', shortcut: '↵', icon: 'document', action: () => insertBlockAfter(block.id) },
             { label: 'Duplicate Block', shortcut: '⌘D', icon: 'layers', action: () => duplicateBlock(block.id) },
-            { label: 'Copy Markdown', icon: 'document', action: () => copyBlockMarkdown(block.id) },
+            { label: 'Copy Markdown', icon: 'copy', action: () => copyBlockMarkdown(block.id) },
             { type: 'divider' },
             { label: 'Delete Block', shortcut: '⌫', icon: 'minus', danger: true, action: () => deleteBlock(block.id) }
           );
@@ -6657,6 +7012,8 @@
           menuItems.push(
             { label: 'Append Block', shortcut: '+', icon: 'document', action: () => appendBlockAtEnd() },
             { label: 'Add Todo Item', shortcut: '[]', icon: 'checkSquare', action: () => appendTodoAtEnd() },
+            { label: 'Read Note Aloud', shortcut: 'Voice', icon: 'volume', action: () => toggleReadingNoteAloud() },
+            { label: 'Toggle Zen Focus Mode', shortcut: '⌘J', icon: 'compass', action: () => toggleZenMode() },
             { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
           );
         }
@@ -6668,9 +7025,10 @@
         const note = state.notes.find(n => n.id === noteId);
         if (!note) return;
 
-        headerText = note.code ? `${note.code} · ${note.title}` : note.title;
+        headerText = `DOC: ${note.title}`;
+        badgeIcon = 'document';
 
-        const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
+        const folders = ['General', 'Projects', 'Daily Logs', 'Reading'];
         const folderSubmenu = folders.map(f => ({
           label: f,
           icon: 'archive',
@@ -6681,6 +7039,7 @@
         menuItems.push(
           { label: 'Open Document', icon: 'document', action: () => selectNote(note.id) },
           { label: note.favorite ? 'Unpin from Index' : 'Pin to Index', icon: 'bookmark', action: () => toggleFavoriteNoteById(note.id) },
+          { label: 'Read Document Aloud', icon: 'volume', action: () => { selectNote(note.id); toggleReadingNoteAloud(); } },
           { label: 'Move to Collection', icon: 'archive', hasSubmenu: true, submenu: folderSubmenu },
           { label: 'Duplicate Document', icon: 'layers', action: () => duplicateNoteById(note.id) },
           { label: 'Copy Wiki-Link', shortcut: '[[...]]', icon: 'link', action: () => copyNoteWikiLink(note.id) },
@@ -6696,6 +7055,7 @@
         if (!evt) return;
 
         headerText = `EVENT: ${evt.title}`;
+        badgeIcon = 'clock';
 
         const colorSubmenu = EVENT_COLORS.map(c => ({
           label: c.label,
@@ -6709,6 +7069,7 @@
           { label: 'Change Ink Color', icon: 'sliders', hasSubmenu: true, submenu: colorSubmenu },
           evt.linkedNoteId ? { label: 'Open Linked Document', icon: 'document', action: () => { state.appMode = 'workspace'; selectNote(evt.linkedNoteId); } } : null,
           { label: 'Duplicate Event', icon: 'layers', action: () => duplicateEventById(evt.id) },
+          { label: 'Export to iCalendar (.ics)', icon: 'calendar', action: () => exportCalendarToICS() },
           { type: 'divider' },
           { label: 'Delete Event', icon: 'minus', danger: true, action: () => deleteEventById(evt.id) }
         );
@@ -6719,8 +7080,10 @@
         const dateKey = dateCellEl.getAttribute('data-date-key');
         activeContextMenuDateKey = dateKey;
         headerText = `SCHEDULE · ${dateKey}`;
+        badgeIcon = 'calendar';
 
         menuItems.push(
+          { label: 'Quick Add Event (Natural)', shortcut: 'C', icon: 'sparkles', action: () => openQuickAddPopover(e.clientX, e.clientY, dateKey) },
           { label: 'New Event on this Date', shortcut: '+', icon: 'calendar', action: () => openEventModal({ dateKey: dateKey }) },
           { label: 'View Day Timeline', icon: 'clock', action: () => { state.calendarSelectedDate = dateKey; state.calendarCursorDate = dateKey; setCalendarView('day'); } },
           { label: 'Open Daily Log', icon: 'document', action: () => openOrCreateDailyNote() },
@@ -6730,6 +7093,7 @@
       // CONTEXT E: Knowledge Graph Canvas
       else if (canvasEl) {
         headerText = 'TOPOLOGY GRAPH';
+        badgeIcon = 'graph';
         menuItems.push(
           { label: 'Reset Layout (Reheat)', shortcut: 'R', icon: 'graph', action: () => reheatGraph() },
           { label: `Scope: ${state.graphLocalOnly ? 'Switch to Global' : 'Switch to Local'}`, icon: 'layers', action: () => toggleGraphScope() },
@@ -6738,11 +7102,16 @@
       }
       // CONTEXT F: General Workspace Fallback
       else {
-        headerText = 'PK NOTE';
+        headerText = 'PK NOTE WORKSPACE';
+        badgeIcon = 'pkLogo';
         menuItems.push(
           { label: 'New Working Note', shortcut: '⌘N', icon: 'document', action: () => createNewNote('General') },
-          { label: 'Open Daily Log', icon: 'calendar', action: () => openOrCreateDailyNote() },
-          { label: 'Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() },
+          { label: 'Quick Event (Natural Prompt)', shortcut: 'C', icon: 'calendar', action: () => openQuickAddPopover(e.clientX, e.clientY) },
+          { label: 'Toggle Zen Focus Mode', shortcut: '⌘J', icon: 'compass', action: () => toggleZenMode() },
+          { label: `Spotlight: ${state.cursorSpotlight ? 'Enabled' : 'Disabled'}`, icon: 'sun', action: () => toggleCursorSpotlight() },
+          { label: `Mechanical Typing: ${state.mechanicalTyping ? 'Enabled' : 'Disabled'}`, icon: 'terminal', action: () => toggleMechanicalTyping() },
+          { label: 'Typography Studio', shortcut: '⌘T', icon: 'sliders', action: () => openTypographyModal() },
+          { label: 'Trigger Confetti Celebration', shortcut: 'Burst', icon: 'sparkles', action: () => triggerCelebration(e.clientX, e.clientY, 60) },
           { type: 'divider' },
           { label: state.appMode === 'workspace' ? 'Switch to Calendar' : 'Switch to Notes', icon: 'grid', action: () => setAppMode(state.appMode === 'workspace' ? 'calendar' : 'workspace') },
           { label: `Theme: ${state.theme === 'dark' ? 'Archival Vellum' : 'Obsidian Carbon'}`, icon: 'sliders', action: () => toggleTheme() },
@@ -6752,14 +7121,19 @@
         );
       }
 
-      renderAndPositionContextMenu(e.clientX, e.clientY, headerText, menuItems);
+      renderAndPositionContextMenu(e.clientX, e.clientY, headerText, menuItems, badgeIcon);
     });
 
-    function renderAndPositionContextMenu(x, y, headerText, items) {
+    function renderAndPositionContextMenu(x, y, headerText, items, badgeIcon = 'pkLogo') {
       const menu = document.getElementById('pkContextMenu');
       const headerEl = document.getElementById('pkContextMenuHeader');
       const itemsEl = document.getElementById('pkContextMenuItems');
+      const badgeEl = document.getElementById('pkContextMenuBadgeIcon');
       if (!menu || !itemsEl) return;
+
+      if (badgeEl) {
+        badgeEl.innerHTML = getGlyphSVG(badgeIcon);
+      }
 
       if (headerText) {
         headerEl.textContent = headerText;
@@ -6784,9 +7158,10 @@
         return `
           <button type="button"
                   data-menu-idx="${idx}"
+                  style="--item-idx: ${idx};"
                   onmouseenter="handleContextItemHover(event, ${idx})"
                   onclick="executeContextAction(${idx})"
-                  class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left transition-colors cursor-pointer ${
+                  class="pk-context-item w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] text-left transition-colors cursor-pointer ${
                     item.danger
                       ? 'text-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-tint)]'
                       : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -6802,9 +7177,15 @@
 
       // Store items on element for execution
       menu._items = items;
+      contextFocusedIdx = -1;
 
       menu.style.display = 'block';
       menu.classList.remove('hidden');
+
+      // Re-trigger luxury spring entry animation
+      menu.classList.remove('pk-context-animate');
+      void menu.offsetWidth;
+      menu.classList.add('pk-context-animate');
 
       // Boundary detection
       const menuRect = menu.getBoundingClientRect();
@@ -6814,11 +7195,11 @@
       let posX = x;
       let posY = y;
 
-      if (posX + menuRect.width > winW - 10) {
-        posX = winW - menuRect.width - 10;
+      if (posX + menuRect.width > winW - 12) {
+        posX = winW - menuRect.width - 12;
       }
-      if (posY + menuRect.height > winH - 10) {
-        posY = winH - menuRect.height - 10;
+      if (posY + menuRect.height > winH - 12) {
+        posY = winH - menuRect.height - 12;
       }
 
       menu.style.left = `${Math.max(10, posX)}px`;
@@ -6831,6 +7212,7 @@
       const item = menu._items[idx];
       if (item && item.action) {
         closeContextMenu();
+        playMechanicalClick(1.2);
         item.action();
       }
     }
@@ -6862,8 +7244,9 @@
 
         return `
           <button type="button"
+                  style="--item-idx: ${sIdx};"
                   onclick="executeSubmenuAction(${sIdx})"
-                  class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer text-xs">
+                  class="pk-context-item w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer text-xs">
             <div class="flex items-center gap-2 min-w-0">
               ${iconHtml}
               <span class="truncate">${escapeHtml(subItem.label)}</span>
@@ -6877,20 +7260,26 @@
       sub.style.display = 'block';
       sub.classList.remove('hidden');
 
+      sub.classList.remove('pk-context-animate');
+      void sub.offsetWidth;
+      sub.classList.add('pk-context-animate');
+
       const subRect = sub.getBoundingClientRect();
-      let posX = x;
-      let posY = y;
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
 
-      if (posX + subRect.width > window.innerWidth - 8) {
-        // Flip to left of parent menu
-        posX = x - subRect.width - 210;
+      let subX = x;
+      let subY = y;
+
+      if (subX + subRect.width > winW - 10) {
+        subX = x - subRect.width - 10;
       }
-      if (posY + subRect.height > window.innerHeight - 8) {
-        posY = window.innerHeight - subRect.height - 8;
+      if (subY + subRect.height > winH - 10) {
+        subY = winH - subRect.height - 10;
       }
 
-      sub.style.left = `${Math.max(8, posX)}px`;
-      sub.style.top = `${Math.max(8, posY)}px`;
+      sub.style.left = `${Math.max(10, subX)}px`;
+      sub.style.top = `${Math.max(10, subY)}px`;
     }
 
     function executeSubmenuAction(sIdx) {
@@ -6899,6 +7288,7 @@
       const item = sub._items[sIdx];
       if (item && item.action) {
         closeContextMenu();
+        playMechanicalClick(1.2);
         item.action();
       }
     }
@@ -6918,9 +7308,33 @@
         menu.style.display = 'none';
       }
       closeContextSubmenu();
+      contextFocusedIdx = -1;
     }
 
-    // Dismiss on click outside or Escape
+    function updateContextFocus(newIdx) {
+      const menu = document.getElementById('pkContextMenu');
+      if (!menu || !menu._items) return;
+      const buttons = Array.from(menu.querySelectorAll('#pkContextMenuItems button[data-menu-idx]'));
+      if (buttons.length === 0) return;
+
+      if (newIdx < 0) newIdx = buttons.length - 1;
+      if (newIdx >= buttons.length) newIdx = 0;
+
+      contextFocusedIdx = newIdx;
+      buttons.forEach((btn, i) => {
+        if (i === contextFocusedIdx) {
+          btn.classList.add('bg-[var(--bg-hover)]', 'ring-1', 'ring-[var(--accent-vermilion)]/40');
+          btn.scrollIntoView({ block: 'nearest' });
+          const itemIdx = parseInt(btn.getAttribute('data-menu-idx'), 10);
+          handleContextItemHover({ currentTarget: btn }, itemIdx);
+        } else {
+          btn.classList.remove('bg-[var(--bg-hover)]', 'ring-1', 'ring-[var(--accent-vermilion)]/40');
+        }
+      });
+      playMechanicalClick(1.8);
+    }
+
+    // Dismiss on click outside
     document.addEventListener('click', e => {
       const menu = document.getElementById('pkContextMenu');
       const sub = document.getElementById('pkContextSubmenu');
@@ -6929,16 +7343,85 @@
       }
     });
 
+    // Keyboard navigation within context menu & global escape
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        closeContextMenu();
+      const menu = document.getElementById('pkContextMenu');
+      if (menu && !menu.classList.contains('hidden') && menu.style.display !== 'none') {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          updateContextFocus(contextFocusedIdx + 1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          updateContextFocus(contextFocusedIdx - 1);
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const buttons = Array.from(menu.querySelectorAll('#pkContextMenuItems button[data-menu-idx]'));
+          if (buttons[contextFocusedIdx]) {
+            const idx = parseInt(buttons[contextFocusedIdx].getAttribute('data-menu-idx'), 10);
+            executeContextAction(idx);
+          }
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          const sub = document.getElementById('pkContextSubmenu');
+          if (sub && !sub.classList.contains('hidden')) {
+            e.preventDefault();
+            const subButtons = Array.from(sub.querySelectorAll('#pkContextSubmenuItems button'));
+            if (subButtons[0]) subButtons[0].focus();
+            return;
+          }
+        }
+        if (e.key === 'ArrowLeft') {
+          const sub = document.getElementById('pkContextSubmenu');
+          if (sub && !sub.classList.contains('hidden')) {
+            e.preventDefault();
+            closeContextSubmenu();
+            return;
+          }
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeContextMenu();
+          return;
+        }
       }
     });
+
+    // Ambient Cursor Spotlight Pointermove Listener
+    let cursorRaf = null;
+    window.addEventListener('pointermove', e => {
+      if (state.cursorSpotlight === false) return;
+      if (cursorRaf) return;
+      cursorRaf = requestAnimationFrame(() => {
+        document.documentElement.style.setProperty('--cursor-x', `${e.clientX}px`);
+        document.documentElement.style.setProperty('--cursor-y', `${e.clientY}px`);
+        cursorRaf = null;
+      });
+    }, { passive: true });
+
+    // Tactile Mechanical Typing Audio Listener
+    document.addEventListener('keydown', e => {
+      if (state.soundEnabled === false || state.mechanicalTyping === false) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target;
+      const isEditable = target && (
+        target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.closest('[contenteditable="true"]')
+      );
+      if (!isEditable) return;
+      playTypingSound(e.key);
+    }, { passive: true });
 
     window.addEventListener('resize', closeContextMenu);
     window.addEventListener('scroll', closeContextMenu, true);
 
-    // Context Action Implementations
+        // Context Action Implementations
     function formatSelectionWithCode() {
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
@@ -9816,6 +10299,41 @@
                 </div>
               </div>
 
+              <!-- Atmospheric & Sensory Controls -->
+              <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-3">
+                <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Atmospheric & Sensory Controls</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button onclick="toggleAmbientAura()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
+                    <div>
+                      <div class="font-mono text-xs text-[var(--text-primary)]">Ambient Breathing Aura</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Luminous hero backdrop glow</div>
+                    </div>
+                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${state.ambientAura ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} font-semibold">${state.ambientAura ? 'ON' : 'OFF'}</span>
+                  </button>
+                  <button onclick="toggleCursorSpotlight()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
+                    <div>
+                      <div class="font-mono text-xs text-[var(--text-primary)]">Cursor Ambient Spotlight</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Magnetic dynamic canvas glow</div>
+                    </div>
+                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${state.cursorSpotlight ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} font-semibold">${state.cursorSpotlight ? 'ON' : 'OFF'}</span>
+                  </button>
+                  <button onclick="toggleMechanicalTyping()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
+                    <div>
+                      <div class="font-mono text-xs text-[var(--text-primary)]">Mechanical Typing Sound</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Tactile switch audio while typing</div>
+                    </div>
+                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${state.mechanicalTyping ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} font-semibold">${state.mechanicalTyping ? 'ON' : 'OFF'}</span>
+                  </button>
+                  <button onclick="toggleSoundSetting()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
+                    <div>
+                      <div class="font-mono text-xs text-[var(--text-primary)]">Tactile Haptic Audio</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Clicks, chimes & sonar feedback</div>
+                    </div>
+                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${state.soundEnabled !== false ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} font-semibold">${state.soundEnabled !== false ? 'ON' : 'OFF'}</span>
+                  </button>
+                </div>
+              </div>
+
               <!-- Theme Mode -->
               <div>
                 <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Workspace Theme Mode</label>
@@ -10140,6 +10658,80 @@
           window._pkAudioCtx.resume().catch(() => {});
         }
         return window._pkAudioCtx;
+      }
+
+      function playContextMenuSound() {
+        if (state.soundEnabled === false) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          // Layer 1: Crisp tactile pop
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(560, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.038);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.045);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.045);
+
+          // Layer 2: Subtle acoustic glass harmonic
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(1180, ctx.currentTime + 0.008);
+          osc2.frequency.exponentialRampToValueAtTime(840, ctx.currentTime + 0.12);
+          gain2.gain.setValueAtTime(0.028, ctx.currentTime + 0.008);
+          gain2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.13);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(ctx.currentTime + 0.008);
+          osc2.stop(ctx.currentTime + 0.13);
+        } catch (e) {}
+      }
+
+      function playTypingSound(key) {
+        if (state.soundEnabled === false || state.mechanicalTyping === false) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          let baseFreq = 390;
+          let duration = 0.024;
+          let vol = 0.03;
+
+          if (key === 'Enter') {
+            baseFreq = 260;
+            duration = 0.042;
+            vol = 0.05;
+          } else if (key === ' ') {
+            baseFreq = 320;
+            duration = 0.032;
+            vol = 0.04;
+          } else if (key === 'Backspace') {
+            baseFreq = 440;
+            duration = 0.022;
+            vol = 0.025;
+          }
+
+          const jitter = 0.94 + Math.random() * 0.12;
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(baseFreq * jitter, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(110 * jitter, ctx.currentTime + duration);
+
+          gain.gain.setValueAtTime(vol, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0005, ctx.currentTime + duration + 0.005);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + duration + 0.005);
+        } catch (e) {}
       }
 
       function playMechanicalClick(pitch = 1.0) {
@@ -10679,15 +11271,55 @@
   </div>
 
 
-  <!-- Custom Desktop-Grade Native Context Menu -->
-  <div id="pkContextMenu" class="hidden fixed z-[999] popover-surface rounded-[4px] border border-[var(--border-hairline)] shadow-2xl py-1 min-w-[210px] max-w-[270px] select-none text-[12px] animate-menu">
-    <div id="pkContextMenuHeader" class="hidden px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-hairline)] truncate"></div>
-    <div id="pkContextMenuItems" class="space-y-0.5 px-1 py-0.5"></div>
+  <!-- Custom Desktop-Grade Native Context Menu (Ultra-Cool Glassmorphic HUD) -->
+  <div id="pkContextMenu" class="hidden fixed z-[999] popover-surface rounded-lg border border-[var(--border-hairline)] shadow-2xl min-w-[220px] max-w-[280px] select-none text-[12px] overflow-hidden backdrop-blur-xl">
+    <div class="h-[1.5px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-45"></div>
+    <div id="pkContextMenuTopBar" class="px-2.5 pt-1.5 pb-1 border-b border-[var(--border-hairline)] flex items-center justify-between gap-1 bg-[var(--bg-canvas)]/40">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span id="pkContextMenuBadgeIcon" class="text-[var(--accent-vermilion)] shrink-0 flex items-center"></span>
+        <span id="pkContextMenuHeader" class="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] truncate"></span>
+      </div>
+      <div class="flex items-center gap-0.5 shrink-0">
+        <button type="button" onclick="quickContextAction('copy')" title="Copy Content" class="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button type="button" onclick="quickContextAction('speak')" title="Read Aloud" class="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+        <button type="button" onclick="quickContextAction('zen')" title="Zen Focus Mode" class="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+        </button>
+        <button type="button" onclick="quickContextAction('burst')" title="Confetti Burst" class="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="pkContextMenuItems" class="space-y-0.5 px-1 py-1 max-h-[70vh] overflow-y-auto"></div>
+    <div class="px-2.5 py-1 bg-[var(--bg-canvas)]/50 border-t border-[var(--border-hairline)] flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
+      <span>↑↓ navigate · ↵ enter</span>
+      <span>esc close</span>
+    </div>
   </div>
 
   <!-- Context Submenu Container -->
-  <div id="pkContextSubmenu" class="hidden fixed z-[1000] popover-surface rounded-[4px] border border-[var(--border-hairline)] shadow-2xl py-1 min-w-[170px] max-w-[220px] select-none text-[12px] animate-menu">
-    <div id="pkContextSubmenuItems" class="space-y-0.5 px-1 py-0.5"></div>
+  <div id="pkContextSubmenu" class="hidden fixed z-[1000] popover-surface rounded-lg border border-[var(--border-hairline)] shadow-2xl py-1 min-w-[170px] max-w-[230px] select-none text-[12px] overflow-hidden backdrop-blur-xl">
+    <div class="h-[1.5px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-45"></div>
+    <div id="pkContextSubmenuItems" class="space-y-0.5 px-1 py-0.5 max-h-[60vh] overflow-y-auto"></div>
+  </div>
+
+  <!-- Floating Ambient Audio Reader HUD (Web Speech API Equalizer) -->
+  <div id="pkAudioReaderHUD" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[900] flex items-center gap-3 px-4 py-2 rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl animate-menu select-none backdrop-blur-xl">
+    <div class="flex items-center gap-1 h-3.5 px-0.5">
+      <span class="pk-eq-bar"></span>
+      <span class="pk-eq-bar"></span>
+      <span class="pk-eq-bar"></span>
+      <span class="pk-eq-bar"></span>
+      <span class="pk-eq-bar"></span>
+    </div>
+    <span id="pkAudioReaderLabel" class="font-mono text-xs text-[var(--text-primary)] font-medium max-w-[220px] truncate">Reading note aloud...</span>
+    <button onclick="stopReadingAloud()" title="Stop Voice" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] transition-colors cursor-pointer flex items-center justify-center">
+      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+    </button>
   </div>
 
 

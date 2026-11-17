@@ -52,940 +52,6 @@
     }
 
     // =========================================================================
-    // 20. CONTEXTUAL NATIVE APP ENGINE (ZERO BROWSER SLOP)
-    // =========================================================================
-    let activeContextMenuBlockId = null;
-    let activeContextMenuNoteId = null;
-    let activeContextMenuEventId = null;
-    let activeContextMenuDateKey = null;
-    let activeSubmenuTimeout = null;
-
-    document.addEventListener('contextmenu', e => {
-      // Shift + Right Click allows power-users to open the native browser inspect/menu
-      if (e.shiftKey) return;
-
-      e.preventDefault();
-      closeContextMenu();
-
-      const target = e.target;
-      const blockEl = target.closest('[data-block-id]') || target.closest('.block-row');
-      const noteEl = target.closest('[data-note-id]');
-      const eventEl = target.closest('[data-event-id]');
-      const dateCellEl = target.closest('[data-date-key]');
-      const canvasEl = target.closest('#knowledgeGraphCanvas');
-      const docAreaEl = target.closest('#documentScrollArea');
-
-      let menuItems = [];
-      let headerText = '';
-
-      // CONTEXT A: Note Block or Text Selection
-      if (blockEl || docAreaEl) {
-        const blockId = blockEl ? (blockEl.getAttribute('data-block-id') || blockEl.id) : null;
-        activeContextMenuBlockId = blockId;
-        const note = getActiveNote();
-        const block = note ? note.blocks.find(b => b.id === blockId) : null;
-        const hasSelection = window.getSelection().toString().trim().length > 0;
-
-        headerText = block ? `BLOCK: ${block.type.toUpperCase()}` : 'DOCUMENT';
-
-        if (hasSelection) {
-          menuItems.push(
-            { label: 'Bold', shortcut: '⌘B', icon: 'hash', action: () => document.execCommand('bold') },
-            { label: 'Italic', shortcut: '⌘I', icon: 'quote', action: () => document.execCommand('italic') },
-            { label: 'Inline Code', shortcut: '`', icon: 'terminal', action: () => formatSelectionWithCode() },
-            { label: 'Link to Note', shortcut: '[[', icon: 'link', action: () => formatSelectionWithWikiLink() },
-            { type: 'divider' },
-            { label: 'Copy Selection', shortcut: '⌘C', icon: 'document', action: () => document.execCommand('copy') },
-            { label: 'Cut Selection', shortcut: '⌘X', icon: 'minus', action: () => document.execCommand('cut') },
-            { type: 'divider' }
-          );
-        }
-
-        if (block) {
-          menuItems.push(
-            {
-              label: 'Turn Into',
-              icon: 'layers',
-              hasSubmenu: true,
-              submenu: [
-                { label: 'Paragraph', icon: 'document', action: () => convertBlockType(block.id, 'paragraph') },
-                { label: 'Heading 1', icon: 'hash', action: () => convertBlockType(block.id, 'h1') },
-                { label: 'Heading 2', icon: 'hash', action: () => convertBlockType(block.id, 'h2') },
-                { label: 'Heading 3', icon: 'hash', action: () => convertBlockType(block.id, 'h3') },
-                { label: 'Todo Checklist', icon: 'checkSquare', action: () => convertBlockType(block.id, 'todo') },
-                { label: 'Bulleted List', icon: 'list', action: () => convertBlockType(block.id, 'bullet') },
-                { label: 'Blockquote', icon: 'quote', action: () => convertBlockType(block.id, 'quote') },
-                { label: 'Code Block', icon: 'terminal', action: () => convertBlockType(block.id, 'code') },
-                { label: 'Callout', icon: 'alert', action: () => convertBlockType(block.id, 'callout') }
-              ]
-            },
-            { label: 'Insert Block Above', shortcut: '⇧↵', icon: 'document', action: () => insertBlockBefore(block.id) },
-            { label: 'Insert Block Below', shortcut: '↵', icon: 'document', action: () => insertBlockAfter(block.id) },
-            { label: 'Duplicate Block', shortcut: '⌘D', icon: 'layers', action: () => duplicateBlock(block.id) },
-            { label: 'Copy Markdown', icon: 'document', action: () => copyBlockMarkdown(block.id) },
-            { type: 'divider' },
-            { label: 'Delete Block', shortcut: '⌫', icon: 'minus', danger: true, action: () => deleteBlock(block.id) }
-          );
-        } else {
-          menuItems.push(
-            { label: 'Append Block', shortcut: '+', icon: 'document', action: () => appendBlockAtEnd() },
-            { label: 'Add Todo Item', shortcut: '☑', icon: 'checkSquare', action: () => appendTodoAtEnd() },
-            { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
-          );
-        }
-      }
-      // CONTEXT B: Left Sidebar Note
-      else if (noteEl) {
-        const noteId = noteEl.getAttribute('data-note-id');
-        activeContextMenuNoteId = noteId;
-        const note = state.notes.find(n => n.id === noteId);
-        if (!note) return;
-
-        headerText = note.code ? `${note.code} · ${note.title}` : note.title;
-
-        const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
-        const folderSubmenu = folders.map(f => ({
-          label: f,
-          icon: 'archive',
-          active: f === note.folder,
-          action: () => moveNoteToFolder(note.id, f)
-        }));
-
-        menuItems.push(
-          { label: 'Open Document', icon: 'document', action: () => selectNote(note.id) },
-          { label: note.favorite ? 'Unpin from Index' : 'Pin to Index', icon: 'bookmark', action: () => toggleFavoriteNoteById(note.id) },
-          { label: 'Move to Collection', icon: 'archive', hasSubmenu: true, submenu: folderSubmenu },
-          { label: 'Duplicate Document', icon: 'layers', action: () => duplicateNoteById(note.id) },
-          { label: 'Copy Wiki-Link', shortcut: '[[...]]', icon: 'link', action: () => copyNoteWikiLink(note.id) },
-          { type: 'divider' },
-          { label: 'Delete Document', icon: 'minus', danger: true, action: () => deleteNoteById(note.id) }
-        );
-      }
-      // CONTEXT C: Calendar Event
-      else if (eventEl) {
-        const eventId = eventEl.getAttribute('data-event-id');
-        activeContextMenuEventId = eventId;
-        const evt = state.events.find(e => e.id === eventId);
-        if (!evt) return;
-
-        headerText = `EVENT: ${evt.title}`;
-
-        const colorSubmenu = EVENT_COLORS.map(c => ({
-          label: c.label,
-          colorDot: c.hex,
-          active: c.hex.toLowerCase() === (evt.color_code || '').toLowerCase(),
-          action: () => changeEventColorById(evt.id, c.hex)
-        }));
-
-        menuItems.push(
-          { label: 'Edit Event...', icon: 'clock', action: () => openEventModal({ eventId: evt.id }) },
-          { label: 'Change Ink Color', icon: 'sliders', hasSubmenu: true, submenu: colorSubmenu },
-          evt.linkedNoteId ? { label: 'Open Linked Document', icon: 'document', action: () => { state.appMode = 'workspace'; selectNote(evt.linkedNoteId); } } : null,
-          { label: 'Duplicate Event', icon: 'layers', action: () => duplicateEventById(evt.id) },
-          { type: 'divider' },
-          { label: 'Delete Event', icon: 'minus', danger: true, action: () => deleteEventById(evt.id) }
-        );
-        menuItems = menuItems.filter(Boolean);
-      }
-      // CONTEXT D: Calendar Day Cell
-      else if (dateCellEl) {
-        const dateKey = dateCellEl.getAttribute('data-date-key');
-        activeContextMenuDateKey = dateKey;
-        headerText = `SCHEDULE · ${dateKey}`;
-
-        menuItems.push(
-          { label: 'New Event on this Date', shortcut: '+', icon: 'calendar', action: () => openEventModal({ dateKey: dateKey }) },
-          { label: 'View Day Timeline', icon: 'clock', action: () => { state.calendarSelectedDate = dateKey; state.calendarCursorDate = dateKey; setCalendarView('day'); } },
-          { label: 'Open Daily Log', icon: 'document', action: () => openOrCreateDailyNote() },
-          { label: 'Jump to Today', shortcut: 'T', icon: 'compass', action: () => jumpCalendarToday() }
-        );
-      }
-      // CONTEXT E: Knowledge Graph Canvas
-      else if (canvasEl) {
-        headerText = 'TOPOLOGY GRAPH';
-        menuItems.push(
-          { label: 'Reset Layout (Reheat)', shortcut: 'R', icon: 'graph', action: () => reheatGraph() },
-          { label: `Scope: ${state.graphLocalOnly ? 'Switch to Global' : 'Switch to Local'}`, icon: 'layers', action: () => toggleGraphScope() },
-          { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
-        );
-      }
-      // CONTEXT F: General Workspace Fallback
-      else {
-        headerText = 'PK NOTE';
-        menuItems.push(
-          { label: 'New Working Note', shortcut: '⌘N', icon: 'document', action: () => createNewNote('General') },
-          { label: 'Open Daily Log', icon: 'calendar', action: () => openOrCreateDailyNote() },
-          { label: 'Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() },
-          { type: 'divider' },
-          { label: state.appMode === 'workspace' ? 'Switch to Calendar' : 'Switch to Notes', icon: 'grid', action: () => setAppMode(state.appMode === 'workspace' ? 'calendar' : 'workspace') },
-          { label: `Theme: ${state.theme === 'dark' ? 'Archival Vellum' : 'Obsidian Carbon'}`, icon: 'sliders', action: () => toggleTheme() },
-          { label: 'Install PK Note App', icon: 'layers', action: () => openInstallModal() },
-          { type: 'divider' },
-          { label: 'Start Fresh (Reset Workspace)', icon: 'minus', danger: true, action: () => promptStartFresh() }
-        );
-      }
-
-      renderAndPositionContextMenu(e.clientX, e.clientY, headerText, menuItems);
-    });
-
-    function renderAndPositionContextMenu(x, y, headerText, items) {
-      const menu = document.getElementById('pkContextMenu');
-      const headerEl = document.getElementById('pkContextMenuHeader');
-      const itemsEl = document.getElementById('pkContextMenuItems');
-      if (!menu || !itemsEl) return;
-
-      if (headerText) {
-        headerEl.textContent = headerText;
-        headerEl.classList.remove('hidden');
-      } else {
-        headerEl.classList.add('hidden');
-      }
-
-      itemsEl.innerHTML = items.map((item, idx) => {
-        if (item.type === 'divider') {
-          return '<div class="h-[1px] bg-[var(--border-hairline)] my-1"></div>';
-        }
-
-        const iconHtml = item.icon
-          ? `<span class="shrink-0 ${item.danger ? 'text-[var(--accent-vermilion)]' : 'text-[var(--text-tertiary)]'}">${getGlyphSVG(item.icon)}</span>`
-          : (item.colorDot ? `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${item.colorDot}"></span>` : '');
-
-        const shortcutHtml = item.shortcut
-          ? `<span class="font-mono text-[9px] text-[var(--text-tertiary)]">${item.shortcut}</span>`
-          : (item.hasSubmenu ? '<svg class="w-3 h-3 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>' : '');
-
-        return `
-          <button type="button"
-                  data-menu-idx="${idx}"
-                  onmouseenter="handleContextItemHover(event, ${idx})"
-                  onclick="executeContextAction(${idx})"
-                  class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left transition-colors cursor-pointer ${
-                    item.danger
-                      ? 'text-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-tint)]'
-                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-                  }">
-            <div class="flex items-center gap-2 min-w-0">
-              ${iconHtml}
-              <span class="truncate text-xs">${escapeHtml(item.label)}</span>
-            </div>
-            ${shortcutHtml}
-          </button>
-        `;
-      }).join('');
-
-      // Store items on element for execution
-      menu._items = items;
-
-      menu.style.display = 'block';
-      menu.classList.remove('hidden');
-
-      // Boundary detection
-      const menuRect = menu.getBoundingClientRect();
-      const winW = window.innerWidth;
-      const winH = window.innerHeight;
-
-      let posX = x;
-      let posY = y;
-
-      if (posX + menuRect.width > winW - 10) {
-        posX = winW - menuRect.width - 10;
-      }
-      if (posY + menuRect.height > winH - 10) {
-        posY = winH - menuRect.height - 10;
-      }
-
-      menu.style.left = `${Math.max(10, posX)}px`;
-      menu.style.top = `${Math.max(10, posY)}px`;
-    }
-
-    function executeContextAction(idx) {
-      const menu = document.getElementById('pkContextMenu');
-      if (!menu || !menu._items) return;
-      const item = menu._items[idx];
-      if (item && item.action) {
-        closeContextMenu();
-        item.action();
-      }
-    }
-
-    function handleContextItemHover(e, idx) {
-      const menu = document.getElementById('pkContextMenu');
-      if (!menu || !menu._items) return;
-      const item = menu._items[idx];
-      clearTimeout(activeSubmenuTimeout);
-
-      if (item && item.hasSubmenu && item.submenu) {
-        const itemEl = e.currentTarget;
-        const rect = itemEl.getBoundingClientRect();
-        renderContextSubmenu(rect.right - 2, rect.top - 4, item.submenu);
-      } else {
-        closeContextSubmenu();
-      }
-    }
-
-    function renderContextSubmenu(x, y, items) {
-      const sub = document.getElementById('pkContextSubmenu');
-      const itemsEl = document.getElementById('pkContextSubmenuItems');
-      if (!sub || !itemsEl) return;
-
-      itemsEl.innerHTML = items.map((subItem, sIdx) => {
-        const iconHtml = subItem.icon
-          ? `<span class="shrink-0 text-[var(--text-tertiary)]">${getGlyphSVG(subItem.icon)}</span>`
-          : (subItem.colorDot ? `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${subItem.colorDot}"></span>` : '');
-
-        return `
-          <button type="button"
-                  onclick="executeSubmenuAction(${sIdx})"
-                  class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer text-xs">
-            <div class="flex items-center gap-2 min-w-0">
-              ${iconHtml}
-              <span class="truncate">${escapeHtml(subItem.label)}</span>
-            </div>
-            ${subItem.active ? `<svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
-          </button>
-        `;
-      }).join('');
-
-      sub._items = items;
-      sub.style.display = 'block';
-      sub.classList.remove('hidden');
-
-      const subRect = sub.getBoundingClientRect();
-      let posX = x;
-      let posY = y;
-
-      if (posX + subRect.width > window.innerWidth - 8) {
-        // Flip to left of parent menu
-        posX = x - subRect.width - 210;
-      }
-      if (posY + subRect.height > window.innerHeight - 8) {
-        posY = window.innerHeight - subRect.height - 8;
-      }
-
-      sub.style.left = `${Math.max(8, posX)}px`;
-      sub.style.top = `${Math.max(8, posY)}px`;
-    }
-
-    function executeSubmenuAction(sIdx) {
-      const sub = document.getElementById('pkContextSubmenu');
-      if (!sub || !sub._items) return;
-      const item = sub._items[sIdx];
-      if (item && item.action) {
-        closeContextMenu();
-        item.action();
-      }
-    }
-
-    function closeContextSubmenu() {
-      const sub = document.getElementById('pkContextSubmenu');
-      if (sub) {
-        sub.classList.add('hidden');
-        sub.style.display = 'none';
-      }
-    }
-
-    function closeContextMenu() {
-      const menu = document.getElementById('pkContextMenu');
-      if (menu) {
-        menu.classList.add('hidden');
-        menu.style.display = 'none';
-      }
-      closeContextSubmenu();
-    }
-
-    // Dismiss on click outside or Escape
-    document.addEventListener('click', e => {
-      const menu = document.getElementById('pkContextMenu');
-      const sub = document.getElementById('pkContextSubmenu');
-      if (menu && !menu.contains(e.target) && (!sub || !sub.contains(e.target))) {
-        closeContextMenu();
-      }
-    });
-
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        closeContextMenu();
-      }
-    });
-
-    window.addEventListener('resize', closeContextMenu);
-    window.addEventListener('scroll', closeContextMenu, true);
-
-    // Context Action Implementations
-    function formatSelectionWithCode() {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const text = sel.toString();
-      if (text) {
-        document.execCommand('insertText', false, '`' + text + '`');
-      }
-    }
-
-    function formatSelectionWithWikiLink() {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const text = sel.toString();
-      if (text) {
-        document.execCommand('insertText', false, '[[' + text + ']]');
-      }
-    }
-
-    function convertBlockType(blockId, targetType) {
-      const note = getActiveNote();
-      const block = note.blocks.find(b => b.id === blockId);
-      if (block) {
-        block.type = targetType;
-        renderBlocks(note);
-        focusBlock(block.id, true);
-        persistState();
-        showToast(`Converted to ${targetType}`);
-      }
-    }
-
-    function insertBlockBefore(blockId) {
-      const note = getActiveNote();
-      const idx = note.blocks.findIndex(b => b.id === blockId);
-      if (idx !== -1) {
-        const newBlock = { id: generateId('b'), type: 'paragraph', content: '' };
-        note.blocks.splice(idx, 0, newBlock);
-        renderBlocks(note);
-        focusBlock(newBlock.id, true);
-        persistState();
-      }
-    }
-
-    function duplicateBlock(blockId) {
-      const note = getActiveNote();
-      const idx = note.blocks.findIndex(b => b.id === blockId);
-      if (idx !== -1) {
-        const orig = note.blocks[idx];
-        const copyBlock = { ...orig, id: generateId('b') };
-        note.blocks.splice(idx + 1, 0, copyBlock);
-        renderBlocks(note);
-        focusBlock(copyBlock.id, true);
-        persistState();
-        showToast('Block duplicated');
-      }
-    }
-
-    function copyBlockMarkdown(blockId) {
-      const note = getActiveNote();
-      const block = note.blocks.find(b => b.id === blockId);
-      if (block) {
-        navigator.clipboard.writeText(block.content || '').then(() => {
-          showToast('Copied block content to clipboard');
-        });
-      }
-    }
-
-    function toggleFavoriteNoteById(noteId) {
-      const note = state.notes.find(n => n.id === noteId);
-      if (note) {
-        note.favorite = !note.favorite;
-        renderSidebar();
-        persistState();
-        showToast(note.favorite ? `Pinned "${note.title}"` : `Unpinned "${note.title}"`, 'ochre');
-      }
-    }
-
-    function moveNoteToFolder(noteId, targetFolder) {
-      const note = state.notes.find(n => n.id === noteId);
-      if (note) {
-        note.folder = targetFolder;
-        state.expandedFolders[targetFolder] = true;
-        renderSidebar();
-        if (state.activeNoteId === noteId) {
-          renderActiveDocument();
-        }
-        persistState();
-        showToast(`Moved to "${targetFolder}"`);
-      }
-    }
-
-    function duplicateNoteById(noteId) {
-      const note = state.notes.find(n => n.id === noteId);
-      if (!note) return;
-      const nextNum = String(state.notes.length + 1).padStart(2, '0');
-      const copyNote = {
-        ...JSON.parse(JSON.stringify(note)),
-        id: generateId('note'),
-        code: `DOC-${nextNum}`,
-        title: `${note.title} (Copy)`,
-        updatedAt: TODAY_KEY
-      };
-      state.notes.push(copyNote);
-      selectNote(copyNote.id);
-      showToast(`Duplicated "${copyNote.title}"`);
-    }
-
-    function copyNoteWikiLink(noteId) {
-      const note = state.notes.find(n => n.id === noteId);
-      if (!note) return;
-      const link = `[[${note.title}]]`;
-      navigator.clipboard.writeText(link).then(() => {
-        showToast(`Copied ${link}`);
-      });
-    }
-
-    function deleteNoteById(noteId) {
-      if (state.notes.length <= 1) {
-        showToast('Cannot delete final document', 'ochre');
-        return;
-      }
-      const note = state.notes.find(n => n.id === noteId);
-      const title = note ? note.title : 'Document';
-      state.notes = state.notes.filter(n => n.id !== noteId);
-      if (state.activeNoteId === noteId) {
-        state.activeNoteId = state.notes[0].id;
-      }
-      renderAll();
-      persistState();
-      showToast(`Deleted "${title}"`);
-    }
-
-    function changeEventColorById(eventId, hexColor) {
-      const evt = state.events.find(e => e.id === eventId);
-      if (evt) {
-        evt.color_code = hexColor;
-        renderCalendarSystem();
-        persistState();
-        showToast('Color updated');
-      }
-    }
-
-    function duplicateEventById(eventId) {
-      const evt = state.events.find(e => e.id === eventId);
-      if (!evt) return;
-      const copyEvt = {
-        ...JSON.parse(JSON.stringify(evt)),
-        id: generateId('evt'),
-        title: `${evt.title} (Copy)`
-      };
-      state.events.push(copyEvt);
-      renderCalendarSystem();
-      persistState();
-      showToast(`Duplicated "${copyEvt.title}"`);
-    }
-
-    function deleteEventById(eventId) {
-      const evt = state.events.find(e => e.id === eventId);
-      const title = evt ? evt.title : 'Event';
-      state.events = state.events.filter(e => e.id !== eventId);
-      renderCalendarSystem();
-      persistState();
-      showToast(`Deleted "${title}"`);
-    }
-
-
-    // =========================================================================
-    // 9C. EFFORTLESS SCHEDULING ENGINE (QUICK-ADD, PREVIEWS, OVERFLOW & DRILLDOWN)
-    // =========================================================================
-    let quickAddSelectedColor = '#D95338';
-    let quickAddActiveDateKey = TODAY_KEY;
-    let activePreviewEventId = null;
-
-    function handleMonthCellClick(e, dateKey) {
-      if (e.target.closest('[data-event-id]') || e.target.closest('button')) return;
-      selectCalendarDate(dateKey, false);
-      openQuickAddPopover(e, { dateKey: dateKey });
-    }
-
-    function drillDownToDay(dateKey) {
-      state.calendarSelectedDate = dateKey;
-      state.calendarCursorDate = dateKey;
-      setCalendarView('day');
-      showToast(`Zoomed to ${dateKey} day timeline`);
-    }
-
-    function toggleCalendarAgendaSidebar() {
-      state.calendarAgendaOpen = state.calendarAgendaOpen === false ? true : false;
-      applyCalendarAgendaSidebarState();
-      persistState();
-    }
-
-    function applyCalendarAgendaSidebarState() {
-      const sidebar = document.getElementById('calendarAgendaSidebar');
-      const btn = document.getElementById('calToggleAgendaBtn');
-      const isOpen = state.calendarAgendaOpen !== false;
-      if (sidebar) {
-        if (isOpen) {
-          sidebar.classList.remove('hidden');
-          sidebar.classList.add('flex');
-        } else {
-          sidebar.classList.add('hidden');
-          sidebar.classList.remove('flex');
-        }
-      }
-      if (btn) {
-        if (isOpen) {
-          btn.classList.add('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-strong)]');
-        } else {
-          btn.classList.remove('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-strong)]');
-        }
-      }
-    }
-
-    function openQuickAddPopover(e, options = {}) {
-      closeEventPreviewPopover();
-      closeDayOverflowPopover();
-
-      const { dateKey = null, startHour = null, allDay = false } = options;
-      quickAddActiveDateKey = dateKey || state.calendarSelectedDate || TODAY_KEY;
-      quickAddSelectedColor = EVENT_COLORS[0].hex;
-
-      const popover = document.getElementById('calQuickAddPopover');
-      const titleInput = document.getElementById('quickAddTitle');
-      const dateLabel = document.getElementById('quickAddDateLabel');
-      const allDayCheck = document.getElementById('quickAddAllDay');
-      const timeRow = document.getElementById('quickAddTimeRow');
-      const startTimeInput = document.getElementById('quickAddStartTime');
-      const endTimeInput = document.getElementById('quickAddEndTime');
-      const colorDotsCont = document.getElementById('quickAddColorDots');
-      const colorIndicator = document.getElementById('quickAddColorIndicator');
-
-      if (!popover || !titleInput) return;
-
-      titleInput.value = '';
-      dateLabel.textContent = quickAddActiveDateKey;
-      allDayCheck.checked = Boolean(allDay);
-      timeRow.classList.toggle('hidden', Boolean(allDay));
-
-      const hr = startHour !== null ? startHour : 9;
-      const endHr = Math.min(23, hr + 1);
-      startTimeInput.value = `${String(hr).padStart(2, '0')}:00`;
-      endTimeInput.value = `${String(endHr).padStart(2, '0')}:00`;
-
-      colorIndicator.style.backgroundColor = quickAddSelectedColor;
-      colorDotsCont.innerHTML = EVENT_COLORS.map(c => `
-        <button type="button"
-                onclick="selectQuickAddColor('${c.hex}')"
-                title="${c.label}"
-                style="background-color: ${c.hex};"
-                class="w-5 h-5 rounded-full flex items-center justify-center transition-transform cursor-pointer ${
-                  c.hex.toLowerCase() === quickAddSelectedColor.toLowerCase() ? 'ring-2 ring-offset-1 ring-[var(--text-primary)] scale-110' : 'opacity-80 hover:opacity-100'
-                }">
-        </button>
-      `).join('');
-
-      popover.style.display = 'block';
-      popover.classList.remove('hidden');
-
-      const popRect = popover.getBoundingClientRect();
-      const clientX = e && e.clientX ? e.clientX : window.innerWidth / 2;
-      const clientY = e && e.clientY ? e.clientY : window.innerHeight / 3;
-
-      let posX = clientX - popRect.width / 2;
-      let posY = clientY + 12;
-
-      if (posX < 10) posX = 10;
-      if (posX + popRect.width > window.innerWidth - 10) {
-        posX = window.innerWidth - popRect.width - 10;
-      }
-      if (posY + popRect.height > window.innerHeight - 10) {
-        posY = Math.max(10, clientY - popRect.height - 12);
-      }
-
-      popover.style.left = `${posX}px`;
-      popover.style.top = `${posY}px`;
-
-      requestAnimationFrame(() => titleInput.focus());
-    }
-
-    function toggleQuickAddAllDay(isAllDay) {
-      const timeRow = document.getElementById('quickAddTimeRow');
-      if (timeRow) timeRow.classList.toggle('hidden', isAllDay);
-    }
-
-    function selectQuickAddColor(hex) {
-      quickAddSelectedColor = hex;
-      document.getElementById('quickAddColorIndicator').style.backgroundColor = hex;
-      const dots = document.getElementById('quickAddColorDots');
-      dots.querySelectorAll('button').forEach(btn => {
-        if (btn.style.backgroundColor === hex) {
-          btn.classList.add('ring-2', 'ring-offset-1', 'ring-[var(--text-primary)]', 'scale-110');
-          btn.classList.remove('opacity-80');
-        } else {
-          btn.classList.remove('ring-2', 'ring-offset-1', 'ring-[var(--text-primary)]', 'scale-110');
-          btn.classList.add('opacity-80');
-        }
-      });
-    }
-
-    function closeQuickAddPopover() {
-      const popover = document.getElementById('calQuickAddPopover');
-      if (popover) {
-        popover.classList.add('hidden');
-        popover.style.display = 'none';
-      }
-    }
-
-    function submitQuickAddEvent(e) {
-      if (e) e.preventDefault();
-      const title = document.getElementById('quickAddTitle').value.trim();
-      if (!title) return;
-
-      const isAllDay = document.getElementById('quickAddAllDay').checked;
-      let start_datetime = '';
-      let end_datetime = null;
-
-      if (isAllDay) {
-        start_datetime = quickAddActiveDateKey;
-        end_datetime = quickAddActiveDateKey;
-      } else {
-        const sTime = document.getElementById('quickAddStartTime').value || '09:00';
-        const eTime = document.getElementById('quickAddEndTime').value || '10:00';
-        start_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${sTime}`);
-        end_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${eTime}`);
-      }
-
-      const newEvt = {
-        id: generateId('evt'),
-        title: title,
-        start_datetime: start_datetime,
-        end_datetime: end_datetime,
-        location: '',
-        color_code: quickAddSelectedColor,
-        all_day: isAllDay,
-        linkedNoteId: state.appMode === 'workspace' ? (state.activeNoteId || '') : '',
-        notes: ''
-      };
-
-      state.events.push(newEvt);
-      state.calendarSelectedDate = quickAddActiveDateKey;
-      state.calendarCursorDate = quickAddActiveDateKey;
-
-      closeQuickAddPopover();
-      renderAll();
-      persistState();
-      showToast(`Scheduled "${title}"`);
-    }
-
-    function quickAddOpenFullModal() {
-      const title = document.getElementById('quickAddTitle').value.trim();
-      const isAllDay = document.getElementById('quickAddAllDay').checked;
-      const sTime = document.getElementById('quickAddStartTime').value || '09:00';
-      const [h] = sTime.split(':').map(Number);
-
-      closeQuickAddPopover();
-      openEventModal({ dateKey: quickAddActiveDateKey, startHour: h || 9, allDay: isAllDay });
-      if (title) {
-        document.getElementById('eventFormTitle').value = title;
-      }
-    }
-
-    // =========================================================================
-    // EVENT DETAILS PREVIEW CARD CONTROLLER
-    // =========================================================================
-    function openEventPreview(e, eventId) {
-      if (e) e.stopPropagation();
-      closeQuickAddPopover();
-      closeDayOverflowPopover();
-
-      activePreviewEventId = eventId;
-      const evt = state.events.find(item => item.id === eventId);
-      if (!evt) return;
-
-      const popover = document.getElementById('calEventPreviewPopover');
-      const titleEl = document.getElementById('previewEventTitle');
-      const timeEl = document.getElementById('previewEventTime');
-      const colorBar = document.getElementById('previewEventColorBar');
-      const locRow = document.getElementById('previewEventLocationRow');
-      const locText = document.getElementById('previewEventLocation');
-      const linkRow = document.getElementById('previewEventLinkedNoteRow');
-      const linkBtn = document.getElementById('previewEventLinkedNoteBtn');
-      const notesRow = document.getElementById('previewEventNotesRow');
-      const notesText = document.getElementById('previewEventNotes');
-
-      if (!popover) return;
-
-      const col = resolveEventColor(evt.color_code);
-      const norm = normalizeEventRange(evt);
-
-      titleEl.textContent = evt.title;
-      colorBar.style.backgroundColor = col.hex;
-
-      const timeSummary = norm.allDay
-        ? (norm.isMultiDay ? `All-Day · ${norm.startDateKey} → ${norm.endDateKey}` : `All-Day · ${norm.startDateKey}`)
-        : `${norm.startDateKey} · ${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
-      timeEl.textContent = timeSummary;
-
-      if (evt.location) {
-        locText.textContent = evt.location;
-        locRow.classList.remove('hidden');
-      } else {
-        locRow.classList.add('hidden');
-      }
-
-      if (evt.linkedNoteId) {
-        const note = state.notes.find(n => n.id === evt.linkedNoteId);
-        if (note) {
-          linkBtn.textContent = `[[${note.title}]]`;
-          linkRow.classList.remove('hidden');
-        } else {
-          linkRow.classList.add('hidden');
-        }
-      } else {
-        linkRow.classList.add('hidden');
-      }
-
-      if (evt.notes && evt.notes.trim()) {
-        notesText.textContent = evt.notes;
-        notesRow.classList.remove('hidden');
-      } else {
-        notesRow.classList.add('hidden');
-      }
-
-      popover.style.display = 'block';
-      popover.classList.remove('hidden');
-
-      const popRect = popover.getBoundingClientRect();
-      const targetEl = e.currentTarget || e.target;
-      const targetRect = targetEl.getBoundingClientRect ? targetEl.getBoundingClientRect() : { left: e.clientX, top: e.clientY, right: e.clientX, bottom: e.clientY };
-
-      let posX = targetRect.right + 8;
-      let posY = targetRect.top;
-
-      if (posX + popRect.width > window.innerWidth - 10) {
-        posX = targetRect.left - popRect.width - 8;
-      }
-      if (posX < 10) {
-        posX = Math.max(10, (window.innerWidth - popRect.width) / 2);
-      }
-      if (posY + popRect.height > window.innerHeight - 10) {
-        posY = window.innerHeight - popRect.height - 10;
-      }
-
-      popover.style.left = `${posX}px`;
-      popover.style.top = `${Math.max(10, posY)}px`;
-    }
-
-    function closeEventPreviewPopover() {
-      const popover = document.getElementById('calEventPreviewPopover');
-      if (popover) {
-        popover.classList.add('hidden');
-        popover.style.display = 'none';
-      }
-      activePreviewEventId = null;
-    }
-
-    function previewEditEvent() {
-      const id = activePreviewEventId;
-      closeEventPreviewPopover();
-      if (id) openEventModal({ eventId: id });
-    }
-
-    function previewDuplicateEvent() {
-      const id = activePreviewEventId;
-      closeEventPreviewPopover();
-      if (id) duplicateEventById(id);
-    }
-
-    function previewDeleteEvent() {
-      const id = activePreviewEventId;
-      closeEventPreviewPopover();
-      if (id) deleteEventById(id);
-    }
-
-    function previewOpenLinkedNote() {
-      const id = activePreviewEventId;
-      const evt = state.events.find(item => item.id === id);
-      closeEventPreviewPopover();
-      if (evt && evt.linkedNoteId) {
-        state.appMode = 'workspace';
-        selectNote(evt.linkedNoteId);
-      }
-    }
-
-    // =========================================================================
-    // DAY OVERFLOW POPOVER CONTROLLER (+X more)
-    // =========================================================================
-    function openDayOverflowPopover(e, dateKey) {
-      if (e) e.stopPropagation();
-      closeQuickAddPopover();
-      closeEventPreviewPopover();
-
-      const popover = document.getElementById('calDayOverflowPopover');
-      const heading = document.getElementById('overflowDateHeading');
-      const badge = document.getElementById('overflowCountBadge');
-      const list = document.getElementById('overflowEventsList');
-      const zoomBtn = document.getElementById('overflowZoomDayBtn');
-      const addBtn = document.getElementById('overflowAddEventBtn');
-
-      if (!popover || !list) return;
-
-      const events = getEventsForDateKey(dateKey);
-      heading.textContent = dateKey;
-      badge.textContent = `${events.length} events`;
-
-      zoomBtn.onclick = () => { closeDayOverflowPopover(); drillDownToDay(dateKey); };
-      addBtn.onclick = (evt) => { closeDayOverflowPopover(); openQuickAddPopover(evt, { dateKey }); };
-
-      list.innerHTML = events.map(evt => {
-        const col = resolveEventColor(evt.color_code);
-        const norm = normalizeEventRange(evt);
-        const timeStr = norm.allDay ? 'All-day' : `${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
-        return `
-          <button type="button"
-                  onclick="openEventPreview(event, '${evt.id}')"
-                  class="w-full flex items-center justify-between p-2 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer group">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${col.hex}"></span>
-              <div class="truncate">
-                <div class="text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(evt.title)}</div>
-                <div class="font-mono text-[10px] text-[var(--text-tertiary)]">${timeStr}</div>
-              </div>
-            </div>
-            <span class="font-mono text-[9px] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]">VIEW</span>
-          </button>
-        `;
-      }).join('');
-
-      popover.style.display = 'block';
-      popover.classList.remove('hidden');
-
-      const popRect = popover.getBoundingClientRect();
-      const targetEl = e.currentTarget || e.target;
-      const targetRect = targetEl.getBoundingClientRect ? targetEl.getBoundingClientRect() : { left: e.clientX, top: e.clientY };
-
-      let posX = targetRect.left;
-      let posY = targetRect.bottom + 6;
-
-      if (posX + popRect.width > window.innerWidth - 10) {
-        posX = window.innerWidth - popRect.width - 10;
-      }
-      if (posY + popRect.height > window.innerHeight - 10) {
-        posY = targetRect.top - popRect.height - 6;
-      }
-
-      popover.style.left = `${Math.max(10, posX)}px`;
-      popover.style.top = `${Math.max(10, posY)}px`;
-    }
-
-    function closeDayOverflowPopover() {
-      const popover = document.getElementById('calDayOverflowPopover');
-      if (popover) {
-        popover.classList.add('hidden');
-        popover.style.display = 'none';
-      }
-    }
-
-    // Dismiss floating popovers on outside click or Escape
-    document.addEventListener('click', e => {
-      const quickAdd = document.getElementById('calQuickAddPopover');
-      const preview = document.getElementById('calEventPreviewPopover');
-      const overflow = document.getElementById('calDayOverflowPopover');
-
-      if (quickAdd && !quickAdd.classList.contains('hidden') && !quickAdd.contains(e.target)) {
-        closeQuickAddPopover();
-      }
-      if (preview && !preview.classList.contains('hidden') && !preview.contains(e.target)) {
-        closeEventPreviewPopover();
-      }
-      if (overflow && !overflow.classList.contains('hidden') && !overflow.contains(e.target)) {
-        closeDayOverflowPopover();
-      }
-    });
-
   </script>
 
   <style>
@@ -2504,6 +1570,47 @@
       }
       return JSON.parse(JSON.stringify(DEFAULT_VAULT));
     }
+
+
+    // =========================================================================
+    // 4. STATE MANAGEMENT & PERSISTENCE
+    // =========================================================================
+    let state = loadState();
+    let saveTimer = null;
+
+    // Ephemeral UI State
+    let sidebarSearchQuery = '';
+    let activeTagFilter = null;
+    let calendarSearchQuery = '';
+    let calendarColorFilter = null;
+    let miniCalCursorMonth = parseLocalDateKey(state.calendarCursorDate || TODAY_KEY);
+
+    let activeSlashBlockId = null;
+    let slashSelectedIndex = 0;
+    let activeWikiBlockId = null;
+    let wikiQuery = '';
+    let wikiSelectedIndex = 0;
+    let cmdSelectedIndex = 0;
+    let draggedBlockId = null;
+
+    // Calendar Drag & Modal State
+    let draggedCalendarEventId = null;
+    let draggedEventGrabOffsetMinutes = 0;
+    let selectedModalColor = EVENT_COLORS[0].hex;
+    let weekTimelineInitialScrollDone = false;
+
+    const SLASH_COMMANDS = [
+      { type: 'paragraph', label: 'Paragraph', desc: 'Standard body text block', glyph: 'document', shortcut: '' },
+      { type: 'h1', label: 'Heading 1', desc: 'Primary section heading', glyph: 'hash', shortcut: '#' },
+      { type: 'h2', label: 'Heading 2', desc: 'Secondary section heading', glyph: 'hash', shortcut: '##' },
+      { type: 'h3', label: 'Heading 3', desc: 'Tertiary subsection heading', glyph: 'hash', shortcut: '###' },
+      { type: 'bullet', label: 'Bullet List', desc: 'Unordered archival list item', glyph: 'list', shortcut: '-' },
+      { type: 'todo', label: 'Checklist Item', desc: 'Interactive task checkbox', glyph: 'checkSquare', shortcut: '[]' },
+      { type: 'callout', label: 'Callout Block', desc: 'Left-ruled emphasis note', glyph: 'alert', shortcut: '>' },
+      { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
+      { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
+      { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
+    ];
 
     function persistState() {
       const indicator = document.getElementById('saveIndicator');
@@ -6258,7 +5365,955 @@
         });
       }
     });
-  </script>
+  
+
+    // 20. CONTEXTUAL NATIVE APP ENGINE (ZERO BROWSER SLOP)
+    // =========================================================================
+    let activeContextMenuBlockId = null;
+    let activeContextMenuNoteId = null;
+    let activeContextMenuEventId = null;
+    let activeContextMenuDateKey = null;
+    let activeSubmenuTimeout = null;
+
+    document.addEventListener('contextmenu', e => {
+      // Shift + Right Click allows power-users to open the native browser inspect/menu
+      if (e.shiftKey) return;
+
+      e.preventDefault();
+      closeContextMenu();
+
+      const target = e.target;
+      const blockEl = target.closest('[data-block-id]') || target.closest('.block-row');
+      const noteEl = target.closest('[data-note-id]');
+      const eventEl = target.closest('[data-event-id]');
+      const dateCellEl = target.closest('[data-date-key]');
+      const canvasEl = target.closest('#knowledgeGraphCanvas');
+      const docAreaEl = target.closest('#documentScrollArea');
+
+      let menuItems = [];
+      let headerText = '';
+
+      // CONTEXT A: Note Block or Text Selection
+      if (blockEl || docAreaEl) {
+        const blockId = blockEl ? (blockEl.getAttribute('data-block-id') || blockEl.id) : null;
+        activeContextMenuBlockId = blockId;
+        const note = getActiveNote();
+        const block = note ? note.blocks.find(b => b.id === blockId) : null;
+        const hasSelection = window.getSelection().toString().trim().length > 0;
+
+        headerText = block ? `BLOCK: ${block.type.toUpperCase()}` : 'DOCUMENT';
+
+        if (hasSelection) {
+          menuItems.push(
+            { label: 'Bold', shortcut: '⌘B', icon: 'hash', action: () => document.execCommand('bold') },
+            { label: 'Italic', shortcut: '⌘I', icon: 'quote', action: () => document.execCommand('italic') },
+            { label: 'Inline Code', shortcut: '`', icon: 'terminal', action: () => formatSelectionWithCode() },
+            { label: 'Link to Note', shortcut: '[[', icon: 'link', action: () => formatSelectionWithWikiLink() },
+            { type: 'divider' },
+            { label: 'Copy Selection', shortcut: '⌘C', icon: 'document', action: () => document.execCommand('copy') },
+            { label: 'Cut Selection', shortcut: '⌘X', icon: 'minus', action: () => document.execCommand('cut') },
+            { type: 'divider' }
+          );
+        }
+
+        if (block) {
+          menuItems.push(
+            {
+              label: 'Turn Into',
+              icon: 'layers',
+              hasSubmenu: true,
+              submenu: [
+                { label: 'Paragraph', icon: 'document', action: () => convertBlockType(block.id, 'paragraph') },
+                { label: 'Heading 1', icon: 'hash', action: () => convertBlockType(block.id, 'h1') },
+                { label: 'Heading 2', icon: 'hash', action: () => convertBlockType(block.id, 'h2') },
+                { label: 'Heading 3', icon: 'hash', action: () => convertBlockType(block.id, 'h3') },
+                { label: 'Todo Checklist', icon: 'checkSquare', action: () => convertBlockType(block.id, 'todo') },
+                { label: 'Bulleted List', icon: 'list', action: () => convertBlockType(block.id, 'bullet') },
+                { label: 'Blockquote', icon: 'quote', action: () => convertBlockType(block.id, 'quote') },
+                { label: 'Code Block', icon: 'terminal', action: () => convertBlockType(block.id, 'code') },
+                { label: 'Callout', icon: 'alert', action: () => convertBlockType(block.id, 'callout') }
+              ]
+            },
+            { label: 'Insert Block Above', shortcut: '⇧↵', icon: 'document', action: () => insertBlockBefore(block.id) },
+            { label: 'Insert Block Below', shortcut: '↵', icon: 'document', action: () => insertBlockAfter(block.id) },
+            { label: 'Duplicate Block', shortcut: '⌘D', icon: 'layers', action: () => duplicateBlock(block.id) },
+            { label: 'Copy Markdown', icon: 'document', action: () => copyBlockMarkdown(block.id) },
+            { type: 'divider' },
+            { label: 'Delete Block', shortcut: '⌫', icon: 'minus', danger: true, action: () => deleteBlock(block.id) }
+          );
+        } else {
+          menuItems.push(
+            { label: 'Append Block', shortcut: '+', icon: 'document', action: () => appendBlockAtEnd() },
+            { label: 'Add Todo Item', shortcut: '☑', icon: 'checkSquare', action: () => appendTodoAtEnd() },
+            { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
+          );
+        }
+      }
+      // CONTEXT B: Left Sidebar Note
+      else if (noteEl) {
+        const noteId = noteEl.getAttribute('data-note-id');
+        activeContextMenuNoteId = noteId;
+        const note = state.notes.find(n => n.id === noteId);
+        if (!note) return;
+
+        headerText = note.code ? `${note.code} · ${note.title}` : note.title;
+
+        const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
+        const folderSubmenu = folders.map(f => ({
+          label: f,
+          icon: 'archive',
+          active: f === note.folder,
+          action: () => moveNoteToFolder(note.id, f)
+        }));
+
+        menuItems.push(
+          { label: 'Open Document', icon: 'document', action: () => selectNote(note.id) },
+          { label: note.favorite ? 'Unpin from Index' : 'Pin to Index', icon: 'bookmark', action: () => toggleFavoriteNoteById(note.id) },
+          { label: 'Move to Collection', icon: 'archive', hasSubmenu: true, submenu: folderSubmenu },
+          { label: 'Duplicate Document', icon: 'layers', action: () => duplicateNoteById(note.id) },
+          { label: 'Copy Wiki-Link', shortcut: '[[...]]', icon: 'link', action: () => copyNoteWikiLink(note.id) },
+          { type: 'divider' },
+          { label: 'Delete Document', icon: 'minus', danger: true, action: () => deleteNoteById(note.id) }
+        );
+      }
+      // CONTEXT C: Calendar Event
+      else if (eventEl) {
+        const eventId = eventEl.getAttribute('data-event-id');
+        activeContextMenuEventId = eventId;
+        const evt = state.events.find(e => e.id === eventId);
+        if (!evt) return;
+
+        headerText = `EVENT: ${evt.title}`;
+
+        const colorSubmenu = EVENT_COLORS.map(c => ({
+          label: c.label,
+          colorDot: c.hex,
+          active: c.hex.toLowerCase() === (evt.color_code || '').toLowerCase(),
+          action: () => changeEventColorById(evt.id, c.hex)
+        }));
+
+        menuItems.push(
+          { label: 'Edit Event...', icon: 'clock', action: () => openEventModal({ eventId: evt.id }) },
+          { label: 'Change Ink Color', icon: 'sliders', hasSubmenu: true, submenu: colorSubmenu },
+          evt.linkedNoteId ? { label: 'Open Linked Document', icon: 'document', action: () => { state.appMode = 'workspace'; selectNote(evt.linkedNoteId); } } : null,
+          { label: 'Duplicate Event', icon: 'layers', action: () => duplicateEventById(evt.id) },
+          { type: 'divider' },
+          { label: 'Delete Event', icon: 'minus', danger: true, action: () => deleteEventById(evt.id) }
+        );
+        menuItems = menuItems.filter(Boolean);
+      }
+      // CONTEXT D: Calendar Day Cell
+      else if (dateCellEl) {
+        const dateKey = dateCellEl.getAttribute('data-date-key');
+        activeContextMenuDateKey = dateKey;
+        headerText = `SCHEDULE · ${dateKey}`;
+
+        menuItems.push(
+          { label: 'New Event on this Date', shortcut: '+', icon: 'calendar', action: () => openEventModal({ dateKey: dateKey }) },
+          { label: 'View Day Timeline', icon: 'clock', action: () => { state.calendarSelectedDate = dateKey; state.calendarCursorDate = dateKey; setCalendarView('day'); } },
+          { label: 'Open Daily Log', icon: 'document', action: () => openOrCreateDailyNote() },
+          { label: 'Jump to Today', shortcut: 'T', icon: 'compass', action: () => jumpCalendarToday() }
+        );
+      }
+      // CONTEXT E: Knowledge Graph Canvas
+      else if (canvasEl) {
+        headerText = 'TOPOLOGY GRAPH';
+        menuItems.push(
+          { label: 'Reset Layout (Reheat)', shortcut: 'R', icon: 'graph', action: () => reheatGraph() },
+          { label: `Scope: ${state.graphLocalOnly ? 'Switch to Global' : 'Switch to Local'}`, icon: 'layers', action: () => toggleGraphScope() },
+          { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
+        );
+      }
+      // CONTEXT F: General Workspace Fallback
+      else {
+        headerText = 'PK NOTE';
+        menuItems.push(
+          { label: 'New Working Note', shortcut: '⌘N', icon: 'document', action: () => createNewNote('General') },
+          { label: 'Open Daily Log', icon: 'calendar', action: () => openOrCreateDailyNote() },
+          { label: 'Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() },
+          { type: 'divider' },
+          { label: state.appMode === 'workspace' ? 'Switch to Calendar' : 'Switch to Notes', icon: 'grid', action: () => setAppMode(state.appMode === 'workspace' ? 'calendar' : 'workspace') },
+          { label: `Theme: ${state.theme === 'dark' ? 'Archival Vellum' : 'Obsidian Carbon'}`, icon: 'sliders', action: () => toggleTheme() },
+          { label: 'Install PK Note App', icon: 'layers', action: () => openInstallModal() },
+          { type: 'divider' },
+          { label: 'Start Fresh (Reset Workspace)', icon: 'minus', danger: true, action: () => promptStartFresh() }
+        );
+      }
+
+      renderAndPositionContextMenu(e.clientX, e.clientY, headerText, menuItems);
+    });
+
+    function renderAndPositionContextMenu(x, y, headerText, items) {
+      const menu = document.getElementById('pkContextMenu');
+      const headerEl = document.getElementById('pkContextMenuHeader');
+      const itemsEl = document.getElementById('pkContextMenuItems');
+      if (!menu || !itemsEl) return;
+
+      if (headerText) {
+        headerEl.textContent = headerText;
+        headerEl.classList.remove('hidden');
+      } else {
+        headerEl.classList.add('hidden');
+      }
+
+      itemsEl.innerHTML = items.map((item, idx) => {
+        if (item.type === 'divider') {
+          return '<div class="h-[1px] bg-[var(--border-hairline)] my-1"></div>';
+        }
+
+        const iconHtml = item.icon
+          ? `<span class="shrink-0 ${item.danger ? 'text-[var(--accent-vermilion)]' : 'text-[var(--text-tertiary)]'}">${getGlyphSVG(item.icon)}</span>`
+          : (item.colorDot ? `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${item.colorDot}"></span>` : '');
+
+        const shortcutHtml = item.shortcut
+          ? `<span class="font-mono text-[9px] text-[var(--text-tertiary)]">${item.shortcut}</span>`
+          : (item.hasSubmenu ? '<svg class="w-3 h-3 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>' : '');
+
+        return `
+          <button type="button"
+                  data-menu-idx="${idx}"
+                  onmouseenter="handleContextItemHover(event, ${idx})"
+                  onclick="executeContextAction(${idx})"
+                  class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left transition-colors cursor-pointer ${
+                    item.danger
+                      ? 'text-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-tint)]'
+                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                  }">
+            <div class="flex items-center gap-2 min-w-0">
+              ${iconHtml}
+              <span class="truncate text-xs">${escapeHtml(item.label)}</span>
+            </div>
+            ${shortcutHtml}
+          </button>
+        `;
+      }).join('');
+
+      // Store items on element for execution
+      menu._items = items;
+
+      menu.style.display = 'block';
+      menu.classList.remove('hidden');
+
+      // Boundary detection
+      const menuRect = menu.getBoundingClientRect();
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
+
+      let posX = x;
+      let posY = y;
+
+      if (posX + menuRect.width > winW - 10) {
+        posX = winW - menuRect.width - 10;
+      }
+      if (posY + menuRect.height > winH - 10) {
+        posY = winH - menuRect.height - 10;
+      }
+
+      menu.style.left = `${Math.max(10, posX)}px`;
+      menu.style.top = `${Math.max(10, posY)}px`;
+    }
+
+    function executeContextAction(idx) {
+      const menu = document.getElementById('pkContextMenu');
+      if (!menu || !menu._items) return;
+      const item = menu._items[idx];
+      if (item && item.action) {
+        closeContextMenu();
+        item.action();
+      }
+    }
+
+    function handleContextItemHover(e, idx) {
+      const menu = document.getElementById('pkContextMenu');
+      if (!menu || !menu._items) return;
+      const item = menu._items[idx];
+      clearTimeout(activeSubmenuTimeout);
+
+      if (item && item.hasSubmenu && item.submenu) {
+        const itemEl = e.currentTarget;
+        const rect = itemEl.getBoundingClientRect();
+        renderContextSubmenu(rect.right - 2, rect.top - 4, item.submenu);
+      } else {
+        closeContextSubmenu();
+      }
+    }
+
+    function renderContextSubmenu(x, y, items) {
+      const sub = document.getElementById('pkContextSubmenu');
+      const itemsEl = document.getElementById('pkContextSubmenuItems');
+      if (!sub || !itemsEl) return;
+
+      itemsEl.innerHTML = items.map((subItem, sIdx) => {
+        const iconHtml = subItem.icon
+          ? `<span class="shrink-0 text-[var(--text-tertiary)]">${getGlyphSVG(subItem.icon)}</span>`
+          : (subItem.colorDot ? `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${subItem.colorDot}"></span>` : '');
+
+        return `
+          <button type="button"
+                  onclick="executeSubmenuAction(${sIdx})"
+                  class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer text-xs">
+            <div class="flex items-center gap-2 min-w-0">
+              ${iconHtml}
+              <span class="truncate">${escapeHtml(subItem.label)}</span>
+            </div>
+            ${subItem.active ? `<svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+          </button>
+        `;
+      }).join('');
+
+      sub._items = items;
+      sub.style.display = 'block';
+      sub.classList.remove('hidden');
+
+      const subRect = sub.getBoundingClientRect();
+      let posX = x;
+      let posY = y;
+
+      if (posX + subRect.width > window.innerWidth - 8) {
+        // Flip to left of parent menu
+        posX = x - subRect.width - 210;
+      }
+      if (posY + subRect.height > window.innerHeight - 8) {
+        posY = window.innerHeight - subRect.height - 8;
+      }
+
+      sub.style.left = `${Math.max(8, posX)}px`;
+      sub.style.top = `${Math.max(8, posY)}px`;
+    }
+
+    function executeSubmenuAction(sIdx) {
+      const sub = document.getElementById('pkContextSubmenu');
+      if (!sub || !sub._items) return;
+      const item = sub._items[sIdx];
+      if (item && item.action) {
+        closeContextMenu();
+        item.action();
+      }
+    }
+
+    function closeContextSubmenu() {
+      const sub = document.getElementById('pkContextSubmenu');
+      if (sub) {
+        sub.classList.add('hidden');
+        sub.style.display = 'none';
+      }
+    }
+
+    function closeContextMenu() {
+      const menu = document.getElementById('pkContextMenu');
+      if (menu) {
+        menu.classList.add('hidden');
+        menu.style.display = 'none';
+      }
+      closeContextSubmenu();
+    }
+
+    // Dismiss on click outside or Escape
+    document.addEventListener('click', e => {
+      const menu = document.getElementById('pkContextMenu');
+      const sub = document.getElementById('pkContextSubmenu');
+      if (menu && !menu.contains(e.target) && (!sub || !sub.contains(e.target))) {
+        closeContextMenu();
+      }
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeContextMenu();
+      }
+    });
+
+    window.addEventListener('resize', closeContextMenu);
+    window.addEventListener('scroll', closeContextMenu, true);
+
+    // Context Action Implementations
+    function formatSelectionWithCode() {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const text = sel.toString();
+      if (text) {
+        document.execCommand('insertText', false, '`' + text + '`');
+      }
+    }
+
+    function formatSelectionWithWikiLink() {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const text = sel.toString();
+      if (text) {
+        document.execCommand('insertText', false, '[[' + text + ']]');
+      }
+    }
+
+    function convertBlockType(blockId, targetType) {
+      const note = getActiveNote();
+      const block = note.blocks.find(b => b.id === blockId);
+      if (block) {
+        block.type = targetType;
+        renderBlocks(note);
+        focusBlock(block.id, true);
+        persistState();
+        showToast(`Converted to ${targetType}`);
+      }
+    }
+
+    function insertBlockBefore(blockId) {
+      const note = getActiveNote();
+      const idx = note.blocks.findIndex(b => b.id === blockId);
+      if (idx !== -1) {
+        const newBlock = { id: generateId('b'), type: 'paragraph', content: '' };
+        note.blocks.splice(idx, 0, newBlock);
+        renderBlocks(note);
+        focusBlock(newBlock.id, true);
+        persistState();
+      }
+    }
+
+    function duplicateBlock(blockId) {
+      const note = getActiveNote();
+      const idx = note.blocks.findIndex(b => b.id === blockId);
+      if (idx !== -1) {
+        const orig = note.blocks[idx];
+        const copyBlock = { ...orig, id: generateId('b') };
+        note.blocks.splice(idx + 1, 0, copyBlock);
+        renderBlocks(note);
+        focusBlock(copyBlock.id, true);
+        persistState();
+        showToast('Block duplicated');
+      }
+    }
+
+    function copyBlockMarkdown(blockId) {
+      const note = getActiveNote();
+      const block = note.blocks.find(b => b.id === blockId);
+      if (block) {
+        navigator.clipboard.writeText(block.content || '').then(() => {
+          showToast('Copied block content to clipboard');
+        });
+      }
+    }
+
+    function toggleFavoriteNoteById(noteId) {
+      const note = state.notes.find(n => n.id === noteId);
+      if (note) {
+        note.favorite = !note.favorite;
+        renderSidebar();
+        persistState();
+        showToast(note.favorite ? `Pinned "${note.title}"` : `Unpinned "${note.title}"`, 'ochre');
+      }
+    }
+
+    function moveNoteToFolder(noteId, targetFolder) {
+      const note = state.notes.find(n => n.id === noteId);
+      if (note) {
+        note.folder = targetFolder;
+        state.expandedFolders[targetFolder] = true;
+        renderSidebar();
+        if (state.activeNoteId === noteId) {
+          renderActiveDocument();
+        }
+        persistState();
+        showToast(`Moved to "${targetFolder}"`);
+      }
+    }
+
+    function duplicateNoteById(noteId) {
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+      const nextNum = String(state.notes.length + 1).padStart(2, '0');
+      const copyNote = {
+        ...JSON.parse(JSON.stringify(note)),
+        id: generateId('note'),
+        code: `DOC-${nextNum}`,
+        title: `${note.title} (Copy)`,
+        updatedAt: TODAY_KEY
+      };
+      state.notes.push(copyNote);
+      selectNote(copyNote.id);
+      showToast(`Duplicated "${copyNote.title}"`);
+    }
+
+    function copyNoteWikiLink(noteId) {
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+      const link = `[[${note.title}]]`;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast(`Copied ${link}`);
+      });
+    }
+
+    function deleteNoteById(noteId) {
+      if (state.notes.length <= 1) {
+        showToast('Cannot delete final document', 'ochre');
+        return;
+      }
+      const note = state.notes.find(n => n.id === noteId);
+      const title = note ? note.title : 'Document';
+      state.notes = state.notes.filter(n => n.id !== noteId);
+      if (state.activeNoteId === noteId) {
+        state.activeNoteId = state.notes[0].id;
+      }
+      renderAll();
+      persistState();
+      showToast(`Deleted "${title}"`);
+    }
+
+    function changeEventColorById(eventId, hexColor) {
+      const evt = state.events.find(e => e.id === eventId);
+      if (evt) {
+        evt.color_code = hexColor;
+        renderCalendarSystem();
+        persistState();
+        showToast('Color updated');
+      }
+    }
+
+    function duplicateEventById(eventId) {
+      const evt = state.events.find(e => e.id === eventId);
+      if (!evt) return;
+      const copyEvt = {
+        ...JSON.parse(JSON.stringify(evt)),
+        id: generateId('evt'),
+        title: `${evt.title} (Copy)`
+      };
+      state.events.push(copyEvt);
+      renderCalendarSystem();
+      persistState();
+      showToast(`Duplicated "${copyEvt.title}"`);
+    }
+
+    function deleteEventById(eventId) {
+      const evt = state.events.find(e => e.id === eventId);
+      const title = evt ? evt.title : 'Event';
+      state.events = state.events.filter(e => e.id !== eventId);
+      renderCalendarSystem();
+      persistState();
+      showToast(`Deleted "${title}"`);
+    }
+
+
+    // =========================================================================
+    // 9C. EFFORTLESS SCHEDULING ENGINE (QUICK-ADD, PREVIEWS, OVERFLOW & DRILLDOWN)
+    // =========================================================================
+    let quickAddSelectedColor = '#D95338';
+    let quickAddActiveDateKey = TODAY_KEY;
+    let activePreviewEventId = null;
+
+    function handleMonthCellClick(e, dateKey) {
+      if (e.target.closest('[data-event-id]') || e.target.closest('button')) return;
+      selectCalendarDate(dateKey, false);
+      openQuickAddPopover(e, { dateKey: dateKey });
+    }
+
+    function drillDownToDay(dateKey) {
+      state.calendarSelectedDate = dateKey;
+      state.calendarCursorDate = dateKey;
+      setCalendarView('day');
+      showToast(`Zoomed to ${dateKey} day timeline`);
+    }
+
+    function toggleCalendarAgendaSidebar() {
+      state.calendarAgendaOpen = state.calendarAgendaOpen === false ? true : false;
+      applyCalendarAgendaSidebarState();
+      persistState();
+    }
+
+    function applyCalendarAgendaSidebarState() {
+      const sidebar = document.getElementById('calendarAgendaSidebar');
+      const btn = document.getElementById('calToggleAgendaBtn');
+      const isOpen = state.calendarAgendaOpen !== false;
+      if (sidebar) {
+        if (isOpen) {
+          sidebar.classList.remove('hidden');
+          sidebar.classList.add('flex');
+        } else {
+          sidebar.classList.add('hidden');
+          sidebar.classList.remove('flex');
+        }
+      }
+      if (btn) {
+        if (isOpen) {
+          btn.classList.add('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-strong)]');
+        } else {
+          btn.classList.remove('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-strong)]');
+        }
+      }
+    }
+
+    function openQuickAddPopover(e, options = {}) {
+      closeEventPreviewPopover();
+      closeDayOverflowPopover();
+
+      const { dateKey = null, startHour = null, allDay = false } = options;
+      quickAddActiveDateKey = dateKey || state.calendarSelectedDate || TODAY_KEY;
+      quickAddSelectedColor = EVENT_COLORS[0].hex;
+
+      const popover = document.getElementById('calQuickAddPopover');
+      const titleInput = document.getElementById('quickAddTitle');
+      const dateLabel = document.getElementById('quickAddDateLabel');
+      const allDayCheck = document.getElementById('quickAddAllDay');
+      const timeRow = document.getElementById('quickAddTimeRow');
+      const startTimeInput = document.getElementById('quickAddStartTime');
+      const endTimeInput = document.getElementById('quickAddEndTime');
+      const colorDotsCont = document.getElementById('quickAddColorDots');
+      const colorIndicator = document.getElementById('quickAddColorIndicator');
+
+      if (!popover || !titleInput) return;
+
+      titleInput.value = '';
+      dateLabel.textContent = quickAddActiveDateKey;
+      allDayCheck.checked = Boolean(allDay);
+      timeRow.classList.toggle('hidden', Boolean(allDay));
+
+      const hr = startHour !== null ? startHour : 9;
+      const endHr = Math.min(23, hr + 1);
+      startTimeInput.value = `${String(hr).padStart(2, '0')}:00`;
+      endTimeInput.value = `${String(endHr).padStart(2, '0')}:00`;
+
+      colorIndicator.style.backgroundColor = quickAddSelectedColor;
+      colorDotsCont.innerHTML = EVENT_COLORS.map(c => `
+        <button type="button"
+                onclick="selectQuickAddColor('${c.hex}')"
+                title="${c.label}"
+                style="background-color: ${c.hex};"
+                class="w-5 h-5 rounded-full flex items-center justify-center transition-transform cursor-pointer ${
+                  c.hex.toLowerCase() === quickAddSelectedColor.toLowerCase() ? 'ring-2 ring-offset-1 ring-[var(--text-primary)] scale-110' : 'opacity-80 hover:opacity-100'
+                }">
+        </button>
+      `).join('');
+
+      popover.style.display = 'block';
+      popover.classList.remove('hidden');
+
+      const popRect = popover.getBoundingClientRect();
+      const clientX = e && e.clientX ? e.clientX : window.innerWidth / 2;
+      const clientY = e && e.clientY ? e.clientY : window.innerHeight / 3;
+
+      let posX = clientX - popRect.width / 2;
+      let posY = clientY + 12;
+
+      if (posX < 10) posX = 10;
+      if (posX + popRect.width > window.innerWidth - 10) {
+        posX = window.innerWidth - popRect.width - 10;
+      }
+      if (posY + popRect.height > window.innerHeight - 10) {
+        posY = Math.max(10, clientY - popRect.height - 12);
+      }
+
+      popover.style.left = `${posX}px`;
+      popover.style.top = `${posY}px`;
+
+      requestAnimationFrame(() => titleInput.focus());
+    }
+
+    function toggleQuickAddAllDay(isAllDay) {
+      const timeRow = document.getElementById('quickAddTimeRow');
+      if (timeRow) timeRow.classList.toggle('hidden', isAllDay);
+    }
+
+    function selectQuickAddColor(hex) {
+      quickAddSelectedColor = hex;
+      document.getElementById('quickAddColorIndicator').style.backgroundColor = hex;
+      const dots = document.getElementById('quickAddColorDots');
+      dots.querySelectorAll('button').forEach(btn => {
+        if (btn.style.backgroundColor === hex) {
+          btn.classList.add('ring-2', 'ring-offset-1', 'ring-[var(--text-primary)]', 'scale-110');
+          btn.classList.remove('opacity-80');
+        } else {
+          btn.classList.remove('ring-2', 'ring-offset-1', 'ring-[var(--text-primary)]', 'scale-110');
+          btn.classList.add('opacity-80');
+        }
+      });
+    }
+
+    function closeQuickAddPopover() {
+      const popover = document.getElementById('calQuickAddPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+    }
+
+    function submitQuickAddEvent(e) {
+      if (e) e.preventDefault();
+      const title = document.getElementById('quickAddTitle').value.trim();
+      if (!title) return;
+
+      const isAllDay = document.getElementById('quickAddAllDay').checked;
+      let start_datetime = '';
+      let end_datetime = null;
+
+      if (isAllDay) {
+        start_datetime = quickAddActiveDateKey;
+        end_datetime = quickAddActiveDateKey;
+      } else {
+        const sTime = document.getElementById('quickAddStartTime').value || '09:00';
+        const eTime = document.getElementById('quickAddEndTime').value || '10:00';
+        start_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${sTime}`);
+        end_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${eTime}`);
+      }
+
+      const newEvt = {
+        id: generateId('evt'),
+        title: title,
+        start_datetime: start_datetime,
+        end_datetime: end_datetime,
+        location: '',
+        color_code: quickAddSelectedColor,
+        all_day: isAllDay,
+        linkedNoteId: state.appMode === 'workspace' ? (state.activeNoteId || '') : '',
+        notes: ''
+      };
+
+      state.events.push(newEvt);
+      state.calendarSelectedDate = quickAddActiveDateKey;
+      state.calendarCursorDate = quickAddActiveDateKey;
+
+      closeQuickAddPopover();
+      renderAll();
+      persistState();
+      showToast(`Scheduled "${title}"`);
+    }
+
+    function quickAddOpenFullModal() {
+      const title = document.getElementById('quickAddTitle').value.trim();
+      const isAllDay = document.getElementById('quickAddAllDay').checked;
+      const sTime = document.getElementById('quickAddStartTime').value || '09:00';
+      const [h] = sTime.split(':').map(Number);
+
+      closeQuickAddPopover();
+      openEventModal({ dateKey: quickAddActiveDateKey, startHour: h || 9, allDay: isAllDay });
+      if (title) {
+        document.getElementById('eventFormTitle').value = title;
+      }
+    }
+
+    // =========================================================================
+    // EVENT DETAILS PREVIEW CARD CONTROLLER
+    // =========================================================================
+    function openEventPreview(e, eventId) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      closeQuickAddPopover();
+      closeDayOverflowPopover();
+
+      activePreviewEventId = eventId;
+      const evt = state.events.find(item => item.id === eventId);
+      if (!evt) return;
+
+      const popover = document.getElementById('calEventPreviewPopover');
+      const titleEl = document.getElementById('previewEventTitle');
+      const timeEl = document.getElementById('previewEventTime');
+      const colorBar = document.getElementById('previewEventColorBar');
+      const locRow = document.getElementById('previewEventLocationRow');
+      const locText = document.getElementById('previewEventLocation');
+      const linkRow = document.getElementById('previewEventLinkedNoteRow');
+      const linkBtn = document.getElementById('previewEventLinkedNoteBtn');
+      const notesRow = document.getElementById('previewEventNotesRow');
+      const notesText = document.getElementById('previewEventNotes');
+
+      if (!popover) return;
+
+      const col = resolveEventColor(evt.color_code);
+      const norm = normalizeEventRange(evt);
+
+      titleEl.textContent = evt.title;
+      colorBar.style.backgroundColor = col.hex;
+
+      const timeSummary = norm.allDay
+        ? (norm.isMultiDay ? `All-Day · ${norm.startDateKey} → ${norm.endDateKey}` : `All-Day · ${norm.startDateKey}`)
+        : `${norm.startDateKey} · ${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
+      timeEl.textContent = timeSummary;
+
+      if (evt.location) {
+        locText.textContent = evt.location;
+        locRow.classList.remove('hidden');
+      } else {
+        locRow.classList.add('hidden');
+      }
+
+      if (evt.linkedNoteId) {
+        const note = state.notes.find(n => n.id === evt.linkedNoteId);
+        if (note) {
+          linkBtn.textContent = `[[${note.title}]]`;
+          linkRow.classList.remove('hidden');
+        } else {
+          linkRow.classList.add('hidden');
+        }
+      } else {
+        linkRow.classList.add('hidden');
+      }
+
+      if (evt.notes && evt.notes.trim()) {
+        notesText.textContent = evt.notes;
+        notesRow.classList.remove('hidden');
+      } else {
+        notesRow.classList.add('hidden');
+      }
+
+      popover.style.display = 'block';
+      popover.classList.remove('hidden');
+
+      const popRect = popover.getBoundingClientRect();
+      let posX = window.innerWidth / 2 - popRect.width / 2;
+      let posY = window.innerHeight / 3;
+
+      if (e) {
+        const targetEl = (e.currentTarget || e.target);
+        if (targetEl && targetEl.getBoundingClientRect) {
+          const targetRect = targetEl.getBoundingClientRect();
+          posX = targetRect.left;
+          posY = targetRect.bottom + 6;
+          if (posX + popRect.width > window.innerWidth - 10) {
+            posX = window.innerWidth - popRect.width - 10;
+          }
+          if (posY + popRect.height > window.innerHeight - 10) {
+            posY = Math.max(10, targetRect.top - popRect.height - 6);
+          }
+        } else if (e.clientX !== undefined) {
+          posX = e.clientX;
+          posY = e.clientY + 6;
+        }
+      }
+
+      popover.style.left = `${Math.max(10, posX)}px`;
+      popover.style.top = `${Math.max(10, posY)}px`;
+    }
+
+    function closeEventPreviewPopover() {
+      const popover = document.getElementById('calEventPreviewPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+      activePreviewEventId = null;
+    }
+
+    function previewEditEvent() {
+      const id = activePreviewEventId;
+      closeEventPreviewPopover();
+      if (id) openEventModal({ eventId: id });
+    }
+
+    function previewDuplicateEvent() {
+      const id = activePreviewEventId;
+      closeEventPreviewPopover();
+      if (id) duplicateEventById(id);
+    }
+
+    function previewDeleteEvent() {
+      const id = activePreviewEventId;
+      closeEventPreviewPopover();
+      if (id) deleteEventById(id);
+    }
+
+    function previewOpenLinkedNote() {
+      const id = activePreviewEventId;
+      const evt = state.events.find(item => item.id === id);
+      closeEventPreviewPopover();
+      if (evt && evt.linkedNoteId) {
+        state.appMode = 'workspace';
+        selectNote(evt.linkedNoteId);
+      }
+    }
+
+    // =========================================================================
+    // DAY OVERFLOW POPOVER CONTROLLER (+X more)
+    // =========================================================================
+    function openDayOverflowPopover(e, dateKey) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      closeQuickAddPopover();
+      closeEventPreviewPopover();
+
+      const popover = document.getElementById('calDayOverflowPopover');
+      const heading = document.getElementById('overflowDateHeading');
+      const badge = document.getElementById('overflowCountBadge');
+      const list = document.getElementById('overflowEventsList');
+      const zoomBtn = document.getElementById('overflowZoomDayBtn');
+      const addBtn = document.getElementById('overflowAddEventBtn');
+
+      if (!popover || !list) return;
+
+      const events = getEventsForDateKey(dateKey);
+      heading.textContent = dateKey;
+      badge.textContent = `${events.length} events`;
+
+      zoomBtn.onclick = () => { closeDayOverflowPopover(); drillDownToDay(dateKey); };
+      addBtn.onclick = (evt) => { closeDayOverflowPopover(); openQuickAddPopover(evt, { dateKey }); };
+
+      list.innerHTML = events.map(evt => {
+        const col = resolveEventColor(evt.color_code);
+        const norm = normalizeEventRange(evt);
+        const timeStr = norm.allDay ? 'All-day' : `${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
+        return `
+          <button type="button"
+                  onclick="openEventPreview(event, '${evt.id}')"
+                  class="w-full flex items-center justify-between p-2 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer group">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${col.hex}"></span>
+              <div class="truncate">
+                <div class="text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(evt.title)}</div>
+                <div class="font-mono text-[10px] text-[var(--text-tertiary)]">${timeStr}</div>
+              </div>
+            </div>
+            <span class="font-mono text-[9px] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]">VIEW</span>
+          </button>
+        `;
+      }).join('');
+
+      popover.style.display = 'block';
+      popover.classList.remove('hidden');
+
+      const popRect = popover.getBoundingClientRect();
+      let posX = window.innerWidth / 2 - popRect.width / 2;
+      let posY = window.innerHeight / 3;
+
+      if (e) {
+        const targetEl = (e.currentTarget || e.target);
+        if (targetEl && targetEl.getBoundingClientRect) {
+          const targetRect = targetEl.getBoundingClientRect();
+          posX = targetRect.left;
+          posY = targetRect.bottom + 6;
+          if (posX + popRect.width > window.innerWidth - 10) {
+            posX = window.innerWidth - popRect.width - 10;
+          }
+          if (posY + popRect.height > window.innerHeight - 10) {
+            posY = Math.max(10, targetRect.top - popRect.height - 6);
+          }
+        } else if (e.clientX !== undefined) {
+          posX = e.clientX;
+          posY = e.clientY + 6;
+        }
+      }
+
+      popover.style.left = `${Math.max(10, posX)}px`;
+      popover.style.top = `${Math.max(10, posY)}px`;
+    }
+
+    function closeDayOverflowPopover() {
+      const popover = document.getElementById('calDayOverflowPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+    }
+
+    // Dismiss floating popovers on outside click or Escape
+    document.addEventListener('click', e => {
+      const quickAdd = document.getElementById('calQuickAddPopover');
+      const preview = document.getElementById('calEventPreviewPopover');
+      const overflow = document.getElementById('calDayOverflowPopover');
+
+      if (quickAdd && !quickAdd.classList.contains('hidden') && !quickAdd.contains(e.target)) {
+        closeQuickAddPopover();
+      }
+      if (preview && !preview.classList.contains('hidden') && !preview.contains(e.target)) {
+        closeEventPreviewPopover();
+      }
+      if (overflow && !overflow.classList.contains('hidden') && !overflow.contains(e.target)) {
+        closeDayOverflowPopover();
+      }
+    });
+</script>
 
   <!-- Mobile Bottom Navigation Bar (Visible on mobile screens < md) -->
   <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] z-30 flex items-center justify-around px-2 select-none">

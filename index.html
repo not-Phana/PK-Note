@@ -1293,6 +1293,14 @@
             </svg>
           </button>
 
+          <!-- Mobile Undo Button (Always accessible on phone header) -->
+          <button onclick="performUndo()" id="mobileHeaderUndoBtn" title="Undo Last Edit (Ctrl+Z)" class="md:hidden p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
+              <polyline points="7 6 3 10 7 14"></polyline>
+            </svg>
+          </button>
+
           <!-- Star / Favorite Button (Always accessible) -->
           <button onclick="toggleFavoriteActiveNote()" id="favBtn" title="Pin Note to Index" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
             <svg id="favIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -2905,6 +2913,9 @@
       } else {
         renderActiveDocument();
         renderInspector();
+      }
+      if (typeof updateMobileUndoButtons === 'function') {
+        updateMobileUndoButtons();
       }
     }
 
@@ -5027,6 +5038,7 @@
     }
 
     function handleTitleChange(newTitle) {
+      recordTypingChange();
       const note = getActiveNote();
       note.title = newTitle.trim();
       note.updatedAt = TODAY_KEY;
@@ -5050,6 +5062,7 @@
     }
 
     function handleBlockInput(e, blockId) {
+      recordTypingChange();
       const el = e.currentTarget;
       const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
@@ -5086,6 +5099,7 @@
     }
 
     function handleCodeInput(e, blockId) {
+      recordTypingChange();
       const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (block) {
@@ -5209,6 +5223,7 @@
     }
 
     function insertBlockAfter(blockId) {
+      takeSnapshot('insertBlockAfter');
       const note = getActiveNote();
       const idx = note.blocks.findIndex(b => b.id === blockId);
       const newBlock = { id: generateId('b'), type: 'paragraph', content: '' };
@@ -5225,6 +5240,7 @@
         focusBlock(last.id, true);
         return;
       }
+      takeSnapshot('appendBlockAtEnd');
       const newBlock = { id: generateId('b'), type: 'paragraph', content: '' };
       note.blocks.push(newBlock);
       renderBlocks(note);
@@ -5233,6 +5249,7 @@
     }
 
     function deleteBlock(blockId) {
+      takeSnapshot('deleteBlock');
       const note = getActiveNote();
       if (note.blocks.length <= 1) {
         note.blocks[0].content = '';
@@ -5246,6 +5263,7 @@
     }
 
     function toggleTodoBlock(blockId) {
+      takeSnapshot('toggleTodoBlock');
       const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (block) {
@@ -5514,6 +5532,13 @@
       renderAll();
       reheatGraph();
       persistState();
+      if (typeof takeSnapshot === 'function') {
+        const currentStack = getNoteUndoStack(noteId);
+        if (currentStack.length === 0) takeSnapshot('note-opened');
+      }
+      if (typeof updateMobileUndoButtons === 'function') {
+        updateMobileUndoButtons();
+      }
     }
 
     function createNewNote(folder = 'General') {
@@ -5622,12 +5647,13 @@
         return;
       }
       const note = getActiveNote();
+      lastDeletedNote = JSON.parse(JSON.stringify(note));
       const deletedTitle = note.title;
       state.notes = state.notes.filter(n => n.id !== note.id);
       state.activeNoteId = state.notes[0].id;
       renderAll();
       persistState();
-      showToast(`Deleted "${deletedTitle}"`);
+      showToast(`Deleted "${deletedTitle}" · tap Undo to restore`, 'ochre');
     }
 
     function toggleFavoriteActiveNote() {
@@ -7493,6 +7519,27 @@
     // 16. GLOBAL KEYBOARD SHORTCUTS & INITIALIZATION
     // =========================================================================
     document.addEventListener('keydown', e => {
+      // Cmd/Ctrl + Z: Undo & Redo (Universal document & mobile shortcut)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        const tag = (document.activeElement && document.activeElement.tagName) || '';
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+        if (!isInput && state.appMode === 'workspace') {
+          e.preventDefault();
+          performUndo();
+          return;
+        }
+      }
+      if (((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'z') ||
+          ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y')) {
+        const tag = (document.activeElement && document.activeElement.tagName) || '';
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+        if (!isInput && state.appMode === 'workspace') {
+          e.preventDefault();
+          performRedo();
+          return;
+        }
+      }
+
       // Cmd/Ctrl + K: Command Palette
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -8736,6 +8783,7 @@
     }
 
     function convertBlockType(blockId, targetType) {
+      takeSnapshot('convertBlockType');
       const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (block) {
@@ -8748,6 +8796,7 @@
     }
 
     function insertBlockBefore(blockId) {
+      takeSnapshot('insertBlockBefore');
       const note = getActiveNote();
       const idx = note.blocks.findIndex(b => b.id === blockId);
       if (idx !== -1) {
@@ -10754,6 +10803,7 @@
 
     function applyMobileBlockFormat(type) {
       if (!activeEditingBlockId) return;
+      takeSnapshot('applyMobileBlockFormat');
       const note = getActiveNote();
       const block = note.blocks.find(b => b.id === activeEditingBlockId);
       if (!block) return;
@@ -12324,6 +12374,200 @@
       if (sheet) sheet.classList.add('hidden');
     }
 
+
+    // =========================================================================
+    // MOBILE & DOCUMENT UNDO / REDO HISTORY ENGINE
+    // =========================================================================
+    const noteUndoStacks = new Map();
+    const noteRedoStacks = new Map();
+    let isUndoRedoOperation = false;
+    let typingSnapshotTimer = null;
+    let isTypingBurst = false;
+    let lastDeletedNote = null;
+
+    function getNoteUndoStack(noteId) {
+      if (!noteUndoStacks.has(noteId)) noteUndoStacks.set(noteId, []);
+      return noteUndoStacks.get(noteId);
+    }
+
+    function getNoteRedoStack(noteId) {
+      if (!noteRedoStacks.has(noteId)) noteRedoStacks.set(noteId, []);
+      return noteRedoStacks.get(noteId);
+    }
+
+    function takeSnapshot(reason = '') {
+      if (isUndoRedoOperation) return;
+      const note = getActiveNote();
+      if (!note) return;
+      const stack = getNoteUndoStack(note.id);
+      const snap = {
+        title: note.title,
+        blocks: JSON.parse(JSON.stringify(note.blocks)),
+        timestamp: Date.now()
+      };
+
+      if (stack.length > 0) {
+        const last = stack[stack.length - 1];
+        if (last.title === snap.title && JSON.stringify(last.blocks) === JSON.stringify(snap.blocks)) {
+          return;
+        }
+      }
+
+      stack.push(snap);
+      if (stack.length > 40) stack.shift();
+      noteRedoStacks.set(note.id, []);
+      updateMobileUndoButtons();
+    }
+
+    function recordTypingChange() {
+      if (isUndoRedoOperation) return;
+      if (!isTypingBurst) {
+        takeSnapshot('typing-start');
+        isTypingBurst = true;
+      }
+      clearTimeout(typingSnapshotTimer);
+      typingSnapshotTimer = setTimeout(() => {
+        isTypingBurst = false;
+        takeSnapshot('typing-end');
+      }, 600);
+    }
+
+    function performUndo() {
+      // 1. If autocorrect undo is active, revert autocorrect first
+      if (typeof lastAutocorrect !== 'undefined' && lastAutocorrect) {
+        undoLastAutocorrection();
+        showToast('↶ Autocorrect undone', 'ochre');
+        updateMobileUndoButtons();
+        return;
+      }
+
+      // 2. If a note was deleted recently, restore it
+      if (lastDeletedNote) {
+        const restored = lastDeletedNote;
+        lastDeletedNote = null;
+        state.notes.unshift(restored);
+        state.activeNoteId = restored.id;
+        renderAll();
+        persistState();
+        showToast(`↶ Restored "${restored.title}"`);
+        if (typeof playMechanicalClick === 'function') playMechanicalClick(0.8);
+        updateMobileUndoButtons();
+        return;
+      }
+
+      const note = getActiveNote();
+      if (!note) return;
+      const undoStack = getNoteUndoStack(note.id);
+      const redoStack = getNoteRedoStack(note.id);
+
+      if (undoStack.length === 0) {
+        if (document.activeElement && document.activeElement.isContentEditable) {
+          const executed = document.execCommand('undo');
+          if (executed) {
+            showToast('↶ Undone');
+            return;
+          }
+        }
+        showToast('Nothing to undo', 'ochre');
+        return;
+      }
+
+      const currentSnap = {
+        title: note.title,
+        blocks: JSON.parse(JSON.stringify(note.blocks)),
+        timestamp: Date.now()
+      };
+      redoStack.push(currentSnap);
+      if (redoStack.length > 40) redoStack.shift();
+
+      const prevSnap = undoStack.pop();
+      isUndoRedoOperation = true;
+
+      note.title = prevSnap.title;
+      note.blocks = JSON.parse(JSON.stringify(prevSnap.blocks));
+      note.updatedAt = TODAY_KEY;
+
+      const titleInput = document.getElementById('docTitleInput');
+      if (titleInput) titleInput.innerText = note.title;
+      const breadcrumbTitle = document.getElementById('breadcrumbTitleText');
+      if (breadcrumbTitle) breadcrumbTitle.textContent = note.title || 'Untitled Document';
+
+      renderBlocks(note);
+      updateWordCount(note);
+      renderInspector();
+      persistState();
+
+      isUndoRedoOperation = false;
+      updateMobileUndoButtons();
+
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.7);
+      showToast('↶ Undone');
+    }
+
+    function performRedo() {
+      const note = getActiveNote();
+      if (!note) return;
+      const undoStack = getNoteUndoStack(note.id);
+      const redoStack = getNoteRedoStack(note.id);
+
+      if (redoStack.length === 0) {
+        showToast('Nothing to redo', 'ochre');
+        return;
+      }
+
+      const currentSnap = {
+        title: note.title,
+        blocks: JSON.parse(JSON.stringify(note.blocks)),
+        timestamp: Date.now()
+      };
+      undoStack.push(currentSnap);
+
+      const nextSnap = redoStack.pop();
+      isUndoRedoOperation = true;
+
+      note.title = nextSnap.title;
+      note.blocks = JSON.parse(JSON.stringify(nextSnap.blocks));
+      note.updatedAt = TODAY_KEY;
+
+      const titleInput = document.getElementById('docTitleInput');
+      if (titleInput) titleInput.innerText = note.title;
+      const breadcrumbTitle = document.getElementById('breadcrumbTitleText');
+      if (breadcrumbTitle) breadcrumbTitle.textContent = note.title || 'Untitled Document';
+
+      renderBlocks(note);
+      updateWordCount(note);
+      renderInspector();
+      persistState();
+
+      isUndoRedoOperation = false;
+      updateMobileUndoButtons();
+
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.7);
+      showToast('↷ Redone');
+    }
+
+    function updateMobileUndoButtons() {
+      const note = getActiveNote();
+      if (!note) return;
+      const undoStack = getNoteUndoStack(note.id);
+      const redoStack = getNoteRedoStack(note.id);
+
+      const headerUndoBtn = document.getElementById('mobileHeaderUndoBtn');
+      if (headerUndoBtn) {
+        headerUndoBtn.style.opacity = (undoStack.length > 0 || lastDeletedNote) ? '1' : '0.45';
+      }
+
+      const accUndoBtn = document.getElementById('mobileUndoBtn');
+      if (accUndoBtn) {
+        accUndoBtn.style.opacity = undoStack.length > 0 ? '1' : '0.45';
+      }
+
+      const accRedoBtn = document.getElementById('mobileRedoBtn');
+      if (accRedoBtn) {
+        accRedoBtn.style.opacity = redoStack.length > 0 ? '1' : '0.45';
+      }
+    }
+
 </script>
 
 
@@ -12484,10 +12728,16 @@
       <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center">
         [[
       </button>
-      <button type="button" onmousedown="event.preventDefault(); undoLastAutocorrection()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] min-w-[34px] min-h-[34px] flex items-center justify-center" title="Undo correction">
+      <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer" title="Undo (↶)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
           <polyline points="7 6 3 10 7 14"></polyline>
+        </svg>
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer" title="Redo (↷)">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M21 10H11a5 5 0 0 0-5 5v2"></path>
+          <polyline points="17 6 21 10 17 14"></polyline>
         </svg>
       </button>
     </div>
@@ -13044,6 +13294,17 @@
 
       <!-- Sheet Options List -->
       <div class="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
+        <!-- Quick Mobile Undo / Redo Actions -->
+        <div class="grid grid-cols-2 gap-2 pb-2 mb-1.5 border-b border-[var(--border-hairline)]">
+          <button onclick="closeMobileMoreSheet(); performUndo()" class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+            <svg class="w-4 h-4 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 0 1 5 5v2"/><polyline points="7 6 3 10 7 14"/></svg>
+            <div class="font-medium text-[var(--text-primary)]">Undo Edit (↶)</div>
+          </button>
+          <button onclick="closeMobileMoreSheet(); performRedo()" class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+            <svg class="w-4 h-4 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 0 0-5 5v2"/><polyline points="17 6 21 10 17 14"/></svg>
+            <div class="font-medium text-[var(--text-primary)]">Redo Edit (↷)</div>
+          </button>
+        </div>
         <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
           <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🎨</span>
           <div class="flex-1 min-w-0">

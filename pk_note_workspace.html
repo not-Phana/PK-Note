@@ -1685,16 +1685,32 @@
 
     <!-- TAB 1: Interactive Force-Directed Topology Graph -->
     <div id="inspectorTabGraph" class="flex-1 flex flex-col min-h-0">
-      <div class="px-3.5 py-2 flex items-center justify-between border-b border-[var(--border-hairline)]">
-        <div>
-          <div class="font-mono text-[11px] font-medium text-[var(--text-primary)]">TOPOLOGY MATRIX</div>
-          <div class="text-[11px] text-[var(--text-tertiary)]">Drag vertices · Click to open</div>
+      <!-- Upgraded Topology Matrix Toolbar -->
+      <div class="px-2.5 py-1.5 flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] shrink-0 gap-1.5">
+        <!-- Interactive Tool Mode Switcher -->
+        <div class="flex items-center rounded-[3px] p-0.5 bg-[var(--bg-canvas)] border border-[var(--border-hairline)] shrink-0">
+          <button onclick="setGraphToolMode('move')" id="graphToolMoveBtn" title="Move & Pan Mode (Hold Shift or drag + ring to link)" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold shadow-xs cursor-pointer">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+            <span>Move</span>
+          </button>
+          <button onclick="setGraphToolMode('connect')" id="graphToolConnectBtn" title="Connect Mode (Drag or click between notes to create [[links]])" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span>Link</span>
+          </button>
         </div>
+
+        <!-- Graph View Controls -->
         <div class="flex items-center gap-1">
-          <button onclick="toggleGraphScope()" id="graphScopeBtn" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors">
+          <button onclick="toggleGraphScope()" id="graphScopeBtn" title="Toggle Local / Global Scope" class="px-1.5 py-0.5 rounded-[2px] font-mono text-[10px] uppercase bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors cursor-pointer">
             Global
           </button>
-          <button onclick="reheatGraph()" title="Reset Node Layout" class="p-1 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          <button onclick="fitGraphView()" title="Fit & Center All Nodes" class="p-1 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          </button>
+          <button onclick="openExpandedGraphModal()" title="Expand Fullscreen Graph Studio" class="p-1 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+          <button onclick="reheatGraph()" title="Reheat Physics Simulation" class="p-1 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
@@ -1703,13 +1719,32 @@
       </div>
 
       <!-- HTML5 Canvas Viewport -->
-      <div id="graphCanvasWrapper" class="relative flex-1 w-full bg-[var(--bg-canvas)] overflow-hidden cursor-grab active:cursor-grabbing">
+      <div id="graphCanvasWrapper" class="relative flex-1 w-full bg-[var(--bg-canvas)] overflow-hidden cursor-grab active:cursor-grabbing select-none">
         <canvas id="knowledgeGraphCanvas" class="block w-full h-full"></canvas>
         
-        <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none font-mono text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-panel)]/95 px-2.5 py-1 rounded-[3px] border border-[var(--border-hairline)]">
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-[1px] bg-[var(--accent-vermilion)]"></span>Active</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-[1px] bg-[var(--accent-ochre)]"></span>Linked</span>
-          <span id="graphEdgeStats">0 edges</span>
+        <!-- Live Connection HUD Guidance Bar -->
+        <div id="graphCanvasHUD" class="hidden absolute top-2 left-2 right-2 px-2.5 py-1.5 rounded-[3px] bg-black/85 backdrop-blur-md text-white text-[11px] font-mono flex items-center justify-between border border-white/20 z-20 shadow-lg animate-toast-in select-none">
+          <div class="flex items-center gap-1.5 truncate">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+            <span id="graphCanvasHUDText" class="truncate font-medium">Drag or click to target note to link</span>
+          </div>
+          <button onclick="cancelGraphConnection()" title="Cancel connection" class="hover:text-red-400 ml-2 px-1 rounded text-white/70 hover:text-white font-mono text-[10px] cursor-pointer shrink-0">
+            ✕ Esc
+          </button>
+        </div>
+
+        <!-- Zoom HUD & Canvas Stats -->
+        <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none font-mono text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-panel)]/95 px-2.5 py-1 rounded-[3px] border border-[var(--border-hairline)] shadow-xs">
+          <div class="flex items-center gap-2">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-[1px] bg-[var(--accent-vermilion)]"></span>Active</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-[1px] bg-[var(--accent-ochre)]"></span>Linked</span>
+            <span id="graphEdgeStats">0 edges</span>
+          </div>
+          <div class="flex items-center gap-1 pointer-events-auto">
+            <button onclick="zoomGraphStep(-0.2)" title="Zoom Out" class="w-4 h-4 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-[11px]">-</button>
+            <span id="graphZoomBadge" onclick="fitGraphView()" title="Click to Reset Zoom" class="px-1 text-[9px] hover:text-[var(--text-primary)] cursor-pointer">100%</span>
+            <button onclick="zoomGraphStep(0.2)" title="Zoom In" class="w-4 h-4 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-[11px]">+</button>
+          </div>
         </div>
       </div>
 
@@ -5628,19 +5663,45 @@
       });
       const quickLinksEl = document.getElementById('graphQuickLinks');
       const connectedNotes = state.notes.filter(n => connectedIds.has(n.id));
-      quickLinksEl.innerHTML = connectedNotes.length > 0
-        ? connectedNotes.map(n => `
-            <button onclick="selectNote('${n.id}')" data-note-id="${n.id}" class="w-full flex items-center justify-between px-2 py-1 rounded-[3px] hover:bg-[var(--bg-hover)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              <span class="flex items-center gap-2 truncate">
-                <span class="text-[var(--accent-ochre)]">${getGlyphSVG(n.glyph)}</span>
-                <span class="truncate">${escapeHtml(n.title)}</span>
-              </span>
-              <span class="font-mono text-[10px] text-[var(--text-tertiary)]">→</span>
+      
+      let quickHTML = `
+        <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-hairline)] mb-1.5">
+          <span class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">Linked Notes (${connectedNotes.length})</span>
+          <button onclick="openLinkNotePicker('${activeNote.id}')" title="Link another note by mouse" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[10px] transition-colors flex items-center gap-1 cursor-pointer">
+            <span>+ Link Note</span>
+          </button>
+        </div>
+      `;
+      if (connectedNotes.length > 0) {
+        quickHTML += connectedNotes.map(n => `
+          <div class="group/adj flex items-center justify-between px-2 py-1 rounded-[3px] hover:bg-[var(--bg-hover)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+            <button onclick="selectNote('${n.id}')" data-note-id="${n.id}" class="flex-1 flex items-center gap-2 truncate text-left cursor-pointer">
+              <span class="text-[var(--accent-ochre)]">${getGlyphSVG(n.glyph)}</span>
+              <span class="truncate">${escapeHtml(n.title)}</span>
             </button>
-          `).join('')
-        : `<div class="font-mono text-[10px] text-[var(--text-tertiary)]">Type [[ in prose to link nodes.</div>`;
+            <div class="flex items-center gap-1 shrink-0">
+              <button onclick="disconnectNotes('${activeNote.id}', '${n.id}')" title="Unlink (removes [[${escapeHtml(n.title)}]])" class="opacity-0 group-hover/adj:opacity-100 p-0.5 rounded-[2px] hover:bg-red-500/15 text-[var(--text-tertiary)] hover:text-red-500 transition-all cursor-pointer">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <span class="font-mono text-[10px] text-[var(--text-tertiary)]">→</span>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        quickHTML += `
+          <div class="p-2.5 rounded-[3px] bg-[var(--bg-canvas)] border border-dashed border-[var(--border-hairline)] text-center space-y-1">
+            <div class="font-mono text-[11px] text-[var(--text-tertiary)]">No linked notes yet.</div>
+            <div class="text-[10px] text-[var(--text-tertiary)]">Drag between nodes on graph or click <button onclick="openLinkNotePicker('${activeNote.id}')" class="underline text-[var(--accent-vermilion)] cursor-pointer font-medium">+ Link Note</button></div>
+          </div>
+        `;
+      }
+      quickLinksEl.innerHTML = quickHTML;
 
-      document.getElementById('graphEdgeStats').textContent = `${allLinks.length} edges`;
+      const edgeCountStr = `${allLinks.length} edges`;
+      const edgeStatsEl = document.getElementById('graphEdgeStats');
+      if (edgeStatsEl) edgeStatsEl.textContent = edgeCountStr;
+      const expEdgeStatsEl = document.getElementById('expGraphEdgeStats');
+      if (expEdgeStatsEl) expEdgeStatsEl.textContent = edgeCountStr;
 
       const headings = activeNote.blocks.filter(b => ['h1', 'h2', 'h3'].includes(b.type) && b.content.trim());
       const outlineEl = document.getElementById('outlineList');
@@ -5685,24 +5746,376 @@
     }
 
     // =========================================================================
-    // 14. FORCE-DIRECTED TOPOLOGY CANVAS
+    // 14. INTERACTIVE TOPOLOGY GRAPH & MOUSE CONNECTION ENGINE
     // =========================================================================
     let graphNodes = [];
     let hoveredNode = null;
     let draggedNode = null;
     let dragMoved = false;
+    let dragStartPos = { x: 0, y: 0 };
+
+    // Pan & Zoom Engine State
+    let graphPan = { x: 0, y: 0 };
+    let graphZoom = 1.0;
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+
+    // Mouse Link & Connection Engine State
+    let graphToolMode = 'move'; // 'move' | 'connect'
+    let connectingSourceNode = null;
+    let connectingCurrentPos = { x: 0, y: 0, screenX: 0, screenY: 0 };
+    let connectingTargetNode = null;
+    let hoveredEdge = null;
+    let connectorHandleHovered = false;
+
+    // Expanded Fullscreen Studio State
+    let isExpandedGraphOpen = false;
+    let expandedGraphFilter = '';
+    let linkPickerSourceId = null;
+
+    // --- A. DATA LINKING ENGINE: "IT WORK LIKE I TYPE" ---
+    function connectNotes(sourceId, targetId, makeBidirectional = false, screenX = null, screenY = null) {
+      if (!sourceId || !targetId || sourceId === targetId) return false;
+      const sourceNote = state.notes.find(n => n.id === sourceId);
+      const targetNote = state.notes.find(n => n.id === targetId);
+      if (!sourceNote || !targetNote) return false;
+
+      const targetTitleClean = targetNote.title.trim();
+      const wikiRegex = new RegExp(`\\[\\[\\s*${escapeRegExp(targetTitleClean)}\\s*\\]\\]`, 'i');
+      let alreadyLinked = sourceNote.blocks.some(b => wikiRegex.test(b.content || ''));
+
+      let insertedInSource = false;
+      if (!alreadyLinked) {
+        // Natural Insertion: Append to last paragraph or create a new paragraph block
+        if (sourceNote.blocks.length === 0) {
+          sourceNote.blocks.push({ id: generateId('b'), type: 'paragraph', content: `[[${targetTitleClean}]]` });
+          insertedInSource = true;
+        } else {
+          const lastBlock = sourceNote.blocks[sourceNote.blocks.length - 1];
+          if (lastBlock && lastBlock.type === 'paragraph' && (!lastBlock.content || lastBlock.content.trim() === '')) {
+            lastBlock.content = `[[${targetTitleClean}]]`;
+            insertedInSource = true;
+          } else if (lastBlock && lastBlock.type === 'paragraph' && lastBlock.content.length < 80 && !lastBlock.content.includes('\n')) {
+            lastBlock.content = `${lastBlock.content.trimEnd()} [[${targetTitleClean}]]`;
+            insertedInSource = true;
+          } else {
+            sourceNote.blocks.push({
+              id: generateId('b'),
+              type: 'paragraph',
+              content: `Related: [[${targetTitleClean}]]`
+            });
+            insertedInSource = true;
+          }
+        }
+        sourceNote.updatedAt = TODAY_KEY;
+      }
+
+      if (makeBidirectional) {
+        const sourceTitleClean = sourceNote.title.trim();
+        const reverseRegex = new RegExp(`\\[\\[\\s*${escapeRegExp(sourceTitleClean)}\\s*\\]\\]`, 'i');
+        const targetAlreadyLinked = targetNote.blocks.some(b => reverseRegex.test(b.content || ''));
+        if (!targetAlreadyLinked) {
+          if (targetNote.blocks.length === 0) {
+            targetNote.blocks.push({ id: generateId('b'), type: 'paragraph', content: `[[${sourceTitleClean}]]` });
+          } else {
+            const last = targetNote.blocks[targetNote.blocks.length - 1];
+            if (last && last.type === 'paragraph' && (!last.content || last.content.trim() === '')) {
+              last.content = `[[${sourceTitleClean}]]`;
+            } else {
+              targetNote.blocks.push({
+                id: generateId('b'),
+                type: 'paragraph',
+                content: `Related: [[${sourceTitleClean}]]`
+              });
+            }
+          }
+          targetNote.updatedAt = TODAY_KEY;
+        }
+      }
+
+      // If active note was updated, re-render blocks immediately so user sees the wikilink appear!
+      const activeId = state.activeNoteId;
+      if (activeId === sourceNote.id || activeId === targetNote.id) {
+        renderBlocks(getActiveNote());
+        updateWordCount(getActiveNote());
+      }
+
+      // Haptic Micro-audio & Visual Celebration
+      playPopSound();
+      playChimeSound();
+      if (screenX != null && screenY != null) {
+        triggerCelebration(screenX, screenY, 32);
+      } else {
+        triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 28);
+      }
+
+      if (alreadyLinked) {
+        showToast(`Already linked: "${sourceNote.title}" & "${targetNote.title}"`);
+      } else {
+        showToast(`Linked "${sourceNote.title}" ↔ "${targetNote.title}" (inserted [[${targetTitleClean}]])`);
+      }
+
+      persistState();
+      renderInspector();
+      syncGraphNodes();
+      reheatGraph();
+      return true;
+    }
+
+    function disconnectNotes(sourceId, targetId) {
+      const sourceNote = state.notes.find(n => n.id === sourceId);
+      const targetNote = state.notes.find(n => n.id === targetId);
+      if (!sourceNote || !targetNote) return false;
+
+      const targetRegex = new RegExp(`\\[\\[\\s*${escapeRegExp(targetNote.title.trim())}\\s*\\]\\]`, 'gi');
+      const sourceRegex = new RegExp(`\\[\\[\\s*${escapeRegExp(sourceNote.title.trim())}\\s*\\]\\]`, 'gi');
+
+      let removedCount = 0;
+      sourceNote.blocks.forEach(b => {
+        if (b.content && targetRegex.test(b.content)) {
+          b.content = b.content.replace(targetRegex, '').replace(/\bRelated:\s*$/i, '').trim();
+          removedCount++;
+        }
+      });
+
+      targetNote.blocks.forEach(b => {
+        if (b.content && sourceRegex.test(b.content)) {
+          b.content = b.content.replace(sourceRegex, '').replace(/\bRelated:\s*$/i, '').trim();
+          removedCount++;
+        }
+      });
+
+      const activeId = state.activeNoteId;
+      if (activeId === sourceNote.id || activeId === targetNote.id) {
+        renderBlocks(getActiveNote());
+        updateWordCount(getActiveNote());
+      }
+
+      playMechanicalClick(0.75);
+      showToast(`Unlinked "${sourceNote.title}" & "${targetNote.title}" (removed link)`);
+
+      persistState();
+      renderInspector();
+      syncGraphNodes();
+      reheatGraph();
+      return true;
+    }
+
+    // --- B. GRAPH TOOL MODES & CONTROLS ---
+    function setGraphToolMode(mode) {
+      graphToolMode = mode;
+      const isMove = mode === 'move';
+      
+      const moveBtns = [document.getElementById('graphToolMoveBtn'), document.getElementById('expGraphToolMoveBtn')];
+      const linkBtns = [document.getElementById('graphToolConnectBtn'), document.getElementById('expGraphToolConnectBtn')];
+
+      moveBtns.forEach(b => {
+        if (!b) return;
+        b.className = isMove
+          ? 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold shadow-xs cursor-pointer'
+          : 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      });
+
+      linkBtns.forEach(b => {
+        if (!b) return;
+        b.className = !isMove
+          ? 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all bg-[var(--accent-vermilion)] text-white font-semibold shadow-xs cursor-pointer'
+          : 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      });
+
+      if (mode === 'connect') {
+        showToast('Link Mode: Drag or click between notes to create [[links]]');
+      }
+    }
+
+    function toggleGraphToolMode() {
+      setGraphToolMode(graphToolMode === 'connect' ? 'move' : 'connect');
+    }
 
     function toggleGraphScope() {
       state.graphLocalOnly = !state.graphLocalOnly;
-      document.getElementById('graphScopeBtn').textContent = state.graphLocalOnly ? 'Local' : 'Global';
+      const label = state.graphLocalOnly ? 'Local' : 'Global';
+      const b1 = document.getElementById('graphScopeBtn');
+      if (b1) b1.textContent = label;
+      const b2 = document.getElementById('expGraphScopeBtn');
+      if (b2) b2.textContent = label;
       syncGraphNodes();
+      reheatGraph();
+      showToast(`Graph Scope: ${label} View`);
+    }
+
+    function fitGraphView() {
+      graphPan = { x: 0, y: 0 };
+      graphZoom = 1.0;
+      updateGraphZoomBadges();
       reheatGraph();
     }
 
-    function syncGraphNodes() {
+    function zoomGraphStep(delta) {
+      graphZoom = Math.min(2.8, Math.max(0.35, graphZoom + delta));
+      updateGraphZoomBadges();
+    }
+
+    function updateGraphZoomBadges() {
+      const pct = `${Math.round(graphZoom * 100)}%`;
+      const b1 = document.getElementById('graphZoomBadge');
+      if (b1) b1.textContent = pct;
+      const b2 = document.getElementById('expGraphZoomBadge');
+      if (b2) b2.textContent = pct;
+    }
+
+    function startConnectionFromNode(node) {
+      connectingSourceNode = node;
+      connectingCurrentPos = { x: node.x, y: node.y, screenX: window.innerWidth / 2, screenY: window.innerHeight / 2 };
+      connectingTargetNode = null;
+      showGraphConnectionHUD(node.title);
+      playMechanicalClick(1.0);
+    }
+
+    function cancelGraphConnection() {
+      connectingSourceNode = null;
+      connectingTargetNode = null;
+      hideGraphConnectionHUD();
+      playMechanicalClick(0.7);
+    }
+
+    function showGraphConnectionHUD(sourceTitle) {
+      const msg = `Connecting from "${sourceTitle}" · Click or drag to target note`;
+      const hud1 = document.getElementById('graphCanvasHUD');
+      const text1 = document.getElementById('graphCanvasHUDText');
+      if (hud1 && text1) {
+        text1.textContent = msg;
+        hud1.classList.remove('hidden');
+      }
+      const hud2 = document.getElementById('expGraphHUD');
+      const text2 = document.getElementById('expGraphHUDText');
+      if (hud2 && text2) {
+        text2.textContent = msg;
+        hud2.classList.remove('hidden');
+      }
+    }
+
+    function hideGraphConnectionHUD() {
+      const hud1 = document.getElementById('graphCanvasHUD');
+      if (hud1) hud1.classList.add('hidden');
+      const hud2 = document.getElementById('expGraphHUD');
+      if (hud2) hud2.classList.add('hidden');
+    }
+
+    // --- C. LINK NOTE FAST PICKER MODAL ---
+    function openLinkNotePicker(sourceId) {
+      linkPickerSourceId = sourceId || state.activeNoteId;
+      const sourceNote = state.notes.find(n => n.id === linkPickerSourceId);
+      const sub = document.getElementById('linkNotePickerSubtitle');
+      if (sub && sourceNote) {
+        sub.textContent = `Insert [[wikilink]] into "${sourceNote.title}"`;
+      }
+      const modal = document.getElementById('linkNotePickerModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        const input = document.getElementById('linkNotePickerSearch');
+        if (input) {
+          input.value = '';
+          setTimeout(() => input.focus(), 60);
+        }
+        renderLinkNotePickerResults('');
+      }
+    }
+
+    function closeLinkNotePicker() {
+      const modal = document.getElementById('linkNotePickerModal');
+      if (modal) modal.classList.add('hidden');
+      linkPickerSourceId = null;
+    }
+
+    function filterLinkNotePicker(query) {
+      renderLinkNotePickerResults(query);
+    }
+
+    function renderLinkNotePickerResults(query) {
+      const resEl = document.getElementById('linkNotePickerResults');
+      if (!resEl) return;
+      const q = (query || '').toLowerCase().trim();
+      const sourceNote = state.notes.find(n => n.id === linkPickerSourceId);
+      if (!sourceNote) return;
+
+      const allLinks = computeVaultConnections();
+      const connectedTargets = new Set();
+      allLinks.forEach(l => {
+        if (l.source === sourceNote.id) connectedTargets.add(l.target);
+        if (l.target === sourceNote.id) connectedTargets.add(l.source);
+      });
+
+      const candidates = state.notes.filter(n => n.id !== sourceNote.id && (!q || n.title.toLowerCase().includes(q)));
+
+      if (candidates.length === 0) {
+        resEl.innerHTML = `<div class="p-4 text-center font-mono text-xs text-[var(--text-tertiary)]">No matching documents found.</div>`;
+        return;
+      }
+
+      resEl.innerHTML = candidates.map(n => {
+        const isLinked = connectedTargets.has(n.id);
+        return `
+          <div class="flex items-center justify-between p-2 rounded-[3px] hover:bg-[var(--bg-hover)] text-xs transition-colors">
+            <div class="flex items-center gap-2 truncate pr-2">
+              <span class="text-[var(--accent-ochre)]">${getGlyphSVG(n.glyph)}</span>
+              <span class="font-medium text-[var(--text-primary)] truncate">${escapeHtml(n.title)}</span>
+              <span class="font-mono text-[9px] text-[var(--text-tertiary)]">${escapeHtml(n.folder || 'General')}</span>
+            </div>
+            <div class="shrink-0 flex items-center gap-1.5">
+              ${isLinked ? `
+                <span class="font-mono text-[10px] text-emerald-500 font-semibold px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10">✓ Linked</span>
+                <button onclick="disconnectNotes('${sourceNote.id}', '${n.id}'); renderLinkNotePickerResults('${escapeHtml(q)}');" title="Unlink" class="px-1.5 py-0.5 rounded-[2px] hover:bg-red-500/15 text-red-500 font-mono text-[10px] cursor-pointer">Unlink</button>
+              ` : `
+                <button onclick="connectNotes('${sourceNote.id}', '${n.id}', false); closeLinkNotePicker();" class="px-2.5 py-1 rounded-[2px] bg-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-hover)] text-white font-mono text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1">
+                  <span>+ Link</span>
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- D. EXPANDED FULLSCREEN GRAPH STUDIO ---
+    function openExpandedGraphModal() {
+      isExpandedGraphOpen = true;
+      const modal = document.getElementById('expandedGraphModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      resizeExpandedGraphCanvas();
+      fitGraphView();
+      setGraphToolMode(graphToolMode);
+      playWhooshSound();
+    }
+
+    function closeExpandedGraphModal() {
+      isExpandedGraphOpen = false;
+      const modal = document.getElementById('expandedGraphModal');
+      if (modal) modal.classList.add('hidden');
+      cancelGraphConnection();
+    }
+
+    function handleExpandedGraphSearch(query) {
+      expandedGraphFilter = (query || '').toLowerCase().trim();
+    }
+
+    function centerNodeInView(node) {
       const canvas = document.getElementById('knowledgeGraphCanvas');
+      if (!canvas || !node) return;
       const w = canvas.clientWidth || 300;
       const h = canvas.clientHeight || 280;
+      graphPan.x = (w / 2) - (node.x * graphZoom);
+      graphPan.y = (h / 2) - (node.y * graphZoom);
+      updateGraphZoomBadges();
+      showToast(`Centered on "${node.title}"`);
+    }
+
+    // --- E. FORCE-DIRECTED PHYSICS & NODE COORDINATES ---
+    function syncGraphNodes() {
+      const canvas = document.getElementById('knowledgeGraphCanvas');
+      const w = canvas ? (canvas.clientWidth || 300) : 300;
+      const h = canvas ? (canvas.clientHeight || 280) : 280;
 
       const allLinks = computeVaultConnections();
       let visibleNotes = state.notes;
@@ -5723,8 +6136,8 @@
         return {
           id: note.id,
           title: note.title,
-          x: prev ? prev.x : w / 2 + Math.cos(angle) * 72,
-          y: prev ? prev.y : h / 2 + Math.sin(angle) * 72,
+          x: prev ? prev.x : w / 2 + Math.cos(angle) * 78,
+          y: prev ? prev.y : h / 2 + Math.sin(angle) * 78,
           vx: prev ? prev.vx : 0,
           vy: prev ? prev.vy : 0,
         };
@@ -5733,15 +6146,15 @@
 
     function reheatGraph() {
       const canvas = document.getElementById('knowledgeGraphCanvas');
-      const w = canvas.clientWidth || 300;
-      const h = canvas.clientHeight || 280;
+      const w = canvas ? (canvas.clientWidth || 300) : 300;
+      const h = canvas ? (canvas.clientHeight || 280) : 280;
       graphNodes.forEach((n, idx) => {
         const angle = (idx / Math.max(1, graphNodes.length)) * Math.PI * 2;
-        n.vx += Math.cos(angle) * 2.2;
-        n.vy += Math.sin(angle) * 2.2;
+        n.vx += Math.cos(angle) * 2.4;
+        n.vy += Math.sin(angle) * 2.4;
         if (n.id === state.activeNoteId) {
-          n.x = w / 2;
-          n.y = h / 2;
+          n.x = (w / 2);
+          n.y = (h / 2);
         }
       });
     }
@@ -5759,51 +6172,197 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
-    function initGraphInteractions() {
-      const canvas = document.getElementById('knowledgeGraphCanvas');
+    function resizeExpandedGraphCanvas() {
+      const wrapper = document.getElementById('expandedGraphCanvasWrapper');
+      const canvas = document.getElementById('expandedKnowledgeGraphCanvas');
+      if (!wrapper || !canvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
 
-      function getPointerPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
+    // --- F. MOUSE & POINTER INTERACTION CONTROLLER ---
+    function getGraphPointerPos(canvas, e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches && e.touches.length ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches && e.touches.length ? e.touches[0].clientY : e.clientY;
+      const canvasX = clientX - rect.left;
+      const canvasY = clientY - rect.top;
+      return {
+        x: (canvasX - graphPan.x) / graphZoom,
+        y: (canvasY - graphPan.y) / graphZoom,
+        canvasX,
+        canvasY,
+        screenX: clientX,
+        screenY: clientY
+      };
+    }
+
+    function findNodeAt(pos) {
+      for (let i = graphNodes.length - 1; i >= 0; i--) {
+        const n = graphNodes[i];
+        const dx = pos.x - n.x;
+        const dy = pos.y - n.y;
+        const hitRadius = (n.id === state.activeNoteId ? 16 : 14);
+        if (dx * dx + dy * dy <= hitRadius * hitRadius) return n;
       }
+      return null;
+    }
 
-      function findNodeAt(pos) {
-        for (let i = graphNodes.length - 1; i >= 0; i--) {
-          const n = graphNodes[i];
-          const dx = pos.x - n.x;
-          const dy = pos.y - n.y;
-          if (dx * dx + dy * dy <= 196) return n;
+    function findConnectorHandleAt(pos, node) {
+      if (!node) return false;
+      const hx = node.x + 18;
+      const hy = node.y;
+      const dx = pos.x - hx;
+      const dy = pos.y - hy;
+      return (dx * dx + dy * dy <= 81); // 9px radius
+    }
+
+    function distToSegment(p, v, w) {
+      const l2 = (v.x - w.x) * (v.x - w.x) + (v.y - w.y) * (v.y - w.y);
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
+
+    function findEdgeAt(pos, edges, nodeMap) {
+      for (const e of edges) {
+        const s = nodeMap.get(e.source);
+        const t = nodeMap.get(e.target);
+        if (!s || !t) continue;
+        const dist = distToSegment(pos, s, t);
+        if (dist <= 7 / graphZoom) {
+          return { edge: e, source: s, target: t };
         }
-        return null;
       }
+      return null;
+    }
+
+    function setupCanvasInteractions(canvas, isExpanded = false) {
+      if (!canvas) return;
 
       canvas.addEventListener('pointerdown', e => {
-        const pos = getPointerPos(e);
+        // Right click handled separately by context menu
+        if (e.button === 2) return;
+
+        const pos = getGraphPointerPos(canvas, e);
+        const allLinks = computeVaultConnections();
+        const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+
+        // Check if middle click or Alt/Space held: pan mode
+        if (e.button === 1 || e.altKey) {
+          isPanning = true;
+          panStart = { x: pos.screenX - graphPan.x, y: pos.screenY - graphPan.y };
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+
+        // Check if clicking connector handle on hovered node
+        if (hoveredNode && findConnectorHandleAt(pos, hoveredNode)) {
+          startConnectionFromNode(hoveredNode);
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+
         const hit = findNodeAt(pos);
         if (hit) {
+          // If in connect mode or holding Shift: start connection wire!
+          if (graphToolMode === 'connect' || e.shiftKey) {
+            startConnectionFromNode(hit);
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+
+          // Otherwise normal drag node
           draggedNode = hit;
           dragMoved = false;
+          dragStartPos = { x: pos.x, y: pos.y };
           canvas.setPointerCapture(e.pointerId);
+          return;
         }
+
+        // Check if clicked an edge to unlink
+        const hitEdge = findEdgeAt(pos, allLinks, nodeMap);
+        if (hitEdge) {
+          disconnectNotes(hitEdge.edge.source, hitEdge.edge.target);
+          return;
+        }
+
+        // Dragging empty space pans canvas
+        isPanning = true;
+        panStart = { x: pos.screenX - graphPan.x, y: pos.screenY - graphPan.y };
+        canvas.setPointerCapture(e.pointerId);
       });
 
       canvas.addEventListener('pointermove', e => {
-        const pos = getPointerPos(e);
+        const pos = getGraphPointerPos(canvas, e);
+        const allLinks = computeVaultConnections();
+        const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+
+        if (isPanning) {
+          graphPan.x = pos.screenX - panStart.x;
+          graphPan.y = pos.screenY - panStart.y;
+          canvas.style.cursor = 'grabbing';
+          return;
+        }
+
+        if (connectingSourceNode) {
+          connectingCurrentPos = { x: pos.x, y: pos.y, screenX: pos.screenX, screenY: pos.screenY };
+          const candidate = findNodeAt(pos);
+          connectingTargetNode = (candidate && candidate.id !== connectingSourceNode.id) ? candidate : null;
+          canvas.style.cursor = connectingTargetNode ? 'copy' : 'crosshair';
+          return;
+        }
+
         if (draggedNode) {
-          dragMoved = true;
+          const distMoved = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
+          if (distMoved > 3) dragMoved = true;
           draggedNode.x = pos.x;
           draggedNode.y = pos.y;
           draggedNode.vx = 0;
           draggedNode.vy = 0;
+          return;
+        }
+
+        // Idle hover
+        hoveredNode = findNodeAt(pos);
+        connectorHandleHovered = hoveredNode ? findConnectorHandleAt(pos, hoveredNode) : false;
+        hoveredEdge = !hoveredNode ? findEdgeAt(pos, allLinks, nodeMap) : null;
+
+        if (connectorHandleHovered) {
+          canvas.style.cursor = 'crosshair';
+        } else if (hoveredNode) {
+          canvas.style.cursor = (graphToolMode === 'connect') ? 'crosshair' : 'pointer';
+        } else if (hoveredEdge) {
+          canvas.style.cursor = 'pointer';
         } else {
-          hoveredNode = findNodeAt(pos);
-          canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+          canvas.style.cursor = 'grab';
         }
       });
 
-      canvas.addEventListener('pointerup', () => {
+      canvas.addEventListener('pointerup', e => {
+        const pos = getGraphPointerPos(canvas, e);
+
+        if (isPanning) {
+          isPanning = false;
+          canvas.style.cursor = 'grab';
+        }
+
+        if (connectingSourceNode) {
+          if (connectingTargetNode && connectingTargetNode.id !== connectingSourceNode.id) {
+            connectNotes(connectingSourceNode.id, connectingTargetNode.id, false, pos.screenX, pos.screenY);
+          } else {
+            playMechanicalClick(0.85);
+          }
+          cancelGraphConnection();
+          return;
+        }
+
         if (draggedNode) {
           if (!dragMoved) {
             selectNote(draggedNode.id);
@@ -5812,146 +6371,349 @@
         }
       });
 
+      // Mouse Wheel Zoom
+      canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const zoomDelta = e.deltaY < 0 ? 1.12 : 0.89;
+        const newZoom = Math.min(2.8, Math.max(0.35, graphZoom * zoomDelta));
+        
+        graphPan.x = mouseX - (mouseX - graphPan.x) * (newZoom / graphZoom);
+        graphPan.y = mouseY - (mouseY - graphPan.y) * (newZoom / graphZoom);
+        graphZoom = newZoom;
+        updateGraphZoomBadges();
+      }, { passive: false });
+    }
+
+    function initGraphInteractions() {
+      const canvasSidebar = document.getElementById('knowledgeGraphCanvas');
+      if (canvasSidebar) setupCanvasInteractions(canvasSidebar, false);
+
+      const canvasExpanded = document.getElementById('expandedKnowledgeGraphCanvas');
+      if (canvasExpanded) setupCanvasInteractions(canvasExpanded, true);
+
       window.addEventListener('resize', () => {
         resizeGraphCanvas();
+        if (isExpandedGraphOpen) resizeExpandedGraphCanvas();
         applyThemeAndLayout();
+      });
+
+      // Escape key to cancel connection or close expanded graph
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          if (connectingSourceNode) {
+            cancelGraphConnection();
+          } else if (isExpandedGraphOpen) {
+            closeExpandedGraphModal();
+          } else if (linkPickerSourceId) {
+            closeLinkNotePicker();
+          }
+        }
       });
     }
 
-    function runGraphLoop() {
-      const canvas = document.getElementById('knowledgeGraphCanvas');
-      if (canvas && state.appMode === 'workspace' && state.rightSidebarOpen && state.inspectorTab === 'graph') {
-        const ctx = canvas.getContext('2d');
-        const w = canvas.clientWidth;
-        const h = canvas.clientHeight;
+    // --- G. RENDER GRAPH ON CANVAS WITH ELASTIC LINK WIRE ---
+    function drawGraphOnCanvas(canvas, isExpanded = false) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w <= 0 || h <= 0) return;
 
-        if (w > 0 && h > 0) {
-          const allLinks = computeVaultConnections();
-          const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
-          const activeEdges = allLinks.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target));
+      const allLinks = computeVaultConnections();
+      const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+      const activeEdges = allLinks.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target));
 
-          const centerX = w / 2;
-          const centerY = h / 2;
+      ctx.save();
+      ctx.clearRect(0, 0, w, h);
 
-          for (let i = 0; i < graphNodes.length; i++) {
-            const a = graphNodes[i];
-            a.vx += (centerX - a.x) * 0.008;
-            a.vy += (centerY - a.y) * 0.008;
+      // Apply Pan & Zoom Transform
+      ctx.translate(graphPan.x, graphPan.y);
+      ctx.scale(graphZoom, graphZoom);
 
-            for (let j = i + 1; j < graphNodes.length; j++) {
-              const b = graphNodes[j];
-              const dx = a.x - b.x;
-              const dy = a.y - b.y;
-              const distSq = dx * dx + dy * dy + 0.1;
-              const force = 1350 / distSq;
-              const dist = Math.sqrt(distSq);
-              const fx = (dx / dist) * force;
-              const fy = (dy / dist) * force;
-              a.vx += fx;
-              a.vy += fy;
-              b.vx -= fx;
-              b.vy -= fy;
-            }
-          }
+      const isDark = state.theme === 'dark';
 
-          activeEdges.forEach(edge => {
-            const s = nodeMap.get(edge.source);
-            const t = nodeMap.get(edge.target);
-            const dx = t.x - s.x;
-            const dy = t.y - s.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const spring = (dist - 86) * 0.035;
-            const fx = (dx / dist) * spring;
-            const fy = (dy / dist) * spring;
-            s.vx += fx;
-            s.vy += fy;
-            t.vx -= fx;
-            t.vy -= fy;
-          });
+      // 1. Archival Coordinate Grid Lines
+      ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.035)' : 'rgba(24,24,23,0.045)';
+      ctx.lineWidth = 1 / graphZoom;
+      const startX = -graphPan.x / graphZoom - 40;
+      const endX = (w - graphPan.x) / graphZoom + 40;
+      const startY = -graphPan.y / graphZoom - 40;
+      const endY = (h - graphPan.y) / graphZoom + 40;
 
-          graphNodes.forEach(n => {
-            if (draggedNode && draggedNode.id === n.id) return;
-            n.vx *= 0.84;
-            n.vy *= 0.84;
-            n.x = Math.max(28, Math.min(w - 28, n.x + n.vx));
-            n.y = Math.max(28, Math.min(h - 36, n.y + n.vy));
-          });
+      for (let gx = Math.floor(startX / 24) * 24; gx < endX; gx += 24) {
+        ctx.beginPath();
+        ctx.moveTo(gx, startY);
+        ctx.lineTo(gx, endY);
+        ctx.stroke();
+      }
+      for (let gy = Math.floor(startY / 24) * 24; gy < endY; gy += 24) {
+        ctx.beginPath();
+        ctx.moveTo(startX, gy);
+        ctx.lineTo(endX, gy);
+        ctx.stroke();
+      }
 
-          ctx.clearRect(0, 0, w, h);
-          const isDark = state.theme === 'dark';
+      // 2. Focused & Neighbor Node Sets
+      const focusId = hoveredNode ? hoveredNode.id : state.activeNoteId;
+      const neighborSet = new Set([focusId]);
+      activeEdges.forEach(e => {
+        if (e.source === focusId) neighborSet.add(e.target);
+        if (e.target === focusId) neighborSet.add(e.source);
+      });
 
-          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(24,24,23,0.04)';
-          ctx.lineWidth = 1;
-          for (let gx = 24; gx < w; gx += 24) {
-            ctx.beginPath();
-            ctx.moveTo(gx, 0);
-            ctx.lineTo(gx, h);
-            ctx.stroke();
-          }
-          for (let gy = 24; gy < h; gy += 24) {
-            ctx.beginPath();
-            ctx.moveTo(0, gy);
-            ctx.lineTo(w, gy);
-            ctx.stroke();
-          }
+      // 3. Render Topology Edges
+      activeEdges.forEach(edge => {
+        const s = nodeMap.get(edge.source);
+        const t = nodeMap.get(edge.target);
+        if (!s || !t) return;
 
-          const focusId = hoveredNode ? hoveredNode.id : state.activeNoteId;
-          const neighborSet = new Set([focusId]);
-          activeEdges.forEach(e => {
-            if (e.source === focusId) neighborSet.add(e.target);
-            if (e.target === focusId) neighborSet.add(e.source);
-          });
+        const isHighlighted = edge.source === focusId || edge.target === focusId;
+        const isHovered = hoveredEdge && hoveredEdge.edge === edge;
 
-          activeEdges.forEach(edge => {
-            const s = nodeMap.get(edge.source);
-            const t = nodeMap.get(edge.target);
-            const isHighlighted = edge.source === focusId || edge.target === focusId;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(t.x, t.y);
 
-            ctx.beginPath();
-            ctx.moveTo(s.x, s.y);
-            ctx.lineTo(t.x, t.y);
-            ctx.strokeStyle = isHighlighted
-              ? (isDark ? '#D95338' : '#C8462B')
-              : (isDark ? '#2E2E2E' : '#D4D0C8');
-            ctx.lineWidth = isHighlighted ? 1.4 : 1;
-            ctx.stroke();
-          });
+        if (isHovered) {
+          ctx.strokeStyle = '#EF4444'; // Red hover for unlink cue
+          ctx.lineWidth = 3 / graphZoom;
+        } else if (isHighlighted) {
+          ctx.strokeStyle = isDark ? '#D95338' : '#C8462B';
+          ctx.lineWidth = 1.6 / graphZoom;
+        } else {
+          ctx.strokeStyle = isDark ? '#333333' : '#D0CDC5';
+          ctx.lineWidth = 1 / graphZoom;
+        }
+        ctx.stroke();
 
-          graphNodes.forEach(n => {
-            const isActive = n.id === state.activeNoteId;
-            const isHovered = hoveredNode && hoveredNode.id === n.id;
-            const isNeighbor = neighborSet.has(n.id);
-            const radius = isActive ? 6 : (isHovered ? 5.5 : 4);
+        // If edge is hovered, render a small scissors unlink indicator at midpoint
+        if (isHovered) {
+          const midX = (s.x + t.x) / 2;
+          const midY = (s.y + t.y) / 2;
+          ctx.fillStyle = '#EF4444';
+          ctx.beginPath();
+          ctx.arc(midX, midY, 6 / graphZoom, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = `${10 / graphZoom}px sans-serif`;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('✕', midX, midY);
+        }
+      });
 
-            if (isActive || isHovered) {
-              ctx.beginPath();
-              ctx.arc(n.x, n.y, radius + 4, 0, Math.PI * 2);
-              ctx.strokeStyle = isActive ? '#D95338' : '#C49A45';
-              ctx.lineWidth = 1;
-              ctx.stroke();
-            }
+      // 4. Render Active Live Connection Wire (If connecting with mouse)
+      if (connectingSourceNode) {
+        const s = { x: connectingSourceNode.x, y: connectingSourceNode.y };
+        const t = connectingTargetNode
+          ? { x: connectingTargetNode.x, y: connectingTargetNode.y }
+          : connectingCurrentPos;
 
-            ctx.beginPath();
-            ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = isActive
-              ? (isDark ? '#D95338' : '#C8462B')
-              : isNeighbor
-                ? (isDark ? '#C49A45' : '#A87E2D')
-                : (isDark ? '#5C5C58' : '#96948E');
-            ctx.fill();
+        // Glowing outer pulse wire
+        ctx.beginPath();
+        const cpX1 = s.x + (t.x - s.x) * 0.45;
+        const cpX2 = s.x + (t.x - s.x) * 0.55;
+        ctx.moveTo(s.x, s.y);
+        ctx.bezierCurveTo(cpX1, s.y, cpX2, t.y, t.x, t.y);
+        ctx.strokeStyle = connectingTargetNode ? 'rgba(16, 185, 129, 0.4)' : 'rgba(217, 83, 56, 0.35)';
+        ctx.lineWidth = 6 / graphZoom;
+        ctx.stroke();
 
-            const shortTitle = n.title.length > 22 ? n.title.slice(0, 21) + '…' : n.title;
-            ctx.font = `${isActive || isHovered ? '500' : '400'} 10px "JetBrains Mono", monospace`;
-            ctx.textAlign = 'center';
-            ctx.fillStyle = isActive || isHovered
-              ? (isDark ? '#ECECE9' : '#181817')
-              : isNeighbor
-                ? (isDark ? '#A3A39E' : '#4A4945')
-                : (isDark ? '#666661' : '#8A8882');
-            ctx.fillText(shortTitle, n.x, n.y + radius + 13);
-          });
+        // Inner animated dashed elastic wire
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.bezierCurveTo(cpX1, s.y, cpX2, t.y, t.x, t.y);
+        ctx.strokeStyle = connectingTargetNode ? '#10B981' : '#D95338';
+        ctx.lineWidth = 2.4 / graphZoom;
+        ctx.setLineDash([8 / graphZoom, 5 / graphZoom]);
+        ctx.lineDashOffset = -performance.now() * 0.035;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Pulsing Target Dot / Snap Indicator
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, (connectingTargetNode ? 7 : 4) / graphZoom, 0, Math.PI * 2);
+        ctx.fillStyle = connectingTargetNode ? '#10B981' : '#D95338';
+        ctx.fill();
+
+        // Magnetic Target Snap Aura
+        if (connectingTargetNode) {
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 22 / graphZoom, 0, Math.PI * 2);
+          ctx.strokeStyle = '#10B981';
+          ctx.lineWidth = 2 / graphZoom;
+          ctx.stroke();
+
+          // Target Tooltip Badge
+          const badgeText = `✨ Release to Link with [[${connectingTargetNode.title}]]`;
+          ctx.font = `600 ${11 / graphZoom}px "JetBrains Mono", monospace`;
+          ctx.textAlign = 'center';
+          const textW = ctx.measureText(badgeText).width;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.fillRect(t.x - textW / 2 - 8, t.y - 28 / graphZoom, textW + 16, 20 / graphZoom);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillText(badgeText, t.x, t.y - 14 / graphZoom);
         }
       }
+
+      // 5. Render Nodes
+      graphNodes.forEach(n => {
+        const isActive = n.id === state.activeNoteId;
+        const isHovered = hoveredNode && hoveredNode.id === n.id;
+        const isNeighbor = neighborSet.has(n.id);
+        const isConnectingSource = connectingSourceNode && connectingSourceNode.id === n.id;
+        const isConnectingTarget = connectingTargetNode && connectingTargetNode.id === n.id;
+        
+        // Search Filter Highlight (in Expanded Studio)
+        const isSearchMatch = expandedGraphFilter ? n.title.toLowerCase().includes(expandedGraphFilter) : true;
+        const nodeOpacity = isSearchMatch ? 1 : 0.22;
+
+        const baseRadius = isActive ? 6.5 : (isHovered ? 6 : 4.5);
+        const radius = baseRadius / (graphZoom > 1.4 ? 1.15 : 1);
+
+        ctx.save();
+        ctx.globalAlpha = nodeOpacity;
+
+        // Aura Halo on active / hovered / connecting
+        if (isActive || isHovered || isConnectingSource || isConnectingTarget) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, radius + (5 / graphZoom), 0, Math.PI * 2);
+          ctx.strokeStyle = isConnectingTarget ? '#10B981' : (isActive || isConnectingSource ? '#D95338' : '#C49A45');
+          ctx.lineWidth = 1.5 / graphZoom;
+          ctx.stroke();
+        }
+
+        // Main Node Sphere
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = isActive || isConnectingSource
+          ? (isDark ? '#D95338' : '#C8462B')
+          : isConnectingTarget
+            ? '#10B981'
+            : isNeighbor
+              ? (isDark ? '#C49A45' : '#A87E2D')
+              : (isDark ? '#5C5C58' : '#96948E');
+        ctx.fill();
+
+        // 6. Draw Connector Ring & "+" Handle on Hovered Node (for mouse linking)
+        if (isHovered && !connectingSourceNode) {
+          const hx = n.x + 18;
+          const hy = n.y;
+          const isHandleHovered = connectorHandleHovered;
+          
+          ctx.beginPath();
+          ctx.arc(hx, hy, (isHandleHovered ? 8.5 : 7) / graphZoom, 0, Math.PI * 2);
+          ctx.fillStyle = isDark ? '#D95338' : '#C8462B';
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1.2 / graphZoom;
+          ctx.stroke();
+
+          // "+" icon inside handle
+          ctx.font = `bold ${9 / graphZoom}px sans-serif`;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('+', hx, hy);
+        }
+
+        // Node Title Label
+        const shortTitle = n.title.length > 22 ? n.title.slice(0, 21) + '…' : n.title;
+        ctx.font = `${isActive || isHovered ? '600' : '400'} ${10 / graphZoom}px "JetBrains Mono", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = isActive || isHovered || isConnectingTarget
+          ? (isDark ? '#ECECE9' : '#181817')
+          : isNeighbor
+            ? (isDark ? '#A3A39E' : '#4A4945')
+            : (isDark ? '#666661' : '#8A8882');
+        ctx.fillText(shortTitle, n.x, n.y + radius + (8 / graphZoom));
+
+        ctx.restore();
+      });
+
+      ctx.restore();
+    }
+
+    function runGraphLoop() {
+      const canvasSidebar = document.getElementById('knowledgeGraphCanvas');
+      const canvasExpanded = document.getElementById('expandedKnowledgeGraphCanvas');
+
+      const isSidebarActive = state.appMode === 'workspace' && state.rightSidebarOpen && state.inspectorTab === 'graph';
+      const isExpandedActive = isExpandedGraphOpen;
+
+      if ((isSidebarActive || isExpandedActive) && graphNodes.length > 0) {
+        const refCanvas = isExpandedActive ? canvasExpanded : canvasSidebar;
+        const w = refCanvas ? (refCanvas.clientWidth || 300) : 300;
+        const h = refCanvas ? (refCanvas.clientHeight || 280) : 280;
+
+        const allLinks = computeVaultConnections();
+        const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+        const activeEdges = allLinks.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target));
+
+        const centerX = w / 2;
+        const centerY = h / 2;
+
+        // Force Simulation Physics: Centering & Node Repulsion
+        for (let i = 0; i < graphNodes.length; i++) {
+          const a = graphNodes[i];
+          a.vx += (centerX - a.x) * 0.007;
+          a.vy += (centerY - a.y) * 0.007;
+
+          for (let j = i + 1; j < graphNodes.length; j++) {
+            const b = graphNodes[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const distSq = dx * dx + dy * dy + 0.1;
+            const force = 1450 / distSq;
+            const dist = Math.sqrt(distSq);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            a.vx += fx;
+            a.vy += fy;
+            b.vx -= fx;
+            b.vy -= fy;
+          }
+        }
+
+        // Spring Attraction along Edges
+        activeEdges.forEach(edge => {
+          const s = nodeMap.get(edge.source);
+          const t = nodeMap.get(edge.target);
+          if (!s || !t) return;
+          const dx = t.x - s.x;
+          const dy = t.y - s.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const spring = (dist - 92) * 0.035;
+          const fx = (dx / dist) * spring;
+          const fy = (dy / dist) * spring;
+          s.vx += fx;
+          s.vy += fy;
+          t.vx -= fx;
+          t.vy -= fy;
+        });
+
+        // Dampen Velocities and Update Positions
+        graphNodes.forEach(n => {
+          if (draggedNode && draggedNode.id === n.id) return;
+          n.vx *= 0.82;
+          n.vy *= 0.82;
+          n.x += n.vx;
+          n.y += n.vy;
+        });
+
+        // Draw on Active Viewport(s)
+        if (isSidebarActive && canvasSidebar) {
+          drawGraphOnCanvas(canvasSidebar, false);
+        }
+        if (isExpandedActive && canvasExpanded) {
+          drawGraphOnCanvas(canvasExpanded, true);
+        }
+      }
+
       requestAnimationFrame(runGraphLoop);
     }
 
@@ -6027,6 +6789,11 @@
       const q = query.toLowerCase().trim();
 
       const allActions = [
+        { kind: 'action', label: 'Graph: Switch to Mouse Link Mode', hint: 'Connect notes with mouse by dragging or clicking', glyph: 'graph', shortcut: 'Link', run: () => { setGraphToolMode('connect'); openRightInspector('graph'); } },
+        { kind: 'action', label: 'Graph: Switch to Move / Pan Mode', hint: 'Reposition graph vertices and pan canvas', glyph: 'graph', shortcut: 'Move', run: () => { setGraphToolMode('move'); openRightInspector('graph'); } },
+        { kind: 'action', label: 'Graph: Expand Fullscreen Graph Studio', hint: 'Spacious fullscreen topology canvas with search & zoom', glyph: 'grid', shortcut: 'Studio', run: () => openExpandedGraphModal() },
+        { kind: 'action', label: 'Graph: Fit & Center View', hint: 'Reset zoom and center all nodes', glyph: 'compass', shortcut: 'Fit', run: () => fitGraphView() },
+        { kind: 'action', label: 'Graph: Connect Document (Link Picker)', hint: 'Insert wikilink to another note by mouse', glyph: 'link', shortcut: 'Connect', run: () => openLinkNotePicker() },
         { kind: 'action', label: 'Toggle Zen Focus Mode', hint: 'Distraction-free writing sanctuary with block focus', glyph: 'alert', shortcut: '⌘D', run: () => toggleZenMode() },
         { kind: 'action', label: 'Toggle Tactile Haptic Audio', hint: 'Mechanical switch & chime micro-feedback', glyph: 'sliders', shortcut: 'Audio', run: () => toggleSoundSetting() },
         { kind: 'action', label: 'Toggle Dynamic Ambient Aura', hint: 'Breathing atmospheric hero glow lighting', glyph: 'sliders', shortcut: 'Aura', run: () => toggleAmbientAura() },
@@ -6944,7 +7711,7 @@
       const noteEl = target.closest('[data-note-id]');
       const eventEl = target.closest('[data-event-id]');
       const dateCellEl = target.closest('[data-date-key]');
-      const canvasEl = target.closest('#knowledgeGraphCanvas');
+      const canvasEl = target.closest('#knowledgeGraphCanvas') || target.closest('#expandedKnowledgeGraphCanvas');
       const docAreaEl = target.closest('#documentScrollArea');
 
       let menuItems = [];
@@ -7092,13 +7859,72 @@
       }
       // CONTEXT E: Knowledge Graph Canvas
       else if (canvasEl) {
-        headerText = 'TOPOLOGY GRAPH';
-        badgeIcon = 'graph';
-        menuItems.push(
-          { label: 'Reset Layout (Reheat)', shortcut: 'R', icon: 'graph', action: () => reheatGraph() },
-          { label: `Scope: ${state.graphLocalOnly ? 'Switch to Global' : 'Switch to Local'}`, icon: 'layers', action: () => toggleGraphScope() },
-          { label: 'Open Command Palette', shortcut: '⌘K', icon: 'terminal', action: () => openCommandPalette() }
-        );
+        const ptr = getGraphPointerPos(canvasEl, e);
+        const hitNode = findNodeAt(ptr);
+        const allLinks = computeVaultConnections();
+        const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+        const hitEdge = !hitNode ? findEdgeAt(ptr, allLinks, nodeMap) : null;
+
+        if (hitNode) {
+          headerText = `NODE: ${hitNode.title.toUpperCase()}`;
+          badgeIcon = 'graph';
+          const otherNotes = state.notes.filter(n => n.id !== hitNode.id);
+          const connectSubmenu = otherNotes.slice(0, 10).map(n => ({
+            label: `Link to "${n.title}"`,
+            icon: 'link',
+            action: () => connectNotes(hitNode.id, n.id)
+          }));
+          
+          // Connected notes for unlinking
+          const connectedWithHit = [];
+          allLinks.forEach(l => {
+            if (l.source === hitNode.id) connectedWithHit.push(l.target);
+            if (l.target === hitNode.id) connectedWithHit.push(l.source);
+          });
+          const connectedUnique = [...new Set(connectedWithHit)];
+          const unlinkSubmenu = connectedUnique.map(targetId => {
+            const tn = state.notes.find(n => n.id === targetId);
+            return tn ? {
+              label: `Unlink from "${tn.title}"`,
+              icon: 'minus',
+              danger: true,
+              action: () => disconnectNotes(hitNode.id, tn.id)
+            } : null;
+          }).filter(Boolean);
+
+          menuItems.push(
+            { label: 'Open Document', icon: 'document', action: () => selectNote(hitNode.id) },
+            { label: 'Start Mouse Link Wire', shortcut: 'Drag', icon: 'link', action: () => startConnectionFromNode(hitNode) },
+            { label: 'Connect to Note...', icon: 'link', hasSubmenu: true, submenu: connectSubmenu },
+            unlinkSubmenu.length > 0 ? { label: 'Unlink from...', icon: 'minus', danger: true, hasSubmenu: true, submenu: unlinkSubmenu } : null,
+            { type: 'divider' },
+            { label: 'Center in View', icon: 'compass', action: () => centerNodeInView(hitNode) },
+            { label: 'Copy Wiki-Link', shortcut: '[[...]]', icon: 'copy', action: () => copyNoteWikiLink(hitNode.id) }
+          );
+          menuItems = menuItems.filter(Boolean);
+        } else if (hitEdge) {
+          headerText = 'TOPOLOGY CONNECTION';
+          badgeIcon = 'link';
+          menuItems.push(
+            { label: `Unlink: Remove [[${hitEdge.target.title}]]`, shortcut: '✂️', icon: 'minus', danger: true, action: () => disconnectNotes(hitEdge.source.id, hitEdge.target.id) },
+            { label: 'Make Bidirectional Link (⇄)', icon: 'link', action: () => connectNotes(hitEdge.target.id, hitEdge.source.id, true) },
+            { type: 'divider' },
+            { label: `Open "${hitEdge.source.title}"`, icon: 'document', action: () => selectNote(hitEdge.source.id) },
+            { label: `Open "${hitEdge.target.title}"`, icon: 'document', action: () => selectNote(hitEdge.target.id) }
+          );
+        } else {
+          headerText = 'TOPOLOGY GRAPH';
+          badgeIcon = 'graph';
+          menuItems.push(
+            { label: `Tool: ${graphToolMode === 'connect' ? 'Switch to Move Mode' : 'Switch to Link Mode'}`, icon: 'sliders', action: () => toggleGraphToolMode() },
+            { label: 'Fit / Center Graph in View', shortcut: 'F', icon: 'compass', action: () => fitGraphView() },
+            { label: 'Reset Layout (Reheat)', shortcut: 'R', icon: 'graph', action: () => reheatGraph() },
+            { label: `Scope: ${state.graphLocalOnly ? 'Switch to Global' : 'Switch to Local'}`, icon: 'layers', action: () => toggleGraphScope() },
+            { label: 'Expand Fullscreen Graph Studio', shortcut: '⛶', icon: 'grid', action: () => openExpandedGraphModal() },
+            { type: 'divider' },
+            { label: 'Create New Note Here', shortcut: '⌘N', icon: 'document', action: () => createNewNote('General') }
+          );
+        }
       }
       // CONTEXT F: General Workspace Fallback
       else {
@@ -11541,6 +12367,110 @@
     <span class="font-medium tracking-wide">ZEN FOCUS ACTIVE</span>
     <span class="text-white/40 text-[10px]">&bull;</span>
     <button onclick="toggleZenMode()" class="hover:text-amber-300 underline text-[11px] cursor-pointer">Exit (Esc / ⌘D)</button>
+  </div>
+
+
+  <!-- Fast Link Note Picker Modal -->
+  <div id="linkNotePickerModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[960] flex items-center justify-center p-3 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-md max-h-[80vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-[2px] bg-[var(--accent-vermilion)] text-white flex items-center justify-center font-mono text-xs font-bold">🔗</div>
+          <div>
+            <h3 class="text-xs font-semibold text-[var(--text-primary)] font-mono uppercase tracking-wide">Connect Document</h3>
+            <p id="linkNotePickerSubtitle" class="text-[10px] text-[var(--text-tertiary)] font-mono">Insert wikilink into active document</p>
+          </div>
+        </div>
+        <button onclick="closeLinkNotePicker()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer font-mono text-xs">✕</button>
+      </div>
+      <div class="p-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]">
+        <div class="relative flex items-center">
+          <input type="text" id="linkNotePickerSearch" placeholder="Type to filter documents..." oninput="filterLinkNotePicker(this.value)" class="w-full px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--accent-vermilion)] transition-colors font-mono" />
+        </div>
+      </div>
+      <div id="linkNotePickerResults" class="flex-1 overflow-y-auto p-2 space-y-1 max-h-72">
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Fullscreen / Expanded Topology Graph Studio Modal -->
+  <div id="expandedGraphModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[955] flex flex-col p-2 sm:p-4 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="flex-1 flex flex-col rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
+      
+      <!-- Studio Header -->
+      <div class="px-4 py-2.5 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)] gap-2">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-[3px] bg-[var(--accent-vermilion)] text-white flex items-center justify-center font-mono text-xs font-bold">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/></svg>
+            </div>
+            <div>
+              <h2 class="text-xs font-semibold text-[var(--text-primary)] font-mono tracking-tight uppercase">Topology Graph Studio</h2>
+              <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Drag vertices to link notes with mouse · Pan & zoom freely</p>
+            </div>
+          </div>
+
+          <!-- Studio Tool Mode -->
+          <div class="flex items-center rounded-[3px] p-0.5 bg-[var(--bg-canvas)] border border-[var(--border-hairline)] ml-2">
+            <button onclick="setGraphToolMode('move')" id="expGraphToolMoveBtn" class="px-2.5 py-1 rounded-[2px] font-mono text-xs flex items-center gap-1.5 transition-all bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold shadow-xs cursor-pointer">
+              <span>🖐 Move / Pan</span>
+            </button>
+            <button onclick="setGraphToolMode('connect')" id="expGraphToolConnectBtn" class="px-2.5 py-1 rounded-[2px] font-mono text-xs flex items-center gap-1.5 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              <span>🔗 Mouse Link</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Studio Quick Search & Controls -->
+        <div class="flex items-center gap-2">
+          <div class="relative hidden sm:flex items-center">
+            <input type="text" id="expandedGraphSearch" placeholder="Filter graph nodes..." oninput="handleExpandedGraphSearch(this.value)" class="w-48 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--accent-vermilion)] font-mono" />
+          </div>
+          <button onclick="toggleGraphScope()" id="expGraphScopeBtn" title="Toggle Local / Global Scope" class="px-2.5 py-1 rounded-[3px] font-mono text-xs uppercase bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors cursor-pointer">
+            Global
+          </button>
+          <button onclick="fitGraphView()" title="Fit / Center Graph in Studio" class="px-2.5 py-1 rounded-[3px] font-mono text-xs bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            <span>Fit View</span>
+          </button>
+          <button onclick="reheatGraph()" title="Reheat Layout Simulation" class="px-2.5 py-1 rounded-[3px] font-mono text-xs bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1 cursor-pointer">
+            <span>↺ Reheat</span>
+          </button>
+          <button onclick="closeExpandedGraphModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer font-mono text-sm ml-1">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Studio Canvas Area -->
+      <div id="expandedGraphCanvasWrapper" class="relative flex-1 w-full bg-[var(--bg-canvas)] overflow-hidden cursor-grab active:cursor-grabbing select-none">
+        <canvas id="expandedKnowledgeGraphCanvas" class="block w-full h-full"></canvas>
+
+        <!-- Studio Floating Link Guidance HUD -->
+        <div id="expGraphHUD" class="hidden absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/85 backdrop-blur-md text-white text-xs font-mono flex items-center gap-3 border border-white/20 z-20 shadow-2xl animate-toast-in select-none">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="expGraphHUDText" class="font-medium">Connecting... Drag or click on another note to create [[link]]</span>
+          <button onclick="cancelGraphConnection()" class="hover:text-red-300 underline text-[11px] cursor-pointer">Cancel (Esc)</button>
+        </div>
+
+        <!-- Studio Bottom Bar Controls -->
+        <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none font-mono text-xs text-[var(--text-tertiary)] bg-[var(--bg-panel)]/95 px-3 py-1.5 rounded-[4px] border border-[var(--border-hairline)] shadow-sm">
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-[1px] bg-[var(--accent-vermilion)]"></span>Active Document</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-[1px] bg-[var(--accent-ochre)]"></span>Linked References</span>
+            <span id="expGraphEdgeStats">0 edges</span>
+          </div>
+          <div class="flex items-center gap-2 pointer-events-auto">
+            <span class="text-[11px] text-[var(--text-tertiary)] hidden sm:inline">💡 Drag from + ring or hold Shift to connect</span>
+            <div class="flex items-center gap-1 bg-[var(--bg-canvas)] px-1.5 py-0.5 rounded-[3px] border border-[var(--border-hairline)]">
+              <button onclick="zoomGraphStep(-0.2)" title="Zoom Out" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono font-bold">-</button>
+              <span id="expGraphZoomBadge" onclick="fitGraphView()" title="Reset Zoom" class="px-1 text-[10px] hover:text-[var(--text-primary)] cursor-pointer">100%</span>
+              <button onclick="zoomGraphStep(0.2)" title="Zoom In" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono font-bold">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </body>

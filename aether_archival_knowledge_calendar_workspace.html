@@ -819,9 +819,76 @@
       font-weight: 600;
     }
 
-  </style>
+  
+    /* =========================================================================
+       1000X COOLER: AMBIENT AURA, ZEN FOCUS, SHIMMER & CELEBRATION PARTICLES
+       ========================================================================= */
+    /* Living Breathing Atmospheric Aura Glow */
+    @keyframes auraBreathe {
+      0%, 100% {
+        transform: translateX(-50%) scale(1) translateY(0);
+        opacity: 0.22;
+      }
+      50% {
+        transform: translateX(-50%) scale(1.18) translateY(-10px);
+        opacity: 0.38;
+      }
+    }
+    .animate-aura {
+      animation: auraBreathe 8s ease-in-out infinite;
+      will-change: transform, opacity;
+    }
+
+    /* Command Palette Holographic Border Shimmer */
+    @keyframes borderSweep {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .shimmer-border {
+      background: linear-gradient(90deg, var(--border-hairline), var(--accent-vermilion), var(--border-hairline));
+      background-size: 200% 200%;
+      animation: borderSweep 4s ease infinite;
+    }
+
+    /* Zen Focus Mode Styles */
+    body.zen-active #leftSidebar,
+    body.zen-active #rightSidebar,
+    body.zen-active #topHeaderBar {
+      opacity: 0.08;
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    body.zen-active #leftSidebar:hover,
+    body.zen-active #topHeaderBar:hover {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    body.zen-active .block-row:not(:focus-within) {
+      opacity: 0.32;
+      transition: opacity 0.25s ease;
+    }
+    body.zen-active .block-row:focus-within {
+      opacity: 1;
+    }
+
+    /* Reading Progress Bar Glow */
+    #docReadingProgressBar {
+      box-shadow: 0 0 10px var(--accent-vermilion);
+    }
+
+    /* 3D Tilt Card Perspective */
+    .tilt-card {
+      transform-style: preserve-3d;
+      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+</style>
 </head>
 <body class="h-screen w-screen flex select-none text-[13px] overflow-hidden">
+
+  <!-- Document Live Reading Progress Bar -->
+  <div id="docReadingProgressBar" class="fixed top-0 left-0 h-[2.5px] bg-gradient-to-r from-[var(--accent-vermilion)] via-[var(--accent-ochre)] to-[var(--accent-vermilion)] z-[1000] transition-all duration-75 pointer-events-none" style="width: 0%"></div>
 
   <!-- Mobile Sidebar Backdrop -->
     <!-- Mobile Backdrops -->
@@ -931,8 +998,8 @@
             <button onclick="shiftMiniCalMonth(-1)" title="Previous Month" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <button onclick="jumpMiniCalToday()" title="Jump to Today" class="px-1 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] font-mono text-[9px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-              ●
+            <button onclick="jumpMiniCalToday()" title="Jump to Today" class="px-1 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] font-mono text-[9px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center">
+              <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg>
             </button>
             <button onclick="shiftMiniCalMonth(1)" title="Next Month" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1018,7 +1085,7 @@
   <main class="flex-1 h-full flex flex-col min-w-0 bg-[var(--bg-canvas)] relative overflow-hidden">
     
     <!-- Top Hairline Utility & Breadcrumb Bar (Shared across Workspace & Calendar) -->
-    <header class="h-11 px-3 sm:px-4 flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] z-10 shrink-0 gap-2">
+    <header id="topHeaderBar" class="h-11 px-3 sm:px-4 flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] z-10 shrink-0 gap-2 transition-opacity">
       <div class="flex items-center gap-2 min-w-0">
         <button id="expandLeftBtn" onclick="toggleLeftSidebar()" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors" title="Toggle Sidebar (Cmd+\)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -1088,6 +1155,17 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
 
+          <!-- Sound Effects Haptic Audio Toggle -->
+          <button onclick="toggleSoundSetting()" id="soundToggleBtn" title="Toggle Tactile Mechanical Sound Effects" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+            <svg id="soundOnIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            <svg id="soundOffIcon" class="hidden w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+
+          <!-- Zen Focus Mode Button -->
+          <button onclick="toggleZenMode()" id="zenModeBtn" title="Toggle Zen Focus Mode (Cmd+D)" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+          </button>
+
           <!-- Customize Workspace & Appearance Button -->
           <button onclick="openCustomizerModal()" id="customizerBtn" title="Customize Banners, Theme Accents & Typography" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1145,10 +1223,13 @@
     <!-- ===================================================================
          VIEW A: DOCUMENT BLOCK EDITOR VIEWPORT
          =================================================================== -->
-    <div id="documentScrollArea" class="flex-1 overflow-y-auto scroll-smooth select-text">
+    <div id="documentScrollArea" class="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth select-text relative isolate">
+
+      <!-- Dynamic Ambient Aura Glow (Atmospheric Cyber-Archival Lighting) -->
+      <div id="ambientAuraGlow" class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] max-w-[140vw] h-[360px] rounded-full blur-[90px] opacity-25 dark:opacity-20 animate-aura transition-all duration-700 select-none z-0" style="background: radial-gradient(circle, var(--accent-vermilion) 0%, transparent 70%);"></div>
       
       <!-- Document Banner & Ruled Drafting Header Band -->
-      <div id="docBannerContainer" class="relative group/banner w-full transition-all duration-200">
+      <div id="docBannerContainer" class="relative z-[1] group/banner w-full transition-all duration-200">
         <div id="ruledHeaderBand" class="w-full h-16 archival-ruled-band border-b border-[var(--border-hairline)] bg-cover bg-center transition-all relative overflow-hidden"></div>
         <div id="docBannerActions" class="absolute bottom-2.5 right-4 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover/banner:opacity-100 transition-opacity z-10">
           <button onclick="openCustomizerModal('banner')" title="Change Note Banner" class="px-2.5 py-1 rounded-[3px] bg-black/65 hover:bg-black/85 text-white backdrop-blur-md text-[11px] font-mono flex items-center gap-1.5 border border-white/20 transition-colors shadow-sm cursor-pointer">
@@ -1162,7 +1243,7 @@
       </div>
 
       <!-- Configurable Reading Measure Container -->
-      <div id="documentContentContainer" class="max-w-[680px] mx-auto px-6 sm:px-10 pt-5 pb-36 transition-all duration-150">
+      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto px-6 sm:px-10 pt-5 pb-36 transition-all duration-150">
         
         <!-- Document Customization Quick Bar -->
         <div id="docQuickActionRow" class="flex items-center gap-3 mb-2.5 text-[11px] font-mono text-[var(--text-tertiary)] opacity-60 hover:opacity-100 transition-opacity select-none">
@@ -1266,6 +1347,9 @@
             <div class="flex items-center gap-1.5 font-mono text-[11px]">
               <span class="text-[var(--text-tertiary)]">MODIFIED</span>
               <span id="docUpdatedMeta" class="text-[var(--text-secondary)]">2026-11-17</span>
+              <span class="text-[var(--border-strong)]">&middot;</span>
+              <span id="docReadingTimeMeta" class="text-[var(--text-tertiary)]">1 min read</span>
+              <span id="docScrollProgressBadge" class="px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold">0%</span>
             </div>
 
             <span class="text-[var(--border-strong)]">·</span>
@@ -2025,6 +2109,9 @@
       layoutWidth: 'standard', // 'standard' (680px) | 'wide' (860px) | 'ultrawide' (1080px) | 'full' (100%)
       lineSpacing: 'standard', // 'standard' | 'compact' | 'relaxed' | 'airy'
       showHeaderGrid: true,
+      soundEnabled: true,
+      ambientAura: true,
+      zenMode: false,
       leftSidebarOpen: true,
       rightSidebarOpen: true,
       inspectorTab: 'graph',
@@ -4324,6 +4411,11 @@
       const fullText = [note.title, ...note.blocks.map(b => b.content || '')].join(' ').trim();
       const words = fullText ? fullText.split(/\s+/).length : 0;
       document.getElementById('docWordCount').textContent = words;
+      const readEl = document.getElementById('docReadingTimeMeta');
+      if (readEl) {
+        const mins = Math.max(1, Math.ceil(words / 220));
+        readEl.textContent = `${mins} min read`;
+      }
     }
 
     function renderBlocks(note) {
@@ -4770,6 +4862,18 @@
       const block = note.blocks.find(b => b.id === blockId);
       if (block) {
         block.checked = !block.checked;
+        if (block.checked) {
+          playPopSound();
+          const btn = document.querySelector(`[onclick="toggleTodoBlock('${blockId}')"]`);
+          if (btn) {
+            const rect = btn.getBoundingClientRect();
+            triggerCelebration(rect.left + rect.width / 2, rect.top + rect.height / 2, 26);
+          } else {
+            triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 26);
+          }
+        } else {
+          playMechanicalClick(0.8);
+        }
         renderBlocks(note);
         persistState();
       }
@@ -5146,6 +5250,13 @@
         favBtn.classList.remove('star-pop');
         void favBtn.offsetWidth;
         favBtn.classList.add('star-pop');
+        if (note.favorite) {
+          playChimeSound();
+          const rect = favBtn.getBoundingClientRect();
+          triggerCelebration(rect.left + rect.width / 2, rect.top + rect.height / 2, 34);
+        } else {
+          playMechanicalClick(0.85);
+        }
       }
       renderSidebar();
       renderActiveDocument();
@@ -5710,6 +5821,7 @@
     }
 
     function openCommandPalette() {
+      playWhooshSound();
       const backdrop = document.getElementById('commandPaletteBackdrop');
       const card = backdrop.querySelector('.animate-cmd-card');
       const input = document.getElementById('commandPaletteInput');
@@ -5758,6 +5870,10 @@
       const q = query.toLowerCase().trim();
 
       const allActions = [
+        { kind: 'action', label: 'Toggle Zen Focus Mode', hint: 'Distraction-free writing sanctuary with block focus', glyph: 'alert', shortcut: '⌘D', run: () => toggleZenMode() },
+        { kind: 'action', label: 'Toggle Tactile Haptic Audio', hint: 'Mechanical switch & chime micro-feedback', glyph: 'sliders', shortcut: 'Audio', run: () => toggleSoundSetting() },
+        { kind: 'action', label: 'Toggle Dynamic Ambient Aura', hint: 'Breathing atmospheric hero glow lighting', glyph: 'sliders', shortcut: 'Aura', run: () => toggleAmbientAura() },
+        { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'alert', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
         { kind: 'action', label: 'Calendar: Export to iCalendar (.ics)', hint: 'Download RFC 5545 standard .ics file for Apple/Google/Outlook', glyph: 'calendar', shortcut: 'E', run: () => exportCalendarToICS() },
         { kind: 'action', label: 'Calendar: Year Matrix View', hint: '12-month activity heatmap overview', glyph: 'calendar', shortcut: 'Y', run: () => setCalendarView('year') },
@@ -8111,6 +8227,7 @@
     };
 
     function openUserGuideModal(initialTab = 'overview') {
+      playWhooshSound();
       const modal = document.getElementById('userGuideModal');
       if (!modal) return;
       modal.classList.remove('hidden');
@@ -9523,6 +9640,7 @@
       }
 
       function openCustomizerModal(tab = 'banner') {
+        playWhooshSound();
         const modal = document.getElementById('workspaceCustomizerModal');
         if (!modal) return;
         modal.classList.remove('hidden');
@@ -9577,8 +9695,9 @@
                   </div>
                 </div>
                 ${activeBanner ? `
-                  <button onclick="removeActiveDocBanner()" class="px-3 py-1.5 rounded-[3px] bg-red-600/10 hover:bg-red-600/20 text-red-500 font-mono text-xs border border-red-500/20 transition-colors cursor-pointer">
-                    ✕ Remove Banner
+                  <button onclick="removeActiveDocBanner()" class="px-3 py-1.5 rounded-[3px] bg-red-600/10 hover:bg-red-600/20 text-red-500 font-mono text-xs border border-red-500/20 transition-colors cursor-pointer flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <span>Remove Banner</span>
                   </button>
                 ` : ''}
               </div>
@@ -9948,7 +10067,7 @@
               <!-- Safety Philosophy Notice -->
               <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
                 <div class="flex items-center gap-2 mb-2 text-[var(--text-primary)]">
-                  <div class="w-5 h-5 rounded-[2px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-xs">✓</div>
+                  <div class="w-5 h-5 rounded-[2px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
                   <h3 class="font-serif text-sm font-semibold">Protected Core Architecture & Guardrails</h3>
                 </div>
                 <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
@@ -10004,6 +10123,299 @@
             </div>
           `;
         }
+      }
+
+
+      // =========================================================================
+      // 17. 1000X COOLER ENGINE: HAPTIC AUDIO, CONFETTI, ZEN FOCUS, AURA & 3D TILT
+      // =========================================================================
+      function getAudioContext() {
+        if (!window._pkAudioCtx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            window._pkAudioCtx = new AudioCtx();
+          }
+        }
+        if (window._pkAudioCtx && window._pkAudioCtx.state === 'suspended') {
+          window._pkAudioCtx.resume().catch(() => {});
+        }
+        return window._pkAudioCtx;
+      }
+
+      function playMechanicalClick(pitch = 1.0) {
+        if (state.soundEnabled === false) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          const jitter = 0.96 + Math.random() * 0.08;
+          osc.frequency.setValueAtTime(440 * pitch * jitter, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(140 * pitch, ctx.currentTime + 0.018);
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0005, ctx.currentTime + 0.022);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.022);
+        } catch (e) {}
+      }
+
+      function playPopSound() {
+        if (state.soundEnabled === false) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(280, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.035);
+          gain.gain.setValueAtTime(0.07, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0005, ctx.currentTime + 0.045);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.045);
+        } catch (e) {}
+      }
+
+      function playChimeSound() {
+        if (state.soundEnabled === false) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.045);
+            gain.gain.setValueAtTime(0.04, ctx.currentTime + i * 0.045);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.045 + 0.32);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.045);
+            osc.stop(ctx.currentTime + i * 0.045 + 0.32);
+          });
+        } catch (e) {}
+      }
+
+      function playWhooshSound() {
+        if (state.soundEnabled === false) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(190, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(380, ctx.currentTime + 0.075);
+          gain.gain.setValueAtTime(0.022, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0005, ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.08);
+        } catch (e) {}
+      }
+
+      function toggleSoundSetting() {
+        state.soundEnabled = state.soundEnabled === false ? true : false;
+        updateSoundIconUI();
+        persistState();
+        if (state.soundEnabled) {
+          playPopSound();
+          showToast('Tactile Haptic Audio ENABLED');
+        } else {
+          showToast('Tactile Haptic Audio MUTED');
+        }
+      }
+
+      function updateSoundIconUI() {
+        const onIcon = document.getElementById('soundOnIcon');
+        const offIcon = document.getElementById('soundOffIcon');
+        if (!onIcon || !offIcon) return;
+        if (state.soundEnabled === false) {
+          onIcon.classList.add('hidden');
+          offIcon.classList.remove('hidden');
+        } else {
+          onIcon.classList.remove('hidden');
+          offIcon.classList.add('hidden');
+        }
+      }
+
+      // --- PARTICLE CONFETTI CELEBRATION ENGINE ---
+      let pkParticles = [];
+      let pkAnimFrame = null;
+
+      function triggerCelebration(originX, originY, count = 35) {
+        const canvas = document.getElementById('celebrationCanvas');
+        if (!canvas) return;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const rootStyle = getComputedStyle(document.documentElement);
+        const accent = rootStyle.getPropertyValue('--accent-vermilion').trim() || '#D95338';
+        const colors = [accent, '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#FFFFFF'];
+
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2.5 + Math.random() * 6.5;
+          pkParticles.push({
+            x: originX,
+            y: originY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 3.0,
+            size: 3 + Math.random() * 4.5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            alpha: 1,
+            decay: 0.015 + Math.random() * 0.012,
+            rotation: Math.random() * 360,
+            vRot: (Math.random() - 0.5) * 14,
+            isCircle: Math.random() > 0.65
+          });
+        }
+
+        if (!pkAnimFrame) {
+          animateCelebrationCanvas();
+        }
+      }
+
+      function animateCelebrationCanvas() {
+        const canvas = document.getElementById('celebrationCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        pkParticles = pkParticles.filter(p => p.alpha > 0.02);
+        pkParticles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.16; // Gravity
+          p.vx *= 0.985; // Air resistance
+          p.rotation += p.vRot;
+          p.alpha -= p.decay;
+
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          if (p.isCircle) {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+          }
+          ctx.restore();
+        });
+
+        if (pkParticles.length > 0) {
+          pkAnimFrame = requestAnimationFrame(animateCelebrationCanvas);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          pkAnimFrame = null;
+        }
+      }
+
+      // --- ZEN FOCUS MODE ENGINE ---
+      function toggleZenMode() {
+        state.zenMode = !state.zenMode;
+        const hud = document.getElementById('zenModeIndicator');
+        if (state.zenMode) {
+          document.body.classList.add('zen-active');
+          if (hud) hud.classList.remove('hidden');
+          playChimeSound();
+          showToast('Zen Focus Mode Activated (Esc or Cmd+D to exit)');
+        } else {
+          document.body.classList.remove('zen-active');
+          if (hud) hud.classList.add('hidden');
+          playMechanicalClick(1.1);
+          showToast('Exited Zen Focus Mode');
+        }
+      }
+
+      // --- DYNAMIC AMBIENT AURA GLOW TOGGLE ---
+      function toggleAmbientAura() {
+        state.ambientAura = state.ambientAura === false ? true : false;
+        const aura = document.getElementById('ambientAuraGlow');
+        if (aura) {
+          if (state.ambientAura) {
+            aura.classList.remove('hidden');
+          } else {
+            aura.classList.add('hidden');
+          }
+        }
+        persistState();
+        showToast(`Ambient Atmospheric Aura ${state.ambientAura ? 'ENABLED' : 'DISABLED'}`);
+      }
+
+      // --- LIVE READING PROGRESS BAR & 3D TILT ENGINE ---
+      function init1000xCoolerEffects() {
+        updateSoundIconUI();
+        if (state.ambientAura === false) {
+          const aura = document.getElementById('ambientAuraGlow');
+          if (aura) aura.classList.add('hidden');
+        }
+
+        // Scroll Progress Listener
+        const scrollArea = document.getElementById('documentScrollArea');
+        if (scrollArea) {
+          scrollArea.addEventListener('scroll', () => {
+            const maxScroll = scrollArea.scrollHeight - scrollArea.clientHeight;
+            const pct = maxScroll > 5 ? (scrollArea.scrollTop / maxScroll) * 100 : 0;
+            const bar = document.getElementById('docReadingProgressBar');
+            if (bar) bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+            const badge = document.getElementById('docScrollProgressBadge');
+            if (badge) badge.textContent = `${Math.round(pct)}%`;
+          }, { passive: true });
+        }
+
+        // 3D Tilt Physics on Banner Container
+        const bannerContainer = document.getElementById('docBannerContainer');
+        if (bannerContainer) {
+          bannerContainer.classList.add('tilt-card');
+          bannerContainer.addEventListener('mousemove', (e) => {
+            const note = getActiveNote();
+            if (!note || !note.banner) return;
+            const rect = bannerContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -3.5;
+            const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 3.5;
+            bannerContainer.style.transform = `perspective(1200px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
+          });
+          bannerContainer.addEventListener('mouseleave', () => {
+            bannerContainer.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg)';
+          });
+        }
+
+        // Global Keydown for Zen Mode (Cmd+D / Esc) & Mechanical Typing Clicks
+        document.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+            e.preventDefault();
+            toggleZenMode();
+            return;
+          }
+          if (e.key === 'Escape' && state.zenMode) {
+            toggleZenMode();
+            return;
+          }
+          // Subtle tactile mechanical click when typing in contenteditable blocks
+          if (document.activeElement && document.activeElement.isContentEditable) {
+            if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace') {
+              playMechanicalClick(e.key === 'Enter' ? 0.78 : (e.key === 'Backspace' ? 0.85 : 1.0));
+            }
+          }
+        });
+      }
+
+      // Initialize on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init1000xCoolerEffects);
+      } else {
+        setTimeout(init1000xCoolerEffects, 50);
       }
 
 </script>
@@ -10101,8 +10513,8 @@
             <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Archival Knowledge, Bi-directional Synthesis & Chronology</p>
           </div>
         </div>
-        <button onclick="closeUserGuideModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs transition-colors">
-          ✕
+        <button onclick="closeUserGuideModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
@@ -10455,8 +10867,8 @@
             <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Banners, Palette Inks, Reading Width & Guarded Systems</p>
           </div>
         </div>
-        <button onclick="closeCustomizerModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs transition-colors cursor-pointer">
-          ✕
+        <button onclick="closeCustomizerModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
@@ -10485,6 +10897,18 @@
       </div>
 
     </div>
+  </div>
+
+
+  <!-- Particle Celebration Canvas (High-Performance Zero-Dependency Confetti) -->
+  <canvas id="celebrationCanvas" class="fixed inset-0 pointer-events-none z-[9999]"></canvas>
+
+  <!-- Zen Focus Mode HUD Indicator -->
+  <div id="zenModeIndicator" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white backdrop-blur-md border border-white/20 font-mono text-xs flex items-center gap-2.5 z-50 shadow-2xl transition-all select-none animate-toast-in">
+    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+    <span class="font-medium tracking-wide">ZEN FOCUS ACTIVE</span>
+    <span class="text-white/40 text-[10px]">&bull;</span>
+    <button onclick="toggleZenMode()" class="hover:text-amber-300 underline text-[11px] cursor-pointer">Exit (Esc / ⌘D)</button>
   </div>
 
 </body>

@@ -194,12 +194,200 @@
       box-shadow: var(--popover-shadow);
     }
 
-    @keyframes menuReveal {
-      from { opacity: 0; transform: translateY(-3px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* =========================================================================
+       SILKY MODERN SPRING & TACTILE ANIMATIONS (RAYCAST / LINEAR / APPLE DESIGN)
+       ========================================================================= */
+    :root {
+      --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* Modal Backdrop Blur Fade */
+    @keyframes backdropFadeIn {
+      from { opacity: 0; backdrop-filter: blur(0px); }
+      to { opacity: 1; backdrop-filter: blur(6px); }
+    }
+    .animate-backdrop {
+      animation: backdropFadeIn 0.22s var(--ease-spring) forwards;
+      will-change: opacity, backdrop-filter;
+    }
+
+    /* Modal Spring Card Opening (Scale + Rise) */
+    @keyframes modalSpringIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.93) translateY(16px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .animate-modal-card {
+      animation: modalSpringIn 0.28s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* Command Palette Opening (Raycast / Spotlight Easing) */
+    @keyframes cmdPaletteIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.95) translateY(-18px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .animate-cmd-card {
+      animation: cmdPaletteIn 0.24s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* Popovers, Menus & Dropdowns Spring Scale */
+    @keyframes popoverSpringIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.93) translateY(-6px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
     }
     .animate-menu {
-      animation: menuReveal 0.12s ease-out forwards;
+      animation: popoverSpringIn 0.18s var(--ease-spring) forwards;
+      transform-origin: top left;
+      will-change: transform, opacity;
+    }
+
+    /* Document Switch / Note Entry Smooth Glide */
+    @keyframes docGlideIn {
+      0% {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-doc-glide {
+      animation: docGlideIn 0.24s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* Modal Tab Switching Crossfade & Lift */
+    @keyframes tabContentIn {
+      0% {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-tab-content {
+      animation: tabContentIn 0.2s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* Block Insert Slide-in */
+    @keyframes blockEnter {
+      0% {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-block-enter {
+      animation: blockEnter 0.22s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* Checkbox Check Pop */
+    @keyframes checkPop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+    .check-pop {
+      animation: checkPop 0.24s var(--ease-spring);
+    }
+
+    /* Star / Favorite Pop */
+    @keyframes starPop {
+      0% { transform: scale(0.8); }
+      45% { transform: scale(1.4) rotate(14deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .star-pop {
+      animation: starPop 0.32s var(--ease-bounce);
+    }
+
+    /* Toast Spring Notification */
+    @keyframes toastSpringIn {
+      0% { opacity: 0; transform: translateY(18px) scale(0.92); }
+      70% { transform: translateY(-2px) scale(1.01); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastSpringOut {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(12px) scale(0.94); }
+    }
+    .animate-toast-in {
+      animation: toastSpringIn 0.28s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+    .animate-toast-out {
+      animation: toastSpringOut 0.2s var(--ease-spring) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* View Switch Crossfade (Notes <-> Calendar) */
+    @keyframes viewFadeIn {
+      0% { opacity: 0; transform: scale(0.995); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .animate-view-fade {
+      animation: viewFadeIn 0.22s var(--ease-spring) forwards;
+    }
+
+    /* Tactile Micro-Interactions on Interactive Elements */
+    button:active:not(:disabled),
+    .interactive-tap:active {
+      transform: scale(0.965);
+      transition: transform 0.08s ease;
+    }
+
+    /* Card & Banner Hover Micro-zoom */
+    .hover-lift {
+      transition: transform 0.18s var(--ease-spring), box-shadow 0.18s var(--ease-spring);
+    }
+    .hover-lift:hover {
+      transform: translateY(-1.5px);
+    }
+
+    /* Smooth Calendar Interactive Transitions */
+    .cal-cell-interactive {
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+    .cal-cell-interactive:active {
+      transform: scale(0.985);
+    }
+
+    /* Respect accessibility reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
     }
 
         /* High-End Tactile Selection & Input Polish */
@@ -1059,8 +1247,8 @@
   <!-- =====================================================================
        EVENT CREATION / INSPECTION / EDITING MODAL DIALOG
        ===================================================================== -->
-  <div id="eventModalBackdrop" onclick="closeEventModal(event)" class="hidden fixed inset-0 bg-black/55 z-50 flex items-center justify-center p-4">
-    <div onclick="event.stopPropagation()" class="w-full max-w-lg popover-surface overflow-hidden animate-menu flex flex-col max-h-[90vh]">
+  <div id="eventModalBackdrop" onclick="closeEventModal(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-lg popover-surface overflow-hidden animate-modal-card flex flex-col max-h-[90vh]">
       
       <!-- Modal Header -->
       <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between">
@@ -1247,8 +1435,8 @@
   </div>
 
   <!-- Command Palette (`Cmd/Ctrl + K`) — Redesigned High-End Swiss Spotlight -->
-  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] px-4">
-    <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu flex flex-col max-h-[82vh]">
+  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] px-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-cmd-card flex flex-col max-h-[82vh]">
       <!-- Search Bar -->
       <div class="px-4 py-3.5 border-b border-[var(--border-hairline)] flex items-center gap-3 bg-[var(--bg-canvas)]">
         <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1287,8 +1475,8 @@
   </div>
 
   <!-- Start Fresh Confirmation Modal -->
-  <div id="startFreshModal" onclick="closeStartFreshModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
-    <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 space-y-4 shadow-2xl animate-menu">
+  <div id="startFreshModal" onclick="closeStartFreshModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 space-y-4 shadow-2xl animate-modal-card">
       <div class="flex items-center gap-3">
         <span class="w-8 h-8 rounded-full bg-[var(--accent-vermilion-tint)] flex items-center justify-center text-[var(--accent-vermilion)] shrink-0">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
@@ -1823,13 +2011,13 @@
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
       const dotColor = tone === 'ochre' ? 'bg-[var(--accent-ochre)]' : 'bg-[var(--accent-vermilion)]';
-      toast.className = 'px-3 py-1.5 popover-surface font-mono text-[11px] text-[var(--text-primary)] flex items-center gap-2 animate-menu';
+      toast.className = 'px-3 py-1.5 popover-surface font-mono text-[11px] text-[var(--text-primary)] flex items-center gap-2 shadow-lg animate-toast-in';
       toast.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] ${dotColor}"></span><span>${escapeHtml(message)}</span>`;
       container.appendChild(toast);
       setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.18s ease';
-        setTimeout(() => toast.remove(), 200);
+        toast.classList.remove('animate-toast-in');
+        toast.classList.add('animate-toast-out');
+        setTimeout(() => toast.remove(), 220);
       }, 2300);
     }
 
@@ -2030,6 +2218,9 @@
       if (isCalendar) {
         docArea.classList.add('hidden');
         calArea.classList.remove('hidden');
+        calArea.classList.remove('animate-view-fade');
+        void calArea.offsetWidth;
+        calArea.classList.add('animate-view-fade');
         wsBread.classList.add('hidden');
         calBread.classList.remove('hidden');
         wsControls.classList.add('hidden');
@@ -2050,6 +2241,9 @@
       } else {
         docArea.classList.remove('hidden');
         calArea.classList.add('hidden');
+        docArea.classList.remove('animate-view-fade');
+        void docArea.offsetWidth;
+        docArea.classList.add('animate-view-fade');
         wsBread.classList.remove('hidden');
         calBread.classList.add('hidden');
         wsControls.classList.remove('hidden');
@@ -3240,6 +3434,12 @@
       handleEventDateInputsChange();
 
       backdrop.classList.remove('hidden');
+      const card = backdrop.querySelector('.animate-modal-card');
+      if (card) {
+        card.classList.remove('animate-modal-card');
+        void card.offsetWidth;
+        card.classList.add('animate-modal-card');
+      }
       requestAnimationFrame(() => titleInput.focus());
     }
 
@@ -3525,6 +3725,13 @@
       if (!note) return;
 
       renderDocBanner(note);
+
+      const contentContainer = document.getElementById('documentContentContainer');
+      if (contentContainer) {
+        contentContainer.classList.remove('animate-doc-glide');
+        void contentContainer.offsetWidth;
+        contentContainer.classList.add('animate-doc-glide');
+      }
 
       document.getElementById('breadcrumbFolder').textContent = note.folder || 'General';
       document.getElementById('breadcrumbTitleText').textContent = note.title || 'Untitled Document';
@@ -4409,6 +4616,12 @@
     function toggleFavoriteActiveNote() {
       const note = getActiveNote();
       note.favorite = !note.favorite;
+      const favBtn = document.getElementById('favBtn');
+      if (favBtn) {
+        favBtn.classList.remove('star-pop');
+        void favBtn.offsetWidth;
+        favBtn.classList.add('star-pop');
+      }
       renderSidebar();
       renderActiveDocument();
       persistState();
@@ -4973,8 +5186,14 @@
 
     function openCommandPalette() {
       const backdrop = document.getElementById('commandPaletteBackdrop');
+      const card = backdrop.querySelector('.animate-cmd-card');
       const input = document.getElementById('commandPaletteInput');
       backdrop.classList.remove('hidden');
+      if (card) {
+        card.classList.remove('animate-cmd-card');
+        void card.offsetWidth;
+        card.classList.add('animate-cmd-card');
+      }
       input.value = '';
       setCmdScope('all');
       renderCommandPaletteResults('');
@@ -6881,6 +7100,12 @@
       const modal = document.getElementById('userGuideModal');
       if (!modal) return;
       modal.classList.remove('hidden');
+      const card = modal.querySelector('.animate-modal-card');
+      if (card) {
+        card.classList.remove('animate-modal-card');
+        void card.offsetWidth;
+        card.classList.add('animate-modal-card');
+      }
       switchUserGuideTab(initialTab);
     }
 
@@ -6906,6 +7131,9 @@
       });
 
       contentEl.innerHTML = USER_GUIDE_CONTENT[tabKey] || USER_GUIDE_CONTENT.overview;
+      contentEl.classList.remove('animate-tab-content');
+      void contentEl.offsetWidth;
+      contentEl.classList.add('animate-tab-content');
       contentEl.scrollTop = 0;
     }
 
@@ -7715,6 +7943,12 @@
         const modal = document.getElementById('workspaceCustomizerModal');
         if (!modal) return;
         modal.classList.remove('hidden');
+        const card = modal.querySelector('.animate-modal-card');
+        if (card) {
+          card.classList.remove('animate-modal-card');
+          void card.offsetWidth;
+          card.classList.add('animate-modal-card');
+        }
         switchCustomizerTab(tab);
       }
 
@@ -7738,6 +7972,10 @@
             }
           }
         });
+
+        contentEl.classList.remove('animate-tab-content');
+        void contentEl.offsetWidth;
+        contentEl.classList.add('animate-tab-content');
 
         const note = getActiveNote() || { title: 'Document', banner: null };
         const activeBanner = note.banner;
@@ -8122,8 +8360,8 @@
   </div>
 
   <!-- Interactive User Guide & Handbook Modal -->
-  <div id="userGuideModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-menu">
-    <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+  <div id="userGuideModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
       
       <!-- Modal Header -->
       <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">
@@ -8276,8 +8514,8 @@
   </div>
 
   <!-- In-App PWA Install Dialog / Banner -->
-  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-    <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-5 space-y-4 shadow-2xl animate-menu">
+  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-5 space-y-4 shadow-2xl animate-modal-card">
       <div class="flex items-center gap-3">
         <img src="icon-192.png" alt="PK Note App Icon" class="w-12 h-12 rounded-lg border border-[var(--border-hairline)] shrink-0" />
         <div>
@@ -8447,8 +8685,8 @@
   <input type="file" id="noteBannerFileInput" accept="image/*" onchange="handleBannerFileUpload(event)" class="hidden" />
 
   <!-- Interactive Workspace & Document Customizer Modal -->
-  <div id="workspaceCustomizerModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-menu">
-    <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+  <div id="workspaceCustomizerModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
       
       <!-- Modal Header -->
       <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">

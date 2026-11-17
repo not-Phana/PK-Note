@@ -1243,7 +1243,7 @@
         </button>
 
         <!-- Mode Quick Pill in Header -->
-        <div class="flex items-center gap-0.5 bg-[var(--bg-panel)] p-0.5 rounded-[3px] border border-[var(--border-hairline)] shrink-0">
+        <div class="hidden md:flex items-center gap-0.5 bg-[var(--bg-panel)] p-0.5 rounded-[3px] border border-[var(--border-hairline)] shrink-0">
           <button id="topTabWorkspace" onclick="setAppMode('workspace')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors">
             Notes
           </button>
@@ -1276,9 +1276,9 @@
           SYNCED
         </span>
 
-        <!-- Document-Specific Controls -->
+        <!-- Document-Specific Controls (De-cluttered on Mobile) -->
         <div id="workspaceHeaderControls" class="flex items-center gap-1">
-          <button onclick="toggleTypographyPopover(event)" id="fontToggleBtn" title="Typography & Reading Settings" class="px-2 py-1 rounded-[3px] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center gap-1.5 cursor-pointer">
+          <button onclick="toggleTypographyPopover(event)" id="fontToggleBtn" title="Typography & Reading Settings" class="hidden md:flex px-2 py-1 rounded-[3px] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center gap-1.5 cursor-pointer">
             <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <polyline points="4 7 4 4 20 4 20 7"></polyline>
               <line x1="9" y1="20" x2="15" y2="20"></line>
@@ -1287,54 +1287,62 @@
             <span id="fontToggleLabel">INTER</span>
           </button>
 
-          <button onclick="toggleHeaderGrid()" title="Toggle Architectural Header Grid" class="hidden sm:inline-flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
+          <button onclick="toggleHeaderGrid()" title="Toggle Architectural Header Grid" class="hidden md:inline-flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
             </svg>
           </button>
 
-          <button onclick="toggleFavoriteActiveNote()" id="favBtn" title="Pin Note to Index" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] hover:bg-[var(--bg-hover)] transition-colors">
+          <!-- Star / Favorite Button (Always accessible) -->
+          <button onclick="toggleFavoriteActiveNote()" id="favBtn" title="Pin Note to Index" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
             <svg id="favIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
             </svg>
           </button>
 
-          <!-- Export & Vault Actions Menu -->
-          <button onclick="openNoteActionsMenu(event)" id="noteActionsBtn" title="Export & Vault Backup Actions" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center">
+          <!-- Export & Vault Actions Menu (Desktop) -->
+          <button onclick="openNoteActionsMenu(event)" id="noteActionsBtn" title="Export & Vault Backup Actions" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors items-center justify-center cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
 
-          <!-- Sound Effects Haptic Audio Toggle -->
-          <button onclick="toggleSoundSetting()" id="soundToggleBtn" title="Toggle Tactile Mechanical Sound Effects" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+          <!-- Sound Effects Haptic Audio Toggle (Desktop) -->
+          <button onclick="toggleSoundSetting()" id="soundToggleBtn" title="Toggle Tactile Mechanical Sound Effects" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
             <svg id="soundOnIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
             <svg id="soundOffIcon" class="hidden w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
           </button>
 
-          <!-- Zen Focus Mode Button -->
-          <button onclick="toggleZenMode()" id="zenModeBtn" title="Toggle Zen Focus Mode (Cmd+D)" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+          <!-- Zen Focus Mode Button (Desktop) -->
+          <button onclick="toggleZenMode()" id="zenModeBtn" title="Toggle Zen Focus Mode (Cmd+D)" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
           </button>
 
-          <!-- Customize Workspace & Appearance Button -->
-          <button onclick="openCustomizerModal()" id="customizerBtn" title="Customize Banners, Theme Accents & Typography" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+          <!-- Customize Workspace & Appearance Button (Desktop) -->
+          <button onclick="openCustomizerModal()" id="customizerBtn" title="Customize Banners, Theme Accents & Typography" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
 
-          <!-- User Guide & Handbook Button -->
-          <button onclick="openUserGuideModal()" title="PK Note Handbook & Shortcuts (?)" class="px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1">
+          <!-- User Guide Button (Desktop) -->
+          <button onclick="openUserGuideModal()" title="PK Note Handbook & Shortcuts (?)" class="hidden md:flex px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors items-center gap-1 cursor-pointer">
             <span>?</span>
             <span class="hidden xl:inline text-[10px] font-normal text-[var(--text-tertiary)]">GUIDE</span>
           </button>
 
-          <button onclick="deleteActiveNote()" title="Delete Note" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors">
+          <!-- Delete Note Button (Desktop) -->
+          <button onclick="deleteActiveNote()" title="Delete Note" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
             </svg>
           </button>
 
-          <div class="h-3.5 w-[1px] bg-[var(--border-hairline)] mx-1"></div>
+          <!-- Clean Mobile More Menu (Consolidates 7 secondary buttons into one tidy touch-target) -->
+          <button onclick="openMobileMoreSheet()" id="mobileHeaderMoreBtn" title="More Document Options" class="md:hidden p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg>
+          </button>
 
-          <button onclick="toggleRightSidebar()" id="toggleInspectorBtn" title="Toggle Inspector Panel" class="flex items-center gap-1.5 px-2 py-1 rounded-[3px] text-xs font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors">
+          <div class="hidden md:block h-3.5 w-[1px] bg-[var(--border-hairline)] mx-1"></div>
+
+          <!-- Inspector Button (Clean icon-only on mobile) -->
+          <button onclick="toggleRightSidebar()" id="toggleInspectorBtn" title="Toggle Inspector Panel" class="flex items-center gap-1.5 p-1.5 sm:px-2 sm:py-1 rounded-[3px] text-xs font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors cursor-pointer">
             <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/>
             </svg>
@@ -1347,22 +1355,22 @@
           <span id="localTzBadge" title="Local Browser Timezone (Events stored in UTC ISO 8601)" class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-[2px] font-mono text-[10px] bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]">
             UTC+0
           </span>
-          <!-- Calendar Customizer Button -->
-          <button onclick="openCustomizerModal('theme')" title="Customize Themes & Accents" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+          <!-- Calendar Customizer Button (Desktop) -->
+          <button onclick="openCustomizerModal('theme')" title="Customize Themes & Accents" class="hidden sm:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
 
-          <!-- Calendar Guide Button -->
-          <button onclick="openUserGuideModal('calendar')" title="Calendar Guide & Shortcuts (?)" class="px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1">
+          <!-- Calendar Guide Button (Desktop) -->
+          <button onclick="openUserGuideModal('calendar')" title="Calendar Guide & Shortcuts (?)" class="hidden sm:flex px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors items-center gap-1 cursor-pointer">
             <span>?</span>
             <span class="hidden sm:inline text-[10px] font-normal text-[var(--text-tertiary)]">GUIDE</span>
           </button>
 
-          <button onclick="openEventModal()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white text-xs font-medium transition-opacity">
+          <button onclick="openEventModal()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white text-xs font-medium transition-opacity cursor-pointer" title="Create New Event">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            <span>New Event</span>
+            <span class="hidden sm:inline">New Event</span>
           </button>
         </div>
       </div>
@@ -1380,7 +1388,7 @@
       <!-- Document Banner & Ruled Drafting Header Band -->
       <div id="docBannerContainer" class="relative z-[1] group/banner w-full transition-all duration-200">
         <div id="ruledHeaderBand" class="w-full h-16 archival-ruled-band border-b border-[var(--border-hairline)] bg-cover bg-center transition-all relative overflow-hidden"></div>
-        <div id="docBannerActions" class="absolute bottom-2.5 right-4 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover/banner:opacity-100 transition-opacity z-10">
+        <div id="docBannerActions" class="hidden sm:flex absolute bottom-2.5 right-4 items-center gap-1.5 opacity-0 group-hover/banner:opacity-100 transition-opacity z-10">
           <button onclick="openCustomizerModal('banner')" title="Change Note Banner" class="px-2.5 py-1 rounded-[3px] bg-black/65 hover:bg-black/85 text-white backdrop-blur-md text-[11px] font-mono flex items-center gap-1.5 border border-white/20 transition-colors shadow-sm cursor-pointer">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span id="docBannerActionLabel">Change Banner</span>
@@ -1395,7 +1403,7 @@
       <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto px-6 sm:px-10 pt-5 pb-36 transition-all duration-150">
         
         <!-- Document Customization Quick Bar -->
-        <div id="docQuickActionRow" class="flex items-center gap-3 mb-2.5 text-[11px] font-mono text-[var(--text-tertiary)] opacity-60 hover:opacity-100 transition-opacity select-none">
+        <div id="docQuickActionRow" class="hidden sm:flex items-center gap-3 mb-2.5 text-[11px] font-mono text-[var(--text-tertiary)] opacity-60 hover:opacity-100 transition-opacity select-none">
           <button onclick="openCustomizerModal('banner')" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span id="quickBannerText">Add Banner</span>
@@ -1494,18 +1502,18 @@
 
             <!-- Updated Timestamp -->
             <div class="flex items-center gap-1.5 font-mono text-[11px]">
-              <span class="text-[var(--text-tertiary)]">MODIFIED</span>
+              <span class="text-[var(--text-tertiary)] hidden sm:inline">MODIFIED</span>
               <span id="docUpdatedMeta" class="text-[var(--text-secondary)]">2026-11-17</span>
               <span class="text-[var(--border-strong)]">&middot;</span>
               <span id="docReadingTimeMeta" class="text-[var(--text-tertiary)]">1 min read</span>
-              <span id="docScrollProgressBadge" class="px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold">0%</span>
+              <span id="docScrollProgressBadge" class="hidden sm:inline-flex px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold">0%</span>
             </div>
 
             <span class="text-[var(--border-strong)]">·</span>
 
             <!-- Word Count -->
             <div class="flex items-center gap-1.5 font-mono text-[11px]">
-              <span class="text-[var(--text-tertiary)]">WORDS</span>
+              <span class="text-[var(--text-tertiary)] hidden sm:inline">WORDS</span>
               <span id="docWordCount" class="text-[var(--text-secondary)]">0</span>
             </div>
           </div>
@@ -1514,7 +1522,7 @@
           <div class="flex items-center gap-2 flex-wrap pt-0.5">
             <span class="font-mono text-[11px] text-[var(--text-tertiary)] flex items-center gap-1.5 shrink-0">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-              INDEX TAGS
+              <span class="hidden sm:inline">INDEX TAGS</span>
             </span>
             <div id="tagsContainer" class="flex items-center flex-wrap gap-1"></div>
             <input id="newTagInput"
@@ -12297,6 +12305,25 @@
         setTimeout(init1000xCoolerEffects, 50);
       }
 
+
+    function openMobileMoreSheet() {
+      const active = getActiveNote();
+      const titleEl = document.getElementById('mobileSheetDocTitle');
+      if (titleEl && active) {
+        titleEl.textContent = active.title || 'Untitled Document';
+      }
+      const sheet = document.getElementById('mobileMoreSheetBackdrop');
+      if (sheet) {
+        sheet.classList.remove('hidden');
+        playWhooshSound();
+      }
+    }
+
+    function closeMobileMoreSheet() {
+      const sheet = document.getElementById('mobileMoreSheetBackdrop');
+      if (sheet) sheet.classList.add('hidden');
+    }
+
 </script>
 
 
@@ -12995,6 +13022,85 @@
         <button onclick="closeCanvasCreateNoteModal()" class="px-3 py-1 rounded-[3px] font-mono text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] cursor-pointer">Cancel</button>
         <button onclick="confirmCanvasCreateNote()" class="px-3.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-hover)] text-white font-mono text-xs font-medium cursor-pointer">Create & Link</button>
       </div>
+    </div>
+  </div>
+
+
+  <!-- Mobile More Actions Bottom Sheet -->
+  <div id="mobileMoreSheetBackdrop" onclick="closeMobileMoreSheet()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[975] flex items-end justify-center p-0 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-h-[82vh] flex flex-col rounded-t-2xl bg-[var(--bg-panel)] border-t border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu pb-6">
+      
+      <!-- Sheet Handle & Header -->
+      <div class="px-4 pt-3 pb-2 flex flex-col items-center border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0">
+        <div class="w-10 h-1 rounded-full bg-[var(--border-strong)] mb-2"></div>
+        <div class="w-full flex items-center justify-between">
+          <div>
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate max-w-[240px]" id="mobileSheetDocTitle">Document Actions</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Workspace & Document Preferences</div>
+          </div>
+          <button onclick="closeMobileMoreSheet()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        </div>
+      </div>
+
+      <!-- Sheet Options List -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
+        <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🎨</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Appearance, Banners & Themes</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Change cover art, accent inks & layout width</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); openTypographyModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-blue-500/10 text-blue-500 flex items-center justify-center text-sm shrink-0">🔤</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Typography Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">13 curated typefaces, scale & book indent</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); toggleZenMode()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-sm shrink-0">🧘</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Zen Focus Mode</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Dim all distractions for pure writing sanctuary</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); toggleSoundSetting()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-amber-500/10 text-amber-500 flex items-center justify-center text-sm shrink-0">🔊</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Tactile Haptic Audio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Mechanical key clicks & harmonic chime feedback</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); openUserGuideModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-purple-500/10 text-purple-500 flex items-center justify-center text-sm shrink-0">📖</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">PK Note Handbook & Tips</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Features, shortcuts & markdown tutorial</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); openNoteActionsMenu(event)" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-slate-500/10 text-slate-500 flex items-center justify-center text-sm shrink-0">💾</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Export & Backup Vault</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Download Markdown (.md) or full Vault JSON</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); deleteActiveNote()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/20 text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-red-500/10 text-red-500 flex items-center justify-center text-sm shrink-0">🗑️</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-red-500">Delete Current Document</div>
+            <div class="font-mono text-[10px] text-red-500/70">Permanently remove this note from vault</div>
+          </div>
+        </button>
+      </div>
+
     </div>
   </div>
 

@@ -143,7 +143,7 @@
 
         headerText = note.code ? `${note.code} · ${note.title}` : note.title;
 
-        const folders = state.folders || ['Architecture', 'Typography & Craft', 'Daily Logs', 'Systems Theory', 'General'];
+        const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
         const folderSubmenu = folders.map(f => ({
           label: f,
           icon: 'archive',
@@ -1018,9 +1018,9 @@
         <!-- Workspace Breadcrumb Path -->
         <nav id="workspaceBreadcrumbNav" class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] truncate">
           <span class="text-[var(--text-tertiary)] hidden sm:inline">/</span>
-          <span id="breadcrumbFolder" onclick="toggleFolderDropdown(event)" class="px-1.5 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] cursor-pointer transition-colors truncate hidden sm:inline" title="Switch Collection">Architecture</span>
+          <span id="breadcrumbFolder" onclick="toggleFolderDropdown(event)" class="px-1.5 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] cursor-pointer transition-colors truncate hidden sm:inline" title="Switch Collection">General</span>
           <span class="text-[var(--text-tertiary)]">/</span>
-          <span id="breadcrumbTitleText" class="font-medium text-[var(--text-primary)] truncate">Knowledge Graph Architecture</span>
+          <span id="breadcrumbTitleText" class="font-medium text-[var(--text-primary)] truncate">Welcome to PK Note</span>
         </nav>
 
         <!-- Calendar Breadcrumb Path -->
@@ -2037,17 +2037,44 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.notes) && parsed.notes.length > 0) {
-            return { ...DEFAULT_VAULT, ...parsed };
+            const merged = { ...DEFAULT_VAULT, ...parsed };
+            if (Array.isArray(merged.events)) {
+              merged.events = merged.events.filter(e => 
+                !e.id.startsWith('evt-arch-') && 
+                !e.id.startsWith('evt-morning-') && 
+                !e.id.startsWith('evt-typography-') && 
+                !e.id.startsWith('evt-storage-') && 
+                !e.id.startsWith('evt-midnight-') && 
+                !e.id.startsWith('evt-systems-') &&
+                !e.id.startsWith('evt-field-') &&
+                !e.id.startsWith('evt-publication-') &&
+                !e.id.startsWith('evt-weekly-')
+              );
+              if (merged.events.length === 0) {
+                merged.events = buildDefaultEvents();
+              }
+            } else {
+              merged.events = buildDefaultEvents();
+            }
+            return merged;
           }
         }
         // If migrating from v2: check if user only had the old demo notes
         const legacyRaw = localStorage.getItem('pk_note_vault_v2') || localStorage.getItem('aether_archival_vault_v2');
         if (legacyRaw) {
           const leg = JSON.parse(legacyRaw);
-          // If the notes are just the old Aether demo notes, don't import the demo junk
           const isDemoVault = leg.notes && leg.notes.some(n => n.id === 'note-graph-arch' || n.id === 'note-typography');
           if (!isDemoVault && Array.isArray(leg.notes) && leg.notes.length > 0) {
-            return { ...DEFAULT_VAULT, ...leg, events: (leg.events || []).filter(e => !e.id.startsWith('evt-arch-') && !e.id.startsWith('evt-morning-')) };
+            return {
+              ...DEFAULT_VAULT,
+              ...leg,
+              events: (leg.events || []).filter(e => 
+                !e.id.startsWith('evt-arch-') && 
+                !e.id.startsWith('evt-morning-') &&
+                !e.id.startsWith('evt-typography-') &&
+                !e.id.startsWith('evt-storage-')
+              )
+            };
           }
         }
       } catch (e) {
@@ -2403,7 +2430,7 @@
       }
 
       // 2. Folder Directory Tree
-      const folders = state.folders || ['Architecture', 'Typography & Craft', 'Daily Logs', 'Systems Theory', 'General'];
+      const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
       const treeContainer = document.getElementById('folderTreeContainer');
       treeContainer.innerHTML = folders.map(folder => {
         const folderNotes = filteredNotes.filter(n => (n.folder || 'General') === folder);
@@ -3390,9 +3417,6 @@
       clearEventFormError();
       deleteConfirmGroup.classList.add('hidden');
 
-      // Populate Custom Linked Notes Picker
-      renderEventLinkedNotesList(initialData.linkedNoteId || '');
-
       if (eventId) {
         const evt = state.events.find(e => e.id === eventId);
         if (!evt) return;
@@ -3443,6 +3467,7 @@
         deleteBtn.classList.add('hidden');
       }
 
+      renderEventLinkedNotesList(linkedNoteSelect.value || '');
       renderModalColorSwatches();
       toggleModalOpenNoteBtn();
       handleEventDateInputsChange();
@@ -4450,7 +4475,7 @@
       const input = document.getElementById('newFolderInput');
       const name = input.value.trim();
       if (!name) return;
-      state.folders = state.folders || ['Architecture', 'Typography & Craft', 'Daily Logs', 'Systems Theory', 'General'];
+      state.folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
       if (!state.folders.includes(name)) {
         state.folders.push(name);
       }
@@ -5567,14 +5592,14 @@
       label.textContent = currentFolder;
       if (hiddenInput) hiddenInput.value = currentFolder;
 
-      const folders = state.folders || ['Architecture', 'Typography & Craft', 'Daily Logs', 'Systems Theory', 'General'];
+      const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
       if (countEl) countEl.textContent = `${folders.length} collections`;
 
-      container.innerHTML = folders.map(f => {
+      container.innerHTML = folders.map((f, idx) => {
         const isActive = f === currentFolder;
         const count = state.notes.filter(n => n.folder === f).length;
         return `
-          <button onclick="selectFolderFromDropdown('${escapeHtml(f)}')"
+          <button onclick="selectFolderByIndex(${idx})"
                   class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-left transition-colors ${
                     isActive
                       ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-medium'
@@ -5591,6 +5616,13 @@
           </button>
         `;
       }).join('');
+    }
+
+    function selectFolderByIndex(idx) {
+      const folders = state.folders || ['General', 'Projects', 'Daily Logs', 'Reading'];
+      if (folders[idx]) {
+        selectFolderFromDropdown(folders[idx]);
+      }
     }
 
     function selectFolderFromDropdown(folderName) {

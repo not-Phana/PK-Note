@@ -654,6 +654,11 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
 
+          <!-- Customize Workspace & Appearance Button -->
+          <button onclick="openCustomizerModal()" id="customizerBtn" title="Customize Banners, Theme Accents & Typography" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+
           <!-- User Guide & Handbook Button -->
           <button onclick="openUserGuideModal()" title="PK Note Handbook & Shortcuts (?)" class="px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1">
             <span>?</span>
@@ -681,6 +686,11 @@
           <span id="localTzBadge" title="Local Browser Timezone (Events stored in UTC ISO 8601)" class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-[2px] font-mono text-[10px] bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]">
             UTC+0
           </span>
+          <!-- Calendar Customizer Button -->
+          <button onclick="openCustomizerModal('theme')" title="Customize Themes & Accents" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+
           <!-- Calendar Guide Button -->
           <button onclick="openUserGuideModal('calendar')" title="Calendar Guide & Shortcuts (?)" class="px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1">
             <span>?</span>
@@ -703,12 +713,40 @@
          =================================================================== -->
     <div id="documentScrollArea" class="flex-1 overflow-y-auto scroll-smooth select-text">
       
-      <!-- Optional Subtle Ruled Drafting Header Band -->
-      <div id="ruledHeaderBand" class="w-full h-16 archival-ruled-band border-b border-[var(--border-hairline)]"></div>
+      <!-- Document Banner & Ruled Drafting Header Band -->
+      <div id="docBannerContainer" class="relative group/banner w-full transition-all duration-200">
+        <div id="ruledHeaderBand" class="w-full h-16 archival-ruled-band border-b border-[var(--border-hairline)] bg-cover bg-center transition-all relative overflow-hidden"></div>
+        <div id="docBannerActions" class="absolute bottom-2.5 right-4 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover/banner:opacity-100 transition-opacity z-10">
+          <button onclick="openCustomizerModal('banner')" title="Change Note Banner" class="px-2.5 py-1 rounded-[3px] bg-black/65 hover:bg-black/85 text-white backdrop-blur-md text-[11px] font-mono flex items-center gap-1.5 border border-white/20 transition-colors shadow-sm cursor-pointer">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span id="docBannerActionLabel">Change Banner</span>
+          </button>
+          <button id="docBannerRemoveBtn" onclick="removeActiveDocBanner()" title="Remove Banner" class="hidden px-2 py-1 rounded-[3px] bg-black/65 hover:bg-red-600/85 text-white backdrop-blur-md text-[11px] font-mono border border-white/20 transition-colors shadow-sm cursor-pointer">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
 
-      <!-- Centered 680px Reading Measure -->
-      <div class="max-w-[680px] mx-auto px-6 sm:px-10 pt-8 pb-36">
+      <!-- Configurable Reading Measure Container -->
+      <div id="documentContentContainer" class="max-w-[680px] mx-auto px-6 sm:px-10 pt-5 pb-36 transition-all duration-150">
         
+        <!-- Document Customization Quick Bar -->
+        <div id="docQuickActionRow" class="flex items-center gap-3 mb-2.5 text-[11px] font-mono text-[var(--text-tertiary)] opacity-60 hover:opacity-100 transition-opacity select-none">
+          <button onclick="openCustomizerModal('banner')" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span id="quickBannerText">Add Banner</span>
+          </button>
+          <span>&bull;</span>
+          <button onclick="toggleGlyphPicker(event)" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
+            <span>Change Icon</span>
+          </button>
+          <span>&bull;</span>
+          <button onclick="openCustomizerModal('theme')" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Customize Style</span>
+          </button>
+        </div>
+
         <!-- Document Classification Stamp & Icon Selector -->
         <div class="flex items-center gap-2.5 mb-3 relative">
           <button id="pageGlyphBtn" onclick="toggleGlyphPicker(event)" title="Change Document Glyph" class="w-7 h-7 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-center text-[var(--accent-vermilion)] transition-colors cursor-pointer">
@@ -1516,6 +1554,9 @@
       activeNoteId: 'note-welcome',
       theme: 'dark',
       fontStyle: 'sans',
+      accentColor: 'vermilion',
+      layoutWidth: 'standard', // 'standard' (680px) | 'wide' (860px) | 'full' (100%)
+      lineSpacing: 'standard', // 'standard' | 'compact' | 'relaxed'
       showHeaderGrid: true,
       leftSidebarOpen: true,
       rightSidebarOpen: true,
@@ -2049,23 +2090,59 @@
         topTabCal.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
       }
 
-      // Body Typography Toggle (Sans vs Editorial Serif)
+      // Apply Accent Theme & Custom Inks
+      applyAccentTheme(state.accentColor || 'vermilion', false);
+
+      // Body Typography Toggle (Sans vs Editorial Serif vs Technical Mono)
       const blocksEl = document.getElementById('blocksContainer');
       const fontLabel = document.getElementById('fontToggleLabel');
-      if (state.fontStyle === 'serif') {
-        blocksEl.classList.add('font-serif');
-        fontLabel.textContent = 'SANS';
-      } else {
-        blocksEl.classList.remove('font-serif');
-        fontLabel.textContent = 'SERIF';
+      if (blocksEl) {
+        blocksEl.classList.remove('font-serif', 'font-mono');
+        if (state.fontStyle === 'serif') {
+          blocksEl.classList.add('font-serif');
+          if (fontLabel) fontLabel.textContent = 'SANS';
+        } else if (state.fontStyle === 'mono') {
+          blocksEl.classList.add('font-mono');
+          if (fontLabel) fontLabel.textContent = 'MONO';
+        } else {
+          if (fontLabel) fontLabel.textContent = 'SERIF';
+        }
+
+        // Line Spacing
+        blocksEl.classList.remove('leading-[1.4]', 'leading-[1.6]', 'leading-[1.85]');
+        if (state.lineSpacing === 'compact') {
+          blocksEl.classList.add('leading-[1.4]');
+        } else if (state.lineSpacing === 'relaxed') {
+          blocksEl.classList.add('leading-[1.85]');
+        } else {
+          blocksEl.classList.add('leading-[1.6]');
+        }
       }
 
-      // Ruled Header Grid Band
+      // Configurable Reading Measure Width
+      const contentContainer = document.getElementById('documentContentContainer');
+      if (contentContainer) {
+        contentContainer.classList.remove('max-w-[680px]', 'max-w-[860px]', 'max-w-full');
+        if (state.layoutWidth === 'wide') {
+          contentContainer.classList.add('max-w-[860px]');
+        } else if (state.layoutWidth === 'full') {
+          contentContainer.classList.add('max-w-full');
+        } else {
+          contentContainer.classList.add('max-w-[680px]');
+        }
+      }
+
+      // Ruled Header Grid Band / Banner Visibility
       const gridBand = document.getElementById('ruledHeaderBand');
-      if (state.showHeaderGrid) {
-        gridBand.classList.remove('hidden');
-      } else {
-        gridBand.classList.add('hidden');
+      if (gridBand) {
+        const note = getActiveNote();
+        if (note && note.banner && note.banner.value) {
+          gridBand.classList.remove('hidden');
+        } else if (state.showHeaderGrid) {
+          gridBand.classList.remove('hidden');
+        } else {
+          gridBand.classList.add('hidden');
+        }
       }
     }
 
@@ -3446,6 +3523,8 @@
     function renderActiveDocument() {
       const note = getActiveNote();
       if (!note) return;
+
+      renderDocBanner(note);
 
       document.getElementById('breadcrumbFolder').textContent = note.folder || 'General';
       document.getElementById('breadcrumbTitleText').textContent = note.title || 'Untitled Document';
@@ -4935,6 +5014,9 @@
       const q = query.toLowerCase().trim();
 
       const allActions = [
+        { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
+        { kind: 'action', label: 'Change Document Banner', hint: 'Set gradient, pattern, photo or custom URL', glyph: 'document', shortcut: 'Cover', run: () => openCustomizerModal('banner') },
+        { kind: 'action', label: 'Cycle Document Width (680px / 860px / Full)', hint: 'Adjust reading measure and layout width', glyph: 'grid', shortcut: 'Width', run: () => cycleLayoutWidth() },
         { kind: 'action', label: 'Open User Guide & Handbook', hint: 'Comprehensive features, instructions & tips', glyph: 'alert', shortcut: '?', run: () => openUserGuideModal() },
         { kind: 'action', label: 'Export Active Note as Markdown', hint: 'Download .md file with blocks and metadata', glyph: 'document', shortcut: '', run: () => exportCurrentNoteMarkdown() },
         { kind: 'action', label: 'Print Note / Save as PDF', hint: 'Clean editorial paper and PDF export', glyph: 'document', shortcut: '⌘P', run: () => printCurrentNote() },
@@ -7395,6 +7477,580 @@
       });
     }
 
+
+      // =========================================================================
+      // 16. WORKSPACE & DOCUMENT CUSTOMIZER ENGINE (BANNERS, THEMES, GUARDED RAILS)
+      // =========================================================================
+      const ACCENT_THEMES = [
+        { id: 'vermilion', name: 'Archival Vermilion', light: '#C8462B', dark: '#D95338', tintLight: 'rgba(200, 70, 43, 0.08)', tintDark: 'rgba(217, 83, 56, 0.12)' },
+        { id: 'cobalt',    name: 'Blueprint Cobalt',   light: '#1D4ED8', dark: '#3B82F6', tintLight: 'rgba(29, 78, 216, 0.08)',  tintDark: 'rgba(59, 130, 246, 0.14)' },
+        { id: 'emerald',   name: 'Forest Emerald',     light: '#047857', dark: '#10B981', tintLight: 'rgba(4, 120, 87, 0.08)',   tintDark: 'rgba(16, 185, 129, 0.14)' },
+        { id: 'amber',     name: 'Warm Ochre',         light: '#B45309', dark: '#F59E0B', tintLight: 'rgba(180, 83, 9, 0.08)',   tintDark: 'rgba(245, 158, 11, 0.14)' },
+        { id: 'violet',    name: 'Imperial Violet',    light: '#6D28D9', dark: '#8B5CF6', tintLight: 'rgba(109, 40, 217, 0.08)', tintDark: 'rgba(139, 92, 246, 0.14)' },
+        { id: 'rose',      name: 'Crimson Rose',       light: '#BE123C', dark: '#F43F5E', tintLight: 'rgba(190, 18, 60, 0.08)',  tintDark: 'rgba(244, 63, 94, 0.14)' },
+        { id: 'carbon',    name: 'Monochrome Carbon',  light: '#374151', dark: '#9CA3AF', tintLight: 'rgba(55, 65, 81, 0.08)',   tintDark: 'rgba(156, 163, 175, 0.14)' }
+      ];
+
+      const BANNER_GRADIENTS = [
+        { id: 'vermilion_sunset', name: 'Vermilion Sunset', value: 'linear-gradient(135deg, #C8462B 0%, #D97706 50%, #A87E2D 100%)' },
+        { id: 'obsidian_space',   name: 'Obsidian Starlight', value: 'linear-gradient(135deg, #18181B 0%, #27272A 50%, #09090B 100%)' },
+        { id: 'prussian_blue',    name: 'Prussian Blueprint', value: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #0284C7 100%)' },
+        { id: 'botanical_green',  name: 'Botanical Emerald', value: 'linear-gradient(135deg, #064E3B 0%, #059669 50%, #10B981 100%)' },
+        { id: 'imperial_violet',  name: 'Imperial Amethyst', value: 'linear-gradient(135deg, #4C1D95 0%, #7C3AED 50%, #A855F7 100%)' },
+        { id: 'vintage_vellum',   name: 'Vintage Parchment', value: 'linear-gradient(135deg, #FDFBF7 0%, #F4EDE4 50%, #E2DFD9 100%)' },
+        { id: 'nordic_slate',     name: 'Nordic Slate', value: 'linear-gradient(135deg, #334155 0%, #475569 50%, #0F172A 100%)' },
+        { id: 'crimson_dusk',     name: 'Crimson Dusk', value: 'linear-gradient(135deg, #881337 0%, #E11D48 50%, #BE123C 100%)' }
+      ];
+
+      const BANNER_PATTERNS = [
+        { id: 'pat_millimeter', name: 'Millimeter Drafting', value: 'linear-gradient(to right, rgba(138,138,133,0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(138,138,133,0.18) 1px, transparent 1px)', patternSize: '20px 20px', bgColor: '#161616' },
+        { id: 'pat_isometric',  name: 'Isometric Mesh', value: 'linear-gradient(30deg, rgba(138,138,133,0.14) 12%, transparent 12.5%, transparent 87%, rgba(138,138,133,0.14) 87.5%), linear-gradient(150deg, rgba(138,138,133,0.14) 12%, transparent 12.5%, transparent 87%, rgba(138,138,133,0.14) 87.5%)', patternSize: '40px 70px', bgColor: '#181818' },
+        { id: 'pat_contour',    name: 'Topographic Waves', value: 'repeating-radial-gradient(circle at 0 0, transparent 0, rgba(138,138,133,0.12) 10px, transparent 20px)', patternSize: 'auto', bgColor: '#141414' },
+        { id: 'pat_dots',       name: 'Carbon Dot Matrix', value: 'radial-gradient(rgba(138,138,133,0.25) 1.2px, transparent 1.2px)', patternSize: '14px 14px', bgColor: '#191919' },
+        { id: 'pat_crosshatch', name: 'Diagonal Crosshatch', value: 'repeating-linear-gradient(45deg, rgba(138,138,133,0.12), rgba(138,138,133,0.12) 1px, transparent 1px, transparent 12px)', patternSize: 'auto', bgColor: '#171717' },
+        { id: 'pat_linen',      name: 'Japanese Woven Linen', value: 'linear-gradient(90deg, rgba(138,138,133,0.12) 50%, transparent 50%), linear-gradient(rgba(138,138,133,0.12) 50%, transparent 50%)', patternSize: '6px 6px', bgColor: '#1C1B19' }
+      ];
+
+      const BANNER_PHOTOS = [
+        { id: 'photo_library', name: 'Archival Library', url: 'https://images.unsplash.com/photo-1507842229451-7f01be8610ce?auto=format&fit=crop&w=1200&q=80' },
+        { id: 'photo_arch',    name: 'Swiss Concrete', url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80' },
+        { id: 'photo_pine',    name: 'Misty Alpine Pine', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80' },
+        { id: 'photo_nebula',  name: 'Deep Nebula', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80' },
+        { id: 'photo_studio',  name: 'Drafting Studio', url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80' },
+        { id: 'photo_ink',     name: 'Fluid Marble Ink', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80' }
+      ];
+
+      function renderDocBanner(note) {
+        const bannerBg = document.getElementById('ruledHeaderBand');
+        const removeBtn = document.getElementById('docBannerRemoveBtn');
+        const actionLabel = document.getElementById('docBannerActionLabel');
+        const quickBannerText = document.getElementById('quickBannerText');
+        if (!bannerBg) return;
+
+        const banner = note && note.banner;
+        if (banner && banner.value) {
+          const hClass = banner.height === 'compact' ? 'h-32' : (banner.height === 'cinematic' ? 'h-64 sm:h-72' : 'h-48 sm:h-52');
+          bannerBg.className = `w-full ${hClass} border-b border-[var(--border-hairline)] bg-cover bg-center transition-all relative overflow-hidden`;
+          
+          if (banner.type === 'pattern' || banner.type === 'preset' || banner.type === 'gradient') {
+            bannerBg.style.backgroundImage = banner.value;
+            bannerBg.style.backgroundColor = banner.bgColor || '';
+            bannerBg.style.backgroundSize = banner.patternSize || 'auto';
+          } else {
+            bannerBg.style.backgroundImage = `url("${banner.value}")`;
+            bannerBg.style.backgroundColor = '';
+            bannerBg.style.backgroundSize = 'cover';
+          }
+
+          bannerBg.innerHTML = `<div class="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[var(--bg-canvas)] opacity-90 pointer-events-none"></div>`;
+          if (removeBtn) removeBtn.classList.remove('hidden');
+          if (actionLabel) actionLabel.textContent = 'Change Banner';
+          if (quickBannerText) quickBannerText.textContent = 'Change Banner';
+        } else {
+          bannerBg.className = `w-full ${state.showHeaderGrid ? 'h-16 archival-ruled-band' : 'h-8'} border-b border-[var(--border-hairline)] transition-all relative`;
+          bannerBg.style.backgroundImage = '';
+          bannerBg.style.backgroundColor = '';
+          bannerBg.innerHTML = '';
+          if (removeBtn) removeBtn.classList.add('hidden');
+          if (actionLabel) actionLabel.textContent = 'Add Banner';
+          if (quickBannerText) quickBannerText.textContent = 'Add Banner';
+        }
+      }
+
+      function applyNoteBanner(bannerData) {
+        const note = getActiveNote();
+        if (!note) return;
+        note.banner = {
+          height: (note.banner && note.banner.height) || 'standard',
+          ...bannerData
+        };
+        renderDocBanner(note);
+        persistState();
+        showToast('Document banner updated');
+        if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+          switchCustomizerTab('banner');
+        }
+      }
+
+      function removeActiveDocBanner() {
+        const note = getActiveNote();
+        if (!note) return;
+        delete note.banner;
+        renderDocBanner(note);
+        persistState();
+        showToast('Document banner removed');
+        if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+          switchCustomizerTab('banner');
+        }
+      }
+
+      function setBannerHeight(heightKey) {
+        const note = getActiveNote();
+        if (!note || !note.banner) return;
+        note.banner.height = heightKey;
+        renderDocBanner(note);
+        persistState();
+        showToast(`Banner height set to ${heightKey.toUpperCase()}`);
+        switchCustomizerTab('banner');
+      }
+
+      function applyBannerUrlInput() {
+        const input = document.getElementById('bannerCustomUrlInput');
+        if (!input || !input.value.trim()) return;
+        applyNoteBanner({
+          type: 'url',
+          value: input.value.trim()
+        });
+      }
+
+      function triggerBannerUpload() {
+        const fileInput = document.getElementById('noteBannerFileInput');
+        if (fileInput) fileInput.click();
+      }
+
+      function handleBannerFileUpload(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          showToast('Please select an image file', 'vermilion');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          applyNoteBanner({
+            type: 'upload',
+            value: event.target.result
+          });
+          showToast('Uploaded image banner');
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function applyAccentTheme(themeIdOrHex, shouldPersist = true) {
+        const isDark = state.theme === 'dark';
+        let color = isDark ? '#D95338' : '#C8462B';
+        let tint = isDark ? 'rgba(217, 83, 56, 0.12)' : 'rgba(200, 70, 43, 0.08)';
+
+        const preset = ACCENT_THEMES.find(t => t.id === themeIdOrHex);
+        if (preset) {
+          color = isDark ? preset.dark : preset.light;
+          tint = isDark ? preset.tintDark : preset.tintLight;
+          state.accentColor = preset.id;
+        } else if (typeof themeIdOrHex === 'string' && themeIdOrHex.startsWith('#')) {
+          color = themeIdOrHex;
+          state.accentColor = themeIdOrHex;
+          const r = parseInt(themeIdOrHex.slice(1, 3), 16) || 200;
+          const g = parseInt(themeIdOrHex.slice(3, 5), 16) || 70;
+          const b = parseInt(themeIdOrHex.slice(5, 7), 16) || 43;
+          tint = `rgba(${r}, ${g}, ${b}, ${isDark ? 0.14 : 0.09})`;
+        } else {
+          state.accentColor = 'vermilion';
+          const def = ACCENT_THEMES[0];
+          color = isDark ? def.dark : def.light;
+          tint = isDark ? def.tintDark : def.tintLight;
+        }
+
+        document.documentElement.style.setProperty('--accent-vermilion', color);
+        document.documentElement.style.setProperty('--accent-vermilion-tint', tint);
+        if (shouldPersist) {
+          persistState();
+          showToast(`Applied accent: ${preset ? preset.name : color}`);
+        }
+      }
+
+      function applyLayoutWidth(widthKey) {
+        state.layoutWidth = widthKey;
+        applyThemeAndLayout();
+        persistState();
+        showToast(`Document measure set to ${widthKey.toUpperCase()}`);
+        if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+          switchCustomizerTab('layout');
+        }
+      }
+
+      function cycleLayoutWidth() {
+        const next = state.layoutWidth === 'standard' ? 'wide' : (state.layoutWidth === 'wide' ? 'full' : 'standard');
+        applyLayoutWidth(next);
+      }
+
+      function applyLineSpacing(spacingKey) {
+        state.lineSpacing = spacingKey;
+        applyThemeAndLayout();
+        persistState();
+        showToast(`Line spacing set to ${spacingKey.toUpperCase()}`);
+        if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+          switchCustomizerTab('layout');
+        }
+      }
+
+      function applyProseFont(fontKey) {
+        state.fontStyle = fontKey;
+        applyThemeAndLayout();
+        persistState();
+        showToast(`Typography set to ${fontKey.toUpperCase()}`);
+        if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+          switchCustomizerTab('layout');
+        }
+      }
+
+      function resetVisualCustomizationsToDefault() {
+        state.accentColor = 'vermilion';
+        state.layoutWidth = 'standard';
+        state.lineSpacing = 'standard';
+        state.fontStyle = 'sans';
+        state.showHeaderGrid = true;
+        const note = getActiveNote();
+        if (note && note.banner) {
+          delete note.banner;
+        }
+        applyAccentTheme('vermilion');
+        applyThemeAndLayout();
+        renderActiveDocument();
+        persistState();
+        showToast('All visual customizations reset to default archival vellum');
+        switchCustomizerTab('guarded');
+      }
+
+      function openCustomizerModal(tab = 'banner') {
+        const modal = document.getElementById('workspaceCustomizerModal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        switchCustomizerTab(tab);
+      }
+
+      function closeCustomizerModal() {
+        const modal = document.getElementById('workspaceCustomizerModal');
+        if (modal) modal.classList.add('hidden');
+      }
+
+      function switchCustomizerTab(tabKey) {
+        const contentEl = document.getElementById('customizerContentArea');
+        if (!contentEl) return;
+
+        const tabs = ['banner', 'theme', 'layout', 'guarded'];
+        tabs.forEach(t => {
+          const btn = document.getElementById(`customizerTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+          if (btn) {
+            if (t === tabKey) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          }
+        });
+
+        const note = getActiveNote() || { title: 'Document', banner: null };
+        const activeBanner = note.banner;
+        const currentHeight = (activeBanner && activeBanner.height) || 'standard';
+
+        if (tabKey === 'banner') {
+          contentEl.innerHTML = `
+            <div class="space-y-6">
+              <!-- Active Note Banner Status -->
+              <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                <div>
+                  <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Active Document</div>
+                  <div class="font-serif text-sm font-semibold text-[var(--text-primary)] mt-0.5 truncate max-w-sm">${escapeHtml(note.title || 'Untitled Document')}</div>
+                  <div class="font-mono text-[11px] text-[var(--text-secondary)] mt-1">
+                    Status: <span class="${activeBanner ? 'text-[var(--accent-vermilion)] font-semibold' : 'text-[var(--text-tertiary)]'}">${activeBanner ? 'Custom Banner Active' : 'Default Ruled Header Band'}</span>
+                  </div>
+                </div>
+                ${activeBanner ? `
+                  <button onclick="removeActiveDocBanner()" class="px-3 py-1.5 rounded-[3px] bg-red-600/10 hover:bg-red-600/20 text-red-500 font-mono text-xs border border-red-500/20 transition-colors cursor-pointer">
+                    ✕ Remove Banner
+                  </button>
+                ` : ''}
+              </div>
+
+              <!-- Banner Height Setting -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Banner Height</label>
+                <div class="grid grid-cols-3 gap-2">
+                  ${['compact', 'standard', 'cinematic'].map(h => `
+                    <button onclick="setBannerHeight('${h}')" class="px-3 py-2 rounded-[3px] text-xs font-mono border transition-all text-center cursor-pointer ${
+                      currentHeight === h
+                        ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-semibold'
+                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
+                    }">
+                      ${h === 'compact' ? 'Compact (130px)' : (h === 'standard' ? 'Standard (190px)' : 'Cinematic (270px)')}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Presets 1: Archival Gradients -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Preset Archival Gradients</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  ${BANNER_GRADIENTS.map(bg => `
+                    <button onclick="applyNoteBanner({ type: 'gradient', value: '${bg.value}' })" class="group relative h-16 rounded-[4px] overflow-hidden border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all cursor-pointer shadow-sm text-left">
+                      <div class="w-full h-full" style="background: ${bg.value}"></div>
+                      <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-end p-2">
+                        <span class="text-white font-mono text-[10px] font-medium drop-shadow">${bg.name}</span>
+                      </div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Presets 2: Architectural Patterns (100% Offline) -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Tactile Architectural Patterns (Offline)</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  ${BANNER_PATTERNS.map(pat => `
+                    <button onclick="applyNoteBanner({ type: 'pattern', value: '${pat.value}', patternSize: '${pat.patternSize}', bgColor: '${pat.bgColor}' })" class="group relative h-16 rounded-[4px] overflow-hidden border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all cursor-pointer shadow-sm text-left">
+                      <div class="w-full h-full" style="background-image: ${pat.value}; background-size: ${pat.patternSize}; background-color: ${pat.bgColor};"></div>
+                      <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-end p-2">
+                        <span class="text-white font-mono text-[10px] font-medium drop-shadow">${pat.name}</span>
+                      </div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Presets 3: Curated Photography -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Curated Art & Architecture</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  ${BANNER_PHOTOS.map(ph => `
+                    <button onclick="applyNoteBanner({ type: 'url', value: '${ph.url}' })" class="group relative h-20 rounded-[4px] overflow-hidden border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all cursor-pointer shadow-sm text-left">
+                      <img src="${ph.url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${ph.name}" loading="lazy" />
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-2">
+                        <span class="text-white font-mono text-[10px] font-medium drop-shadow">${ph.name}</span>
+                      </div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Custom URL & File Upload -->
+              <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-3">
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Custom Image URL or Device Upload</label>
+                <div class="flex items-center gap-2">
+                  <input id="bannerCustomUrlInput" type="url" placeholder="https://images.unsplash.com/photo-..." class="flex-1 px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none" />
+                  <button onclick="applyBannerUrlInput()" class="px-3 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer">
+                    Apply URL
+                  </button>
+                </div>
+                <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between">
+                  <span class="font-mono text-[11px] text-[var(--text-secondary)]">Or choose an image from your device:</span>
+                  <button onclick="triggerBannerUpload()" class="px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] transition-colors cursor-pointer">
+                    Upload from Computer...
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (tabKey === 'theme') {
+          contentEl.innerHTML = `
+            <div class="space-y-6">
+              <!-- Accent Colors Palette -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Palette Ink & Accent Color</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  ${ACCENT_THEMES.map(theme => {
+                    const isActive = state.accentColor === theme.id || (!state.accentColor && theme.id === 'vermilion');
+                    const color = state.theme === 'dark' ? theme.dark : theme.light;
+                    return `
+                      <button onclick="applyAccentTheme('${theme.id}')" class="p-2.5 rounded-md border flex items-center gap-2.5 transition-all text-left cursor-pointer ${
+                        isActive
+                          ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                          : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                      }">
+                        <div class="w-5 h-5 rounded-full shrink-0 shadow-xs" style="background-color: ${color}"></div>
+                        <div class="min-w-0">
+                          <div class="font-mono text-xs font-medium text-[var(--text-primary)] truncate">${theme.name}</div>
+                          <div class="font-mono text-[10px] text-[var(--text-tertiary)] uppercase">${theme.id}</div>
+                        </div>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+                <!-- Custom Hex Color -->
+                <div class="mt-3 p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs text-[var(--text-secondary)]">Custom Ink Hex:</span>
+                    <input type="color" id="customColorPicker" value="${typeof state.accentColor === 'string' && state.accentColor.startsWith('#') ? state.accentColor : '#D95338'}" onchange="applyAccentTheme(this.value)" class="w-7 h-7 rounded border border-[var(--border-hairline)] cursor-pointer bg-transparent" />
+                  </div>
+                  <span class="font-mono text-[11px] text-[var(--text-tertiary)]">Dynamically styles links, active tabs & highlights</span>
+                </div>
+              </div>
+
+              <!-- Theme Mode -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Workspace Theme Mode</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <button onclick="if(state.theme !== 'dark') toggleTheme()" class="p-3.5 rounded-md border text-left transition-all cursor-pointer ${
+                    state.theme === 'dark'
+                      ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                      : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] opacity-70 hover:opacity-100'
+                  }">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div class="w-3.5 h-3.5 rounded-full bg-[#181817] border border-white/20"></div>
+                      <span class="font-serif font-semibold text-xs text-[var(--text-primary)]">Obsidian Carbon (Dark)</span>
+                    </div>
+                    <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Deep tactile darkroom interface with hairline contrast.</p>
+                  </button>
+
+                  <button onclick="if(state.theme === 'dark') toggleTheme()" class="p-3.5 rounded-md border text-left transition-all cursor-pointer ${
+                    state.theme !== 'dark'
+                      ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                      : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] opacity-70 hover:opacity-100'
+                  }">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div class="w-3.5 h-3.5 rounded-full bg-[#F9F8F6] border border-black/20"></div>
+                      <span class="font-serif font-semibold text-xs text-[var(--text-primary)]">Archival Vellum (Light)</span>
+                    </div>
+                    <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Warm historical paper and library drafting aesthetic.</p>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Architectural Ruled Header Band -->
+              <div class="p-3.5 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                <div>
+                  <div class="font-serif font-semibold text-xs text-[var(--text-primary)]">Architectural Header Grid Band</div>
+                  <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Show drafting grid band above documents when no banner is set.</div>
+                </div>
+                <button onclick="toggleHeaderGrid(); switchCustomizerTab('theme');" class="px-3 py-1.5 rounded-[3px] border font-mono text-xs transition-colors cursor-pointer ${
+                  state.showHeaderGrid ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border-[var(--border-hairline)]'
+                }">
+                  ${state.showHeaderGrid ? 'ENABLED' : 'DISABLED'}
+                </button>
+              </div>
+            </div>
+          `;
+        } else if (tabKey === 'layout') {
+          contentEl.innerHTML = `
+            <div class="space-y-6">
+              <!-- Reading Measure Width -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Document Measure & Canvas Width</label>
+                <div class="grid grid-cols-3 gap-2.5">
+                  ${[
+                    { id: 'standard', name: 'Standard (680px)', desc: 'Optimal typographic reading measure' },
+                    { id: 'wide',     name: 'Comfortable Wide (860px)', desc: 'Spacious measure for tables & wide code' },
+                    { id: 'full',     name: 'Full Width (Fluid)', desc: 'Edge-to-edge layout with adaptive margins' }
+                  ].map(w => `
+                    <button onclick="applyLayoutWidth('${w.id}')" class="p-3 rounded-md border text-left transition-all cursor-pointer ${
+                      (state.layoutWidth || 'standard') === w.id
+                        ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                    }">
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)] mb-1">${w.name}</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-snug">${w.desc}</div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Prose Typography -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Prose Body Typography</label>
+                <div class="grid grid-cols-3 gap-2.5">
+                  ${[
+                    { id: 'sans',  name: 'Modern Precision Sans', sample: 'Inter, -apple-system, clean Swiss layout' },
+                    { id: 'serif', name: 'Archival Editorial Serif', sample: 'Newsreader, Georgia, literary book prose' },
+                    { id: 'mono',  name: 'Technical Monospace', sample: 'JetBrains Mono, engineering documentation' }
+                  ].map(font => `
+                    <button onclick="applyProseFont('${font.id}')" class="p-3 rounded-md border text-left transition-all cursor-pointer ${
+                      (state.fontStyle || 'sans') === font.id
+                        ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                    }">
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)] mb-1">${font.name}</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-snug">${font.sample}</div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Line Spacing -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Block Line Spacing / Density</label>
+                <div class="grid grid-cols-3 gap-2.5">
+                  ${[
+                    { id: 'compact',  name: 'Compact (1.4)', desc: 'High information density for research notes' },
+                    { id: 'standard', name: 'Standard (1.6)', desc: 'Balanced typographic rhythm and clarity' },
+                    { id: 'relaxed',  name: 'Relaxed (1.85)', desc: 'Airy, reflective long-form reading' }
+                  ].map(s => `
+                    <button onclick="applyLineSpacing('${s.id}')" class="p-3 rounded-md border text-left transition-all cursor-pointer ${
+                      (state.lineSpacing || 'standard') === s.id
+                        ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                    }">
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)] mb-1">${s.name}</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-snug">${s.desc}</div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (tabKey === 'guarded') {
+          contentEl.innerHTML = `
+            <div class="space-y-6">
+              <!-- Safety Philosophy Notice -->
+              <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
+                <div class="flex items-center gap-2 mb-2 text-[var(--text-primary)]">
+                  <div class="w-5 h-5 rounded-[2px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-xs">✓</div>
+                  <h3 class="font-serif text-sm font-semibold">Protected Core Architecture & Guardrails</h3>
+                </div>
+                <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  PK Note strictly isolates visual customizations (covers, accents, widths, fonts) from the foundational data layer. Your core documents, block hierarchy, calendar chronology, and data backups cannot be compromised or broken by aesthetic settings.
+                </p>
+              </div>
+
+              <!-- Guarded Checklist -->
+              <div class="space-y-2.5">
+                <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
+                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <div>
+                    <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Zero Data Alteration</div>
+                    <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Block contents, markdown structures, checklists, and document titles remain untouched.</div>
+                  </div>
+                </div>
+
+                <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
+                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <div>
+                    <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Bi-directional Graph & Wikilink Integrity</div>
+                    <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Links ([[...]]), tags (#tag), and knowledge graph traversal are permanently preserved.</div>
+                  </div>
+                </div>
+
+                <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
+                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <div>
+                    <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Protected Calendar Chronology</div>
+                    <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Events, timeblocks, ISO timestamps, and daily log relationships operate independently.</div>
+                  </div>
+                </div>
+
+                <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
+                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <div>
+                    <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Global Shortcut Access</div>
+                    <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Universal keybindings (Cmd+K, Cmd+N, Cmd+S, Cmd+P, Esc) remain locked and reliable.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Revert to Default Section -->
+              <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                <div>
+                  <div class="font-serif font-semibold text-xs text-[var(--text-primary)]">Reset Visual Styles to Default</div>
+                  <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Reverts accent, width, typography, and banners to factory Archival Vermilion.</div>
+                </div>
+                <button onclick="resetVisualCustomizationsToDefault()" class="px-3.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] font-mono text-xs font-medium transition-colors cursor-pointer">
+                  ↺ Reset Defaults
+                </button>
+              </div>
+            </div>
+          `;
+        }
+      }
+
 </script>
 
 
@@ -7414,7 +8070,22 @@
       Document & Vault Actions
     </div>
     <div class="space-y-0.5">
-      <button onclick="exportCurrentNoteMarkdown(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors">
+      <button onclick="openCustomizerModal('banner'); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Change Document Banner</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">COVER</span>
+      </button>
+      <button onclick="openCustomizerModal('theme'); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Workspace Appearance</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">THEME</span>
+      </button>
+      <div class="my-1 border-t border-[var(--border-hairline)]"></div>
+      <button onclick="exportCurrentNoteMarkdown(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
         <div class="flex items-center gap-2">
           <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <span>Export Markdown (.md)</span>
@@ -7768,6 +8439,57 @@
       <button type="button" id="overflowAddEventBtn" class="text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
         + Add Event
       </button>
+    </div>
+  </div>
+
+
+  <!-- Hidden File Input for Custom Note Banner Upload -->
+  <input type="file" id="noteBannerFileInput" accept="image/*" onchange="handleBannerFileUpload(event)" class="hidden" />
+
+  <!-- Interactive Workspace & Document Customizer Modal -->
+  <div id="workspaceCustomizerModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-menu">
+    <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">
+        <div class="flex items-center gap-2.5">
+          <div class="w-6 h-6 rounded-[3px] bg-[var(--accent-vermilion)] text-white flex items-center justify-center font-mono text-xs font-bold">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold text-[var(--text-primary)] font-serif tracking-tight">WORKSPACE & DOCUMENT CUSTOMIZER</h2>
+            <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Banners, Palette Inks, Reading Width & Guarded Systems</p>
+          </div>
+        </div>
+        <button onclick="closeCustomizerModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs transition-colors cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="px-4 py-2 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0">
+        <button id="customizerTabBanner" onclick="switchCustomizerTab('banner')" class="guide-tab-btn px-3 py-1.5 rounded-[3px] font-mono text-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>BANNER / COVER</span>
+        </button>
+        <button id="customizerTabTheme" onclick="switchCustomizerTab('theme')" class="guide-tab-btn px-3 py-1.5 rounded-[3px] font-mono text-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <span>THEME & ACCENTS</span>
+        </button>
+        <button id="customizerTabLayout" onclick="switchCustomizerTab('layout')" class="guide-tab-btn px-3 py-1.5 rounded-[3px] font-mono text-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          <span>TYPOGRAPHY & WIDTH</span>
+        </button>
+        <button id="customizerTabGuarded" onclick="switchCustomizerTab('guarded')" class="guide-tab-btn px-3 py-1.5 rounded-[3px] font-mono text-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>GUARDED SYSTEMS & RESET</span>
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div id="customizerContentArea" class="flex-1 overflow-y-auto p-5 sm:p-6 text-[13px] leading-relaxed text-[var(--text-secondary)] space-y-6">
+      </div>
+
     </div>
   </div>
 

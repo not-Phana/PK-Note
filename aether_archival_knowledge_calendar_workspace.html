@@ -336,6 +336,61 @@
       transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
     }
 
+
+    /* =========================================================================
+       EDITORIAL PRINT & PDF EXPORT STYLESHEET
+       ========================================================================= */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #111111 !important;
+        font-family: 'Newsreader', Georgia, serif !important;
+      }
+      #leftSidebar, #rightSidebar, #mobileBottomNav, #mobileKeyboardAccessoryBar,
+      header, .block-gutter, #pkAutocorrectChip, #calQuickAddPopover, #calEventPreviewPopover,
+      #calDayOverflowPopover, #pkContextMenu, #commandPaletteBackdrop, #userGuideModal,
+      #noteActionsPopover, #toastContainer, #dailyLogStepperBar {
+        display: none !important;
+      }
+      #documentScrollArea {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+      }
+      .archival-ruled-band {
+        display: none !important;
+      }
+      [contenteditable="true"] {
+        border: none !important;
+        outline: none !important;
+      }
+    }
+
+    /* User Guide Modal Tabs */
+    .guide-tab-btn {
+      padding: 6px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      border-radius: 3px;
+      transition: all 0.12s ease;
+      cursor: pointer;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .guide-tab-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+    .guide-tab-btn.active {
+      color: var(--accent-vermilion);
+      background: var(--bg-canvas);
+      border-color: var(--border-hairline);
+      font-weight: 600;
+    }
+
   </style>
 </head>
 <body class="h-screen w-screen flex select-none text-[13px] overflow-hidden">
@@ -483,7 +538,12 @@
       <!-- Vault Tags Index -->
       <div class="space-y-1.5 pt-2 border-t border-[var(--border-hairline)]">
         <div class="px-2 flex items-center justify-between">
-          <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Tags</span>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Tags</span>
+            <button onclick="toggleStarredSidebarFilter()" id="sidebarStarredFilterBtn" class="px-1.5 py-0.5 rounded-[2px] font-mono text-[9px] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] transition-colors">
+              ★ Starred
+            </button>
+          </div>
           <button id="clearTagFilterBtn" onclick="clearTagFilter()" class="hidden font-mono text-[10px] text-[var(--accent-vermilion)] hover:underline">Clear</button>
         </div>
         <div id="sidebarTagsList" class="px-2 flex flex-wrap gap-1"></div>
@@ -589,6 +649,17 @@
             </svg>
           </button>
 
+          <!-- Export & Vault Actions Menu -->
+          <button onclick="openNoteActionsMenu(event)" id="noteActionsBtn" title="Export & Vault Backup Actions" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+
+          <!-- User Guide & Handbook Button -->
+          <button onclick="openUserGuideModal()" title="PK Note Handbook & Shortcuts (?)" class="px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1">
+            <span>?</span>
+            <span class="hidden xl:inline text-[10px] font-normal text-[var(--text-tertiary)]">GUIDE</span>
+          </button>
+
           <button onclick="deleteActiveNote()" title="Delete Note" class="p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
@@ -610,6 +681,12 @@
           <span id="localTzBadge" title="Local Browser Timezone (Events stored in UTC ISO 8601)" class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-[2px] font-mono text-[10px] bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]">
             UTC+0
           </span>
+          <!-- Calendar Guide Button -->
+          <button onclick="openUserGuideModal('calendar')" title="Calendar Guide & Shortcuts (?)" class="px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors flex items-center gap-1">
+            <span>?</span>
+            <span class="hidden sm:inline text-[10px] font-normal text-[var(--text-tertiary)]">GUIDE</span>
+          </button>
+
           <button onclick="openEventModal()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white text-xs font-medium transition-opacity">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -645,6 +722,9 @@
             <div id="glyphGrid" class="grid grid-cols-6 gap-1"></div>
           </div>
         </div>
+
+        <!-- Daily Log Chronological Stepper -->
+        <div id="dailyLogStepperBar" class="hidden mb-4 pb-2.5 border-b border-[var(--border-hairline)] flex items-center justify-between font-mono text-[11px] select-none"></div>
 
         <!-- Editorial Serif Document Title -->
         <div class="mb-5">
@@ -2002,8 +2082,19 @@
           (n.tags || []).some(t => t.toLowerCase().includes(q)) ||
           n.blocks.some(b => (b.content || '').toLowerCase().includes(q));
         const matchesTag = !activeTagFilter || (n.tags || []).includes(activeTagFilter);
-        return matchesQuery && matchesTag;
+        const matchesStarred = !activeStarredFilter || Boolean(n.favorite);
+        return matchesQuery && matchesTag && matchesStarred;
       });
+
+      // Update Starred Filter Button Style
+      const starFilterBtn = document.getElementById('sidebarStarredFilterBtn');
+      if (starFilterBtn) {
+        if (activeStarredFilter) {
+          starFilterBtn.className = 'px-1.5 py-0.5 rounded-[2px] font-mono text-[9px] border border-[var(--accent-ochre)] bg-[var(--accent-ochre)] text-black font-semibold transition-colors';
+        } else {
+          starFilterBtn.className = 'px-1.5 py-0.5 rounded-[2px] font-mono text-[9px] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] transition-colors';
+        }
+      }
 
       document.getElementById('sidebarTotalCount').textContent = filteredNotes.length;
 
@@ -3380,6 +3471,40 @@
 
       document.getElementById('docUpdatedMeta').textContent = note.updatedAt || TODAY_KEY;
       updateWordCount(note);
+
+      // Render Chronological Daily Log Stepper if viewing a Daily Log note
+      const stepper = document.getElementById('dailyLogStepperBar');
+      if (stepper) {
+        const match = (note.title || '').match(/^Daily Log — (\d{4}-\d{2}-\d{2})$/i);
+        if (match) {
+          const currentKey = match[1];
+          const curDate = parseLocalDateKey(currentKey);
+          const prevDate = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate() - 1);
+          const nextDate = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate() + 1);
+          const prevKey = formatLocalDateKey(prevDate);
+          const nextKey = formatLocalDateKey(nextDate);
+
+          stepper.innerHTML = `
+            <button onclick="openOrCreateDailyNoteForDate('${prevKey}')" class="flex items-center gap-1.5 px-2 py-1 rounded-[2px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors">
+              <span>← ${MONTH_SHORT[prevDate.getMonth()]} ${prevDate.getDate()}</span>
+            </button>
+            <div class="flex items-center gap-1.5">
+              <span class="font-mono text-[10px] uppercase text-[var(--text-tertiary)]">DAILY LOG CHRONOLOGY</span>
+              ${currentKey === TODAY_KEY ? `
+                <span class="px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-semibold text-[10px]">TODAY</span>
+              ` : `
+                <button onclick="openOrCreateDailyNoteForDate('${TODAY_KEY}')" class="text-[var(--accent-vermilion)] hover:underline text-[10px]">JUMP TO TODAY</button>
+              `}
+            </div>
+            <button onclick="openOrCreateDailyNoteForDate('${nextKey}')" class="flex items-center gap-1.5 px-2 py-1 rounded-[2px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] transition-colors">
+              <span>${MONTH_SHORT[nextDate.getMonth()]} ${nextDate.getDate()} →</span>
+            </button>
+          `;
+          stepper.classList.remove('hidden');
+        } else {
+          stepper.classList.add('hidden');
+        }
+      }
 
       const tagsContainer = document.getElementById('tagsContainer');
       tagsContainer.innerHTML = (note.tags || []).map(tag => `
@@ -4810,6 +4935,12 @@
       const q = query.toLowerCase().trim();
 
       const allActions = [
+        { kind: 'action', label: 'Open User Guide & Handbook', hint: 'Comprehensive features, instructions & tips', glyph: 'alert', shortcut: '?', run: () => openUserGuideModal() },
+        { kind: 'action', label: 'Export Active Note as Markdown', hint: 'Download .md file with blocks and metadata', glyph: 'document', shortcut: '', run: () => exportCurrentNoteMarkdown() },
+        { kind: 'action', label: 'Print Note / Save as PDF', hint: 'Clean editorial paper and PDF export', glyph: 'document', shortcut: '⌘P', run: () => printCurrentNote() },
+        { kind: 'action', label: 'Backup Vault (Export JSON)', hint: 'Complete snapshot of notes, schedule & tags', glyph: 'sliders', shortcut: '', run: () => exportVaultBackupJSON() },
+        { kind: 'action', label: 'Restore Vault from Backup', hint: 'Import and restore JSON vault snapshot', glyph: 'sliders', shortcut: '', run: () => triggerVaultRestoreFile() },
+        { kind: 'action', label: 'Filter Starred Notes', hint: 'Show or hide pinned notes in sidebar', glyph: 'tag', shortcut: '', run: () => toggleStarredSidebarFilter() },
         { kind: 'action', label: 'Toggle Autocorrect', hint: 'Enable or disable natural typo & spelling correction', glyph: 'sliders', shortcut: '', run: () => toggleAutocorrectSetting() },
         { kind: 'action', label: 'New Working Note', hint: 'Create blank document in General', glyph: 'document', shortcut: '⌘N', run: () => createNewNote('General') },
         { kind: 'action', label: 'Open Today’s Daily Log', hint: 'Daily capture & priorities', glyph: 'calendar', shortcut: 'T', run: () => openOrCreateDailyNote() },
@@ -6440,6 +6571,442 @@
 
 
     // =========================================================================
+    // 22. USER GUIDE, VAULT BACKUP / RESTORE, MARKDOWN EXPORT & DAILY LOG STEPPER
+    // =========================================================================
+
+    let activeStarredFilter = false;
+
+    // --- A. USER GUIDE HANDBOOK MODAL CONTROLLER ---
+    const USER_GUIDE_CONTENT = {
+      overview: `
+        <div class="space-y-4">
+          <div class="p-3.5 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] border-l-2 border-l-[var(--accent-vermilion)] space-y-1">
+            <h3 class="font-serif text-base font-semibold text-[var(--text-primary)]">Welcome to PK Note</h3>
+            <p class="text-xs text-[var(--text-secondary)] leading-normal">
+              PK Note is a fast, local-first personal knowledge workspace and integrated chronology. Your ideas, documents, and calendar are linked bi-directionally without cloud silos or tracking.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">The Dual Workspace Model</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent-vermilion)] font-mono">
+                  <span>DOCUMENT WORKSPACE</span>
+                </div>
+                <p class="text-xs">Deep, focused writing using modular blocks, live bi-directional <code class="text-[var(--accent-vermilion)] font-mono">[[WikiLinks]]</code>, and an interactive 2D Knowledge Graph.</p>
+              </div>
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent-ochre)] font-mono">
+                  <span>CONNECTED CHRONOLOGY</span>
+                </div>
+                <p class="text-xs">Integrated Month, Week, and Day calendar timelines. Schedule events, link notes directly to agenda items, and maintain a seamless Daily Log.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Core Principles</h4>
+            <ul class="space-y-1.5 list-disc list-inside text-xs">
+              <li><strong>Local-First & Private:</strong> Everything is stored securely in your browser storage. You own 100% of your notes and data.</li>
+              <li><strong>Zero Friction:</strong> Single-click to add calendar events, inline previews, and fast keyboard shortcuts (<kbd>⌘K</kbd>, <kbd>⌘N</kbd>, <kbd>/</kbd>, <kbd>[[</kbd>).</li>
+              <li><strong>Cross-Platform PWA:</strong> Fully installable as an offline desktop application or mobile phone app.</li>
+            </ul>
+          </div>
+        </div>
+      `,
+
+      writing: `
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <h3 class="font-serif text-base font-semibold text-[var(--text-primary)]">Writing & Modular Blocks</h3>
+            <p class="text-xs text-[var(--text-secondary)]">Every note is composed of flexible, draggable content blocks. You can reorder, convert, and format them effortlessly.</p>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">1. Converting Blocks with Slash Commands (/)</h4>
+            <p class="text-xs">Type <code class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[var(--accent-vermilion)]">/</code> on any line to open the block converter:</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-xs">
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/h1</strong> · Heading 1</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/h2</strong> · Heading 2</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/h3</strong> · Heading 3</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/bullet</strong> · List item</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/todo</strong> · Checklist</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/code</strong> · Code block</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/quote</strong> · Blockquote</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/callout</strong> · Accent note</div>
+              <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"><strong>/divider</strong> · Rule (---)</div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">2. Natural Autocorrect & Backspace Undo</h4>
+            <p class="text-xs">PK Note fixes frequent typos (e.g. <em>teh &rarr; the</em>, <em>dont &rarr; don't</em>, <em>cant &rarr; can't</em>, <em>i &rarr; I</em>) and capitalizes sentence starts automatically. If you didn't want the correction:</p>
+            <ul class="space-y-1 list-disc list-inside text-xs">
+              <li><strong>Backspace to Undo:</strong> Hit <kbd class="px-1 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono">Backspace</kbd> immediately to revert back to your exact typed letters.</li>
+              <li><strong>Floating Chip:</strong> Click the floating undo chip (<code class="font-mono text-[var(--accent-vermilion)]">the ↩ "teh"</code>) to revert and save the word to your accepted dictionary.</li>
+              <li><strong>Toggle Autocorrect:</strong> Open Command Palette (<kbd>⌘K</kbd>) &rarr; select <em>Toggle Autocorrect</em>.</li>
+            </ul>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">3. Mobile Formatting Accessory Toolbar</h4>
+            <p class="text-xs">When typing on your phone, a compact formatting bar sits right above the virtual keyboard with 1-tap buttons for <strong>H1</strong>, <strong>H2</strong>, <strong>• Bullet</strong>, <strong>☑ Todo</strong>, <strong>[[ WikiLink</strong>, and <strong>DONE</strong>.</p>
+          </div>
+        </div>
+      `,
+
+      calendar: `
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <h3 class="font-serif text-base font-semibold text-[var(--text-primary)]">Connected Chronology & Calendaring</h3>
+            <p class="text-xs text-[var(--text-secondary)]">A calendar built specifically for thinkers and writers, seamlessly connecting scheduled events to your knowledge notes.</p>
+          </div>
+
+          <div class="space-y-2.5">
+            <h4 class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Key Capabilities</h4>
+            <div class="space-y-2">
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">1. 1-Second Inline Quick-Add</div>
+                <p class="text-xs">Single-click any day cell in Month view or any hour slot in Week/Day views. A lightweight popover appears right under your cursor. Type the title, pick a color dot, hit <kbd>Enter</kbd> — event created in 1 second.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">2. Event Details Preview Card</div>
+                <p class="text-xs">Single-click any scheduled event to view time, location, and linked note shortcut. Edit, Duplicate, or Delete with 1 click without opening a full-screen form.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">3. 1-Click Day Drilldown</div>
+                <p class="text-xs">Click any date number badge (e.g. <em>17</em>) in Month or Week view to instantly zoom into that date's 24-hour detailed Day Timeline.</p>
+              </div>
+
+              <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1">
+                <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">4. Daily Log Journal Stepper</div>
+                <p class="text-xs">Every day has an associated Daily Log note. When viewing a Daily Log, use the top stepper bar (<code class="font-mono">← Yesterday</code> | <code class="font-mono">Today</code> | <code class="font-mono">Tomorrow →</code>) to flip through daily notes like a journal.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
+
+      graph: `
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <h3 class="font-serif text-base font-semibold text-[var(--text-primary)]">Knowledge Graph & Bi-directional Links</h3>
+            <p class="text-xs text-[var(--text-secondary)]">Turn isolated notes into an organic, visual web of interconnected thoughts.</p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1.5">
+              <h4 class="font-mono text-xs font-semibold text-[var(--text-primary)]">1. Linking Notes with [[WikiLinks]]</h4>
+              <p class="text-xs">Type <code class="font-mono text-[var(--accent-vermilion)]">[[</code> anywhere in a note. A dropdown lists your existing vault documents. Press <kbd>Enter</kbd> to insert. A bi-directional link is instantly forged between both documents.</p>
+            </div>
+
+            <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1.5">
+              <h4 class="font-mono text-xs font-semibold text-[var(--text-primary)]">2. Interactive 2D Topology Graph</h4>
+              <p class="text-xs">Open the Right Inspector and select the <strong>GRAPH</strong> tab to explore your ideas visually:</p>
+              <ul class="space-y-1 list-disc list-inside text-xs">
+                <li><strong>Pan & Zoom:</strong> Drag the canvas to pan, scroll to zoom in/out.</li>
+                <li><strong>Interactive Nodes:</strong> Hover over any node to highlight linked connections. Click any node to jump directly to that note!</li>
+                <li><strong>Local vs. Global Scope:</strong> Click the scope toggle button to switch between viewing your whole vault or only the immediate neighborhood of your active note.</li>
+              </ul>
+            </div>
+
+            <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1.5">
+              <h4 class="font-mono text-xs font-semibold text-[var(--text-primary)]">3. Backlinks & Table of Contents</h4>
+              <p class="text-xs">The <strong>LINKS</strong> tab automatically displays all incoming backlinks (notes that cite this document) and outgoing references. The <strong>OUTLINE</strong> tab generates an instant jumpable table of contents from your headers.</p>
+            </div>
+          </div>
+        </div>
+      `,
+
+      shortcuts: `
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <h3 class="font-serif text-base font-semibold text-[var(--text-primary)]">Keyboard Shortcuts & Pro Tips</h3>
+            <p class="text-xs text-[var(--text-secondary)]">Keyboard-driven efficiency for fast archival work.</p>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left font-mono text-xs border border-[var(--border-hairline)] rounded-[3px]">
+              <thead class="bg-[var(--bg-canvas)] text-[var(--text-tertiary)] border-b border-[var(--border-hairline)]">
+                <tr>
+                  <th class="p-2">SHORTCUT</th>
+                  <th class="p-2">ACTION</th>
+                  <th class="p-2">CONTEXT</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[var(--border-hairline)]">
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">⌘K / Ctrl+K</td>
+                  <td class="p-2 text-[var(--text-primary)]">Open Command Palette (Swiss Spotlight)</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Global</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">⌘N / Ctrl+N</td>
+                  <td class="p-2 text-[var(--text-primary)]">Create New Working Note</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Global</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">? (Shift+/)</td>
+                  <td class="p-2 text-[var(--text-primary)]">Open Handbook & User Guide</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Global</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">T</td>
+                  <td class="p-2 text-[var(--text-primary)]">Jump to Today / Open Today's Daily Log</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Global</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">M / W / D</td>
+                  <td class="p-2 text-[var(--text-primary)]">Switch to Month / Week / Day View</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Calendar</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">/</td>
+                  <td class="p-2 text-[var(--text-primary)]">Open Slash Block Formatting Menu</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Editor</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">[[</td>
+                  <td class="p-2 text-[var(--text-primary)]">Open Wiki-Link Note Connector</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Editor</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">Backspace</td>
+                  <td class="p-2 text-[var(--text-primary)]">Undo last autocorrection</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Editor</td>
+                </tr>
+                <tr>
+                  <td class="p-2 text-[var(--accent-vermilion)] font-bold">Esc</td>
+                  <td class="p-2 text-[var(--text-primary)]">Close popover, modal, or menu</td>
+                  <td class="p-2 text-[var(--text-tertiary)]">Global</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="p-3.5 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-1.5">
+            <h4 class="font-mono text-xs font-semibold text-[var(--text-primary)]">Data Safety & Backups</h4>
+            <p class="text-xs">Click the export icon in the header to <strong>Export Markdown (.md)</strong>, <strong>Print to PDF</strong>, or <strong>Backup Vault (JSON)</strong>. You can restore your entire vault at any time using <em>Restore from Backup</em>.</p>
+          </div>
+        </div>
+      `
+    };
+
+    function openUserGuideModal(initialTab = 'overview') {
+      const modal = document.getElementById('userGuideModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      switchUserGuideTab(initialTab);
+    }
+
+    function closeUserGuideModal() {
+      const modal = document.getElementById('userGuideModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function switchUserGuideTab(tabKey) {
+      const contentEl = document.getElementById('guideContentArea');
+      if (!contentEl) return;
+
+      const tabs = ['overview', 'writing', 'calendar', 'graph', 'shortcuts'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`guideTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn) {
+          if (t === tabKey) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        }
+      });
+
+      contentEl.innerHTML = USER_GUIDE_CONTENT[tabKey] || USER_GUIDE_CONTENT.overview;
+      contentEl.scrollTop = 0;
+    }
+
+    // --- B. NOTE ACTIONS & VAULT EXPORT / BACKUP / RESTORE ---
+    function openNoteActionsMenu(e) {
+      if (e) e.stopPropagation();
+      const popover = document.getElementById('noteActionsPopover');
+      if (!popover) return;
+
+      popover.classList.remove('hidden');
+      popover.style.display = 'block';
+
+      const targetBtn = e && (e.currentTarget || e.target);
+      const rect = targetBtn && targetBtn.getBoundingClientRect ? targetBtn.getBoundingClientRect() : { right: window.innerWidth - 20, bottom: 44 };
+
+      let posX = rect.right - 256;
+      let posY = rect.bottom + 6;
+
+      if (posX < 10) posX = 10;
+      if (posX + 256 > window.innerWidth - 10) posX = window.innerWidth - 266;
+
+      popover.style.left = `${posX}px`;
+      popover.style.top = `${posY}px`;
+    }
+
+    function closeNoteActionsMenu() {
+      const popover = document.getElementById('noteActionsPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+    }
+
+    function exportCurrentNoteMarkdown() {
+      const note = getActiveNote();
+      if (!note) return;
+
+      const lines = [];
+      lines.push('---');
+      lines.push('title: "' + (note.title || '').replace(/"/g, '\\"') + '"');
+      lines.push('code: "' + (note.code || '') + '"');
+      lines.push('folder: "' + (note.folder || 'General') + '"');
+      lines.push('updated: "' + (note.updatedAt || TODAY_KEY) + '"');
+      if (Array.isArray(note.tags) && note.tags.length > 0) {
+        lines.push('tags: [' + note.tags.map(t => '"' + t + '"').join(', ') + ']');
+      }
+      lines.push('---');
+      lines.push('');
+
+      (note.blocks || []).forEach(b => {
+        const c = b.content || '';
+        switch (b.type) {
+          case 'h1': lines.push('# ' + c, ''); break;
+          case 'h2': lines.push('## ' + c, ''); break;
+          case 'h3': lines.push('### ' + c, ''); break;
+          case 'bullet': lines.push('- ' + c); break;
+          case 'todo': lines.push((b.checked ? '- [x] ' : '- [ ] ') + c); break;
+          case 'quote': lines.push('> ' + c, ''); break;
+          case 'callout': lines.push('> [!NOTE]', '> ' + c, ''); break;
+          case 'code': lines.push('```' + (b.language || ''), c, '```', ''); break;
+          case 'divider': lines.push('---', ''); break;
+          default: lines.push(c, ''); break;
+        }
+      });
+
+      const markdownText = lines.join('\n');
+      const filename = `${(note.title || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'note'}.md`;
+
+      downloadBlob(markdownText, 'text/markdown;charset=utf-8', filename);
+      showToast(`Exported "${note.title}" as Markdown (.md)`);
+    }
+
+    function printCurrentNote() {
+      window.print();
+    }
+
+    function exportVaultBackupJSON() {
+      const backupData = {
+        app: 'PK Note',
+        version: '3.0.0',
+        exportedAt: new Date().toISOString(),
+        vault: JSON.parse(JSON.stringify(state))
+      };
+
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const filename = `pk-note-vault-backup-${TODAY_KEY}.json`;
+
+      downloadBlob(jsonStr, 'application/json;charset=utf-8', filename);
+      showToast('Vault backup downloaded (.json)');
+    }
+
+    function triggerVaultRestoreFile() {
+      const input = document.getElementById('vaultRestoreFileInput');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    function handleVaultFileImport(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          const vault = parsed.vault || parsed;
+          if (!vault || !Array.isArray(vault.notes) || vault.notes.length === 0) {
+            showToast('Invalid backup file: notes missing', 'vermilion');
+            return;
+          }
+
+          const noteCount = vault.notes.length;
+          const eventCount = Array.isArray(vault.events) ? vault.events.length : 0;
+          const confirmRestore = confirm(`Restore vault backup?\n\nThis will restore ${noteCount} notes and ${eventCount} calendar events.`);
+          if (!confirmRestore) return;
+
+          state = {
+            ...DEFAULT_VAULT,
+            ...vault
+          };
+          persistState();
+          renderAll();
+          showToast(`Restored vault: ${noteCount} notes, ${eventCount} events!`);
+        } catch (err) {
+          console.error('Vault import error:', err);
+          showToast('Failed to parse backup JSON file', 'vermilion');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function downloadBlob(content, mimeType, filename) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // --- C. STARRED / FAVORITES SIDEBAR FILTER ---
+    function toggleStarredSidebarFilter() {
+      activeStarredFilter = !activeStarredFilter;
+      renderSidebar();
+      showToast(activeStarredFilter ? 'Filter: Starred notes only' : 'Showing all notes');
+    }
+
+    // Dismiss note actions popover & user guide modal on outside click or Esc
+    document.addEventListener('click', (e) => {
+      const noteActions = document.getElementById('noteActionsPopover');
+      if (noteActions && !noteActions.classList.contains('hidden') && !noteActions.contains(e.target) && !e.target.closest('#noteActionsBtn')) {
+        closeNoteActionsMenu();
+      }
+
+      const guideModal = document.getElementById('userGuideModal');
+      if (guideModal && !guideModal.classList.contains('hidden') && e.target === guideModal) {
+        closeUserGuideModal();
+      }
+    });
+
+    // Global '?' shortcut for User Guide
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const isEditing = document.activeElement && (
+          document.activeElement.isContentEditable || 
+          document.activeElement.tagName === 'INPUT' || 
+          document.activeElement.tagName === 'TEXTAREA'
+        );
+        if (!isEditing) {
+          e.preventDefault();
+          openUserGuideModal();
+        }
+      }
+    });
+
+
+
+    // =========================================================================
     // 21. STANDARD AUTOCORRECT ENGINE & MOBILE ERGONOMICS
     // =========================================================================
 
@@ -6835,6 +7402,107 @@
   <div id="pkAutocorrectChip" onclick="undoLastAutocorrection()" title="Click to undo correction and accept word">
     <span id="pkAutocorrectCurrentWord" class="font-medium">the</span>
     <span class="undo-hint">↩ <span id="pkAutocorrectOriginalWord">"teh"</span></span>
+  </div>
+
+
+  <!-- Hidden File Input for Vault JSON Restore -->
+  <input type="file" id="vaultRestoreFileInput" accept=".json,application/json" onchange="handleVaultFileImport(event)" class="hidden" />
+
+  <!-- Note Actions & Vault Backup Popover -->
+  <div id="noteActionsPopover" class="hidden fixed z-[900] popover-surface rounded-md border border-[var(--border-strong)] shadow-2xl p-1.5 w-64 max-w-[92vw] animate-menu select-none">
+    <div class="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-hairline)] mb-1">
+      Document & Vault Actions
+    </div>
+    <div class="space-y-0.5">
+      <button onclick="exportCurrentNoteMarkdown(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Export Markdown (.md)</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">MD</span>
+      </button>
+
+      <button onclick="printCurrentNote(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <span>Print / Save as PDF</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">⌘P</span>
+      </button>
+
+      <div class="my-1 border-t border-[var(--border-hairline)]"></div>
+
+      <button onclick="exportVaultBackupJSON(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="font-medium">Backup Vault (JSON)</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--accent-vermilion)]">FULL</span>
+      </button>
+
+      <button onclick="triggerVaultRestoreFile(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Restore from Backup</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">IMPORT</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Interactive User Guide & Handbook Modal -->
+  <div id="userGuideModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-menu">
+    <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">
+        <div class="flex items-center gap-2.5">
+          <div class="w-6 h-6 rounded-[3px] bg-[var(--accent-vermilion)] text-white flex items-center justify-center font-mono text-xs font-bold">
+            ?
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold text-[var(--text-primary)] font-serif tracking-tight">PK NOTE HANDBOOK & GUIDE</h2>
+            <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Archival Knowledge, Bi-directional Synthesis & Chronology</p>
+          </div>
+        </div>
+        <button onclick="closeUserGuideModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs transition-colors">
+          ✕
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="px-4 py-2 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0">
+        <button onclick="switchUserGuideTab('overview')" id="guideTabOverview" class="guide-tab-btn active">
+          OVERVIEW
+        </button>
+        <button onclick="switchUserGuideTab('writing')" id="guideTabWriting" class="guide-tab-btn">
+          WRITING & BLOCKS
+        </button>
+        <button onclick="switchUserGuideTab('calendar')" id="guideTabCalendar" class="guide-tab-btn">
+          CALENDAR & SCHEDULE
+        </button>
+        <button onclick="switchUserGuideTab('graph')" id="guideTabGraph" class="guide-tab-btn">
+          GRAPH & BACKLINKS
+        </button>
+        <button onclick="switchUserGuideTab('shortcuts')" id="guideTabShortcuts" class="guide-tab-btn">
+          SHORTCUTS & TIPS
+        </button>
+      </div>
+
+      <!-- Scrollable Tab Content Container -->
+      <div id="guideContentArea" class="flex-1 overflow-y-auto p-5 sm:p-7 space-y-5 text-sm select-text text-[var(--text-secondary)] leading-relaxed font-sans">
+        <!-- Content will be injected dynamically by switchUserGuideTab -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0 font-mono text-[10px]">
+        <span class="text-[var(--text-tertiary)]">Tip: Press <kbd class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-semibold">?</kbd> anywhere to open this handbook</span>
+        <button onclick="closeUserGuideModal()" class="px-3 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-medium hover:opacity-90 transition-opacity">
+          GOT IT
+        </button>
+      </div>
+
+    </div>
   </div>
 
   <!-- Mobile Keyboard Accessory Bar (Visible only on mobile when editing) -->

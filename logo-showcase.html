@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PK Note — Brand Identity & Logo System</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Newsreader', 'serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-canvas: #121211;
+      --bg-panel: #181817;
+      --bg-card: #1E1E1C;
+      --border-hairline: #2D2C29;
+      --border-strong: #3D3C38;
+      --text-primary: #EDECE8;
+      --text-secondary: #96948E;
+      --text-tertiary: #6E6D68;
+      --accent-vermilion: #C8462B;
+      --accent-ochre: #A87E2D;
+    }
+    .light {
+      --bg-canvas: #F9F8F6;
+      --bg-panel: #F2F0EC;
+      --bg-card: #FFFFFF;
+      --border-hairline: #E2DFD9;
+      --border-strong: #CCC7BD;
+      --text-primary: #181817;
+      --text-secondary: #6E6D68;
+      --text-tertiary: #96948E;
+      --accent-vermilion: #C8462B;
+      --accent-ochre: #A87E2D;
+    }
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+  </style>
+</head>
+<body class="min-h-screen font-sans antialiased selection:bg-[#C8462B]/20 selection:text-[#C8462B]">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="pk-note-icon.svg" alt="PK Note Icon" class="w-6 h-6 rounded" />
+        <span class="font-semibold text-sm tracking-tight">PK NOTE</span>
+        <span class="font-mono text-[10px] text-[var(--accent-vermilion)] px-1.5 py-0.5 rounded border border-[var(--border-hairline)]">Brand Specs</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="toggleTheme()" class="px-2.5 py-1 rounded text-xs font-mono border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors">
+          <span id="themeBtnText">Toggle Light Mode</span>
+        </button>
+        <a href="pk_note_workspace.html" class="px-3 py-1 rounded text-xs font-medium bg-[var(--accent-vermilion)] text-white hover:opacity-90 transition-opacity">
+          Open Workspace →
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="max-w-6xl mx-auto px-6 py-12 space-y-16">
+
+    <section class="space-y-4 max-w-3xl">
+      <div class="font-mono text-xs uppercase tracking-widest text-[var(--accent-ochre)]">Brand Architecture &amp; Identity System</div>
+      <h1 class="text-4xl sm:text-5xl font-serif font-medium tracking-tight text-[var(--text-primary)] leading-tight">
+        The Visual Identity of PK Note.
+      </h1>
+      <p class="text-base text-[var(--text-secondary)] leading-relaxed">
+        Engineered for personal knowledge synthesis, local-first markdown graphs, and Swiss editorial typography.
+        The PK Note logo combines the foundational spine of archival ledgers with a dynamic knowledge vertex.
+      </p>
+    </section>
+
+    <!-- Master Brand Lockups Display -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold tracking-tight">1. Primary Brand Lockups</h2>
+        <span class="text-xs font-mono text-[var(--text-tertiary)]">SVG Vector Assets</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Dark Variant Card -->
+        <div class="p-8 rounded-lg bg-[#141413] border border-[#2B2A27] flex flex-col items-center justify-center gap-6 min-h-[220px]">
+          <div class="text-[11px] font-mono text-[#96948E] uppercase tracking-wider self-start">Dark Canvas (Default)</div>
+          <img src="pk-note-logo-dark.svg" alt="PK Note Logo Dark" class="w-full max-w-md py-4" />
+          <div class="w-full flex items-center justify-between text-xs font-mono text-[#6E6D68] pt-3 border-t border-[#262522]">
+            <span>Asset: pk-note-logo-dark.svg</span>
+            <a href="pk-note-logo-dark.svg" download class="hover:text-[#EDECE8] text-[#C8462B]">Download SVG ↓</a>
+          </div>
+        </div>
+
+        <!-- Light Variant Card -->
+        <div class="p-8 rounded-lg bg-[#F9F8F6] border border-[#E2DFD9] flex flex-col items-center justify-center gap-6 min-h-[220px]">
+          <div class="text-[11px] font-mono text-[#6E6D68] uppercase tracking-wider self-start">Vellum Light Canvas</div>
+          <img src="pk-note-logo-light.svg" alt="PK Note Logo Light" class="w-full max-w-md py-4" />
+          <div class="w-full flex items-center justify-between text-xs font-mono text-[#96948E] pt-3 border-t border-[#EAE7E1]">
+            <span class="text-[#6E6D68]">Asset: pk-note-logo-light.svg</span>
+            <a href="pk-note-logo-light.svg" download class="hover:text-[#181817] text-[#C8462B]">Download SVG ↓</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Geometric Construction & Design Rationale -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold tracking-tight">2. Anatomy &amp; Geometric Construction</h2>
+        <span class="text-xs font-mono text-[var(--text-tertiary)]">Mathematical Proportions</span>
+      </div>
+
+      <div class="p-8 rounded-lg bg-[var(--bg-card)] border border-[var(--border-hairline)] grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+        <!-- Large High-Res SVG with Construction Guidelines -->
+        <div class="md:col-span-1 flex flex-col items-center justify-center p-6 bg-[var(--bg-panel)] rounded border border-[var(--border-hairline)] relative">
+          <svg width="180" height="180" viewBox="0 0 32 32" fill="none" class="overflow-visible">
+            <!-- Grid lines -->
+            <line x1="8.5" y1="0" x2="8.5" y2="32" stroke="#A87E2D" stroke-width="0.3" stroke-dasharray="1 1" />
+            <line x1="15" y1="0" x2="15" y2="32" stroke="#A87E2D" stroke-width="0.3" stroke-dasharray="1 1" />
+            <line x1="22" y1="0" x2="22" y2="32" stroke="#A87E2D" stroke-width="0.3" stroke-dasharray="1 1" />
+            <line x1="0" y1="6.5" x2="32" y2="6.5" stroke="#A87E2D" stroke-width="0.3" stroke-dasharray="1 1" />
+            <line x1="0" y1="17.5" x2="32" y2="17.5" stroke="#A87E2D" stroke-width="0.3" stroke-dasharray="1 1" />
+            <line x1="0" y1="25.5" x2="32" y2="25.5" stroke="#A87E2D" stroke-width="0.3" stroke-dasharray="1 1" />
+            
+            <!-- Monogram -->
+            <path d="M8.5 6.5V25.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M8.5 6.5H16.5C19.5 6.5 22 8.9 22 12C22 15.1 19.5 17.5 16.5 17.5H8.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 17.5L23.5 7.5" stroke="#C8462B" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M15 17.5L23.5 25.5" stroke="#C8462B" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="15" cy="17.5" r="1.8" fill="#C8462B"/>
+          </svg>
+          <span class="mt-4 font-mono text-[11px] text-[var(--accent-ochre)]">Grid Matrix: 32×32 units</span>
+        </div>
+
+        <div class="md:col-span-2 space-y-4">
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[var(--text-primary)]"></span>
+              The Archival Spine (Letter P)
+            </h3>
+            <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Anchors the left vertical margin, mirroring a book spine or archival ledger. The upper semicircular arch represents the primary document volume and personal boundary.
+            </p>
+          </div>
+
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              The Knowledge Branches (Letter K)
+            </h3>
+            <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Emerging precisely from the midpoint waist (y = 17.5), two 45° diagonal vectors branch outward to form the 'K'. They symbolize semantic hyperlinks, dynamic thought expansion, and note cross-linking.
+            </p>
+          </div>
+
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
+              The Vertex Node (Archival Ink)
+            </h3>
+            <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+              At the exact convergence point sits a precision node rendered in vibrant Vermilion. It signifies an atomic note in the topology graph, an unshakeable point of intellectual synthesis.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scale & Optical Fidelity Test -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold tracking-tight">3. Scale &amp; Optical Fidelity Test</h2>
+        <span class="text-xs font-mono text-[var(--text-tertiary)]">16px to 64px Performance</span>
+      </div>
+
+      <div class="p-8 rounded-lg bg-[var(--bg-card)] border border-[var(--border-hairline)] flex flex-wrap items-center justify-around gap-8">
+        <!-- 64px -->
+        <div class="flex flex-col items-center gap-2">
+          <img src="pk-note-icon.svg" class="w-16 h-16 shadow-sm" alt="64px Icon" />
+          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">64×64 Display</span>
+        </div>
+
+        <!-- 48px -->
+        <div class="flex flex-col items-center gap-2">
+          <img src="pk-note-icon.svg" class="w-12 h-12 shadow-sm" alt="48px Icon" />
+          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">48×48 App Tile</span>
+        </div>
+
+        <!-- 32px -->
+        <div class="flex flex-col items-center gap-2">
+          <img src="pk-note-icon.svg" class="w-8 h-8 shadow-sm" alt="32px Icon" />
+          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">32×32 Desktop</span>
+        </div>
+
+        <!-- 24px -->
+        <div class="flex flex-col items-center gap-2">
+          <img src="pk-note-icon.svg" class="w-6 h-6 shadow-sm" alt="24px Icon" />
+          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">24×24 Toolbar</span>
+        </div>
+
+        <!-- 20px (In-app sidebar size) -->
+        <div class="flex flex-col items-center gap-2">
+          <img src="pk-note-icon.svg" class="w-5 h-5 shadow-sm" alt="20px In-App Sidebar" />
+          <span class="font-mono text-[10px] text-[var(--accent-vermilion)] font-medium">20×20 UI Badge</span>
+        </div>
+
+        <!-- 16px Favicon -->
+        <div class="flex flex-col items-center gap-2">
+          <img src="favicon.svg" class="w-4 h-4 shadow-sm" alt="16px Favicon" />
+          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">16×16 Favicon</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Color Palette Palette Tokens -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold tracking-tight">4. Color System</h2>
+        <span class="text-xs font-mono text-[var(--text-tertiary)]">Tactile Ink &amp; Paper Tokens</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        <div class="p-4 rounded border border-[var(--border-hairline)] bg-[var(--bg-panel)] space-y-2">
+          <div class="h-10 rounded bg-[#C8462B]"></div>
+          <div class="font-mono text-xs font-semibold">Vermilion</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">#C8462B</div>
+          <div class="text-[11px] text-[var(--text-secondary)]">Accent &amp; Vertex</div>
+        </div>
+
+        <div class="p-4 rounded border border-[var(--border-hairline)] bg-[var(--bg-panel)] space-y-2">
+          <div class="h-10 rounded bg-[#181817] border border-[#333]"></div>
+          <div class="font-mono text-xs font-semibold">Ink Dark</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">#181817</div>
+          <div class="text-[11px] text-[var(--text-secondary)]">Canvas &amp; Spine</div>
+        </div>
+
+        <div class="p-4 rounded border border-[var(--border-hairline)] bg-[var(--bg-panel)] space-y-2">
+          <div class="h-10 rounded bg-[#F9F8F6] border border-[#DDD]"></div>
+          <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Vellum Light</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">#F9F8F6</div>
+          <div class="text-[11px] text-[var(--text-secondary)]">Light Canvas</div>
+        </div>
+
+        <div class="p-4 rounded border border-[var(--border-hairline)] bg-[var(--bg-panel)] space-y-2">
+          <div class="h-10 rounded bg-[#EDECE8] border border-[#DDD]"></div>
+          <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Paper Ivory</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">#EDECE8</div>
+          <div class="text-[11px] text-[var(--text-secondary)]">Primary Type</div>
+        </div>
+
+        <div class="p-4 rounded border border-[var(--border-hairline)] bg-[var(--bg-panel)] space-y-2">
+          <div class="h-10 rounded bg-[#A87E2D]"></div>
+          <div class="font-mono text-xs font-semibold">Ochre Bronze</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">#A87E2D</div>
+          <div class="text-[11px] text-[var(--text-secondary)]">Daily Logs &amp; Meta</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- In-App Workspace Mockup -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold tracking-tight">5. Live In-App Context Preview</h2>
+        <span class="text-xs font-mono text-[var(--text-tertiary)]">Interactive UI Header</span>
+      </div>
+
+      <div class="p-6 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] max-w-sm">
+        <div class="h-11 px-3 flex items-center justify-between border border-[var(--border-hairline)] bg-[var(--bg-panel)] rounded">
+          <div class="flex items-center gap-2.5 px-1.5 py-1 text-left min-w-0">
+            <!-- New PK Note Monogram Icon in Sidebar -->
+            <div class="w-5 h-5 rounded-[2px] border border-[var(--border-strong)] bg-[var(--bg-canvas)] flex items-center justify-center shrink-0">
+              <svg width="14" height="14" viewBox="0 0 32 32" fill="none">
+                <path d="M8.5 6.5V25.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M8.5 6.5H16.5C19.5 6.5 22 8.9 22 12C22 15.1 19.5 17.5 16.5 17.5H8.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15 17.5L23.5 7.5" stroke="#C8462B" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M15 17.5L23.5 25.5" stroke="#C8462B" stroke-width="2.6" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="truncate flex items-baseline gap-2">
+              <span class="text-xs font-semibold tracking-tight text-[var(--text-primary)]">PK NOTE</span>
+              <span class="text-[10px] font-mono text-[var(--accent-vermilion)]">v2.5</span>
+            </div>
+          </div>
+          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">⌘\</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="mt-20 border-t border-[var(--border-hairline)] bg-[var(--bg-panel)] py-8 text-center text-xs text-[var(--text-tertiary)] font-mono">
+    PK NOTE &middot; Archival Knowledge &amp; Block Workspace &middot; All Assets Vector Ready
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        document.getElementById('themeBtnText').textContent = 'Toggle Dark Mode';
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        document.getElementById('themeBtnText').textContent = 'Toggle Light Mode';
+      }
+    }
+  </script>
+</body>
+</html>

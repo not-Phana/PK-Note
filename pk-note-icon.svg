@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <style>
+      .pk-bg { fill: #181817; }
+      .pk-border { stroke: #33312E; stroke-width: 1.5; }
+      .pk-stem { stroke: #EDECE8; stroke-width: 2.2; stroke-linecap: round; }
+      .pk-p { stroke: #EDECE8; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+      .pk-k { stroke: #C8462B; stroke-width: 2.2; stroke-linecap: round; }
+      .pk-dot { fill: #C8462B; }
+      @media (prefers-color-scheme: light) {
+        .pk-bg { fill: #F9F8F6; }
+        .pk-border { stroke: #D8D4CA; }
+        .pk-stem { stroke: #181817; }
+        .pk-p { stroke: #181817; }
+        .pk-k { stroke: #C8462B; }
+        .pk-dot { fill: #C8462B; }
+      }
+    </style>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="1.5" y="1.5" width="29" height="29" rx="5" class="pk-bg pk-border"/>
+  
+  <!-- Shared Left Spine of P & K -->
+  <path d="M8.5 6.5V25.5" class="pk-stem"/>
+  
+  <!-- P Arch (Archival Bowl) -->
+  <path d="M8.5 6.5H16.5C19.5376 6.5 22 8.96243 22 12C22 15.0376 19.5376 17.5 16.5 17.5H8.5" class="pk-p"/>
+  
+  <!-- K Diagonals (Knowledge Vertex in Vermilion) -->
+  <path d="M15 17.5L23.5 7.5" class="pk-k"/>
+  <path d="M15 17.5L23.5 25.5" class="pk-k"/>
+  
+  <!-- Archival Vertex Node -->
+  <circle cx="15" cy="17.5" r="1.6" class="pk-dot"/>
+</svg>

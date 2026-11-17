@@ -219,7 +219,9 @@
           { type: 'divider' },
           { label: state.appMode === 'workspace' ? 'Switch to Calendar' : 'Switch to Notes', icon: 'grid', action: () => setAppMode(state.appMode === 'workspace' ? 'calendar' : 'workspace') },
           { label: `Theme: ${state.theme === 'dark' ? 'Archival Vellum' : 'Obsidian Carbon'}`, icon: 'sliders', action: () => toggleTheme() },
-          { label: 'Install PK Note App', icon: 'layers', action: () => openInstallModal() }
+          { label: 'Install PK Note App', icon: 'layers', action: () => openInstallModal() },
+          { type: 'divider' },
+          { label: 'Start Fresh (Reset Workspace)', icon: 'minus', danger: true, action: () => promptStartFresh() }
         );
       }
 
@@ -1578,28 +1580,68 @@
     <div id="wikiLinkMenuItems" class="max-h-60 overflow-y-auto p-1 space-y-0.5"></div>
   </div>
 
-  <!-- Command Palette (`Cmd/Ctrl + K`) -->
-  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-[14vh] px-4">
-    <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface overflow-hidden animate-menu">
-      <div class="px-3.5 py-2.5 border-b border-[var(--border-hairline)] flex items-center gap-2.5 bg-[var(--bg-canvas)]">
-        <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+  <!-- Command Palette (`Cmd/Ctrl + K`) — Redesigned High-End Swiss Spotlight -->
+  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] px-4">
+    <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu flex flex-col max-h-[82vh]">
+      <!-- Search Bar -->
+      <div class="px-4 py-3.5 border-b border-[var(--border-hairline)] flex items-center gap-3 bg-[var(--bg-canvas)]">
+        <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/>
         </svg>
         <input id="commandPaletteInput"
                type="text"
-               placeholder="Jump to note, event, calendar view, or execute action..."
+               placeholder="Type a command or search notes & events..."
                oninput="renderCommandPaletteResults(this.value)"
                onkeydown="handleCommandPaletteKeydown(event)"
-               class="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none" />
-        <kbd class="font-mono text-[10px] px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]">ESC</kbd>
+               class="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none" />
+        <kbd class="font-mono text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)] select-none">ESC</kbd>
       </div>
-      <div id="commandPaletteResults" class="max-h-88 overflow-y-auto p-1.5 space-y-0.5"></div>
-      <div class="px-3.5 py-1.5 border-t border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between font-mono text-[10px] text-[var(--text-tertiary)]">
+
+      <!-- Scope Filter Pills -->
+      <div class="px-3 py-1.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center gap-1 overflow-x-auto text-[11px] font-mono select-none">
+        <button type="button" onclick="setCmdScope('all')" id="cmdScopeAll" class="px-2.5 py-0.5 rounded-[3px] transition-colors bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium border border-[var(--border-hairline)]">All</button>
+        <button type="button" onclick="setCmdScope('actions')" id="cmdScopeActions" class="px-2.5 py-0.5 rounded-[3px] transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent">Actions</button>
+        <button type="button" onclick="setCmdScope('notes')" id="cmdScopeNotes" class="px-2.5 py-0.5 rounded-[3px] transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent">Notes</button>
+        <button type="button" onclick="setCmdScope('calendar')" id="cmdScopeCalendar" class="px-2.5 py-0.5 rounded-[3px] transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent">Schedule</button>
+      </div>
+
+      <!-- Grouped Results Scroll Container -->
+      <div id="commandPaletteResults" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+
+      <!-- Footer Micro-Typography -->
+      <div class="px-4 py-2 border-t border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between font-mono text-[10px] text-[var(--text-tertiary)] select-none">
         <div class="flex items-center gap-3">
-          <span>↑↓ SELECT</span>
-          <span>↵ OPEN</span>
+          <span><kbd class="px-1 py-0.5 bg-[var(--bg-canvas)] border border-[var(--border-hairline)] rounded-[2px]">↑↓</kbd> Navigate</span>
+          <span><kbd class="px-1 py-0.5 bg-[var(--bg-canvas)] border border-[var(--border-hairline)] rounded-[2px]">↵</kbd> Select</span>
+          <span><kbd class="px-1 py-0.5 bg-[var(--bg-canvas)] border border-[var(--border-hairline)] rounded-[2px]">Tab</kbd> Scope</span>
         </div>
-        <span>PK NOTE INDEX</span>
+        <button type="button" onclick="promptStartFresh()" class="hover:text-[var(--accent-vermilion)] transition-colors underline cursor-pointer">Start Fresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Fresh Confirmation Modal -->
+  <div id="startFreshModal" onclick="closeStartFreshModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
+    <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 space-y-4 shadow-2xl animate-menu">
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-full bg-[var(--accent-vermilion-tint)] flex items-center justify-center text-[var(--accent-vermilion)] shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </span>
+        <div>
+          <h3 class="font-semibold text-sm text-[var(--text-primary)]">Start Fresh?</h3>
+          <p class="text-[11px] text-[var(--text-secondary)]">Reset workspace to clean slate</p>
+        </div>
+      </div>
+      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+        This clears the demo notes and symposium events, resetting your workspace to a clean, pristine PK Note notebook.
+      </p>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-hairline)]">
+        <button onclick="closeStartFreshModal()" class="px-3 py-1.5 rounded font-mono text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+          Cancel
+        </button>
+        <button onclick="executeStartFresh()" class="px-3 py-1.5 rounded bg-[var(--accent-vermilion)] hover:brightness-110 text-white font-mono text-xs transition-colors font-medium">
+          Start Fresh
+        </button>
       </div>
     </div>
   </div>
@@ -1818,136 +1860,22 @@
     // =========================================================================
     // 3. PRE-LOADED ARCHIVAL KNOWLEDGE VAULT + INTEGRATED SCHEDULE EVENTS
     // =========================================================================
-    const STORAGE_KEY = 'pk_note_vault_v2';
-    // Backwards-compatible vault migration from legacy key
-    try {
-      if (!localStorage.getItem(STORAGE_KEY) && localStorage.getItem('aether_archival_vault_v2')) {
-        localStorage.setItem(STORAGE_KEY, localStorage.getItem('aether_archival_vault_v2'));
-      }
-    } catch (e) {
-      console.warn('Storage migration note:', e);
-    }
+    const STORAGE_KEY = 'pk_note_vault_v3';
+
     const TODAY_KEY = formatLocalDateKey(new Date());
 
     function buildDefaultEvents() {
-      const dMinus2 = addDaysToDateKey(TODAY_KEY, -2);
-      const dMinus1 = addDaysToDateKey(TODAY_KEY, -1);
-      const dToday = TODAY_KEY;
-      const dPlus1 = addDaysToDateKey(TODAY_KEY, 1);
-      const dPlus2 = addDaysToDateKey(TODAY_KEY, 2);
-      const dPlus3 = addDaysToDateKey(TODAY_KEY, 3);
-      const dPlus5 = addDaysToDateKey(TODAY_KEY, 5);
-
       return [
         {
-          id: 'evt-arch-symposium',
-          title: 'Archival Systems & Graph Topology Symposium',
-          start_datetime: dToday,
-          end_datetime: dPlus2,
-          location: 'Hall A · East Wing Archive',
-          color_code: '#C49A45',
-          all_day: true,
-          linkedNoteId: 'note-graph-arch',
-          notes: 'Annual three-day research working group covering force-directed indexing and local-first storage.'
-        },
-        {
-          id: 'evt-morning-synthesis',
-          title: 'Morning Literature & Zettelkasten Synthesis',
-          start_datetime: seedLocalTimeAsUtcIso(dToday, 9, 0),
-          end_datetime: seedLocalTimeAsUtcIso(dToday, 10, 30),
-          location: 'Reading Desk 04',
+          id: 'evt-welcome-setup',
+          title: 'Welcome to PK Note',
+          start_datetime: seedLocalTimeAsUtcIso(TODAY_KEY, 9, 0),
+          end_datetime: seedLocalTimeAsUtcIso(TODAY_KEY, 10, 0),
+          location: 'PK Note Workspace',
           color_code: '#D95338',
           all_day: false,
-          linkedNoteId: 'note-atomic-notes',
-          notes: 'Process unread marginalia and link atomic concepts into the primary knowledge graph.'
-        },
-        {
-          id: 'evt-typography-critique',
-          title: 'Editorial Grid & Swiss Typography Audit',
-          start_datetime: seedLocalTimeAsUtcIso(dToday, 10, 0),
-          end_datetime: seedLocalTimeAsUtcIso(dToday, 11, 30),
-          location: 'Design Studio · Room 2B',
-          color_code: '#4A7C9B',
-          all_day: false,
-          linkedNoteId: 'note-typography',
-          notes: 'Overlapping session: inspect Newsreader optical sizing and hairline border contrast ratios.'
-        },
-        {
-          id: 'evt-storage-benchmark',
-          title: 'Local-First Serialization Benchmark',
-          start_datetime: seedLocalTimeAsUtcIso(dToday, 14, 0),
-          end_datetime: seedLocalTimeAsUtcIso(dToday, 15, 30),
-          location: 'https://meet.pknote.local/engine',
-          color_code: '#4D8B6F',
-          all_day: false,
-          linkedNoteId: 'note-local-first',
-          notes: 'Profile JSON snapshot latency and UTC/local timezone boundary edge cases.'
-        },
-        {
-          id: 'evt-midnight-watch',
-          title: 'Overnight Indexing & Backup Window',
-          start_datetime: seedLocalTimeAsUtcIso(dToday, 22, 30),
-          end_datetime: seedLocalTimeAsUtcIso(dPlus1, 1, 30),
-          location: 'Node Cluster 01',
-          color_code: '#8C5A82',
-          all_day: false,
-          linkedNoteId: 'note-local-first',
-          notes: 'Midnight-spanning maintenance window verifying cross-day timeline segmentation.'
-        },
-        {
-          id: 'evt-systems-seminar',
-          title: 'Meadows Leverage Points Seminar',
-          start_datetime: seedLocalTimeAsUtcIso(dPlus1, 11, 0),
-          end_datetime: seedLocalTimeAsUtcIso(dPlus1, 12, 30),
-          location: 'Seminar Room 3',
-          color_code: '#D95338',
-          all_day: false,
-          linkedNoteId: 'note-systems',
-          notes: 'Discuss information flows, feedback loops, and self-organizing knowledge repositories.'
-        },
-        {
-          id: 'evt-field-review',
-          title: 'Retrospective & Daily Log Consolidation',
-          start_datetime: seedLocalTimeAsUtcIso(dMinus1, 16, 0),
-          end_datetime: seedLocalTimeAsUtcIso(dMinus1, 17, 0),
-          location: 'Study Room B',
-          color_code: '#6E6D68',
-          all_day: false,
-          linkedNoteId: 'note-daily-16',
-          notes: 'Consolidate daily notes and unresolved checklist items.'
-        },
-        {
-          id: 'evt-publication-freeze',
-          title: 'Monograph Manuscript Freeze',
-          start_datetime: dPlus5,
-          end_datetime: dPlus5,
-          location: 'Editorial Press',
-          color_code: '#D95338',
-          all_day: true,
-          linkedNoteId: 'note-typography',
-          notes: 'Final deadline for archival plate proofs.'
-        },
-        {
-          id: 'evt-field-collection',
-          title: 'Archival Folio Acquisition',
-          start_datetime: seedLocalTimeAsUtcIso(dMinus2, 13, 30),
-          end_datetime: seedLocalTimeAsUtcIso(dMinus2, 15, 0),
-          location: 'Special Collections Vault',
-          color_code: '#4A7C9B',
-          all_day: false,
-          linkedNoteId: '',
-          notes: 'Catalog newly digitized technical monographs.'
-        },
-        {
-          id: 'evt-weekly-colloquium',
-          title: 'Cross-Disciplinary Research Colloquium',
-          start_datetime: seedLocalTimeAsUtcIso(dPlus3, 15, 0),
-          end_datetime: seedLocalTimeAsUtcIso(dPlus3, 16, 30),
-          location: 'Main Auditorium',
-          color_code: '#4D8B6F',
-          all_day: false,
-          linkedNoteId: 'note-graph-arch',
-          notes: 'Open demonstration of integrated block editor and chronology engine.'
+          linkedNoteId: 'note-welcome',
+          notes: 'Getting started: test the block editor, explore Cmd+K, and organize your personal thoughts.'
         }
       ];
     }
@@ -1957,7 +1885,7 @@
       calendarView: 'month', // 'month' | 'week' | 'day'
       calendarCursorDate: TODAY_KEY,
       calendarSelectedDate: TODAY_KEY,
-      activeNoteId: 'note-graph-arch',
+      activeNoteId: 'note-welcome',
       theme: 'dark',
       fontStyle: 'sans',
       showHeaderGrid: true,
@@ -1965,293 +1893,143 @@
       rightSidebarOpen: true,
       inspectorTab: 'graph',
       graphLocalOnly: false,
-      folders: ['Architecture', 'Typography & Craft', 'Daily Logs', 'Systems Theory', 'General'],
+      folders: ['General', 'Projects', 'Daily Logs', 'Reading'],
       expandedFolders: {
-        'Architecture': true,
-        'Typography & Craft': true,
+        'General': true,
+        'Projects': true,
         'Daily Logs': true,
-        'Systems Theory': true,
-        'General': true
+        'Reading': true
       },
       events: buildDefaultEvents(),
       notes: [
         {
-          id: 'note-graph-arch',
+          id: 'note-welcome',
           code: 'DOC-01',
-          title: 'Knowledge Graph Architecture',
-          glyph: 'graph',
-          folder: 'Architecture',
+          title: 'Welcome to PK Note',
+          glyph: 'pkLogo',
+          folder: 'General',
           favorite: true,
-          tags: ['graph-theory', 'local-first', 'topology'],
+          tags: ['welcome', 'guide', 'start'],
           updatedAt: TODAY_KEY,
           blocks: [
             {
-              id: 'b-ga1',
+              id: 'b-w1',
               type: 'callout',
-              content: 'Unlike rigid directory trees, an associative graph treats each document as an independent vertex and every [[wiki-link]] as a directed semantic edge.'
+              content: 'Welcome to **PK Note** — your personal knowledge environment and integrated chronology. Designed for deep thinking, focused writing, and linked notes without visual clutter.'
             },
             {
-              id: 'b-ga2',
+              id: 'b-w2',
               type: 'h2',
-              content: 'Force-Directed Simulation Mechanics'
+              content: 'Getting Started: Fast Shortcuts'
             },
             {
-              id: 'b-ga3',
-              type: 'paragraph',
-              content: 'The right-hand topology matrix runs a damped velocity-Verlet spring layout. Linked documents attract along Hookean edges while inverse-square repulsion prevents node overlap.'
-            },
-            {
-              id: 'b-ga4',
+              id: 'b-w3',
               type: 'bullet',
-              content: 'Click and drag any vertex in the Inspector to inspect local clusters'
+              content: 'Press **⌘K** (or Ctrl+K) anywhere to open the redesigned Command Palette.'
             },
             {
-              id: 'b-ga5',
+              id: 'b-w4',
               type: 'bullet',
-              content: 'Toggle between Global vault topology and Local 1-hop neighborhood views'
+              content: 'Type **/** on an empty line to convert any block into Headings, Checklists, Quotes, or Code.'
             },
             {
-              id: 'b-ga6',
+              id: 'b-w5',
               type: 'bullet',
-              content: 'Unlinked mentions automatically scan plain prose for existing note titles'
+              content: 'Type **[[** to link ideas together (e.g. [[Personal Knowledge Hub]] or [[Daily Log — ' + TODAY_KEY + ']]).'
             },
             {
-              id: 'b-ga7',
+              id: 'b-w6',
+              type: 'bullet',
+              content: '**Right-click** any note, block, calendar event, or graph node for instant native actions.'
+            },
+            {
+              id: 'b-w7',
               type: 'h2',
-              content: 'Emergent Hubs & Feedback Loops'
+              content: 'Your Connected Vault'
             },
             {
-              id: 'b-ga8',
+              id: 'b-w8',
               type: 'paragraph',
-              content: 'As notes accumulate, foundational syntheses such as [[Swiss Grid & Editorial Typography]] and [[Systems Thinking & Leverage Points]] naturally migrate toward the structural center of the vault.'
+              content: 'Notes and schedule are seamlessly linked. When you reference a document in your calendar, it updates your knowledge graph in the right inspector tab automatically.'
             }
           ]
         },
         {
-          id: 'note-typography',
+          id: 'note-hub',
           code: 'DOC-02',
-          title: 'Swiss Grid & Editorial Typography',
-          glyph: 'grid',
-          folder: 'Typography & Craft',
+          title: 'Personal Knowledge Hub',
+          glyph: 'layers',
+          folder: 'Projects',
           favorite: true,
-          tags: ['typography', 'grid-systems', 'design'],
+          tags: ['hub', 'projects', 'ideas'],
           updatedAt: TODAY_KEY,
           blocks: [
             {
-              id: 'b-ty1',
+              id: 'b-h1',
               type: 'paragraph',
-              content: 'Disciplined software interfaces borrow from mid-century Swiss editorial layouts: clear typographic scale, hairline rules rather than heavy drop shadows, and generous reading margins.'
+              content: 'Use this hub to track your active projects, emerging thoughts, and key priorities.'
             },
             {
-              id: 'b-ty2',
+              id: 'b-h2',
               type: 'h2',
-              content: 'Measure, Leading & Contrast'
+              content: 'Active Goals'
             },
             {
-              id: 'b-ty3',
-              type: 'quote',
-              content: '“Typography is a two-dimensional architecture, based on experience and imagination, and guided by rules and readability.” — Hermann Zapf'
-            },
-            {
-              id: 'b-ty4',
-              type: 'code',
-              language: 'css',
-              content: ':root {\n  --canvas-carbon:  #111111;\n  --panel-charcoal: #161616;\n  --hairline-rule:  #262626;\n  --ink-vermilion:  #D95338;\n  --measure-max:    680px;\n}'
-            },
-            {
-              id: 'b-ty5',
-              type: 'todo',
-              checked: true,
-              content: 'Constrain primary prose column to a 680px optical measure'
-            },
-            {
-              id: 'b-ty6',
-              type: 'todo',
-              checked: true,
-              content: 'Pair Newsreader optical serif titles with Inter UI and JetBrains Mono metadata'
-            },
-            {
-              id: 'b-ty7',
+              id: 'b-h3',
               type: 'todo',
               checked: false,
-              content: 'Cross-reference structural tokens with [[Local-First Storage Engine]]'
+              content: 'Create your first custom collection in the sidebar'
+            },
+            {
+              id: 'b-h4',
+              type: 'todo',
+              checked: false,
+              content: 'Add an event to the integrated calendar'
+            },
+            {
+              id: 'b-h5',
+              type: 'todo',
+              checked: false,
+              content: 'Connect ideas across notes with [[Welcome to PK Note]]'
             }
           ]
         },
         {
-          id: 'note-systems',
+          id: 'note-daily-' + TODAY_KEY,
           code: 'DOC-03',
-          title: 'Systems Thinking & Leverage Points',
-          glyph: 'layers',
-          folder: 'Systems Theory',
-          favorite: true,
-          tags: ['systems', 'mental-models', 'synthesis'],
-          updatedAt: '2026-11-15',
-          blocks: [
-            {
-              id: 'b-sy1',
-              type: 'quote',
-              content: '“A system must consist of three kinds of things: elements, interconnections, and a function or purpose.” — Donella H. Meadows'
-            },
-            {
-              id: 'b-sy2',
-              type: 'h2',
-              content: 'Stocks, Flows & Information Structure'
-            },
-            {
-              id: 'b-sy3',
-              type: 'paragraph',
-              content: `In a research archive, individual notes act as stocks while daily reading and synthesis act as inflows. Without structured review inside [[Daily Log — ${TODAY_KEY}]], stored notes become write-only.`
-            },
-            {
-              id: 'b-sy4',
-              type: 'paragraph',
-              content: 'Exposing bidirectional backlinks in [[Knowledge Graph Architecture]] alters the information flow of the system—allowing past context to resurface at the exact moment of composition.'
-            }
-          ]
-        },
-        {
-          id: 'note-local-first',
-          code: 'DOC-04',
-          title: 'Local-First Storage Engine',
-          glyph: 'terminal',
-          folder: 'Architecture',
-          favorite: false,
-          tags: ['storage', 'architecture', 'performance'],
-          updatedAt: '2026-11-14',
-          blocks: [
-            {
-              id: 'b-lf1',
-              type: 'paragraph',
-              content: 'Zero-latency editing requires keeping the canonical document tree in memory and debouncing deterministic JSON snapshots directly to local storage.'
-            },
-            {
-              id: 'b-lf2',
-              type: 'h2',
-              content: 'Block Serialization Model'
-            },
-            {
-              id: 'b-lf3',
-              type: 'code',
-              language: 'json',
-              content: '{\n  "id": "b-lf1",\n  "type": "paragraph",\n  "content": "Canonical inline [[wiki-link]] tokens."\n}'
-            },
-            {
-              id: 'b-lf4',
-              type: 'paragraph',
-              content: 'Because links are stored as human-readable double-bracket tokens rather than opaque database foreign keys, notes remain portable and resilient to renaming.'
-            }
-          ]
-        },
-        {
-          id: 'note-daily-16',
-          code: 'DOC-05',
-          title: `Daily Log — ${TODAY_KEY}`,
+          title: 'Daily Log — ' + TODAY_KEY,
           glyph: 'calendar',
           folder: 'Daily Logs',
-          favorite: false,
-          tags: ['daily', 'log', 'nov-2026'],
+          favorite: true,
+          tags: ['daily', 'log'],
           updatedAt: TODAY_KEY,
           blocks: [
             {
-              id: 'b-dl1',
+              id: 'b-d1',
               type: 'callout',
-              content: 'Primary Objective: Audit typography hierarchy, integrate chronology views, and verify bidirectional note-to-event references.'
+              content: 'Daily reflections, quick task capture, and chronological focus.'
             },
             {
-              id: 'b-dl2',
+              id: 'b-d2',
               type: 'h2',
-              content: 'Working Checklist'
+              content: 'Today’s Focus'
             },
             {
-              id: 'b-dl3',
-              type: 'todo',
-              checked: true,
-              content: 'Refine hairline contrast in [[Swiss Grid & Editorial Typography]]'
-            },
-            {
-              id: 'b-dl4',
+              id: 'b-d3',
               type: 'todo',
               checked: false,
-              content: 'Benchmark spring damping constants in [[Knowledge Graph Architecture]]'
+              content: 'Review today’s schedule in Calendar view'
             },
             {
-              id: 'b-dl5',
+              id: 'b-d4',
               type: 'todo',
               checked: false,
-              content: 'Review chapter notes on [[Systems Thinking & Leverage Points]]'
-            }
-          ]
-        },
-        {
-          id: 'note-atomic-notes',
-          code: 'DOC-06',
-          title: 'Atomic Note Composition',
-          glyph: 'compass',
-          folder: 'Typography & Craft',
-          favorite: false,
-          tags: ['writing', 'zettelkasten', 'craft'],
-          updatedAt: '2026-11-12',
-          blocks: [
-            {
-              id: 'b-an1',
-              type: 'paragraph',
-              content: 'An atomic note encapsulates one coherent concept under a declarative title so it can be cited cleanly across disparate threads of inquiry.'
-            },
-            {
-              id: 'b-an2',
-              type: 'bullet',
-              content: 'Prefer declarative titles over vague topic buckets'
-            },
-            {
-              id: 'b-an3',
-              type: 'bullet',
-              content: 'Connect ideas via explicit references to [[Knowledge Graph Architecture]] and [[Systems Thinking & Leverage Points]]'
+              content: 'Jot down top 3 priorities for the day'
             }
           ]
         }
       ]
     };
-
-    // =========================================================================
-    // 4. STATE MANAGEMENT & PERSISTENCE
-    // =========================================================================
-    let state = loadState();
-    let saveTimer = null;
-
-    // Ephemeral UI State
-    let sidebarSearchQuery = '';
-    let activeTagFilter = null;
-    let calendarSearchQuery = '';
-    let calendarColorFilter = null;
-    let miniCalCursorMonth = parseLocalDateKey(state.calendarCursorDate || TODAY_KEY);
-
-    let activeSlashBlockId = null;
-    let slashSelectedIndex = 0;
-    let activeWikiBlockId = null;
-    let wikiQuery = '';
-    let wikiSelectedIndex = 0;
-    let cmdSelectedIndex = 0;
-    let draggedBlockId = null;
-
-    // Calendar Drag & Modal State
-    let draggedCalendarEventId = null;
-    let draggedEventGrabOffsetMinutes = 0;
-    let selectedModalColor = EVENT_COLORS[0].hex;
-    let weekTimelineInitialScrollDone = false;
-
-    const SLASH_COMMANDS = [
-      { type: 'paragraph', label: 'Paragraph', desc: 'Standard body text block', glyph: 'document', shortcut: '' },
-      { type: 'h1', label: 'Heading 1', desc: 'Primary section heading', glyph: 'hash', shortcut: '#' },
-      { type: 'h2', label: 'Heading 2', desc: 'Secondary section heading', glyph: 'hash', shortcut: '##' },
-      { type: 'h3', label: 'Heading 3', desc: 'Tertiary subsection heading', glyph: 'hash', shortcut: '###' },
-      { type: 'bullet', label: 'Bullet List', desc: 'Unordered archival list item', glyph: 'list', shortcut: '-' },
-      { type: 'todo', label: 'Checklist Item', desc: 'Interactive task checkbox', glyph: 'checkSquare', shortcut: '[]' },
-      { type: 'callout', label: 'Callout Block', desc: 'Left-ruled emphasis note', glyph: 'alert', shortcut: '>' },
-      { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
-      { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
-      { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
-    ];
 
     function loadState() {
       try {
@@ -2259,11 +2037,17 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.notes) && parsed.notes.length > 0) {
-            const merged = { ...DEFAULT_VAULT, ...parsed };
-            if (!Array.isArray(merged.events)) {
-              merged.events = buildDefaultEvents();
-            }
-            return merged;
+            return { ...DEFAULT_VAULT, ...parsed };
+          }
+        }
+        // If migrating from v2: check if user only had the old demo notes
+        const legacyRaw = localStorage.getItem('pk_note_vault_v2') || localStorage.getItem('aether_archival_vault_v2');
+        if (legacyRaw) {
+          const leg = JSON.parse(legacyRaw);
+          // If the notes are just the old Aether demo notes, don't import the demo junk
+          const isDemoVault = leg.notes && leg.notes.some(n => n.id === 'note-graph-arch' || n.id === 'note-typography');
+          if (!isDemoVault && Array.isArray(leg.notes) && leg.notes.length > 0) {
+            return { ...DEFAULT_VAULT, ...leg, events: (leg.events || []).filter(e => !e.id.startsWith('evt-arch-') && !e.id.startsWith('evt-morning-')) };
           }
         }
       } catch (e) {
@@ -5278,12 +5062,30 @@
     // 15. GLOBAL COMMAND PALETTE (`Cmd/Ctrl + K`)
     // =========================================================================
     let cmdItems = [];
+    let cmdActiveScope = 'all'; // 'all' | 'actions' | 'notes' | 'calendar'
+
+    function setCmdScope(scope) {
+      cmdActiveScope = scope;
+      ['all', 'actions', 'notes', 'calendar'].forEach(s => {
+        const btn = document.getElementById('cmdScope' + s.charAt(0).toUpperCase() + s.slice(1));
+        if (btn) {
+          if (s === scope) {
+            btn.className = 'px-2.5 py-0.5 rounded-[3px] transition-colors bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium border border-[var(--border-hairline)]';
+          } else {
+            btn.className = 'px-2.5 py-0.5 rounded-[3px] transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent';
+          }
+        }
+      });
+      const input = document.getElementById('commandPaletteInput');
+      renderCommandPaletteResults(input ? input.value : '');
+    }
 
     function openCommandPalette() {
       const backdrop = document.getElementById('commandPaletteBackdrop');
       const input = document.getElementById('commandPaletteInput');
       backdrop.classList.remove('hidden');
       input.value = '';
+      setCmdScope('all');
       renderCommandPaletteResults('');
       requestAnimationFrame(() => input.focus());
     }
@@ -5293,102 +5095,193 @@
       document.getElementById('commandPaletteBackdrop').classList.add('hidden');
     }
 
+    function promptStartFresh() {
+      closeCommandPalette();
+      const modal = document.getElementById('startFreshModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeStartFreshModal() {
+      const modal = document.getElementById('startFreshModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function executeStartFresh() {
+      closeStartFreshModal();
+      try {
+        localStorage.removeItem('aether_archival_vault_v2');
+        localStorage.removeItem('pk_note_vault_v2');
+        localStorage.removeItem('pk_note_vault_v3');
+      } catch (e) {}
+      state = JSON.parse(JSON.stringify(DEFAULT_VAULT));
+      persistState();
+      renderAll();
+      showToast('Workspace reset: started fresh with clean PK Note template');
+    }
+
     function renderCommandPaletteResults(query) {
       const q = query.toLowerCase().trim();
 
-      const quickActions = [
-        { kind: 'action', label: 'Create Calendar Event', hint: 'Schedule new entry', glyph: 'calendar', run: () => openEventModal() },
-        { kind: 'action', label: 'Open Calendar: Month View', hint: 'Chronology', glyph: 'grid', run: () => setCalendarView('month') },
-        { kind: 'action', label: 'Open Calendar: Week View', hint: 'Chronology', glyph: 'calendar', run: () => setCalendarView('week') },
-        { kind: 'action', label: 'Open Calendar: Day View', hint: 'Chronology', glyph: 'clock', run: () => setCalendarView('day') },
-        { kind: 'action', label: 'New Working Note', hint: 'Create blank document', glyph: 'document', run: () => createNewNote('General') },
-        { kind: 'action', label: 'Open Today’s Daily Log', hint: 'Daily Logs', glyph: 'calendar', run: () => openOrCreateDailyNote() },
-        { kind: 'action', label: `Switch to ${state.theme === 'dark' ? 'Archival Vellum (Light)' : 'Obsidian Carbon (Dark)'}`, hint: 'Theme', glyph: 'sliders', run: () => toggleTheme() },
-        { kind: 'action', label: `Switch Prose to ${state.fontStyle === 'sans' ? 'Editorial Serif' : 'Geometric Sans'}`, hint: 'Typography', glyph: 'quote', run: () => toggleFontStyle() },
-        { kind: 'action', label: 'Inspect Topology Graph', hint: 'Right Inspector', glyph: 'graph', run: () => openRightInspector('graph') },
+      const allActions = [
+        { kind: 'action', label: 'New Working Note', hint: 'Create blank document in General', glyph: 'document', shortcut: '⌘N', run: () => createNewNote('General') },
+        { kind: 'action', label: 'Open Today’s Daily Log', hint: 'Daily capture & priorities', glyph: 'calendar', shortcut: 'T', run: () => openOrCreateDailyNote() },
+        { kind: 'action', label: 'Create Calendar Event', hint: 'Schedule new entry in chronology', glyph: 'clock', shortcut: '+', run: () => openEventModal() },
+        { kind: 'action', label: 'Open Calendar: Month View', hint: '7-column chronology grid', glyph: 'grid', shortcut: 'Month', run: () => setCalendarView('month') },
+        { kind: 'action', label: 'Open Calendar: Week View', hint: '7-day hourly schedule view', glyph: 'calendar', shortcut: 'Week', run: () => setCalendarView('week') },
+        { kind: 'action', label: 'Open Calendar: Day View', hint: '24-hour daily timeline view', glyph: 'clock', shortcut: 'Day', run: () => setCalendarView('day') },
+        { kind: 'action', label: `Switch to ${state.theme === 'dark' ? 'Archival Vellum (Light)' : 'Obsidian Carbon (Dark)'}`, hint: 'Theme', glyph: 'sliders', shortcut: 'Theme', run: () => toggleTheme() },
+        { kind: 'action', label: `Switch Prose to ${state.fontStyle === 'sans' ? 'Editorial Serif' : 'Geometric Sans'}`, hint: 'Typography', glyph: 'quote', shortcut: 'Font', run: () => toggleFontStyle() },
+        { kind: 'action', label: 'Inspect Topology Graph', hint: 'Interactive force-directed link graph', glyph: 'graph', shortcut: 'Graph', run: () => openRightInspector('graph') },
+        { kind: 'action', label: 'Start Fresh (Reset Workspace)', hint: 'Clear demo clutter & reset to clean PK Note template', glyph: 'archive', shortcut: 'Reset', danger: true, run: () => promptStartFresh() },
       ];
 
-      const matchingNotes = state.notes
-        .filter(n =>
-          !q ||
-          n.title.toLowerCase().includes(q) ||
-          (n.tags || []).some(t => t.toLowerCase().includes(q)) ||
-          n.blocks.some(b => (b.content || '').toLowerCase().includes(q))
-        )
-        .map(n => ({
-          kind: 'note',
-          label: n.title || 'Untitled Document',
-          hint: `${n.code || 'DOC'} · ${n.folder}`,
-          glyph: n.glyph,
-          run: () => selectNote(n.id)
-        }));
+      const allNotes = state.notes.map(n => ({
+        kind: 'note',
+        id: n.id,
+        label: n.title || 'Untitled Document',
+        hint: `${n.code || 'DOC'} · ${n.folder || 'General'}`,
+        folder: n.folder || 'General',
+        glyph: n.glyph || 'document',
+        rawText: `${n.title} ${n.folder} ${(n.tags || []).join(' ')} ${n.blocks.map(b => b.content || '').join(' ')}`.toLowerCase(),
+        run: () => selectNote(n.id)
+      }));
 
-      const matchingEvents = (state.events || [])
-        .filter(evt =>
-          !q ||
-          evt.title.toLowerCase().includes(q) ||
-          (evt.location || '').toLowerCase().includes(q) ||
-          (evt.notes || '').toLowerCase().includes(q)
-        )
-        .map(evt => {
-          const norm = normalizeEventRange(evt);
-          const timeHint = norm.allDay ? `${norm.startDateKey} · ALL-DAY` : `${norm.startDateKey} ${formatLocalTime24(norm.start)}`;
-          return {
-            kind: 'event',
-            label: evt.title,
-            hint: `${timeHint}${evt.location ? ' · ' + evt.location : ''}`,
-            glyph: 'calendar',
-            run: () => {
-              state.appMode = 'calendar';
-              state.calendarSelectedDate = norm.startDateKey;
-              state.calendarCursorDate = norm.startDateKey;
-              renderAll();
-              openEventModal({ eventId: evt.id });
-            }
-          };
+      const allEvents = (state.events || []).map(evt => {
+        const norm = normalizeEventRange(evt);
+        const timeHint = norm.allDay ? `${norm.startDateKey} · All-Day` : `${norm.startDateKey} · ${formatLocalTime24(norm.start)}`;
+        return {
+          kind: 'event',
+          id: evt.id,
+          label: evt.title,
+          hint: `${timeHint}${evt.location ? ' · ' + evt.location : ''}`,
+          colorDot: evt.color_code || '#D95338',
+          dateKey: norm.startDateKey,
+          isUpcoming: norm.startDateKey >= TODAY_KEY,
+          rawText: `${evt.title} ${evt.location || ''} ${evt.notes || ''} ${norm.startDateKey}`.toLowerCase(),
+          run: () => {
+            state.appMode = 'calendar';
+            state.calendarSelectedDate = norm.startDateKey;
+            state.calendarCursorDate = norm.startDateKey;
+            renderAll();
+            openEventModal({ eventId: evt.id });
+          }
+        };
+      });
+
+      // Filter by Query
+      let filteredActions = allActions.filter(a => !q || a.label.toLowerCase().includes(q) || a.hint.toLowerCase().includes(q));
+      let filteredNotes = allNotes.filter(n => !q || n.rawText.includes(q));
+      let filteredEvents = allEvents.filter(e => !q ? e.isUpcoming : e.rawText.includes(q));
+
+      // Apply Scope Filters
+      if (cmdActiveScope === 'actions') {
+        filteredNotes = [];
+        filteredEvents = [];
+      } else if (cmdActiveScope === 'notes') {
+        filteredActions = [];
+        filteredEvents = [];
+      } else if (cmdActiveScope === 'calendar') {
+        filteredActions = [];
+        filteredNotes = [];
+      }
+
+      // If query is empty and scope is 'all', curate top quick actions, pinned notes, and today's schedule
+      if (!q && cmdActiveScope === 'all') {
+        filteredActions = allActions.slice(0, 5); // Top 5 quick actions
+        filteredNotes = allNotes.slice(0, 4);    // Top 4 notes
+        filteredEvents = allEvents.filter(e => e.dateKey === TODAY_KEY).slice(0, 3); // Today's events
+      }
+
+      // Build structured sections
+      const sections = [];
+      if (filteredActions.length > 0) {
+        sections.push({ title: 'QUICK ACTIONS', items: filteredActions });
+      }
+      if (filteredNotes.length > 0) {
+        sections.push({ title: 'DOCUMENTS', items: filteredNotes });
+      }
+      if (filteredEvents.length > 0) {
+        sections.push({ title: q ? 'SCHEDULE & EVENTS' : 'TODAY’S SCHEDULE', items: filteredEvents });
+      }
+
+      // Flatten items with global indexing
+      cmdItems = [];
+      sections.forEach(sec => {
+        sec.items.forEach(item => {
+          item.flatIndex = cmdItems.length;
+          cmdItems.push(item);
         });
+      });
 
-      const matchingActions = quickActions.filter(a => !q || a.label.toLowerCase().includes(q) || a.hint.toLowerCase().includes(q));
-      cmdItems = [...matchingActions, ...matchingEvents, ...matchingNotes];
       cmdSelectedIndex = 0;
-
       const container = document.getElementById('commandPaletteResults');
+
       if (cmdItems.length === 0) {
-        container.innerHTML = `<div class="py-8 text-center font-mono text-[11px] text-[var(--text-tertiary)]">NO MATCHES FOR "${escapeHtml(query)}"</div>`;
+        container.innerHTML = `
+          <div class="py-10 text-center space-y-2 select-none">
+            <div class="font-mono text-xs text-[var(--text-tertiary)] uppercase tracking-wider">No matches found for "${escapeHtml(query)}"</div>
+            <p class="text-[11px] text-[var(--text-secondary)]">Try searching for note titles, block text, or type another command.</p>
+          </div>
+        `;
         return;
       }
 
-      container.innerHTML = cmdItems.map((item, idx) => `
-        <button onclick="executeCommandItem(${idx})"
-                onmouseenter="cmdSelectedIndex = ${idx}; updateCommandSelectionUI()"
-                data-cmd-idx="${idx}"
-                class="w-full flex items-center justify-between px-2.5 py-2 rounded-[3px] text-left transition-colors ${
-                  idx === cmdSelectedIndex ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                }">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="w-6 h-6 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-center text-[var(--accent-vermilion)] shrink-0">
-              ${getGlyphSVG(item.glyph)}
-            </span>
-            <div class="truncate">
-              <div class="text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(item.label)}</div>
-              <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">${escapeHtml(item.hint)}</div>
-            </div>
+      let htmlOutput = '';
+      sections.forEach(sec => {
+        htmlOutput += `
+          <div class="px-2 pt-2.5 pb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] select-none">
+            <span>${sec.title}</span>
+            <span>${sec.items.length}</span>
           </div>
-          <span class="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] shrink-0">
-            ${item.kind === 'note' ? 'DOC' : item.kind === 'event' ? 'EVT' : 'CMD'}
-          </span>
-        </button>
-      `).join('');
+        `;
+        sec.items.forEach(item => {
+          const isSelected = item.flatIndex === cmdSelectedIndex;
+          const iconEl = item.colorDot
+            ? `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${item.colorDot}"></span>`
+            : `<span class="shrink-0 ${item.danger ? 'text-[var(--accent-vermilion)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]'}">${getGlyphSVG(item.glyph)}</span>`;
+
+          const rightBadge = item.shortcut
+            ? `<kbd class="font-mono text-[10px] text-[var(--text-secondary)] px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">${escapeHtml(item.shortcut)}</kbd>`
+            : (item.folder ? `<span class="font-mono text-[10px] text-[var(--text-tertiary)]">${escapeHtml(item.folder)}</span>` : '');
+
+          htmlOutput += `
+            <button onclick="executeCommandItem(${item.flatIndex})"
+                    onmouseenter="cmdSelectedIndex = ${item.flatIndex}; updateCommandSelectionUI()"
+                    data-cmd-idx="${item.flatIndex}"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] text-left transition-colors cursor-pointer group ${
+                      isSelected
+                        ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-hairline)] shadow-sm'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] border border-transparent'
+                    }">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-5 h-5 flex items-center justify-center shrink-0">
+                  ${iconEl}
+                </span>
+                <div class="truncate">
+                  <div class="text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(item.label)}</div>
+                  <div class="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">${escapeHtml(item.hint)}</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0 ml-2">
+                ${rightBadge}
+              </div>
+            </button>
+          `;
+        });
+      });
+
+      container.innerHTML = htmlOutput;
     }
 
     function updateCommandSelectionUI() {
       document.querySelectorAll('[data-cmd-idx]').forEach((el, idx) => {
         if (idx === cmdSelectedIndex) {
-          el.classList.add('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]');
-          el.classList.remove('text-[var(--text-secondary)]');
+          el.classList.add('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-hairline)]', 'shadow-sm');
+          el.classList.remove('text-[var(--text-secondary)]', 'border-transparent');
+          el.scrollIntoView({ block: 'nearest' });
         } else {
-          el.classList.remove('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]');
-          el.classList.add('text-[var(--text-secondary)]');
+          el.classList.remove('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-hairline)]', 'shadow-sm');
+          el.classList.add('text-[var(--text-secondary)]', 'border-transparent');
         }
       });
     }
@@ -5406,6 +5299,11 @@
           cmdSelectedIndex = (cmdSelectedIndex - 1 + cmdItems.length) % cmdItems.length;
           updateCommandSelectionUI();
         }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const scopes = ['all', 'actions', 'notes', 'calendar'];
+        const nextIdx = (scopes.indexOf(cmdActiveScope) + (e.shiftKey ? -1 : 1) + scopes.length) % scopes.length;
+        setCmdScope(scopes[nextIdx]);
       } else if (e.key === 'Enter') {
         e.preventDefault();
         executeCommandItem(cmdSelectedIndex);

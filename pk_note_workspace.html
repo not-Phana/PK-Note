@@ -576,6 +576,416 @@
       showToast(`Deleted "${title}"`);
     }
 
+
+    // =========================================================================
+    // 9C. EFFORTLESS SCHEDULING ENGINE (QUICK-ADD, PREVIEWS, OVERFLOW & DRILLDOWN)
+    // =========================================================================
+    let quickAddSelectedColor = '#D95338';
+    let quickAddActiveDateKey = TODAY_KEY;
+    let activePreviewEventId = null;
+
+    function handleMonthCellClick(e, dateKey) {
+      if (e.target.closest('[data-event-id]') || e.target.closest('button')) return;
+      selectCalendarDate(dateKey, false);
+      openQuickAddPopover(e, { dateKey: dateKey });
+    }
+
+    function drillDownToDay(dateKey) {
+      state.calendarSelectedDate = dateKey;
+      state.calendarCursorDate = dateKey;
+      setCalendarView('day');
+      showToast(`Zoomed to ${dateKey} day timeline`);
+    }
+
+    function toggleCalendarAgendaSidebar() {
+      state.calendarAgendaOpen = state.calendarAgendaOpen === false ? true : false;
+      applyCalendarAgendaSidebarState();
+      persistState();
+    }
+
+    function applyCalendarAgendaSidebarState() {
+      const sidebar = document.getElementById('calendarAgendaSidebar');
+      const btn = document.getElementById('calToggleAgendaBtn');
+      const isOpen = state.calendarAgendaOpen !== false;
+      if (sidebar) {
+        if (isOpen) {
+          sidebar.classList.remove('hidden');
+          sidebar.classList.add('flex');
+        } else {
+          sidebar.classList.add('hidden');
+          sidebar.classList.remove('flex');
+        }
+      }
+      if (btn) {
+        if (isOpen) {
+          btn.classList.add('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-strong)]');
+        } else {
+          btn.classList.remove('bg-[var(--bg-elevated)]', 'text-[var(--text-primary)]', 'border-[var(--border-strong)]');
+        }
+      }
+    }
+
+    function openQuickAddPopover(e, options = {}) {
+      closeEventPreviewPopover();
+      closeDayOverflowPopover();
+
+      const { dateKey = null, startHour = null, allDay = false } = options;
+      quickAddActiveDateKey = dateKey || state.calendarSelectedDate || TODAY_KEY;
+      quickAddSelectedColor = EVENT_COLORS[0].hex;
+
+      const popover = document.getElementById('calQuickAddPopover');
+      const titleInput = document.getElementById('quickAddTitle');
+      const dateLabel = document.getElementById('quickAddDateLabel');
+      const allDayCheck = document.getElementById('quickAddAllDay');
+      const timeRow = document.getElementById('quickAddTimeRow');
+      const startTimeInput = document.getElementById('quickAddStartTime');
+      const endTimeInput = document.getElementById('quickAddEndTime');
+      const colorDotsCont = document.getElementById('quickAddColorDots');
+      const colorIndicator = document.getElementById('quickAddColorIndicator');
+
+      if (!popover || !titleInput) return;
+
+      titleInput.value = '';
+      dateLabel.textContent = quickAddActiveDateKey;
+      allDayCheck.checked = Boolean(allDay);
+      timeRow.classList.toggle('hidden', Boolean(allDay));
+
+      const hr = startHour !== null ? startHour : 9;
+      const endHr = Math.min(23, hr + 1);
+      startTimeInput.value = `${String(hr).padStart(2, '0')}:00`;
+      endTimeInput.value = `${String(endHr).padStart(2, '0')}:00`;
+
+      colorIndicator.style.backgroundColor = quickAddSelectedColor;
+      colorDotsCont.innerHTML = EVENT_COLORS.map(c => `
+        <button type="button"
+                onclick="selectQuickAddColor('${c.hex}')"
+                title="${c.label}"
+                style="background-color: ${c.hex};"
+                class="w-5 h-5 rounded-full flex items-center justify-center transition-transform cursor-pointer ${
+                  c.hex.toLowerCase() === quickAddSelectedColor.toLowerCase() ? 'ring-2 ring-offset-1 ring-[var(--text-primary)] scale-110' : 'opacity-80 hover:opacity-100'
+                }">
+        </button>
+      `).join('');
+
+      popover.style.display = 'block';
+      popover.classList.remove('hidden');
+
+      const popRect = popover.getBoundingClientRect();
+      const clientX = e && e.clientX ? e.clientX : window.innerWidth / 2;
+      const clientY = e && e.clientY ? e.clientY : window.innerHeight / 3;
+
+      let posX = clientX - popRect.width / 2;
+      let posY = clientY + 12;
+
+      if (posX < 10) posX = 10;
+      if (posX + popRect.width > window.innerWidth - 10) {
+        posX = window.innerWidth - popRect.width - 10;
+      }
+      if (posY + popRect.height > window.innerHeight - 10) {
+        posY = Math.max(10, clientY - popRect.height - 12);
+      }
+
+      popover.style.left = `${posX}px`;
+      popover.style.top = `${posY}px`;
+
+      requestAnimationFrame(() => titleInput.focus());
+    }
+
+    function toggleQuickAddAllDay(isAllDay) {
+      const timeRow = document.getElementById('quickAddTimeRow');
+      if (timeRow) timeRow.classList.toggle('hidden', isAllDay);
+    }
+
+    function selectQuickAddColor(hex) {
+      quickAddSelectedColor = hex;
+      document.getElementById('quickAddColorIndicator').style.backgroundColor = hex;
+      const dots = document.getElementById('quickAddColorDots');
+      dots.querySelectorAll('button').forEach(btn => {
+        if (btn.style.backgroundColor === hex) {
+          btn.classList.add('ring-2', 'ring-offset-1', 'ring-[var(--text-primary)]', 'scale-110');
+          btn.classList.remove('opacity-80');
+        } else {
+          btn.classList.remove('ring-2', 'ring-offset-1', 'ring-[var(--text-primary)]', 'scale-110');
+          btn.classList.add('opacity-80');
+        }
+      });
+    }
+
+    function closeQuickAddPopover() {
+      const popover = document.getElementById('calQuickAddPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+    }
+
+    function submitQuickAddEvent(e) {
+      if (e) e.preventDefault();
+      const title = document.getElementById('quickAddTitle').value.trim();
+      if (!title) return;
+
+      const isAllDay = document.getElementById('quickAddAllDay').checked;
+      let start_datetime = '';
+      let end_datetime = null;
+
+      if (isAllDay) {
+        start_datetime = quickAddActiveDateKey;
+        end_datetime = quickAddActiveDateKey;
+      } else {
+        const sTime = document.getElementById('quickAddStartTime').value || '09:00';
+        const eTime = document.getElementById('quickAddEndTime').value || '10:00';
+        start_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${sTime}`);
+        end_datetime = localInputToUtcIso(`${quickAddActiveDateKey}T${eTime}`);
+      }
+
+      const newEvt = {
+        id: generateId('evt'),
+        title: title,
+        start_datetime: start_datetime,
+        end_datetime: end_datetime,
+        location: '',
+        color_code: quickAddSelectedColor,
+        all_day: isAllDay,
+        linkedNoteId: state.appMode === 'workspace' ? (state.activeNoteId || '') : '',
+        notes: ''
+      };
+
+      state.events.push(newEvt);
+      state.calendarSelectedDate = quickAddActiveDateKey;
+      state.calendarCursorDate = quickAddActiveDateKey;
+
+      closeQuickAddPopover();
+      renderAll();
+      persistState();
+      showToast(`Scheduled "${title}"`);
+    }
+
+    function quickAddOpenFullModal() {
+      const title = document.getElementById('quickAddTitle').value.trim();
+      const isAllDay = document.getElementById('quickAddAllDay').checked;
+      const sTime = document.getElementById('quickAddStartTime').value || '09:00';
+      const [h] = sTime.split(':').map(Number);
+
+      closeQuickAddPopover();
+      openEventModal({ dateKey: quickAddActiveDateKey, startHour: h || 9, allDay: isAllDay });
+      if (title) {
+        document.getElementById('eventFormTitle').value = title;
+      }
+    }
+
+    // =========================================================================
+    // EVENT DETAILS PREVIEW CARD CONTROLLER
+    // =========================================================================
+    function openEventPreview(e, eventId) {
+      if (e) e.stopPropagation();
+      closeQuickAddPopover();
+      closeDayOverflowPopover();
+
+      activePreviewEventId = eventId;
+      const evt = state.events.find(item => item.id === eventId);
+      if (!evt) return;
+
+      const popover = document.getElementById('calEventPreviewPopover');
+      const titleEl = document.getElementById('previewEventTitle');
+      const timeEl = document.getElementById('previewEventTime');
+      const colorBar = document.getElementById('previewEventColorBar');
+      const locRow = document.getElementById('previewEventLocationRow');
+      const locText = document.getElementById('previewEventLocation');
+      const linkRow = document.getElementById('previewEventLinkedNoteRow');
+      const linkBtn = document.getElementById('previewEventLinkedNoteBtn');
+      const notesRow = document.getElementById('previewEventNotesRow');
+      const notesText = document.getElementById('previewEventNotes');
+
+      if (!popover) return;
+
+      const col = resolveEventColor(evt.color_code);
+      const norm = normalizeEventRange(evt);
+
+      titleEl.textContent = evt.title;
+      colorBar.style.backgroundColor = col.hex;
+
+      const timeSummary = norm.allDay
+        ? (norm.isMultiDay ? `All-Day · ${norm.startDateKey} → ${norm.endDateKey}` : `All-Day · ${norm.startDateKey}`)
+        : `${norm.startDateKey} · ${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
+      timeEl.textContent = timeSummary;
+
+      if (evt.location) {
+        locText.textContent = evt.location;
+        locRow.classList.remove('hidden');
+      } else {
+        locRow.classList.add('hidden');
+      }
+
+      if (evt.linkedNoteId) {
+        const note = state.notes.find(n => n.id === evt.linkedNoteId);
+        if (note) {
+          linkBtn.textContent = `[[${note.title}]]`;
+          linkRow.classList.remove('hidden');
+        } else {
+          linkRow.classList.add('hidden');
+        }
+      } else {
+        linkRow.classList.add('hidden');
+      }
+
+      if (evt.notes && evt.notes.trim()) {
+        notesText.textContent = evt.notes;
+        notesRow.classList.remove('hidden');
+      } else {
+        notesRow.classList.add('hidden');
+      }
+
+      popover.style.display = 'block';
+      popover.classList.remove('hidden');
+
+      const popRect = popover.getBoundingClientRect();
+      const targetEl = e.currentTarget || e.target;
+      const targetRect = targetEl.getBoundingClientRect ? targetEl.getBoundingClientRect() : { left: e.clientX, top: e.clientY, right: e.clientX, bottom: e.clientY };
+
+      let posX = targetRect.right + 8;
+      let posY = targetRect.top;
+
+      if (posX + popRect.width > window.innerWidth - 10) {
+        posX = targetRect.left - popRect.width - 8;
+      }
+      if (posX < 10) {
+        posX = Math.max(10, (window.innerWidth - popRect.width) / 2);
+      }
+      if (posY + popRect.height > window.innerHeight - 10) {
+        posY = window.innerHeight - popRect.height - 10;
+      }
+
+      popover.style.left = `${posX}px`;
+      popover.style.top = `${Math.max(10, posY)}px`;
+    }
+
+    function closeEventPreviewPopover() {
+      const popover = document.getElementById('calEventPreviewPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+      activePreviewEventId = null;
+    }
+
+    function previewEditEvent() {
+      const id = activePreviewEventId;
+      closeEventPreviewPopover();
+      if (id) openEventModal({ eventId: id });
+    }
+
+    function previewDuplicateEvent() {
+      const id = activePreviewEventId;
+      closeEventPreviewPopover();
+      if (id) duplicateEventById(id);
+    }
+
+    function previewDeleteEvent() {
+      const id = activePreviewEventId;
+      closeEventPreviewPopover();
+      if (id) deleteEventById(id);
+    }
+
+    function previewOpenLinkedNote() {
+      const id = activePreviewEventId;
+      const evt = state.events.find(item => item.id === id);
+      closeEventPreviewPopover();
+      if (evt && evt.linkedNoteId) {
+        state.appMode = 'workspace';
+        selectNote(evt.linkedNoteId);
+      }
+    }
+
+    // =========================================================================
+    // DAY OVERFLOW POPOVER CONTROLLER (+X more)
+    // =========================================================================
+    function openDayOverflowPopover(e, dateKey) {
+      if (e) e.stopPropagation();
+      closeQuickAddPopover();
+      closeEventPreviewPopover();
+
+      const popover = document.getElementById('calDayOverflowPopover');
+      const heading = document.getElementById('overflowDateHeading');
+      const badge = document.getElementById('overflowCountBadge');
+      const list = document.getElementById('overflowEventsList');
+      const zoomBtn = document.getElementById('overflowZoomDayBtn');
+      const addBtn = document.getElementById('overflowAddEventBtn');
+
+      if (!popover || !list) return;
+
+      const events = getEventsForDateKey(dateKey);
+      heading.textContent = dateKey;
+      badge.textContent = `${events.length} events`;
+
+      zoomBtn.onclick = () => { closeDayOverflowPopover(); drillDownToDay(dateKey); };
+      addBtn.onclick = (evt) => { closeDayOverflowPopover(); openQuickAddPopover(evt, { dateKey }); };
+
+      list.innerHTML = events.map(evt => {
+        const col = resolveEventColor(evt.color_code);
+        const norm = normalizeEventRange(evt);
+        const timeStr = norm.allDay ? 'All-day' : `${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
+        return `
+          <button type="button"
+                  onclick="openEventPreview(event, '${evt.id}')"
+                  class="w-full flex items-center justify-between p-2 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer group">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${col.hex}"></span>
+              <div class="truncate">
+                <div class="text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(evt.title)}</div>
+                <div class="font-mono text-[10px] text-[var(--text-tertiary)]">${timeStr}</div>
+              </div>
+            </div>
+            <span class="font-mono text-[9px] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]">VIEW</span>
+          </button>
+        `;
+      }).join('');
+
+      popover.style.display = 'block';
+      popover.classList.remove('hidden');
+
+      const popRect = popover.getBoundingClientRect();
+      const targetEl = e.currentTarget || e.target;
+      const targetRect = targetEl.getBoundingClientRect ? targetEl.getBoundingClientRect() : { left: e.clientX, top: e.clientY };
+
+      let posX = targetRect.left;
+      let posY = targetRect.bottom + 6;
+
+      if (posX + popRect.width > window.innerWidth - 10) {
+        posX = window.innerWidth - popRect.width - 10;
+      }
+      if (posY + popRect.height > window.innerHeight - 10) {
+        posY = targetRect.top - popRect.height - 6;
+      }
+
+      popover.style.left = `${Math.max(10, posX)}px`;
+      popover.style.top = `${Math.max(10, posY)}px`;
+    }
+
+    function closeDayOverflowPopover() {
+      const popover = document.getElementById('calDayOverflowPopover');
+      if (popover) {
+        popover.classList.add('hidden');
+        popover.style.display = 'none';
+      }
+    }
+
+    // Dismiss floating popovers on outside click or Escape
+    document.addEventListener('click', e => {
+      const quickAdd = document.getElementById('calQuickAddPopover');
+      const preview = document.getElementById('calEventPreviewPopover');
+      const overflow = document.getElementById('calDayOverflowPopover');
+
+      if (quickAdd && !quickAdd.classList.contains('hidden') && !quickAdd.contains(e.target)) {
+        closeQuickAddPopover();
+      }
+      if (preview && !preview.classList.contains('hidden') && !preview.contains(e.target)) {
+        closeEventPreviewPopover();
+      }
+      if (overflow && !overflow.classList.contains('hidden') && !overflow.contains(e.target)) {
+        closeDayOverflowPopover();
+      }
+    });
+
   </script>
 
   <style>
@@ -1274,6 +1684,18 @@
               Day
             </button>
           </div>
+
+          <!-- Day Ledger / Agenda Sidebar Toggle Button -->
+          <button id="calToggleAgendaBtn" onclick="toggleCalendarAgendaSidebar()" title="Toggle Day Ledger (L)" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span class="hidden sm:inline">Agenda</span>
+          </button>
+
+          <!-- Fast Add Event Button -->
+          <button onclick="openQuickAddPopover(event)" class="flex items-center gap-1.5 px-3 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-mono text-[11px] font-medium transition-opacity">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Event</span>
+          </button>
         </div>
       </div>
 
@@ -1284,7 +1706,7 @@
         <div id="calendarGridContainer" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden"></div>
 
         <!-- Right Contextual Day Ledger & Daily Log Bridge (Desktop lg+ or Mobile Selected Day Drawer) -->
-        <aside id="calendarAgendaSidebar" class="hidden xl:flex w-72 shrink-0 flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-y-auto">
+        <aside id="calendarAgendaSidebar" class="flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-y-auto w-72 shrink-0 panel-transition">
           <div id="calendarAgendaContent" class="p-3.5 space-y-4"></div>
         </aside>
 
@@ -2766,6 +3188,7 @@
 
       // Render Right Contextual Day Agenda & Mobile Agenda Bar
       renderCalendarAgendaInspector();
+      applyCalendarAgendaSidebarState();
     }
 
     // -------------------------------------------------------------------------
@@ -2827,7 +3250,7 @@
             <div draggable="true"
                  data-event-id="${evt.id}"
                  ondragstart="handleMonthEventDragStart(event, '${evt.id}')"
-                 onclick="event.stopPropagation(); openEventModal({ eventId: '${evt.id}' })"
+                 onclick="event.stopPropagation(); openEventPreview(event, '${evt.id}')"
                  title="${escapeHtml(evt.title)}${evt.location ? ' · ' + escapeHtml(evt.location) : ''}"
                  style="${bgStyle}"
                  class="group/evt flex items-center gap-1 px-1.5 py-[2px] rounded-[2px] hover:bg-[var(--bg-hover)] cursor-pointer transition-colors text-[11px] leading-tight truncate">
@@ -2840,14 +3263,14 @@
         }).join('');
 
         const overflowHtml = overflowCount > 0 ? `
-          <button onclick="event.stopPropagation(); selectCalendarDate('${dateKey}', true)"
-                  class="w-full text-left px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] transition-colors">
+          <button onclick="event.stopPropagation(); openDayOverflowPopover(event, '${dateKey}')"
+                  class="w-full text-left px-1.5 py-0.5 font-mono text-[9px] text-[var(--accent-vermilion)] hover:underline transition-colors font-medium">
             +${overflowCount} more
           </button>
         ` : '';
 
         cellsHtml += `
-          <div onclick="selectCalendarDate('${dateKey}', false)"
+          <div onclick="handleMonthCellClick(event, '${dateKey}')"
                data-date-key="${dateKey}"
                ondblclick="openEventModal({ dateKey: '${dateKey}' })"
                ondragover="handleMonthCellDragOver(event)"
@@ -2857,20 +3280,23 @@
                  isSelected ? 'bg-[var(--bg-panel)]/80' : isCurrentMonth ? 'bg-[var(--bg-canvas)] hover:bg-[var(--bg-panel)]/40' : 'bg-[var(--bg-panel)]/35 hover:bg-[var(--bg-panel)]/60'
                }">
             <div class="flex items-center justify-between mb-1 shrink-0">
-              <span class="font-mono text-[11px] leading-none px-1.5 py-0.5 rounded-[2px] ${
+              <button type="button"
+                      onclick="event.stopPropagation(); drillDownToDay('${dateKey}')"
+                      title="Zoom to ${dateKey} day view"
+                      class="font-mono text-[11px] leading-none px-1.5 py-0.5 rounded-[2px] cursor-pointer hover:scale-105 transition-transform ${
                 isToday
                   ? 'bg-[var(--accent-vermilion)] text-white font-semibold'
                   : isSelected
                     ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]'
                     : isCurrentMonth
-                      ? 'text-[var(--text-primary)]'
-                      : 'text-[var(--text-tertiary)]'
+                      ? 'text-[var(--text-primary)] hover:text-[var(--accent-vermilion)]'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }">
                 ${d.getDate() === 1 ? `${MONTH_SHORT[d.getMonth()]} 1` : d.getDate()}
-              </span>
+              </button>
 
-              <button onclick="event.stopPropagation(); openEventModal({ dateKey: '${dateKey}' })"
-                      title="Create event on ${dateKey}"
+              <button onclick="event.stopPropagation(); openQuickAddPopover(event, { dateKey: '${dateKey}' })"
+                      title="Quick create event on ${dateKey}"
                       class="opacity-0 group-hover:opacity-100 p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] transition-opacity">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
@@ -3000,14 +3426,17 @@
               <span class="font-mono text-[10px] uppercase tracking-wider ${isToday ? 'text-[var(--accent-vermilion)] font-semibold' : 'text-[var(--text-tertiary)]'}">
                 ${DAY_NAMES_SHORT[d.getDay() === 0 ? 6 : d.getDay() - 1]}
               </span>
-              <span class="font-mono text-xs px-1.5 py-0.5 rounded-[2px] ${
-                isToday ? 'bg-[var(--accent-vermilion)] text-white font-semibold' : 'text-[var(--text-primary)]'
+              <button type="button"
+                      onclick="event.stopPropagation(); drillDownToDay('${key}')"
+                      title="Zoom to ${key} day timeline"
+                      class="font-mono text-xs px-1.5 py-0.5 rounded-[2px] cursor-pointer hover:scale-105 transition-transform ${
+                isToday ? 'bg-[var(--accent-vermilion)] text-white font-semibold' : 'text-[var(--text-primary)] hover:text-[var(--accent-vermilion)]'
               }">
                 ${d.getDate()}
-              </span>
+              </button>
             </div>
-            <button onclick="event.stopPropagation(); openEventModal({ dateKey: '${key}', startHour: 9 })"
-                    title="Add event on ${key}"
+            <button onclick="event.stopPropagation(); openQuickAddPopover(event, { dateKey: '${key}', startHour: 9 })"
+                    title="Quick add event on ${key}"
                     class="p-1 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
@@ -3031,7 +3460,7 @@
                 <div draggable="true"
                      data-event-id="${evt.id}"
                      ondragstart="handleMonthEventDragStart(event, '${evt.id}')"
-                     onclick="event.stopPropagation(); openEventModal({ eventId: '${evt.id}' })"
+                     onclick="event.stopPropagation(); openEventPreview(event, '${evt.id}')"
                      style="background-color: ${isDark ? col.tintDark : col.tintLight}; border-left: 2px solid ${col.hex};"
                      class="px-1.5 py-0.5 rounded-[2px] text-[11px] font-medium text-[var(--text-primary)] truncate hover:opacity-85">
                   ${escapeHtml(evt.title)}
@@ -3063,7 +3492,8 @@
           hourSlotsHtml += `
             <div style="height: ${HOUR_ROW_HEIGHT}px;"
                  data-date-key="${key}"
-                 onclick="openEventModal({ dateKey: '${key}', startHour: ${h} })"
+                 onclick="openQuickAddPopover(event, { dateKey: '${key}', startHour: ${h} })"
+                 ondblclick="openEventModal({ dateKey: '${key}', startHour: ${h} })"
                  title="Click to schedule at ${String(h).padStart(2, '0')}:00"
                  class="border-b border-[var(--border-hairline)] hover:bg-[var(--accent-vermilion-tint)]/50 transition-colors relative group">
               <div class="w-full h-1/2 border-b border-dashed border-[var(--border-hairline)]/45 pointer-events-none"></div>
@@ -3086,7 +3516,7 @@
             <div draggable="true"
                  data-event-id="${evt.id}"
                  ondragstart="handleTimelineEventDragStart(event, '${evt.id}')"
-                 onclick="event.stopPropagation(); openEventModal({ eventId: '${evt.id}' })"
+                 onclick="event.stopPropagation(); openEventPreview(event, '${evt.id}')"
                  style="top: ${topPx}px; height: ${heightPx}px; left: calc(${leftPct}% + 2px); width: calc(${widthPct}% - 4px); background-color: ${isDark ? col.tintDark : col.tintLight}; border-left: 2.5px solid ${col.hex};"
                  class="absolute rounded-[3px] border border-[var(--border-strong)]/60 px-2 py-1 overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 flex flex-col justify-between shadow-sm">
               <div class="min-w-0">
@@ -3162,11 +3592,13 @@
         </div>
       `;
 
-      // Auto-scroll timeline to 08:00 AM on first render for ergonomic morning visibility
+      // Auto-scroll timeline to active daytime hours for ergonomic morning visibility
       if (!weekTimelineInitialScrollDone) {
         const scrollBody = document.getElementById('timelineScrollBody');
         if (scrollBody) {
-          scrollBody.scrollTop = 7.5 * HOUR_ROW_HEIGHT;
+          const currentHour = new Date().getHours();
+          const targetHour = Math.max(7, Math.min(currentHour - 1, 18));
+          scrollBody.scrollTop = targetHour * HOUR_ROW_HEIGHT;
           weekTimelineInitialScrollDone = true;
         }
       }
@@ -3293,7 +3725,7 @@
               : `${formatLocalTime24(norm.start)} – ${formatLocalTime24(norm.end)}`;
 
             return `
-              <div onclick="openEventModal({ eventId: '${evt.id}' })"
+              <div onclick="openEventPreview(event, '${evt.id}')"
                    data-event-id="${evt.id}"
                    class="p-2.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] cursor-pointer transition-colors space-y-1.5">
                 <div class="flex items-center justify-between gap-2">
@@ -3322,7 +3754,7 @@
         : `
           <div class="p-4 rounded-[3px] border border-dashed border-[var(--border-hairline)] text-center space-y-2">
             <div class="font-mono text-[10px] text-[var(--text-tertiary)]">NO EVENTS SCHEDULED</div>
-            <button onclick="openEventModal({ dateKey: '${selectedKey}' })" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--accent-vermilion)]">
+            <button onclick="openQuickAddPopover(event, { dateKey: '${selectedKey}' })" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--accent-vermilion)] font-medium">
               + Schedule on ${selectedKey}
             </button>
           </div>
@@ -3338,8 +3770,8 @@
             </div>
             <h3 class="font-serif text-lg font-medium text-[var(--text-primary)]">${headerLabel}</h3>
             <div class="pt-1 flex items-center gap-1.5">
-              <button onclick="openEventModal({ dateKey: '${selectedKey}' })" class="flex-1 py-1.5 px-2 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-medium hover:opacity-90">
-                + NEW EVENT
+              <button onclick="openQuickAddPopover(event, { dateKey: '${selectedKey}' })" class="flex-1 py-1.5 px-2 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-medium hover:opacity-90">
+                + QUICK EVENT
               </button>
               <button onclick="openOrCreateDailyNoteForDate('${selectedKey}')" class="py-1.5 px-2 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-primary)]" title="Open or Create Daily Log Note">
                 ${existingDailyNote ? 'OPEN LOG →' : '+ DAILY LOG'}
@@ -3370,7 +3802,7 @@
               <button onclick="openOrCreateDailyNoteForDate('${selectedKey}')" class="px-2 py-0.5 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)]">
                 Daily Log
               </button>
-              <button onclick="openEventModal({ dateKey: '${selectedKey}' })" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px]">
+              <button onclick="openQuickAddPopover(event, { dateKey: '${selectedKey}' })" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px]">
                 + Event
               </button>
             </div>
@@ -3381,7 +3813,7 @@
                 const col = resolveEventColor(evt.color_code);
                 const norm = normalizeEventRange(evt);
                 return `
-                  <button onclick="openEventModal({ eventId: '${evt.id}' })" class="flex items-center justify-between gap-2 p-2 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-left">
+                  <button onclick="openEventPreview(event, '${evt.id}')" class="flex items-center justify-between gap-2 p-2 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-left">
                     <div class="flex items-center gap-2 min-w-0">
                       <span class="w-2 h-2 rounded-[1px] shrink-0" style="background-color: ${col.hex}"></span>
                       <span class="text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(evt.title)}</span>
@@ -5925,6 +6357,141 @@
   <!-- Context Submenu Container -->
   <div id="pkContextSubmenu" class="hidden fixed z-[1000] popover-surface rounded-[4px] border border-[var(--border-hairline)] shadow-2xl py-1 min-w-[170px] max-w-[220px] select-none text-[12px] animate-menu">
     <div id="pkContextSubmenuItems" class="space-y-0.5 px-1 py-0.5"></div>
+  </div>
+
+
+  <!-- Calendar Quick Add Popover (Floating Inline Fast Creation) -->
+  <div id="calQuickAddPopover" class="hidden fixed z-[950] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-3.5 w-80 max-w-[92vw] animate-menu select-none">
+    <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)] mb-3">
+      <div class="flex items-center gap-1.5">
+        <span id="quickAddColorIndicator" class="w-2.5 h-2.5 rounded-full bg-[var(--accent-vermilion)]"></span>
+        <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-medium">Quick Event</span>
+      </div>
+      <button type="button" onclick="closeQuickAddPopover()" class="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <form onsubmit="submitQuickAddEvent(event)" class="space-y-3">
+      <input id="quickAddTitle"
+             type="text"
+             placeholder="Event title..."
+             required
+             autocomplete="off"
+             class="w-full px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] focus:border-[var(--accent-vermilion)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none" />
+
+      <div class="flex items-center justify-between text-[11px] font-mono text-[var(--text-secondary)]">
+        <span id="quickAddDateLabel">Nov 17, 2026</span>
+        <label class="inline-flex items-center gap-1.5 cursor-pointer">
+          <input id="quickAddAllDay" type="checkbox" onchange="toggleQuickAddAllDay(this.checked)" class="rounded text-[var(--accent-vermilion)] cursor-pointer" />
+          <span class="text-[10px] text-[var(--text-tertiary)]">All-Day</span>
+        </label>
+      </div>
+
+      <!-- Time range row (hidden if all day) -->
+      <div id="quickAddTimeRow" class="grid grid-cols-2 gap-2">
+        <div class="space-y-0.5">
+          <label class="block font-mono text-[9px] text-[var(--text-tertiary)] uppercase">Starts</label>
+          <input id="quickAddStartTime" type="time" value="09:00" class="w-full px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] focus:outline-none" />
+        </div>
+        <div class="space-y-0.5">
+          <label class="block font-mono text-[9px] text-[var(--text-tertiary)] uppercase">Ends</label>
+          <input id="quickAddEndTime" type="time" value="10:00" class="w-full px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] focus:outline-none" />
+        </div>
+      </div>
+
+      <!-- Ink Color Palette -->
+      <div>
+        <label class="block font-mono text-[9px] text-[var(--text-tertiary)] uppercase mb-1">Ink Color</label>
+        <div id="quickAddColorDots" class="flex items-center gap-1.5"></div>
+      </div>
+
+      <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between">
+        <button type="button" onclick="quickAddOpenFullModal()" class="text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline cursor-pointer">
+          More options...
+        </button>
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="closeQuickAddPopover()" class="px-2.5 py-1 rounded-[3px] text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">
+            Cancel
+          </button>
+          <button type="submit" class="px-3.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer">
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Calendar Event Details Preview Card (Floating Preview on Click) -->
+  <div id="calEventPreviewPopover" class="hidden fixed z-[950] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-4 w-80 max-w-[92vw] animate-menu select-none space-y-3">
+    <div class="flex items-start justify-between gap-2">
+      <div class="flex items-start gap-2.5 min-w-0">
+        <span id="previewEventColorBar" class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style="background-color: var(--accent-vermilion)"></span>
+        <div class="min-w-0">
+          <h3 id="previewEventTitle" class="font-medium text-sm text-[var(--text-primary)] leading-snug break-words">Event Title</h3>
+          <p id="previewEventTime" class="font-mono text-[11px] text-[var(--text-secondary)] mt-0.5">Tuesday, Nov 17 · 09:00 – 10:00</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeEventPreviewPopover()" class="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Location (if present) -->
+    <div id="previewEventLocationRow" class="hidden flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+      <svg class="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span id="previewEventLocation" class="truncate">Room 2B</span>
+    </div>
+
+    <!-- Linked Note (if present) -->
+    <div id="previewEventLinkedNoteRow" class="hidden flex items-center gap-2 text-xs">
+      <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <button type="button" id="previewEventLinkedNoteBtn" onclick="previewOpenLinkedNote()" class="font-medium text-[var(--accent-vermilion)] hover:underline truncate">
+        [[Welcome to PK Note]]
+      </button>
+    </div>
+
+    <!-- Notes snippet (if present) -->
+    <div id="previewEventNotesRow" class="hidden text-[11px] text-[var(--text-tertiary)] leading-relaxed bg-[var(--bg-canvas)] p-2 rounded border border-[var(--border-hairline)] max-h-24 overflow-y-auto">
+      <p id="previewEventNotes" class="whitespace-pre-line"></p>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between text-xs">
+      <div class="flex items-center gap-1.5">
+        <button type="button" onclick="previewEditEvent()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] transition-colors font-mono text-[11px] cursor-pointer">
+          Edit
+        </button>
+        <button type="button" onclick="previewDuplicateEvent()" class="px-2.5 py-1 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors font-mono text-[11px] cursor-pointer">
+          Duplicate
+        </button>
+      </div>
+      <button type="button" onclick="previewDeleteEvent()" class="px-2.5 py-1 rounded-[3px] text-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-tint)] transition-colors font-mono text-[11px] cursor-pointer">
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Calendar Day Overflow Popover (+X more) -->
+  <div id="calDayOverflowPopover" class="hidden fixed z-[950] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-3 w-72 max-w-[92vw] animate-menu select-none space-y-2">
+    <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-hairline)]">
+      <div class="flex items-center gap-1.5">
+        <span class="font-mono text-[11px] font-semibold text-[var(--text-primary)]" id="overflowDateHeading">Date</span>
+        <span class="font-mono text-[10px] text-[var(--text-tertiary)]" id="overflowCountBadge">0 events</span>
+      </div>
+      <button type="button" onclick="closeDayOverflowPopover()" class="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="overflowEventsList" class="max-h-56 overflow-y-auto space-y-1"></div>
+    <div class="pt-1.5 border-t border-[var(--border-hairline)] flex items-center justify-between">
+      <button type="button" id="overflowZoomDayBtn" class="text-[10px] font-mono text-[var(--accent-vermilion)] hover:underline">
+        Zoom to Day Timeline →
+      </button>
+      <button type="button" id="overflowAddEventBtn" class="text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+        + Add Event
+      </button>
+    </div>
   </div>
 
 </body>

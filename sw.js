@@ -1,5 +1,5 @@
-// PK Note — Progressive Web App Service Worker (Offline Support)
-const CACHE_NAME = 'pk-note-v1.0.0';
+// PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
+const CACHE_NAME = 'pk-note-v1.0.2';
 
 const PRECACHE_ASSETS = [
   './',
@@ -18,11 +18,12 @@ const PRECACHE_ASSETS = [
 ];
 
 self.addEventListener('install', event => {
+  // Activate immediately without waiting for older tabs to close
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(PRECACHE_ASSETS).catch(err => {
-        console.warn('Pre-cache error (some assets might be fetched on demand):', err);
+        console.warn('Pre-cache warning (assets will be cached on first request):', err);
       });
     })
   );
@@ -34,6 +35,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         keys.map(key => {
           if (key !== CACHE_NAME) {
+            console.log('Purging stale cache:', key);
             return caches.delete(key);
           }
         })
@@ -42,38 +44,43 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Cache-First with Network Fallback & Runtime Caching
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
+  // 1. Navigation / HTML Document Requests: Network-First (Guarantees freshest version on refresh)
+  if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(req)
+        .then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(req, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Fall back to cached index.html when offline
+          return caches.match(req).then(cached => cached || caches.match('./index.html'));
+        })
+    );
+    return;
+  }
+
+  // 2. Static Assets & Icons: Stale-While-Revalidate
   event.respondWith(
     caches.match(req).then(cachedResponse => {
-      if (cachedResponse) {
-        // Fetch in background to revalidate cache
-        fetch(req).then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then(cache => cache.put(req, networkResponse.clone()));
+      const fetchPromise = fetch(req)
+        .then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(req, responseClone));
           }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-
-      return fetch(req).then(networkResponse => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'opaque') {
           return networkResponse;
-        }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(req, responseToCache);
-        });
-        return networkResponse;
-      }).catch(() => {
-        // Fallback for navigation requests
-        if (req.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
+        })
+        .catch(() => {});
+
+      return cachedResponse || fetchPromise;
     })
   );
 });

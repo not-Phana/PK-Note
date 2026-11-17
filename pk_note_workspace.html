@@ -5098,245 +5098,6 @@
       }
     }
 
-    // Register Service Worker for 100% offline functionality
-    if ('serviceWorker' in navigator) {
-      
-    // =========================================================================
-    // 19. BESPOKE SWISS DROPDOWNS & CUSTOM SELECTION CONTROLLERS (ZERO OS SELECTS)
-    // =========================================================================
-    function toggleFolderDropdown(e) {
-      if (e) e.stopPropagation();
-      const menu = document.getElementById('folderDropdownMenu');
-      const chevron = document.getElementById('folderDropdownChevron');
-      const isClosed = menu.classList.contains('hidden');
-      closeAllCustomDropdowns();
-      if (isClosed) {
-        menu.classList.remove('hidden');
-        if (chevron) chevron.style.transform = 'rotate(180deg)';
-        const note = getActiveNote();
-        renderFolderDropdownUI(note);
-      }
-    }
-
-    function closeFolderDropdown() {
-      const menu = document.getElementById('folderDropdownMenu');
-      const chevron = document.getElementById('folderDropdownChevron');
-      const newFolderBox = document.getElementById('dropdownNewFolderBox');
-      const addBtn = document.getElementById('dropdownAddFolderBtn');
-      if (menu) menu.classList.add('hidden');
-      if (chevron) chevron.style.transform = 'rotate(0deg)';
-      if (newFolderBox) newFolderBox.classList.add('hidden');
-      if (addBtn) addBtn.classList.remove('hidden');
-    }
-
-    function renderFolderDropdownUI(note) {
-      const label = document.getElementById('folderDropdownLabel');
-      const hiddenInput = document.getElementById('folderSelect');
-      const container = document.getElementById('folderDropdownItems');
-      const countEl = document.getElementById('folderDropdownCount');
-      if (!label || !container) return;
-
-      const currentFolder = (note && note.folder) || 'General';
-      label.textContent = currentFolder;
-      if (hiddenInput) hiddenInput.value = currentFolder;
-
-      const folders = state.folders || ['Architecture', 'Typography & Craft', 'Daily Logs', 'Systems Theory', 'General'];
-      if (countEl) countEl.textContent = `${folders.length} collections`;
-
-      container.innerHTML = folders.map(f => {
-        const isActive = f === currentFolder;
-        const count = state.notes.filter(n => n.folder === f).length;
-        return `
-          <button onclick="selectFolderFromDropdown('${escapeHtml(f)}')"
-                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-left transition-colors ${
-                    isActive
-                      ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-medium'
-                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-                  }">
-            <div class="flex items-center gap-2 min-w-0">
-              <svg class="w-3.5 h-3.5 ${isActive ? 'text-[var(--accent-vermilion)]' : 'text-[var(--accent-ochre)]'} shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
-              <span class="truncate text-xs font-mono">${escapeHtml(f)}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="font-mono text-[10px] text-[var(--text-tertiary)]">${count}</span>
-              ${isActive ? `<svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
-            </div>
-          </button>
-        `;
-      }).join('');
-    }
-
-    function selectFolderFromDropdown(folderName) {
-      closeFolderDropdown();
-      updateNoteFolder(folderName);
-    }
-
-    function showDropdownNewFolderInput(e) {
-      if (e) e.stopPropagation();
-      document.getElementById('dropdownNewFolderBox').classList.remove('hidden');
-      document.getElementById('dropdownAddFolderBtn').classList.add('hidden');
-      const input = document.getElementById('dropdownNewFolderInput');
-      input.value = '';
-      input.focus();
-    }
-
-    function handleDropdownNewFolderKeydown(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        confirmDropdownNewFolder();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        document.getElementById('dropdownNewFolderBox').classList.add('hidden');
-        document.getElementById('dropdownAddFolderBtn').classList.remove('hidden');
-      }
-    }
-
-    function confirmDropdownNewFolder() {
-      const input = document.getElementById('dropdownNewFolderInput');
-      const name = input.value.trim();
-      if (!name) return;
-      if (!state.folders.includes(name)) {
-        state.folders.push(name);
-      }
-      selectFolderFromDropdown(name);
-      showToast(`Collection "${name}" created`);
-    }
-
-    // --- Linked Note Custom Picker in Event Modal ---
-    let eventLinkedNoteFilterQuery = '';
-
-    function toggleEventLinkedNoteDropdown(e) {
-      if (e) e.stopPropagation();
-      const menu = document.getElementById('eventLinkedNoteMenu');
-      const chevron = document.getElementById('eventLinkedNoteChevron');
-      const isClosed = menu.classList.contains('hidden');
-      closeAllCustomDropdowns();
-      if (isClosed) {
-        menu.classList.remove('hidden');
-        if (chevron) chevron.style.transform = 'rotate(180deg)';
-        const input = document.getElementById('eventLinkedNoteFilterInput');
-        if (input) {
-          input.value = '';
-          eventLinkedNoteFilterQuery = '';
-          input.focus();
-        }
-        const currentId = document.getElementById('eventFormLinkedNote').value;
-        renderEventLinkedNotesList(currentId);
-      }
-    }
-
-    function closeEventLinkedNoteDropdown() {
-      const menu = document.getElementById('eventLinkedNoteMenu');
-      const chevron = document.getElementById('eventLinkedNoteChevron');
-      if (menu) menu.classList.add('hidden');
-      if (chevron) chevron.style.transform = 'rotate(0deg)';
-    }
-
-    function filterEventLinkedNotes(query) {
-      eventLinkedNoteFilterQuery = (query || '').toLowerCase();
-      const currentId = document.getElementById('eventFormLinkedNote').value;
-      renderEventLinkedNotesList(currentId);
-    }
-
-    function renderEventLinkedNotesList(selectedNoteId) {
-      const container = document.getElementById('eventLinkedNoteItems');
-      const hiddenInput = document.getElementById('eventFormLinkedNote');
-      const display = document.getElementById('eventLinkedNoteDisplay');
-      const clearBtn = document.getElementById('eventLinkedNoteClearBtn');
-      const openBtn = document.getElementById('eventFormOpenLinkedNoteBtn');
-      if (!container || !hiddenInput) return;
-
-      hiddenInput.value = selectedNoteId || '';
-
-      // Update trigger button presentation
-      const activeNote = state.notes.find(n => n.id === selectedNoteId);
-      if (activeNote) {
-        display.innerHTML = `
-          <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span class="font-mono text-[10px] text-[var(--text-tertiary)]">${escapeHtml(activeNote.code || 'DOC')}</span>
-          <span class="truncate font-medium text-xs text-[var(--text-primary)]">${escapeHtml(activeNote.title || 'Untitled')}</span>
-        `;
-        if (clearBtn) clearBtn.classList.remove('hidden');
-        if (openBtn) openBtn.classList.remove('hidden');
-      } else {
-        display.innerHTML = `
-          <svg class="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span class="truncate text-[var(--text-tertiary)] font-mono text-[11px]">— None (Unlinked) —</span>
-        `;
-        if (clearBtn) clearBtn.classList.add('hidden');
-        if (openBtn) openBtn.classList.add('hidden');
-      }
-
-      // Filter notes
-      const q = eventLinkedNoteFilterQuery;
-      const matched = state.notes.filter(n => {
-        if (!q) return true;
-        return (n.title && n.title.toLowerCase().includes(q)) ||
-               (n.code && n.code.toLowerCase().includes(q)) ||
-               (n.folder && n.folder.toLowerCase().includes(q));
-      });
-
-      let itemsHtml = `
-        <button onclick="selectEventLinkedNote('')"
-                class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left transition-colors ${
-                  !selectedNoteId ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-medium' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                }">
-          <span class="font-mono text-[11px]">— None (Unlinked) —</span>
-          ${!selectedNoteId ? `<svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
-        </button>
-      `;
-
-      if (matched.length === 0) {
-        itemsHtml += `<div class="px-2 py-2 text-center text-[10px] font-mono text-[var(--text-tertiary)]">No matching documents</div>`;
-      } else {
-        itemsHtml += matched.map(n => {
-          const isSelected = n.id === selectedNoteId;
-          return `
-            <button onclick="selectEventLinkedNote('${n.id}')"
-                    class="w-full flex items-center justify-between px-2 py-1.5 rounded-[3px] text-left transition-colors ${
-                      isSelected ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-medium' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-                    }">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="shrink-0 ${isSelected ? 'text-[var(--accent-vermilion)]' : 'text-[var(--text-tertiary)]'}">${getGlyphSVG(n.glyph)}</span>
-                <span class="font-mono text-[10px] text-[var(--text-tertiary)] shrink-0">${escapeHtml(n.code || 'DOC')}</span>
-                <span class="truncate text-xs font-medium">${escapeHtml(n.title || 'Untitled')}</span>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0 ml-2">
-                <span class="font-mono text-[9px] text-[var(--text-tertiary)]">${escapeHtml(n.folder || '')}</span>
-                ${isSelected ? `<svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
-              </div>
-            </button>
-          `;
-        }).join('');
-      }
-
-      container.innerHTML = itemsHtml;
-    }
-
-    function selectEventLinkedNote(noteId) {
-      closeEventLinkedNoteDropdown();
-      renderEventLinkedNotesList(noteId);
-      toggleModalOpenNoteBtn();
-    }
-
-    function clearEventLinkedNote(e) {
-      if (e) e.stopPropagation();
-      selectEventLinkedNote('');
-    }
-
-    function closeAllCustomDropdowns() {
-      closeFolderDropdown();
-      closeEventLinkedNoteDropdown();
-    }
-
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('PK Note ServiceWorker active:', reg.scope))
-          .catch(err => console.warn('ServiceWorker registration:', err));
-      });
-    }
-
-    
     // =========================================================================
     // 19. BESPOKE SWISS DROPDOWNS & CUSTOM SELECTION CONTROLLERS (ZERO OS SELECTS)
     // =========================================================================
@@ -5575,6 +5336,33 @@
       initGraphInteractions();
       resizeGraphCanvas();
       runGraphLoop();
+
+      // Register Progressive Web App Service Worker with instant auto-update check
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => {
+            console.log('PK Note ServiceWorker active:', reg.scope);
+            // Always check for latest deployment on load/refresh
+            reg.update();
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    showToast('Update available · Reloading latest version...', 'vermilion');
+                    setTimeout(() => window.location.reload(), 1200);
+                  }
+                });
+              }
+            });
+          })
+          .catch(err => console.warn('ServiceWorker registration error:', err));
+
+        // When updated Service Worker takes control, reload to show latest content
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('New PK Note ServiceWorker activated.');
+        });
+      }
     });
   </script>
 

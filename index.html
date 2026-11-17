@@ -22,7 +22,7 @@
   <!-- Editorial & Technical Typefaces: Newsreader, Inter, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&family=Lexend:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -674,6 +674,91 @@
       opacity: 0.9;
     }
 
+
+    /* =========================================================================
+       COMPREHENSIVE MULTI-FONT TYPOGRAPHY & TYPESETTING ENGINE
+       ========================================================================= */
+    .font-inter { font-family: 'Inter', -apple-system, sans-serif !important; }
+    .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+    .font-outfit { font-family: 'Outfit', sans-serif !important; }
+    .font-space-grotesk { font-family: 'Space Grotesk', sans-serif !important; }
+    
+    .font-newsreader { font-family: 'Newsreader', Georgia, serif !important; }
+    .font-lora { font-family: 'Lora', Georgia, serif !important; }
+    .font-garamond { font-family: 'EB Garamond', Garamond, Georgia, serif !important; }
+    .font-playfair { font-family: 'Playfair Display', Georgia, serif !important; }
+    .font-cinzel { font-family: 'Cinzel', serif !important; }
+    
+    .font-jetbrains { font-family: 'JetBrains Mono', monospace !important; }
+    .font-fira { font-family: 'Fira Code', monospace !important; }
+    .font-space-mono { font-family: 'Space Mono', monospace !important; }
+    
+    .font-lexend { font-family: 'Lexend', -apple-system, sans-serif !important; }
+
+    /* Font Size Scales for Document Canvas */
+    .text-scale-small { font-size: 13.5px !important; }
+    .text-scale-small h1 { font-size: 28px !important; }
+    .text-scale-small h2 { font-size: 20px !important; }
+    .text-scale-small h3 { font-size: 16px !important; }
+
+    .text-scale-standard { font-size: 15px !important; }
+    .text-scale-standard h1 { font-size: 34px !important; }
+    .text-scale-standard h2 { font-size: 24px !important; }
+    .text-scale-standard h3 { font-size: 18px !important; }
+
+    .text-scale-medium { font-size: 16.5px !important; }
+    .text-scale-medium h1 { font-size: 38px !important; }
+    .text-scale-medium h2 { font-size: 26px !important; }
+    .text-scale-medium h3 { font-size: 20px !important; }
+
+    .text-scale-large { font-size: 18px !important; }
+    .text-scale-large h1 { font-size: 42px !important; }
+    .text-scale-large h2 { font-size: 28px !important; }
+    .text-scale-large h3 { font-size: 22px !important; }
+
+    .text-scale-xl { font-size: 20px !important; }
+    .text-scale-xl h1 { font-size: 46px !important; }
+    .text-scale-xl h2 { font-size: 32px !important; }
+    .text-scale-xl h3 { font-size: 24px !important; }
+
+    /* Text Alignment & Justification with Hyphenation */
+    .prose-justify {
+      text-align: justify !important;
+      text-justify: inter-word !important;
+      hyphens: auto !important;
+      -webkit-hyphens: auto !important;
+    }
+    .prose-left {
+      text-align: left !important;
+    }
+
+    /* Drop Cap Flourish */
+    .prose-drop-cap #blocksContainer > .block-row:first-of-type [contenteditable="true"]::first-letter {
+      float: left;
+      font-size: 3.2em;
+      line-height: 0.82;
+      padding-top: 4px;
+      padding-right: 8px;
+      padding-bottom: 2px;
+      font-family: 'Cinzel', 'Newsreader', Georgia, serif;
+      font-weight: 700;
+      color: var(--accent-vermilion);
+    }
+
+    /* Paragraph Indent Mode (Book Editorial) */
+    .prose-book-indent #blocksContainer .block-row + .block-row [contenteditable="true"]:not(h1):not(h2):not(h3):not(.font-mono) {
+      text-indent: 1.6em;
+    }
+
+    /* Code Ligatures Toggle */
+    .ligatures-off * {
+      font-variant-ligatures: none !important;
+    }
+    .ligatures-on * {
+      font-variant-ligatures: normal !important;
+      font-feature-settings: "liga" 1, "calt" 1;
+    }
+
     /* Mobile Keyboard Accessory Bar (Anchored above soft keyboard) */
     #mobileKeyboardAccessoryBar {
       transition: transform 0.24s var(--ease-spring), opacity 0.2s ease;
@@ -976,8 +1061,13 @@
 
         <!-- Document-Specific Controls -->
         <div id="workspaceHeaderControls" class="flex items-center gap-1">
-          <button onclick="toggleFontStyle()" id="fontToggleBtn" title="Toggle Editorial Serif / Sans Body" class="px-2 py-1 rounded-[3px] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors">
-            <span id="fontToggleLabel">SERIF</span>
+          <button onclick="toggleTypographyPopover(event)" id="fontToggleBtn" title="Typography & Reading Settings" class="px-2 py-1 rounded-[3px] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <polyline points="4 7 4 4 20 4 20 7"></polyline>
+              <line x1="9" y1="20" x2="15" y2="20"></line>
+              <line x1="12" y1="4" x2="12" y2="20"></line>
+            </svg>
+            <span id="fontToggleLabel">INTER</span>
           </button>
 
           <button onclick="toggleHeaderGrid()" title="Toggle Architectural Header Grid" class="hidden sm:inline-flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
@@ -1897,9 +1987,17 @@
       activeNoteId: 'note-welcome',
       theme: 'dark',
       fontStyle: 'sans',
+      fontFamily: 'inter',
+      fontSize: 'standard',
+      headingFont: 'match',
+      fontWeight: 'normal',
+      textAlign: 'left',
+      enableDropCap: false,
+      bookIndent: false,
+      enableLigatures: true,
       accentColor: 'vermilion',
-      layoutWidth: 'standard', // 'standard' (680px) | 'wide' (860px) | 'full' (100%)
-      lineSpacing: 'standard', // 'standard' | 'compact' | 'relaxed'
+      layoutWidth: 'standard', // 'standard' (680px) | 'wide' (860px) | 'ultrawide' (1080px) | 'full' (100%)
+      lineSpacing: 'standard', // 'standard' | 'compact' | 'relaxed' | 'airy'
       showHeaderGrid: true,
       leftSidebarOpen: true,
       rightSidebarOpen: true,
@@ -2442,38 +2540,106 @@
       // Apply Accent Theme & Custom Inks
       applyAccentTheme(state.accentColor || 'vermilion', false);
 
-      // Body Typography Toggle (Sans vs Editorial Serif vs Technical Mono)
+      // Document Typography & Multi-Font Engine
       const blocksEl = document.getElementById('blocksContainer');
       const fontLabel = document.getElementById('fontToggleLabel');
+
+      // Resolve Active Font
+      const currentFontId = state.fontFamily || (state.fontStyle === 'serif' ? 'newsreader' : (state.fontStyle === 'mono' ? 'jetbrains' : 'inter'));
+      const activeFontObj = (typeof AVAILABLE_FONTS !== 'undefined' ? AVAILABLE_FONTS.find(f => f.id === currentFontId) : null) || { id: 'inter', name: 'Inter', class: 'font-inter' };
+
+      if (fontLabel) {
+        fontLabel.textContent = activeFontObj.name.toUpperCase();
+      }
+
       if (blocksEl) {
-        blocksEl.classList.remove('font-serif', 'font-mono');
-        if (state.fontStyle === 'serif') {
-          blocksEl.classList.add('font-serif');
-          if (fontLabel) fontLabel.textContent = 'SANS';
-        } else if (state.fontStyle === 'mono') {
-          blocksEl.classList.add('font-mono');
-          if (fontLabel) fontLabel.textContent = 'MONO';
-        } else {
-          if (fontLabel) fontLabel.textContent = 'SERIF';
+        if (typeof AVAILABLE_FONTS !== 'undefined') {
+          AVAILABLE_FONTS.forEach(f => blocksEl.classList.remove(f.class));
+        }
+        blocksEl.classList.remove('font-serif', 'font-mono', 'font-sans');
+        blocksEl.classList.add(activeFontObj.class);
+
+        // Heading Font Pairing
+        const headingFont = state.headingFont || 'match';
+        const docTitle = document.getElementById('docTitleInput');
+        if (docTitle) {
+          docTitle.classList.remove(
+            'font-serif', 'font-mono', 'font-inter', 'font-jakarta', 'font-outfit',
+            'font-space-grotesk', 'font-newsreader', 'font-lora', 'font-garamond',
+            'font-playfair', 'font-cinzel', 'font-jetbrains', 'font-fira', 'font-space-mono', 'font-lexend'
+          );
+          if (headingFont === 'match') {
+            docTitle.classList.add(activeFontObj.class);
+          } else if (typeof AVAILABLE_FONTS !== 'undefined') {
+            const hFontObj = AVAILABLE_FONTS.find(f => f.id === headingFont);
+            if (hFontObj) docTitle.classList.add(hFontObj.class);
+          }
         }
 
+        // Font Size Scale
+        blocksEl.classList.remove('text-scale-small', 'text-scale-standard', 'text-scale-medium', 'text-scale-large', 'text-scale-xl');
+        const sizeClass = (typeof FONT_SIZE_SCALES !== 'undefined' ? (FONT_SIZE_SCALES.find(s => s.id === state.fontSize) || FONT_SIZE_SCALES[1]).class : 'text-scale-standard');
+        blocksEl.classList.add(sizeClass);
+
         // Line Spacing
-        blocksEl.classList.remove('leading-[1.4]', 'leading-[1.6]', 'leading-[1.85]');
+        blocksEl.classList.remove('leading-[1.4]', 'leading-[1.6]', 'leading-[1.85]', 'leading-[2.1]');
         if (state.lineSpacing === 'compact') {
           blocksEl.classList.add('leading-[1.4]');
         } else if (state.lineSpacing === 'relaxed') {
           blocksEl.classList.add('leading-[1.85]');
+        } else if (state.lineSpacing === 'airy') {
+          blocksEl.classList.add('leading-[2.1]');
         } else {
           blocksEl.classList.add('leading-[1.6]');
+        }
+
+        // Text Alignment & Justification
+        blocksEl.classList.remove('prose-justify', 'prose-left');
+        if (state.textAlign === 'justify') {
+          blocksEl.classList.add('prose-justify');
+        } else {
+          blocksEl.classList.add('prose-left');
+        }
+
+        // Drop Cap First Letter
+        blocksEl.classList.remove('prose-drop-cap');
+        if (state.enableDropCap) {
+          blocksEl.classList.add('prose-drop-cap');
+        }
+
+        // Book Paragraph Indent
+        blocksEl.classList.remove('prose-book-indent');
+        if (state.bookIndent) {
+          blocksEl.classList.add('prose-book-indent');
+        }
+
+        // Code Ligatures
+        blocksEl.classList.remove('ligatures-off', 'ligatures-on');
+        if (state.enableLigatures === false) {
+          blocksEl.classList.add('ligatures-off');
+        } else {
+          blocksEl.classList.add('ligatures-on');
+        }
+
+        // Font Weight
+        blocksEl.classList.remove('font-normal', 'font-medium', 'font-semibold');
+        if (state.fontWeight === 'medium') {
+          blocksEl.classList.add('font-medium');
+        } else if (state.fontWeight === 'bold') {
+          blocksEl.classList.add('font-semibold');
+        } else {
+          blocksEl.classList.add('font-normal');
         }
       }
 
       // Configurable Reading Measure Width
       const contentContainer = document.getElementById('documentContentContainer');
       if (contentContainer) {
-        contentContainer.classList.remove('max-w-[680px]', 'max-w-[860px]', 'max-w-full');
+        contentContainer.classList.remove('max-w-[680px]', 'max-w-[860px]', 'max-w-[1080px]', 'max-w-full');
         if (state.layoutWidth === 'wide') {
           contentContainer.classList.add('max-w-[860px]');
+        } else if (state.layoutWidth === 'ultrawide') {
+          contentContainer.classList.add('max-w-[1080px]');
         } else if (state.layoutWidth === 'full') {
           contentContainer.classList.add('max-w-full');
         } else {
@@ -5398,6 +5564,12 @@
       const allActions = [
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
         { kind: 'action', label: 'Change Document Banner', hint: 'Set gradient, pattern, photo or custom URL', glyph: 'document', shortcut: 'Cover', run: () => openCustomizerModal('banner') },
+        { kind: 'action', label: 'Typography: Open Reading & Font Studio', hint: 'Customize fonts, measure, size & styling', glyph: 'quote', shortcut: 'Font', run: () => openCustomizerModal('layout') },
+        { kind: 'action', label: 'Typography: Increase Font Size (A+)', hint: 'Step body scale larger', glyph: 'sliders', shortcut: 'A+', run: () => stepFontSize(1) },
+        { kind: 'action', label: 'Typography: Decrease Font Size (A-)', hint: 'Step body scale smaller', glyph: 'sliders', shortcut: 'A-', run: () => stepFontSize(-1) },
+        { kind: 'action', label: 'Typography: Toggle Justified Text Alignment', hint: 'Switch between Left and Justified book layout', glyph: 'document', shortcut: 'Justify', run: () => toggleTextAlign() },
+        { kind: 'action', label: 'Typography: Toggle Drop Cap First Letter', hint: 'Editorial initial letter flourish', glyph: 'quote', shortcut: 'DropCap', run: () => toggleDropCap() },
+        { kind: 'action', label: 'Typography: Toggle Book Paragraph Indent', hint: 'First-line paragraph indent', glyph: 'document', shortcut: 'Indent', run: () => toggleBookIndent() },
         { kind: 'action', label: 'Cycle Document Width (680px / 860px / Full)', hint: 'Adjust reading measure and layout width', glyph: 'grid', shortcut: 'Width', run: () => cycleLayoutWidth() },
         { kind: 'action', label: 'Open User Guide & Handbook', hint: 'Comprehensive features, instructions & tips', glyph: 'alert', shortcut: '?', run: () => openUserGuideModal() },
         { kind: 'action', label: 'Export Active Note as Markdown', hint: 'Download .md file with blocks and metadata', glyph: 'document', shortcut: '', run: () => exportCurrentNoteMarkdown() },
@@ -7456,6 +7628,11 @@
         closeNoteActionsMenu();
       }
 
+      const typoPopover = document.getElementById('typographyPopover');
+      if (typoPopover && !typoPopover.classList.contains('hidden') && !typoPopover.contains(e.target) && !e.target.closest('#fontToggleBtn')) {
+        closeTypographyPopover();
+      }
+
       const guideModal = document.getElementById('userGuideModal');
       if (guideModal && !guideModal.classList.contains('hidden') && e.target === guideModal) {
         closeUserGuideModal();
@@ -8234,6 +8411,385 @@
         }
       }
 
+
+    // =========================================================================
+    // 22. COMPREHENSIVE TYPOGRAPHY & MULTI-FONT ENGINE
+    // =========================================================================
+
+    const AVAILABLE_FONTS = [
+      // Sans-Serif / Clean Modernist
+      { id: 'inter', name: 'Inter', category: 'Sans', family: "'Inter', -apple-system, sans-serif", class: 'font-inter', desc: 'Swiss precision neo-grotesque' },
+      { id: 'jakarta', name: 'Plus Jakarta', category: 'Sans', family: "'Plus Jakarta Sans', sans-serif", class: 'font-jakarta', desc: 'Modern geometric humanist sans' },
+      { id: 'outfit', name: 'Outfit', category: 'Sans', family: "'Outfit', sans-serif", class: 'font-outfit', desc: 'Airy, contemporary minimalist' },
+      { id: 'spaceGrotesk', name: 'Space Grotesk', category: 'Sans', family: "'Space Grotesk', sans-serif", class: 'font-space-grotesk', desc: 'Brutalist tech-forward grotesque' },
+
+      // Editorial Serif / Literary Publishing
+      { id: 'newsreader', name: 'Newsreader', category: 'Serif', family: "'Newsreader', Georgia, serif", class: 'font-newsreader', desc: 'Continuous literary book prose' },
+      { id: 'lora', name: 'Lora', category: 'Serif', family: "'Lora', Georgia, serif", class: 'font-lora', desc: 'Calligraphic contemporary curves' },
+      { id: 'garamond', name: 'EB Garamond', category: 'Serif', family: "'EB Garamond', Georgia, serif", class: 'font-garamond', desc: 'Classical Renaissance humanist type' },
+      { id: 'playfair', name: 'Playfair', category: 'Serif', family: "'Playfair Display', Georgia, serif", class: 'font-playfair', desc: 'High-contrast luxury editorial' },
+      { id: 'cinzel', name: 'Cinzel', category: 'Serif', family: "'Cinzel', serif", class: 'font-cinzel', desc: 'Classical Roman inscriptional monument' },
+
+      // Technical Monospace & Drafting
+      { id: 'jetbrains', name: 'JetBrains Mono', category: 'Mono', family: "'JetBrains Mono', monospace", class: 'font-jetbrains', desc: 'Developer monospace with ligatures' },
+      { id: 'fira', name: 'Fira Code', category: 'Mono', family: "'Fira Code', monospace", class: 'font-fira', desc: 'Mozilla programmer ligature mono' },
+      { id: 'spaceMono', name: 'Space Mono', category: 'Mono', family: "'Space Mono', monospace", class: 'font-space-mono', desc: 'Mathematical geometric monospace' },
+
+      // High Legibility & Dyslexia-Friendly
+      { id: 'lexend', name: 'Lexend Deca', category: 'Legibility', family: "'Lexend', sans-serif", class: 'font-lexend', desc: 'Designed for reduced reading fatigue' }
+    ];
+
+    const HEADING_FONT_PAIRINGS = [
+      { id: 'match', name: 'Unified Match', desc: 'Headings match body typeface' },
+      { id: 'newsreader', name: 'Newsreader Book', desc: 'Warm literary serif titles' },
+      { id: 'playfair', name: 'Playfair Luxury', desc: 'Dramatic high-contrast titles' },
+      { id: 'garamond', name: 'Renaissance Garamond', desc: 'Timeless scholarship title aesthetics' },
+      { id: 'cinzel', name: 'Roman Cinzel', desc: 'Monumental Roman capital headings' },
+      { id: 'spaceGrotesk', name: 'Space Grotesk', desc: 'Architectural tech headings' },
+      { id: 'jetbrains', name: 'JetBrains Mono', desc: 'Engineering & drafting headings' }
+    ];
+
+    const FONT_SIZE_SCALES = [
+      { id: 'small', label: '13.5px', name: 'Compact', class: 'text-scale-small' },
+      { id: 'standard', label: '15px', name: 'Standard', class: 'text-scale-standard' },
+      { id: 'medium', label: '16.5px', name: 'Medium', class: 'text-scale-medium' },
+      { id: 'large', label: '18px', name: 'Spacious', class: 'text-scale-large' },
+      { id: 'xl', label: '20px', name: 'Focus XL', class: 'text-scale-xl' }
+    ];
+
+    let currentTypographyCategory = 'All';
+
+    function getActiveFontObject() {
+      const currentId = state.fontFamily || (state.fontStyle === 'serif' ? 'newsreader' : (state.fontStyle === 'mono' ? 'jetbrains' : 'inter'));
+      return AVAILABLE_FONTS.find(f => f.id === currentId) || AVAILABLE_FONTS[0];
+    }
+
+    function applyFontFamily(fontId) {
+      const font = AVAILABLE_FONTS.find(f => f.id === fontId);
+      if (!font) return;
+      state.fontFamily = font.id;
+      state.fontStyle = font.category.toLowerCase();
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Typography set to ${font.name}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function applyFontSize(sizeId) {
+      state.fontSize = sizeId;
+      applyThemeAndLayout();
+      persistState();
+      const scale = FONT_SIZE_SCALES.find(s => s.id === sizeId);
+      showToast(`Body scale: ${scale ? scale.name : sizeId}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function stepFontSize(delta) {
+      const currentIdx = FONT_SIZE_SCALES.findIndex(s => s.id === (state.fontSize || 'standard'));
+      const newIdx = Math.max(0, Math.min(FONT_SIZE_SCALES.length - 1, (currentIdx === -1 ? 1 : currentIdx) + delta));
+      applyFontSize(FONT_SIZE_SCALES[newIdx].id);
+    }
+
+    function applyHeadingFont(hId) {
+      state.headingFont = hId;
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Heading pairing: ${hId}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function applyFontWeight(weight) {
+      state.fontWeight = weight;
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Font weight: ${weight}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function toggleTextAlign() {
+      state.textAlign = state.textAlign === 'justify' ? 'left' : 'justify';
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Alignment: ${state.textAlign.toUpperCase()}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function toggleDropCap() {
+      state.enableDropCap = !state.enableDropCap;
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Drop Cap: ${state.enableDropCap ? 'ENABLED' : 'DISABLED'}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function toggleBookIndent() {
+      state.bookIndent = !state.bookIndent;
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Paragraph Indent: ${state.bookIndent ? 'ENABLED' : 'DISABLED'}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function toggleLigatures() {
+      state.enableLigatures = state.enableLigatures === false ? true : false;
+      applyThemeAndLayout();
+      persistState();
+      showToast(`Ligatures: ${state.enableLigatures ? 'ENABLED' : 'DISABLED'}`);
+      renderTypographyPopover();
+      if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
+        switchCustomizerTab('layout');
+      }
+    }
+
+    function toggleTypographyPopover(e) {
+      if (e) e.stopPropagation();
+      const popover = document.getElementById('typographyPopover');
+      if (!popover) return;
+      if (!popover.classList.contains('hidden')) {
+        closeTypographyPopover();
+        return;
+      }
+      renderTypographyPopover();
+      popover.classList.remove('hidden');
+      popover.classList.remove('animate-menu');
+      void popover.offsetWidth;
+      popover.classList.add('animate-menu');
+
+      const btn = document.getElementById('fontToggleBtn');
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        let left = Math.max(16, rect.left - 160);
+        if (left + 360 > window.innerWidth) left = window.innerWidth - 376;
+        popover.style.left = `${left}px`;
+        popover.style.top = `${rect.bottom + 6}px`;
+      }
+    }
+
+    function closeTypographyPopover() {
+      const popover = document.getElementById('typographyPopover');
+      if (popover) popover.classList.add('hidden');
+    }
+
+    function setTypographyCategory(cat) {
+      currentTypographyCategory = cat;
+      renderTypographyPopover();
+    }
+
+    function renderTypographyPopover() {
+      const popover = document.getElementById('typographyPopover');
+      if (!popover) return;
+
+      const activeFont = getActiveFontObject();
+      const currentSize = state.fontSize || 'standard';
+      const currentSpacing = state.lineSpacing || 'standard';
+      const currentWidth = state.layoutWidth || 'standard';
+      const isJustified = state.textAlign === 'justify';
+      const hasDropCap = !!state.enableDropCap;
+      const hasIndent = !!state.bookIndent;
+      const hasLigatures = state.enableLigatures !== false;
+      const currentHeading = state.headingFont || 'match';
+
+      const categories = ['All', 'Sans', 'Serif', 'Mono', 'Legibility'];
+      const filteredFonts = currentTypographyCategory === 'All' 
+        ? AVAILABLE_FONTS 
+        : AVAILABLE_FONTS.filter(f => f.category === currentTypographyCategory);
+
+      popover.innerHTML = `
+        <div class="p-3 select-none">
+          <!-- Header -->
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-hairline)]">
+            <div class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">
+              <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                <line x1="9" y1="20" x2="15" y2="20"></line>
+                <line x1="12" y1="4" x2="12" y2="20"></line>
+              </svg>
+              <span>TYPOGRAPHY & READING</span>
+            </div>
+            <button onclick="closeTypographyPopover()" class="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Category Filters -->
+          <div class="flex items-center gap-1 overflow-x-auto pb-1 mb-2 scrollbar-none">
+            ${categories.map(cat => `
+              <button onclick="setTypographyCategory('${cat}')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] transition-colors ${
+                currentTypographyCategory === cat
+                  ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent'
+              }">
+                ${cat.toUpperCase()}
+              </button>
+            `).join('')}
+          </div>
+
+          <!-- Typeface List -->
+          <div class="max-h-48 overflow-y-auto space-y-1 pr-0.5 mb-3 scrollbar-none">
+            ${filteredFonts.map(font => {
+              const isSelected = activeFont.id === font.id;
+              return `
+                <button onclick="applyFontFamily('${font.id}')"
+                        class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[4px] border text-left transition-all ${
+                          isSelected
+                            ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                            : 'bg-transparent border-transparent hover:bg-[var(--bg-hover)] hover:border-[var(--border-hairline)]'
+                        }">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm ${font.class} ${isSelected ? 'text-[var(--accent-vermilion)] font-semibold' : 'text-[var(--text-primary)]'}">
+                      ${font.name}
+                    </span>
+                    <span class="font-mono text-[9px] uppercase px-1 py-0.2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-tertiary)]">
+                      ${font.category}
+                    </span>
+                  </div>
+                  <span class="font-mono text-[10px] text-[var(--text-tertiary)] truncate ml-2">
+                    ${font.desc}
+                  </span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Size & Stepper -->
+          <div class="pb-2 mb-2 border-b border-[var(--border-hairline)]">
+            <div class="flex items-center justify-between mb-1.5 font-mono text-[10px] uppercase text-[var(--text-tertiary)]">
+              <span>Body Scale</span>
+              <div class="flex items-center gap-1">
+                <button onclick="stepFontSize(-1)" class="w-5 h-5 rounded border border-[var(--border-hairline)] hover:bg-[var(--bg-hover)] flex items-center justify-center font-mono text-[10px]" title="Decrease size">A-</button>
+                <button onclick="stepFontSize(1)" class="w-5 h-5 rounded border border-[var(--border-hairline)] hover:bg-[var(--bg-hover)] flex items-center justify-center font-mono text-[10px] font-bold" title="Increase size">A+</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-5 gap-1">
+              ${FONT_SIZE_SCALES.map(s => `
+                <button onclick="applyFontSize('${s.id}')" class="py-1 rounded-[3px] border font-mono text-[10px] transition-colors ${
+                  currentSize === s.id
+                    ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)] font-medium'
+                    : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                }">
+                  ${s.label}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Line Height & Layout Width -->
+          <div class="grid grid-cols-2 gap-2 pb-2 mb-2 border-b border-[var(--border-hairline)]">
+            <!-- Line Height -->
+            <div>
+              <div class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] mb-1">Density</div>
+              <div class="grid grid-cols-2 gap-1">
+                ${[
+                  { id: 'compact', label: '1.4' },
+                  { id: 'standard', label: '1.6' },
+                  { id: 'relaxed', label: '1.85' },
+                  { id: 'airy', label: '2.1' }
+                ].map(item => `
+                  <button onclick="applyLineSpacing('${item.id}')" class="py-1 rounded-[3px] border font-mono text-[10px] transition-colors ${
+                    currentSpacing === item.id
+                      ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)] font-medium'
+                      : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                  }">
+                    ${item.label}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Measure Width -->
+            <div>
+              <div class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] mb-1">Canvas Width</div>
+              <div class="grid grid-cols-2 gap-1">
+                ${[
+                  { id: 'standard', label: '680px' },
+                  { id: 'wide', label: '860px' },
+                  { id: 'ultrawide', label: '1080px' },
+                  { id: 'full', label: 'Full' }
+                ].map(item => `
+                  <button onclick="applyLayoutWidth('${item.id}')" class="py-1 rounded-[3px] border font-mono text-[10px] transition-colors ${
+                    currentWidth === item.id
+                      ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)] font-medium'
+                      : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                  }">
+                    ${item.label}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Editorial Features Matrix -->
+          <div class="grid grid-cols-2 gap-1.5 mb-2.5">
+            <button onclick="toggleTextAlign()" class="flex items-center justify-between px-2 py-1.5 rounded-[3px] border font-mono text-[10px] transition-colors ${
+              isJustified
+                ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]'
+                : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+            }">
+              <span>JUSTIFY TEXT</span>
+              <span>${isJustified ? 'ON' : 'OFF'}</span>
+            </button>
+
+            <button onclick="toggleDropCap()" class="flex items-center justify-between px-2 py-1.5 rounded-[3px] border font-mono text-[10px] transition-colors ${
+              hasDropCap
+                ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]'
+                : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+            }">
+              <span>DROP CAP</span>
+              <span>${hasDropCap ? 'ON' : 'OFF'}</span>
+            </button>
+
+            <button onclick="toggleBookIndent()" class="flex items-center justify-between px-2 py-1.5 rounded-[3px] border font-mono text-[10px] transition-colors ${
+              hasIndent
+                ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]'
+                : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+            }">
+              <span>BOOK INDENT</span>
+              <span>${hasIndent ? 'ON' : 'OFF'}</span>
+            </button>
+
+            <button onclick="toggleLigatures()" class="flex items-center justify-between px-2 py-1.5 rounded-[3px] border font-mono text-[10px] transition-colors ${
+              hasLigatures
+                ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]'
+                : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+            }">
+              <span>LIGATURES</span>
+              <span>${hasLigatures ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+
+          <!-- Bottom Shortcut to Full Studio -->
+          <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between font-mono text-[10px]">
+            <span class="text-[var(--text-tertiary)]">Heading Pairing: <strong class="text-[var(--text-primary)]">${currentHeading.toUpperCase()}</strong></span>
+            <button onclick="closeTypographyPopover(); openCustomizerModal('layout');" class="text-[var(--accent-vermilion)] hover:underline flex items-center gap-1">
+              <span>Full Studio</span>
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
       function applyLayoutWidth(widthKey) {
         state.layoutWidth = widthKey;
         applyThemeAndLayout();
@@ -8506,23 +9062,141 @@
               </div>
             </div>
           `;
-        } else if (tabKey === 'layout') {
+} else if (tabKey === 'layout') {
+          const activeFontId = state.fontFamily || (state.fontStyle === 'serif' ? 'newsreader' : (state.fontStyle === 'mono' ? 'jetbrains' : 'inter'));
+          const currentSize = state.fontSize || 'standard';
+          const currentSpacing = state.lineSpacing || 'standard';
+          const currentWidth = state.layoutWidth || 'standard';
+          const currentHeading = state.headingFont || 'match';
+          const isJustified = state.textAlign === 'justify';
+          const hasDropCap = !!state.enableDropCap;
+          const hasIndent = !!state.bookIndent;
+          const hasLigatures = state.enableLigatures !== false;
+          const currentWeight = state.fontWeight || 'normal';
+
           contentEl.innerHTML = `
             <div class="space-y-6">
-              <!-- Reading Measure Width -->
+              <!-- Prose Typeface Collection -->
               <div>
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Document Measure & Canvas Width</label>
-                <div class="grid grid-cols-3 gap-2.5">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Curated Typeface Collection (13 Typefaces)</label>
+                  <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Active: <strong class="text-[var(--accent-vermilion)]">${activeFontId.toUpperCase()}</strong></span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                  ${AVAILABLE_FONTS.map(font => {
+                    const isSelected = activeFontId === font.id;
+                    return `
+                      <button onclick="applyFontFamily('${font.id}')"
+                              class="p-3 rounded-md border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm ring-1 ring-[var(--accent-vermilion)]'
+                                  : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                              }">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-base ${font.class} font-semibold ${isSelected ? 'text-[var(--accent-vermilion)]' : 'text-[var(--text-primary)]'}">
+                            ${font.name}
+                          </span>
+                          <span class="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-tertiary)]">
+                            ${font.category}
+                          </span>
+                        </div>
+                        <div class="text-xs ${font.class} text-[var(--text-secondary)] mb-1 leading-snug truncate">
+                          The quick brown fox jumps over the lazy dog.
+                        </div>
+                        <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-tight">${font.desc}</div>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Heading Font Pairing Engine -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold mb-2">Heading Typeface Pairing</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  ${HEADING_FONT_PAIRINGS.map(hp => {
+                    const isSelected = currentHeading === hp.id;
+                    return `
+                      <button onclick="applyHeadingFont('${hp.id}')"
+                              class="p-2.5 rounded-md border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                                  : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                              }">
+                        <div class="font-mono text-xs font-semibold ${isSelected ? 'text-[var(--accent-vermilion)]' : 'text-[var(--text-primary)]'} mb-0.5">${hp.name}</div>
+                        <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-tight">${hp.desc}</div>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Body Scale & Line Height Density -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Body Font Size -->
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Body Font Size Scale</label>
+                    <div class="flex items-center gap-1">
+                      <button onclick="stepFontSize(-1)" class="w-5 h-5 rounded border border-[var(--border-hairline)] hover:bg-[var(--bg-hover)] flex items-center justify-center font-mono text-[10px]" title="Decrease size">A-</button>
+                      <button onclick="stepFontSize(1)" class="w-5 h-5 rounded border border-[var(--border-hairline)] hover:bg-[var(--bg-hover)] flex items-center justify-center font-mono text-[10px] font-bold" title="Increase size">A+</button>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-5 gap-1.5">
+                    ${FONT_SIZE_SCALES.map(s => `
+                      <button onclick="applyFontSize('${s.id}')"
+                              class="py-2 px-1 rounded-md border text-center transition-all cursor-pointer ${
+                                currentSize === s.id
+                                  ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-medium shadow-sm'
+                                  : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
+                              }">
+                        <div class="font-mono text-xs font-semibold">${s.label}</div>
+                        <div class="font-mono text-[9px] text-[var(--text-tertiary)]">${s.name}</div>
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <!-- Line Spacing / Density -->
+                <div>
+                  <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold mb-1.5">Line Spacing / Density</label>
+                  <div class="grid grid-cols-4 gap-1.5">
+                    ${[
+                      { id: 'compact', name: '1.4', label: 'Compact' },
+                      { id: 'standard', name: '1.6', label: 'Standard' },
+                      { id: 'relaxed', name: '1.85', label: 'Relaxed' },
+                      { id: 'airy', name: '2.1', label: 'Airy' }
+                    ].map(s => `
+                      <button onclick="applyLineSpacing('${s.id}')"
+                              class="py-2 px-1 rounded-md border text-center transition-all cursor-pointer ${
+                                currentSpacing === s.id
+                                  ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-medium shadow-sm'
+                                  : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
+                              }">
+                        <div class="font-mono text-xs font-semibold">${s.name}</div>
+                        <div class="font-mono text-[9px] text-[var(--text-tertiary)]">${s.label}</div>
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Document Canvas Reading Measure Width -->
+              <div>
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold mb-2">Reading Measure & Canvas Width</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   ${[
                     { id: 'standard', name: 'Standard (680px)', desc: 'Optimal typographic reading measure' },
-                    { id: 'wide',     name: 'Comfortable Wide (860px)', desc: 'Spacious measure for tables & wide code' },
-                    { id: 'full',     name: 'Full Width (Fluid)', desc: 'Edge-to-edge layout with adaptive margins' }
+                    { id: 'wide', name: 'Wide (860px)', desc: 'Spacious for tables & wide code blocks' },
+                    { id: 'ultrawide', name: 'Studio (1080px)', desc: 'Extended multi-column studio canvas' },
+                    { id: 'full', name: 'Full Width (Fluid)', desc: 'Edge-to-edge adaptive margins' }
                   ].map(w => `
-                    <button onclick="applyLayoutWidth('${w.id}')" class="p-3 rounded-md border text-left transition-all cursor-pointer ${
-                      (state.layoutWidth || 'standard') === w.id
-                        ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
-                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
-                    }">
+                    <button onclick="applyLayoutWidth('${w.id}')"
+                            class="p-3 rounded-md border text-left transition-all cursor-pointer ${
+                              currentWidth === w.id
+                                ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
+                                : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                            }">
                       <div class="font-mono text-xs font-semibold text-[var(--text-primary)] mb-1">${w.name}</div>
                       <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-snug">${w.desc}</div>
                     </button>
@@ -8530,45 +9204,61 @@
                 </div>
               </div>
 
-              <!-- Prose Typography -->
+              <!-- Editorial Publishing & Typesetting Features -->
               <div>
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Prose Body Typography</label>
-                <div class="grid grid-cols-3 gap-2.5">
-                  ${[
-                    { id: 'sans',  name: 'Modern Precision Sans', sample: 'Inter, -apple-system, clean Swiss layout' },
-                    { id: 'serif', name: 'Archival Editorial Serif', sample: 'Newsreader, Georgia, literary book prose' },
-                    { id: 'mono',  name: 'Technical Monospace', sample: 'JetBrains Mono, engineering documentation' }
-                  ].map(font => `
-                    <button onclick="applyProseFont('${font.id}')" class="p-3 rounded-md border text-left transition-all cursor-pointer ${
-                      (state.fontStyle || 'sans') === font.id
-                        ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
-                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold mb-2">Editorial Publishing Flourishes</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <!-- Justify Alignment -->
+                  <div class="p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                    <div>
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Justify Alignment</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Hyphenated book margins</div>
+                    </div>
+                    <button onclick="toggleTextAlign()" class="px-2.5 py-1 rounded-[3px] border font-mono text-[10px] transition-colors cursor-pointer ${
+                      isJustified ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border-[var(--border-hairline)]'
                     }">
-                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)] mb-1">${font.name}</div>
-                      <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-snug">${font.sample}</div>
+                      ${isJustified ? 'ON' : 'OFF'}
                     </button>
-                  `).join('')}
-                </div>
-              </div>
+                  </div>
 
-              <!-- Line Spacing -->
-              <div>
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Block Line Spacing / Density</label>
-                <div class="grid grid-cols-3 gap-2.5">
-                  ${[
-                    { id: 'compact',  name: 'Compact (1.4)', desc: 'High information density for research notes' },
-                    { id: 'standard', name: 'Standard (1.6)', desc: 'Balanced typographic rhythm and clarity' },
-                    { id: 'relaxed',  name: 'Relaxed (1.85)', desc: 'Airy, reflective long-form reading' }
-                  ].map(s => `
-                    <button onclick="applyLineSpacing('${s.id}')" class="p-3 rounded-md border text-left transition-all cursor-pointer ${
-                      (state.lineSpacing || 'standard') === s.id
-                        ? 'bg-[var(--bg-canvas)] border-[var(--accent-vermilion)] shadow-sm'
-                        : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'
+                  <!-- Drop Cap First Letter -->
+                  <div class="p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                    <div>
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Drop Cap Letter</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Literary initial flourish</div>
+                    </div>
+                    <button onclick="toggleDropCap()" class="px-2.5 py-1 rounded-[3px] border font-mono text-[10px] transition-colors cursor-pointer ${
+                      hasDropCap ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border-[var(--border-hairline)]'
                     }">
-                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)] mb-1">${s.name}</div>
-                      <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-snug">${s.desc}</div>
+                      ${hasDropCap ? 'ON' : 'OFF'}
                     </button>
-                  `).join('')}
+                  </div>
+
+                  <!-- Book Paragraph Indent -->
+                  <div class="p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                    <div>
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Book Indent</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">First-line 1.5em indent</div>
+                    </div>
+                    <button onclick="toggleBookIndent()" class="px-2.5 py-1 rounded-[3px] border font-mono text-[10px] transition-colors cursor-pointer ${
+                      hasIndent ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border-[var(--border-hairline)]'
+                    }">
+                      ${hasIndent ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+
+                  <!-- Code & Ligatures Toggle -->
+                  <div class="p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between">
+                    <div>
+                      <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Code Ligatures</div>
+                      <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Programming ligatures</div>
+                    </div>
+                    <button onclick="toggleLigatures()" class="px-2.5 py-1 rounded-[3px] border font-mono text-[10px] transition-colors cursor-pointer ${
+                      hasLigatures ? 'bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border-[var(--accent-vermilion)]' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border-[var(--border-hairline)]'
+                    }">
+                      ${hasLigatures ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -8590,7 +9280,7 @@
               <!-- Guarded Checklist -->
               <div class="space-y-2.5">
                 <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
-                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <div>
                     <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Zero Data Alteration</div>
                     <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Block contents, markdown structures, checklists, and document titles remain untouched.</div>
@@ -8598,7 +9288,7 @@
                 </div>
 
                 <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
-                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <div>
                     <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Bi-directional Graph & Wikilink Integrity</div>
                     <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Links ([[...]]), tags (#tag), and knowledge graph traversal are permanently preserved.</div>
@@ -8606,7 +9296,7 @@
                 </div>
 
                 <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
-                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <div>
                     <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Protected Calendar Chronology</div>
                     <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Events, timeblocks, ISO timestamps, and daily log relationships operate independently.</div>
@@ -8614,7 +9304,7 @@
                 </div>
 
                 <div class="p-3 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-start gap-3">
-                  <span class="text-emerald-500 font-bold text-sm shrink-0 mt-0.5">🛡️</span>
+                  <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <div>
                     <div class="font-mono text-xs font-semibold text-[var(--text-primary)]">Global Shortcut Access</div>
                     <div class="font-mono text-[11px] text-[var(--text-tertiary)]">Universal keybindings (Cmd+K, Cmd+N, Cmd+S, Cmd+P, Esc) remain locked and reliable.</div>
@@ -8655,6 +9345,10 @@
 
   <!-- Hidden File Input for Vault JSON Restore -->
   <input type="file" id="vaultRestoreFileInput" accept=".json,application/json" onchange="handleVaultFileImport(event)" class="hidden" />
+
+  <!-- Typography & Reading Settings Popover -->
+  <div id="typographyPopover" class="hidden fixed z-[900] popover-surface rounded-md border border-[var(--border-strong)] shadow-2xl w-88 sm:w-96 max-w-[94vw] animate-menu select-none overflow-hidden">
+  </div>
 
   <!-- Note Actions & Vault Backup Popover -->
   <div id="noteActionsPopover" class="hidden fixed z-[900] popover-surface rounded-md border border-[var(--border-strong)] shadow-2xl p-1.5 w-64 max-w-[92vw] animate-menu select-none">

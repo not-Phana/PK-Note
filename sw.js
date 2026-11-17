@@ -1,5 +1,5 @@
 // PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
-const CACHE_NAME = 'pk-note-v1.2.2';
+const CACHE_NAME = 'pk-note-v1.2.3';
 
 const PRECACHE_ASSETS = [
   './',
@@ -34,7 +34,8 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys => {
       return Promise.all(
         keys.map(key => {
-          if (key !== CACHE_NAME) {
+          // Preserve transformers-cache so downloaded Kokoro-82M weights persist across app updates
+          if (key.startsWith('pk-note-') && key !== CACHE_NAME) {
             console.log('Purging stale cache:', key);
             return caches.delete(key);
           }
@@ -47,6 +48,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
+
+  // Let cross-origin model/CDN fetches (Hugging Face ONNX weights, esm.sh, etc.) pass straight through
+  // so streaming download progress & Transformers.js browser CacheStorage work natively without duplication
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
 
   // 1. Navigation / HTML Document Requests: Network-First (Guarantees freshest version on refresh)
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {

@@ -7303,8 +7303,8 @@
         { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'sparkles', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
         { kind: 'action', label: 'Toggle Magnetic Cursor Spotlight', hint: 'Luminous ambient spotlight following cursor', glyph: 'sun', shortcut: 'Spotlight', run: () => toggleCursorSpotlight() },
         { kind: 'action', label: 'Toggle Mechanical Typing Audio', hint: 'Tactile switch audio feedback while typing', glyph: 'terminal', shortcut: 'Typing', run: () => toggleMechanicalTyping() },
-        { kind: 'action', label: 'Voice Synthesis Studio: Switch Male/Female Voices', hint: 'Audition local voice models, switch gender, rate & pitch', glyph: 'sliders', shortcut: 'Voice', run: () => openVoiceModelModal() },
-        { kind: 'action', label: 'Read Document Aloud (Voice Synth)', hint: 'Synthesize speech from active document or selection', glyph: 'volume', shortcut: 'Voice', run: () => toggleReadingNoteAloud() },
+        { kind: 'action', label: 'Voice Synthesis Studio: Kokoro-82M Male/Female Voices', hint: 'Switch Kokoro-82M neural male & female voices, speed & engine', glyph: 'sliders', shortcut: 'Voice', run: () => openVoiceModelModal() },
+        { kind: 'action', label: 'Read Document Aloud (Kokoro-82M Voice)', hint: 'Natural neural audiobook speech from active note or selection', glyph: 'volume', shortcut: 'Voice', run: () => toggleReadingNoteAloud() },
         { kind: 'action', label: 'Stop Voice Reading', hint: 'Halt active speech synthesizer audio reader', glyph: 'volume', shortcut: 'Stop', run: () => stopReadingAloud() },
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
         { kind: 'action', label: 'Calendar: Export to iCalendar (.ics)', hint: 'Download RFC 5545 standard .ics file for Apple/Google/Outlook', glyph: 'calendar', shortcut: 'E', run: () => exportCalendarToICS() },
@@ -8069,8 +8069,46 @@
     }
 
     // =========================================================================
-    // 14. LOCAL ON-DEVICE VOICE SYNTHESIS STUDIO & AUDIO READER ENGINE
+    // 14. KOKORO-82M NEURAL & ON-DEVICE VOICE SYNTHESIS STUDIO ENGINE
+    //     100% Client-Side WASM/ONNX — Zero Server Required (Phone & Desktop)
     // =========================================================================
+    const KOKORO_MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+    const KOKORO_ESM_URL = 'https://esm.sh/kokoro-js@1.2.1';
+
+    // Official Kokoro-82M v1.0 Voice Roster — Verified Male & Female Presets
+    const KOKORO_VOICE_CATALOG = [
+      // Female Voices (US & UK — Ordered by official Kokoro-82M naturalness grade)
+      { id: 'af_heart',    name: 'Heart',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'A',  badge: '❤️', style: 'Flagship Warm & Natural' },
+      { id: 'af_bella',    name: 'Bella',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'A-', badge: '🔥', style: 'Expressive & Engaging' },
+      { id: 'af_nicole',   name: 'Nicole',   gender: 'female', accent: 'US', lang: 'en-US', grade: 'B-', badge: '🎧', style: 'Studio Whisper-Clear' },
+      { id: 'bf_emma',     name: 'Emma',     gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'B-', badge: '🇬🇧', style: 'British Crisp & Poised' },
+      { id: 'af_aoede',    name: 'Aoede',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'C+', badge: '🎵', style: 'Melodic & Smooth' },
+      { id: 'af_kore',     name: 'Kore',     gender: 'female', accent: 'US', lang: 'en-US', grade: 'C+', badge: '✨', style: 'Clear & Balanced' },
+      { id: 'af_sarah',    name: 'Sarah',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'C+', badge: '🌿', style: 'Calm Conversational' },
+      { id: 'af_alloy',    name: 'Alloy',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'C',  badge: '🎙️', style: 'Neutral & Versatile' },
+      { id: 'af_nova',     name: 'Nova',     gender: 'female', accent: 'US', lang: 'en-US', grade: 'C',  badge: '🌟', style: 'Bright & Energetic' },
+      { id: 'bf_isabella', name: 'Isabella', gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'C',  badge: '🇬🇧', style: 'British Refined' },
+      { id: 'af_sky',      name: 'Sky',      gender: 'female', accent: 'US', lang: 'en-US', grade: 'C-', badge: '☁️', style: 'Soft & Airy' },
+      { id: 'af_jessica',  name: 'Jessica',  gender: 'female', accent: 'US', lang: 'en-US', grade: 'D',  badge: '💬', style: 'Friendly Everyday' },
+      { id: 'af_river',    name: 'River',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'D',  badge: '🌊', style: 'Gentle Flowing' },
+      { id: 'bf_alice',    name: 'Alice',    gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'D',  badge: '🇬🇧', style: 'British Narrative' },
+      { id: 'bf_lily',     name: 'Lily',     gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'D',  badge: '🇬🇧', style: 'British Classic' },
+
+      // Male Voices (US & UK — Ordered by official Kokoro-82M naturalness grade)
+      { id: 'am_michael',  name: 'Michael',  gender: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', badge: '🎙️', style: 'Natural Warm Narrator' },
+      { id: 'am_fenrir',   name: 'Fenrir',   gender: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', badge: '🔥', style: 'Deep Authoritative' },
+      { id: 'am_puck',     name: 'Puck',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', badge: '✨', style: 'Dynamic & Expressive' },
+      { id: 'bm_george',   name: 'George',   gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  badge: '🇬🇧', style: 'British Warm Scholar' },
+      { id: 'bm_fable',    name: 'Fable',    gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  badge: '🇬🇧', style: 'British Storyteller' },
+      { id: 'bm_lewis',    name: 'Lewis',    gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'D+', badge: '🇬🇧', style: 'British Deep Baritone' },
+      { id: 'am_echo',     name: 'Echo',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '🎧', style: 'Smooth Studio Voice' },
+      { id: 'am_eric',     name: 'Eric',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '💬', style: 'Crisp & Direct' },
+      { id: 'am_liam',     name: 'Liam',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '🌿', style: 'Friendly Clear' },
+      { id: 'am_onyx',     name: 'Onyx',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '🖤', style: 'Rich Low Resonance' },
+      { id: 'bm_daniel',   name: 'Daniel',   gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'D',  badge: '🇬🇧', style: 'British Classic' },
+      { id: 'am_adam',     name: 'Adam',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'F+', badge: '📢', style: 'Direct Standard' }
+    ];
+
     let localVoiceModels = [];
     let activeVoiceGenderFilter = 'all'; // 'all' | 'male' | 'female'
     let voiceSearchFilter = '';
@@ -8079,10 +8117,56 @@
     let isSpeechAudioActive = false;
     let isSpeechAudioPaused = false;
     let currentActiveUtterance = null;
+    let speechPlaybackSessionId = 0;
+
+    // Kokoro-82M Neural Engine Runtime State
+    let kokoroTTSInstance = null;
+    let kokoroLoadedQuant = null;
+    let kokoroLoadPromise = null;
+    let kokoroEngineState = 'idle'; // 'idle' | 'loading' | 'ready' | 'error'
+    let kokoroLoadProgressPct = 0;
+    let kokoroLoadStatusText = '';
+    let kokoroIsCachedLocally = false;
+    let kokoroPrefetchMap = new Map(); // queueIndex -> Promise<{ url, duration }>
+    let kokoroActiveObjectUrl = null;
+    let kokoroPauseTimer = null;
+    let pkKokoroAudioEl = null;
+    let pkKokoroAudioUnlocked = false;
+    const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+
+    function getKokoroAudioElement() {
+      if (!pkKokoroAudioEl) {
+        pkKokoroAudioEl = new Audio();
+        pkKokoroAudioEl.preload = 'auto';
+        pkKokoroAudioEl.setAttribute('playsinline', '');
+      }
+      return pkKokoroAudioEl;
+    }
+
+    // Unlock HTML5 Audio synchronously inside user click gesture (critical for iOS Safari & Android Chrome)
+    function unlockMobileAudioElement() {
+      if (pkKokoroAudioUnlocked) return;
+      try {
+        const audio = getKokoroAudioElement();
+        audio.src = SILENT_WAV_DATA_URI;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            audio.pause();
+            pkKokoroAudioUnlocked = true;
+          }).catch(() => {});
+        } else {
+          pkKokoroAudioUnlocked = true;
+        }
+      } catch (e) {}
+    }
 
     function getVoiceSettings() {
       if (!state.voiceSettings) {
         state.voiceSettings = {
+          engine: 'kokoro',          // 'kokoro' | 'device'
+          kokoroVoiceId: 'af_heart', // Flagship natural Kokoro-82M voice
+          kokoroQuant: 'q8',         // 'q8' (~86MB Studio Natural) | 'q4' (~45MB Mobile Lite)
           voiceURI: '',
           voiceName: '',
           rate: 1.0,
@@ -8091,18 +8175,421 @@
           autoScroll: true
         };
       }
+      // Backfill new Kokoro properties for existing saved workspaces
+      if (!state.voiceSettings.engine) state.voiceSettings.engine = 'kokoro';
+      if (!state.voiceSettings.kokoroVoiceId || !KOKORO_VOICE_CATALOG.some(v => v.id === state.voiceSettings.kokoroVoiceId)) {
+        state.voiceSettings.kokoroVoiceId = 'af_heart';
+      }
+      if (!state.voiceSettings.kokoroQuant) state.voiceSettings.kokoroQuant = 'q8';
       return state.voiceSettings;
     }
 
+    function getSelectedKokoroVoice() {
+      const settings = getVoiceSettings();
+      return KOKORO_VOICE_CATALOG.find(v => v.id === settings.kokoroVoiceId) || KOKORO_VOICE_CATALOG[0];
+    }
+
+    async function checkKokoroCacheStatus() {
+      try {
+        if (!('caches' in window)) return false;
+        const cache = await caches.open('transformers-cache');
+        const keys = await cache.keys();
+        kokoroIsCachedLocally = keys.some(req => req.url && req.url.toLowerCase().includes('kokoro-82m'));
+        updateKokoroEngineUI();
+        return kokoroIsCachedLocally;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function updateKokoroEngineUI() {
+      const settings = getVoiceSettings();
+      const isKokoro = settings.engine === 'kokoro';
+
+      // Engine switcher tabs
+      const tabKokoro = document.getElementById('voiceEngineTabKokoro');
+      const tabDevice = document.getElementById('voiceEngineTabDevice');
+      if (tabKokoro && tabDevice) {
+        if (isKokoro) {
+          tabKokoro.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--accent-vermilion)] text-white shadow-xs';
+          tabDevice.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+        } else {
+          tabKokoro.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+          tabDevice.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs';
+        }
+      }
+
+      // Status dot & headline
+      const dot = document.getElementById('voiceStatusDot');
+      const countEl = document.getElementById('detectedVoicesCount');
+      const subEl = document.getElementById('voiceEngineBannerSub');
+      const quantWrap = document.getElementById('kokoroQuantToggleWrap');
+      const preloadBtn = document.getElementById('kokoroPreloadBtn');
+      const progressWrap = document.getElementById('kokoroProgressWrap');
+      const progressBar = document.getElementById('kokoroProgressBar');
+      const progressPct = document.getElementById('kokoroProgressPct');
+      const progressLabel = document.getElementById('kokoroProgressLabel');
+      const pitchWrap = document.getElementById('voicePitchControlWrap');
+      const searchInput = document.getElementById('voiceSearchInput');
+
+      if (quantWrap) quantWrap.classList.toggle('hidden', !isKokoro);
+      if (pitchWrap) {
+        pitchWrap.style.opacity = isKokoro ? '0.55' : '1';
+      }
+      if (searchInput) {
+        searchInput.placeholder = isKokoro
+          ? 'Search Kokoro-82M voices (e.g. Heart, Bella, Michael, Fenrir, British)...'
+          : 'Search device voices (e.g. David, Zira, Samantha, Google)...';
+      }
+
+      // Quantization button active styles
+      const q8Btn = document.getElementById('kokoroQuantQ8');
+      const q4Btn = document.getElementById('kokoroQuantQ4');
+      if (q8Btn && q4Btn) {
+        const isQ8 = (settings.kokoroQuant || 'q8') === 'q8';
+        q8Btn.className = isQ8
+          ? 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] cursor-pointer'
+          : 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer';
+        q4Btn.className = !isQ8
+          ? 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] cursor-pointer'
+          : 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer';
+      }
+
+      if (isKokoro) {
+        const maleCount = KOKORO_VOICE_CATALOG.filter(v => v.gender === 'male').length;
+        const femaleCount = KOKORO_VOICE_CATALOG.filter(v => v.gender === 'female').length;
+
+        if (kokoroEngineState === 'ready' && kokoroTTSInstance) {
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
+          if (countEl) countEl.textContent = `Kokoro-82M Ready · ${maleCount} 👨 Male, ${femaleCount} 👩 Female`;
+          if (subEl) subEl.textContent = `100% On-Device (${(kokoroLoadedQuant || 'q8').toUpperCase()} Neural WASM) · Cached offline · Zero server`;
+          if (preloadBtn) {
+            preloadBtn.classList.add('hidden');
+          }
+          if (progressWrap) progressWrap.classList.add('hidden');
+        } else if (kokoroEngineState === 'loading') {
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0';
+          if (countEl) countEl.textContent = `Loading Kokoro-82M Neural Weights...`;
+          if (subEl) subEl.textContent = kokoroLoadStatusText || 'Downloading ONNX model to browser cache (one-time)...';
+          if (preloadBtn) preloadBtn.classList.add('hidden');
+          if (progressWrap) progressWrap.classList.remove('hidden');
+          if (progressBar) progressBar.style.width = `${Math.max(4, Math.min(100, kokoroLoadProgressPct))}%`;
+          if (progressPct) progressPct.textContent = `${Math.round(kokoroLoadProgressPct)}%`;
+          if (progressLabel) progressLabel.textContent = kokoroLoadStatusText || 'Preparing Kokoro-82M ONNX runtime...';
+        } else if (kokoroEngineState === 'error') {
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
+          if (countEl) countEl.textContent = `Kokoro-82M Load Interrupted (${maleCount} 👨, ${femaleCount} 👩)`;
+          if (subEl) subEl.textContent = kokoroLoadStatusText || 'Check internet for initial cache, or switch to Device Native.';
+          if (preloadBtn) {
+            preloadBtn.classList.remove('hidden');
+            preloadBtn.textContent = '↻ Retry Load';
+          }
+          if (progressWrap) progressWrap.classList.add('hidden');
+        } else {
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500/75 animate-pulse shrink-0';
+          if (countEl) countEl.textContent = `Kokoro-82M Neural · ${maleCount} 👨 Male, ${femaleCount} 👩 Female`;
+          if (subEl) {
+            subEl.textContent = kokoroIsCachedLocally
+              ? 'Cached on your device · Instant offline startup · Zero server'
+              : 'Runs on phone & PC with zero server · Auto-caches on first play';
+          }
+          if (preloadBtn) {
+            preloadBtn.classList.remove('hidden');
+            preloadBtn.textContent = kokoroIsCachedLocally ? '⚡ Warm Up' : '⬇ Load Model';
+          }
+          if (progressWrap) progressWrap.classList.add('hidden');
+        }
+      } else {
+        const voices = loadDetectedVoiceModels();
+        const maleCount = voices.filter(v => classifyVoiceGender(v) === 'male').length;
+        const femaleCount = voices.filter(v => classifyVoiceGender(v) === 'female').length;
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
+        if (countEl) countEl.textContent = `${voices.length} device voices detected (${maleCount} 👨 Male, ${femaleCount} 👩 Female)`;
+        if (subEl) subEl.textContent = 'Instant browser Web Speech API · Zero download · Works offline';
+        if (preloadBtn) preloadBtn.classList.add('hidden');
+        if (progressWrap) progressWrap.classList.add('hidden');
+      }
+    }
+
+    function setVoiceEngine(engine) {
+      const settings = getVoiceSettings();
+      if (settings.engine === engine) return;
+      stopReadingAloud();
+      settings.engine = engine;
+      persistState();
+      updateKokoroEngineUI();
+      renderVoiceCardsList();
+      updateVoiceStudioHUDLabels();
+      if (engine === 'kokoro') {
+        checkKokoroCacheStatus();
+        showToast('Switched to Kokoro-82M Neural Voice Engine');
+      } else {
+        showToast('Switched to Device Native Speech Engine');
+      }
+    }
+
+    function setKokoroQuant(quant) {
+      const settings = getVoiceSettings();
+      if (settings.kokoroQuant === quant) return;
+      settings.kokoroQuant = quant;
+      persistState();
+      // If a different quantization was already loaded, allow reloading the new quant on next play
+      if (kokoroTTSInstance && kokoroLoadedQuant !== quant) {
+        kokoroTTSInstance = null;
+        kokoroLoadedQuant = null;
+        kokoroLoadPromise = null;
+        kokoroEngineState = 'idle';
+      }
+      updateKokoroEngineUI();
+      showToast(quant === 'q4' ? 'Kokoro-82M Lite (q4 · ~45MB mobile-friendly)' : 'Kokoro-82M Studio (q8 · ~86MB natural quality)');
+    }
+
+    async function ensureKokoroEngineLoaded(onProgressCallback = null) {
+      const settings = getVoiceSettings();
+      const targetQuant = settings.kokoroQuant || 'q8';
+
+      if (kokoroTTSInstance && kokoroLoadedQuant === targetQuant && kokoroEngineState === 'ready') {
+        return kokoroTTSInstance;
+      }
+
+      if (kokoroLoadPromise && kokoroLoadedQuant === targetQuant) {
+        return kokoroLoadPromise;
+      }
+
+      kokoroLoadedQuant = targetQuant;
+      kokoroEngineState = 'loading';
+      kokoroLoadProgressPct = 5;
+      kokoroLoadStatusText = 'Importing Kokoro-82M runtime...';
+      updateKokoroEngineUI();
+      updateVoiceStudioHUDLabels('Loading Kokoro-82M...');
+
+      const fileProgressMap = new Map();
+
+      kokoroLoadPromise = (async () => {
+        try {
+          const mod = await import(KOKORO_ESM_URL);
+          const { KokoroTTS } = mod;
+          if (!KokoroTTS) throw new Error('KokoroTTS export not found');
+
+          kokoroLoadProgressPct = 10;
+          kokoroLoadStatusText = `Initializing Kokoro-82M (${targetQuant.toUpperCase()}) ONNX weights...`;
+          updateKokoroEngineUI();
+
+          const tts = await KokoroTTS.from_pretrained(KOKORO_MODEL_ID, {
+            dtype: targetQuant,
+            device: 'wasm',
+            progress_callback: (info) => {
+              if (!info) return;
+              const fileKey = info.file || info.name || 'model';
+              if (info.status === 'progress') {
+                const pct = typeof info.progress === 'number'
+                  ? info.progress
+                  : (info.total ? (info.loaded / info.total) * 100 : 0);
+                fileProgressMap.set(fileKey, {
+                  loaded: info.loaded || pct,
+                  total: info.total || 100
+                });
+                let totalLoaded = 0;
+                let totalSize = 0;
+                fileProgressMap.forEach(v => {
+                  totalLoaded += v.loaded;
+                  totalSize += v.total;
+                });
+                const combined = totalSize > 0 ? (totalLoaded / totalSize) * 100 : pct;
+                kokoroLoadProgressPct = Math.max(10, Math.min(99, combined));
+                const shortFile = fileKey.split('/').pop();
+                kokoroLoadStatusText = `Caching ${shortFile} (${Math.round(kokoroLoadProgressPct)}%)`;
+              } else if (info.status === 'done') {
+                const entry = fileProgressMap.get(fileKey);
+                if (entry) entry.loaded = entry.total;
+                kokoroLoadStatusText = `Loaded ${(fileKey.split('/').pop() || 'weights')}`;
+              } else if (info.status === 'ready') {
+                kokoroLoadProgressPct = 100;
+                kokoroLoadStatusText = 'Kokoro-82M ready on-device';
+              }
+              updateKokoroEngineUI();
+              updateVoiceStudioHUDLabels(`Loading Kokoro-82M (${Math.round(kokoroLoadProgressPct)}%)...`);
+              if (typeof onProgressCallback === 'function') {
+                onProgressCallback(kokoroLoadProgressPct, kokoroLoadStatusText);
+              }
+            }
+          });
+
+          kokoroTTSInstance = tts;
+          kokoroEngineState = 'ready';
+          kokoroLoadProgressPct = 100;
+          kokoroIsCachedLocally = true;
+          kokoroLoadStatusText = 'Kokoro-82M Ready (On-Device)';
+          updateKokoroEngineUI();
+          updateVoiceStudioHUDLabels();
+          return tts;
+        } catch (err) {
+          console.error('Kokoro-82M load error:', err);
+          kokoroEngineState = 'error';
+          kokoroLoadPromise = null;
+          kokoroLoadStatusText = (err && err.message) ? err.message.slice(0, 72) : 'Failed to load Kokoro-82M weights';
+          updateKokoroEngineUI();
+          throw err;
+        }
+      })();
+
+      return kokoroLoadPromise;
+    }
+
+    async function preloadKokoroModelFromUI() {
+      unlockMobileAudioElement();
+      showToast('Loading Kokoro-82M neural model into browser cache...', 'ochre');
+      try {
+        await ensureKokoroEngineLoaded();
+        showToast('Kokoro-82M Ready! Cached offline on your device.');
+        playChimeSound();
+      } catch (e) {
+        showToast('Could not download Kokoro-82M. Check network or use Device Native.', 'ochre');
+      }
+    }
+
+    // =========================================================================
+    // NATURAL TEXT NORMALIZATION & SENTENCE CHUNKING (FOR NATURAL SPEECH)
+    // =========================================================================
+    function normalizeTextForNaturalSpeech(rawText) {
+      if (!rawText) return '';
+      let text = String(rawText);
+
+      // 1. Decode common HTML entities and strip HTML tags
+      text = text
+        .replace(/<br\s*\/?>/gi, '. ')
+        .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, '. ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, ' and ')
+        .replace(/&lt;/gi, ' less than ')
+        .replace(/&gt;/gi, ' greater than ')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/&mdash;|—/g, ', ')
+        .replace(/&ndash;|–/g, ' to ');
+
+      // 2. Clean PK Note / Markdown syntax cleanly so Kokoro reads human prose
+      text = text
+        // Wikilinks: [[Target|Alias]] -> Alias, [[Target]] -> Target
+        .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+        .replace(/\[\[([^\]]+)\]\]/g, '$1')
+        // Markdown links: [Label](url) -> Label
+        .replace(/\[([^\]]+)\]\((?:[^)]+)\)/g, '$1')
+        // Bare URLs: https://domain.com/path -> domain.com
+        .replace(/https?:\/\/(?:www\.)?([a-zA-Z0-9.-]+)(?:\/[^\s]*)?/g, 'link to $1')
+        // Strip markdown headings, blockquotes, checkboxes, list bullets
+        .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+        .replace(/^\s*>\s?/gm, '')
+        .replace(/^\s*[-*+]\s+\[[ xX]\]\s*/gm, '')
+        .replace(/^\s*[-*+]\s+/gm, '')
+        // Strip bold / italic / strikethrough / inline code markers without losing text
+        .replace(/```[\s\S]*?```/g, ' code block. ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/~~([^~]+)~~/g, '$1');
+
+      // 3. Remove emojis & pictographic glyphs that disrupt neural phonemizers
+      text = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, ' ');
+
+      // 4. Expand symbols & common abbreviations for natural pronunciation
+      text = text
+        .replace(/\be\.g\.,?\s*/gi, 'for example, ')
+        .replace(/\bi\.e\.,?\s*/gi, 'that is, ')
+        .replace(/\betc\./gi, 'et cetera.')
+        .replace(/\bvs\.?\s+/gi, 'versus ')
+        .replace(/\bapprox\.?\s+/gi, 'approximately ')
+        .replace(/\bw\/\s+/gi, 'with ')
+        .replace(/\bw\/o\s+/gi, 'without ')
+        .replace(/\band\/or\b/gi, 'and or')
+        .replace(/(\b[a-zA-Z]{2,})\/([a-zA-Z]{2,}\b)/g, '$1 or $2')
+        .replace(/\s*=>\s*/g, ', resulting in ')
+        .replace(/\s*(?:->|→)\s*/g, ', leading to ')
+        .replace(/\s*&\s*/g, ' and ')
+        .replace(/(\d)\s*%/g, '$1 percent')
+        .replace(/\s*\+\s*/g, ' plus ')
+        .replace(/[#*_~\\|{}[\]<>]/g, ' ');
+
+      // 5. Tidy punctuation and whitespace for smooth breathing cadence
+      text = text
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .replace(/([.!?]){2,}/g, '$1')
+        .replace(/,\s*,+/g, ',')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      return text;
+    }
+
+    function splitTextIntoNaturalChunks(cleanText, maxChunkChars = 220) {
+      if (!cleanText) return [];
+
+      // Protect common honorifics/abbreviations so sentence splitting doesn't break after Dr. / Mr. / Ms.
+      const protectedText = cleanText.replace(/\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|No|Fig)\./g, '$1\u0000');
+
+      // Split on terminal sentence punctuation followed by whitespace
+      const rawSentences = protectedText
+        .split(/(?<=[.!?])\s+/)
+        .map(s => s.replace(/\u0000/g, '.').trim())
+        .filter(Boolean);
+
+      const finalChunks = [];
+      for (const sentence of rawSentences) {
+        if (sentence.length <= maxChunkChars) {
+          finalChunks.push(ensureTerminalPunctuation(sentence));
+        } else {
+          // Gently break long sentences at natural clause boundaries (; : ,) so Kokoro breathes naturally
+          const clauses = sentence.split(/(?<=[;:,])\s+/);
+          let current = '';
+          for (const clause of clauses) {
+            if (!clause) continue;
+            if ((current + ' ' + clause).trim().length <= maxChunkChars) {
+              current = (current + ' ' + clause).trim();
+            } else {
+              if (current) finalChunks.push(ensureTerminalPunctuation(current));
+              if (clause.length <= maxChunkChars) {
+                current = clause;
+              } else {
+                // Fallback word-level split for extremely long unpunctuated runs
+                const words = clause.split(/\s+/);
+                let sub = '';
+                for (const w of words) {
+                  if ((sub + ' ' + w).trim().length <= maxChunkChars) {
+                    sub = (sub + ' ' + w).trim();
+                  } else {
+                    if (sub) finalChunks.push(ensureTerminalPunctuation(sub));
+                    sub = w;
+                  }
+                }
+                current = sub;
+              }
+            }
+          }
+          if (current) finalChunks.push(ensureTerminalPunctuation(current));
+        }
+      }
+      return finalChunks;
+    }
+
+    function ensureTerminalPunctuation(text) {
+      const trimmed = (text || '').trim();
+      if (!trimmed) return '';
+      if (/[.!?]$/.test(trimmed)) return trimmed;
+      if (/[,;:]$/.test(trimmed)) return trimmed;
+      return trimmed + '.';
+    }
+
+    // =========================================================================
+    // DEVICE NATIVE SPEECH SYNTHESIS HELPERS (INSTANT FALLBACK ENGINE)
+    // =========================================================================
     function classifyVoiceGender(voice) {
       if (!voice) return 'neutral';
       const name = (voice.name || '').toLowerCase();
-      
-      // Explicit indicators in voice metadata
       if (name.includes('female')) return 'female';
       if (name.includes('male') && !name.includes('female')) return 'male';
 
-      // Known female model identifiers across Windows, iOS, Android & Mac
       const femaleKeywords = [
         'zira', 'jenny', 'aria', 'samantha', 'karen', 'susan', 'hazel',
         'victoria', 'catherine', 'alice', 'elena', 'eva', 'fiona', 'moira',
@@ -8112,7 +8599,6 @@
       ];
       if (femaleKeywords.some(k => name.includes(k))) return 'female';
 
-      // Known male model identifiers across Windows, iOS, Android & Mac
       const maleKeywords = [
         'david', 'mark', 'george', 'daniel', 'arthur', 'oliver', 'guy',
         'stefan', 'thomas', 'paul', 'aaron', 'alex', 'fred', 'ralph',
@@ -8138,9 +8624,11 @@
       window.speechSynthesis.onvoiceschanged = () => {
         loadDetectedVoiceModels();
         updateVoiceStudioHUDLabels();
-        renderVoiceCardsList();
+        if (getVoiceSettings().engine === 'device') {
+          updateKokoroEngineUI();
+          renderVoiceCardsList();
+        }
       };
-      // Initial trigger
       setTimeout(loadDetectedVoiceModels, 100);
     }
 
@@ -8149,19 +8637,14 @@
       const voices = loadDetectedVoiceModels();
       if (!voices || voices.length === 0) return null;
 
-      // 1. Try matching by URI
       if (settings.voiceURI) {
         const found = voices.find(v => v.voiceURI === settings.voiceURI);
         if (found) return found;
       }
-
-      // 2. Try matching by Name
       if (settings.voiceName) {
         const found = voices.find(v => v.name === settings.voiceName);
         if (found) return found;
       }
-
-      // 3. Try matching by active gender filter
       if (settings.genderFilter === 'male') {
         const male = voices.find(v => classifyVoiceGender(v) === 'male' && v.lang && v.lang.startsWith('en'));
         if (male) return male;
@@ -8170,13 +8653,14 @@
         if (female) return female;
       }
 
-      // 4. Default to high quality English natural or system default
-      const defaultVoice = voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.default)) ||
-                           voices.find(v => v.lang && v.lang.startsWith('en')) ||
-                           voices[0];
-      return defaultVoice;
+      return voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.default)) ||
+             voices.find(v => v.lang && v.lang.startsWith('en')) ||
+             voices[0];
     }
 
+    // =========================================================================
+    // VOICE SYNTHESIS STUDIO MODAL CONTROLS
+    // =========================================================================
     function openVoiceModelModal() {
       loadDetectedVoiceModels();
       const backdrop = document.getElementById('voiceModelModalBackdrop');
@@ -8185,6 +8669,8 @@
         playWhooshSound();
       }
       syncVoiceStudioInputs();
+      updateKokoroEngineUI();
+      checkKokoroCacheStatus();
       renderVoiceCardsList();
     }
 
@@ -8207,7 +8693,7 @@
       if (pitchSlider && pitchDisp) {
         pitchSlider.value = settings.pitch || 1.0;
         const p = Number(settings.pitch || 1.0);
-        pitchDisp.textContent = p < 0.9 ? `Deep Baritone (${p.toFixed(2)})` : p > 1.1 ? `High Soprano (${p.toFixed(2)})` : `Standard (${p.toFixed(2)})`;
+        pitchDisp.textContent = p < 0.9 ? `Deep (${p.toFixed(2)})` : p > 1.1 ? `High (${p.toFixed(2)})` : `Standard (${p.toFixed(2)})`;
       }
 
       const karaokeToggle = document.getElementById('voiceKaraokeToggle');
@@ -8228,7 +8714,7 @@
         const btn = document.getElementById(`voiceFilter${f.charAt(0).toUpperCase() + f.slice(1)}`);
         if (btn) {
           if (f === filter) {
-            btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] shadow-xs';
+            btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs';
           } else {
             btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
           }
@@ -8266,7 +8752,7 @@
       settings.pitch = pitch;
       const pitchDisp = document.getElementById('voicePitchDisplay');
       if (pitchDisp) {
-        pitchDisp.textContent = pitch < 0.9 ? `Deep Baritone (${pitch.toFixed(2)})` : pitch > 1.1 ? `High Soprano (${pitch.toFixed(2)})` : `Standard (${pitch.toFixed(2)})`;
+        pitchDisp.textContent = pitch < 0.9 ? `Deep (${pitch.toFixed(2)})` : pitch > 1.1 ? `High (${pitch.toFixed(2)})` : `Standard (${pitch.toFixed(2)})`;
       }
       persistState();
     }
@@ -8285,7 +8771,7 @@
 
     function cycleAudioReaderRate() {
       const settings = getVoiceSettings();
-      const rates = [1.0, 1.25, 1.5, 0.85];
+      const rates = [1.0, 1.15, 1.3, 0.85];
       const cur = settings.rate || 1.0;
       let nextIdx = 0;
       for (let i = 0; i < rates.length; i++) {
@@ -8299,7 +8785,29 @@
       persistState();
       const ratePill = document.getElementById('pkAudioRatePill');
       if (ratePill) ratePill.textContent = `${newRate}x`;
+      const slider = document.getElementById('voiceRateSlider');
+      if (slider) slider.value = newRate;
+      const disp = document.getElementById('voiceRateDisplay');
+      if (disp) disp.textContent = `${newRate.toFixed(2)}x`;
       showToast(`Playback speed: ${newRate}x`, 'ochre');
+    }
+
+    function selectKokoroVoice(voiceId, autoAudition = false) {
+      const voice = KOKORO_VOICE_CATALOG.find(v => v.id === voiceId);
+      if (!voice) return;
+      unlockMobileAudioElement();
+      const settings = getVoiceSettings();
+      settings.engine = 'kokoro';
+      settings.kokoroVoiceId = voice.id;
+      persistState();
+      renderVoiceCardsList();
+      updateVoiceStudioHUDLabels();
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
+      showToast(`Selected Kokoro-82M: ${voice.name} (${voice.gender === 'male' ? '👨 Male' : '👩 Female'} · ${voice.accent})`);
+      // Audition immediately if explicitly requested or if Kokoro is already warm in memory
+      if (autoAudition || (kokoroEngineState === 'ready' && kokoroTTSInstance)) {
+        testKokoroVoice(voice.id);
+      }
     }
 
     function selectVoiceModel(voiceURI) {
@@ -8307,29 +8815,100 @@
       const chosen = voices.find(v => v.voiceURI === voiceURI);
       if (!chosen) return;
       const settings = getVoiceSettings();
+      settings.engine = 'device';
       settings.voiceURI = chosen.voiceURI;
       settings.voiceName = chosen.name;
       persistState();
       renderVoiceCardsList();
       updateVoiceStudioHUDLabels();
-      showToast(`Selected voice: ${chosen.name.slice(0, 26)}`);
-      testSelectedVoice(chosen);
+      showToast(`Selected device voice: ${chosen.name.slice(0, 26)}`);
+      testDeviceVoice(chosen);
     }
 
     function renderVoiceCardsList() {
       const container = document.getElementById('voiceCardsList');
       if (!container) return;
-      const voices = loadDetectedVoiceModels();
       const settings = getVoiceSettings();
-      const selected = getSelectedVoiceModel();
+      updateKokoroEngineUI();
 
-      // Update detection count banner
-      const countEl = document.getElementById('detectedVoicesCount');
-      if (countEl) {
-        const maleCount = voices.filter(v => classifyVoiceGender(v) === 'male').length;
-        const femaleCount = voices.filter(v => classifyVoiceGender(v) === 'female').length;
-        countEl.textContent = `${voices.length} local voice models detected (${maleCount} 👨 Male, ${femaleCount} 👩 Female)`;
+      if (settings.engine === 'kokoro') {
+        const selected = getSelectedKokoroVoice();
+        let filtered = KOKORO_VOICE_CATALOG;
+
+        if (activeVoiceGenderFilter === 'male') {
+          filtered = filtered.filter(v => v.gender === 'male');
+        } else if (activeVoiceGenderFilter === 'female') {
+          filtered = filtered.filter(v => v.gender === 'female');
+        }
+
+        if (voiceSearchFilter) {
+          filtered = filtered.filter(v =>
+            v.name.toLowerCase().includes(voiceSearchFilter) ||
+            v.id.toLowerCase().includes(voiceSearchFilter) ||
+            v.style.toLowerCase().includes(voiceSearchFilter) ||
+            v.accent.toLowerCase().includes(voiceSearchFilter) ||
+            v.gender.toLowerCase().includes(voiceSearchFilter)
+          );
+        }
+
+        const badgeCount = document.getElementById('voiceFilterCountBadge');
+        if (badgeCount) badgeCount.textContent = `${filtered.length} Kokoro-82M voices`;
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="py-6 text-center text-[var(--text-tertiary)] font-mono text-[11px] space-y-1">
+              <div>No matching Kokoro-82M voices found.</div>
+              <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Show All Kokoro-82M Voices</button>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = filtered.map(v => {
+          const isSelected = selected && selected.id === v.id;
+          const isMale = v.gender === 'male';
+          const genderBadge = isMale
+            ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/12 text-blue-500 font-mono text-[9px] font-semibold">👨 MALE</span>'
+            : '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/12 text-rose-500 font-mono text-[9px] font-semibold">👩 FEMALE</span>';
+
+          return `
+            <div onclick="selectKokoroVoice('${escapeHtml(v.id)}', false)"
+                 data-kokoro-voice="${escapeHtml(v.id)}"
+                 class="group p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 ${isSelected ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] shadow-xs' : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'}">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]'}">
+                  ${isSelected ? '✓' : (isMale ? '👨' : '👩')}
+                </span>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-serif font-semibold text-xs text-[var(--text-primary)] truncate">${escapeHtml(v.name)}</span>
+                    <span class="text-[11px]">${v.badge}</span>
+                    <span class="px-1 py-0.2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9px] text-[var(--text-tertiary)]">${escapeHtml(v.accent)}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-tertiary)] truncate">
+                    <span>${escapeHtml(v.style)}</span>
+                    <span>·</span>
+                    <span class="opacity-75">${escapeHtml(v.id)}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${genderBadge}
+                <button onclick="event.stopPropagation(); selectKokoroVoice('${escapeHtml(v.id)}', true)"
+                        title="Audition ${escapeHtml(v.name)} (Kokoro-82M)"
+                        class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer">
+                  ▶ Test
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        return;
       }
+
+      // Device Native Voices View
+      const voices = loadDetectedVoiceModels();
+      const selected = getSelectedVoiceModel();
 
       let filtered = voices;
       if (activeVoiceGenderFilter === 'male') {
@@ -8339,19 +8918,19 @@
       }
 
       if (voiceSearchFilter) {
-        filtered = filtered.filter(v => 
+        filtered = filtered.filter(v =>
           (v.name || '').toLowerCase().includes(voiceSearchFilter) ||
           (v.lang || '').toLowerCase().includes(voiceSearchFilter)
         );
       }
 
       const badgeCount = document.getElementById('voiceFilterCountBadge');
-      if (badgeCount) badgeCount.textContent = `${filtered.length} available`;
+      if (badgeCount) badgeCount.textContent = `${filtered.length} device voices`;
 
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="py-6 text-center text-[var(--text-tertiary)] font-mono text-[11px] space-y-1">
-            <div>No matching voice models found.</div>
+            <div>No matching device voice models found.</div>
             <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Reset filter to All Voices</button>
           </div>
         `;
@@ -8368,13 +8947,12 @@
         return `
           <div onclick="selectVoiceModel('${escapeHtml(v.voiceURI)}')"
                class="group p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${isSelected ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] shadow-xs' : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'}">
-            
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]'}">
                 ${isSelected ? '✓' : gender === 'male' ? '👨' : gender === 'female' ? '👩' : '🎙️'}
               </span>
               <div class="min-w-0">
-                <div class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[240px] sm:max-w-[340px]">
+                <div class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[220px] sm:max-w-[320px]">
                   ${escapeHtml(v.name)}
                 </div>
                 <div class="flex items-center gap-2 font-mono text-[10px] text-[var(--text-tertiary)]">
@@ -8384,11 +8962,10 @@
                 </div>
               </div>
             </div>
-
             <div class="flex items-center gap-2 shrink-0">
               ${genderBadge}
-              <button onclick="event.stopPropagation(); testSelectedVoice(loadDetectedVoiceModels().find(x => x.voiceURI === '${escapeHtml(v.voiceURI)}'))"
-                      title="Audition Voice"
+              <button onclick="event.stopPropagation(); testDeviceVoice(loadDetectedVoiceModels().find(x => x.voiceURI === '${escapeHtml(v.voiceURI)}'))"
+                      title="Audition Device Voice"
                       class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
                 ▶ Test
               </button>
@@ -8398,7 +8975,62 @@
       }).join('');
     }
 
-    function testSelectedVoice(targetVoice = null) {
+    // =========================================================================
+    // AUDITION / TEST VOICE (KOKORO-82M & DEVICE)
+    // =========================================================================
+    async function testKokoroVoice(voiceId = null) {
+      unlockMobileAudioElement();
+      stopReadingAloud();
+      const sessionId = ++speechPlaybackSessionId;
+      const settings = getVoiceSettings();
+      const targetId = voiceId || settings.kokoroVoiceId || 'af_heart';
+      const voiceMeta = KOKORO_VOICE_CATALOG.find(v => v.id === targetId) || KOKORO_VOICE_CATALOG[0];
+
+      const sampleText = voiceMeta.gender === 'male'
+        ? `Hello, I am ${voiceMeta.name}, running natively on Kokoro 82M right inside P K Note. Your notes are read clearly, naturally, and privately with zero server required.`
+        : `Hi there, I'm ${voiceMeta.name}, powered by Kokoro 82M directly on your device. Every note and idea sounds clear, expressive, and completely natural.`;
+
+      showToast(
+        kokoroEngineState === 'ready'
+          ? `Synthesizing ${voiceMeta.name} (Kokoro-82M)...`
+          : `Loading Kokoro-82M to audition ${voiceMeta.name}...`,
+        'ochre'
+      );
+
+      try {
+        const tts = await ensureKokoroEngineLoaded();
+        if (sessionId !== speechPlaybackSessionId) return;
+
+        const rawAudio = await tts.generate(sampleText, {
+          voice: voiceMeta.id,
+          speed: settings.rate || 1.0
+        });
+        if (sessionId !== speechPlaybackSessionId) return;
+
+        const blob = rawAudio.toBlob();
+        const url = URL.createObjectURL(blob);
+        if (kokoroActiveObjectUrl) {
+          URL.revokeObjectURL(kokoroActiveObjectUrl);
+        }
+        kokoroActiveObjectUrl = url;
+
+        const audio = getKokoroAudioElement();
+        audio.onended = () => {
+          if (kokoroActiveObjectUrl === url) {
+            URL.revokeObjectURL(url);
+            kokoroActiveObjectUrl = null;
+          }
+        };
+        audio.src = url;
+        await audio.play();
+        showToast(`Auditioning Kokoro-82M: ${voiceMeta.name} (${voiceMeta.accent})`);
+      } catch (err) {
+        console.warn('Kokoro audition error:', err);
+        showToast('Kokoro-82M audition failed — check connection for first-time download or use Device Native.', 'ochre');
+      }
+    }
+
+    function testDeviceVoice(targetVoice = null) {
       if (!('speechSynthesis' in window)) {
         showToast('Speech synthesis not supported in this browser', 'ochre');
         return;
@@ -8407,13 +9039,7 @@
       const settings = getVoiceSettings();
       const voice = targetVoice || getSelectedVoiceModel();
 
-      const samplePhrases = [
-        "PK Note voice model ready. Clear on-device speech synthesis with zero server dependencies.",
-        "Archival knowledge system active. Ready to read documents and notes aloud.",
-        "Neural cadence tuned. Listening to your thoughts in high fidelity."
-      ];
-      const text = samplePhrases[Math.floor(Math.random() * samplePhrases.length)];
-
+      const text = "PK Note device voice ready. Instant on-device speech synthesis with zero server dependencies.";
       const utterance = new SpeechSynthesisUtterance(text);
       if (voice) utterance.voice = voice;
       utterance.rate = settings.rate || 1.0;
@@ -8424,14 +9050,42 @@
       showToast(`Auditioning: ${voice ? voice.name.slice(0, 24) : 'Default'}`);
     }
 
-    function updateVoiceStudioHUDLabels() {
-      const selected = getSelectedVoiceModel();
-      const label = document.getElementById('pkAudioReaderVoiceLabel');
-      if (label && selected) {
-        label.textContent = selected.name.length > 20 ? selected.name.slice(0, 20) + '…' : selected.name;
+    function testSelectedVoice(targetVoice = null) {
+      const settings = getVoiceSettings();
+      if (settings.engine === 'kokoro' && !targetVoice) {
+        testKokoroVoice(settings.kokoroVoiceId);
+      } else {
+        testDeviceVoice(targetVoice);
       }
     }
 
+    function updateVoiceStudioHUDLabels(overrideStatus = null) {
+      const label = document.getElementById('pkAudioReaderVoiceLabel');
+      const ratePill = document.getElementById('pkAudioRatePill');
+      const settings = getVoiceSettings();
+      if (ratePill) ratePill.textContent = `${Number(settings.rate || 1.0).toFixed(2).replace(/\.00$/, '.0')}x`;
+      if (!label) return;
+
+      if (overrideStatus) {
+        label.textContent = overrideStatus;
+        return;
+      }
+      if (settings.engine === 'kokoro') {
+        const kv = getSelectedKokoroVoice();
+        label.textContent = `Kokoro-82M · ${kv.name} (${kv.gender === 'male' ? '👨' : '👩'})`;
+      } else {
+        const selected = getSelectedVoiceModel();
+        if (selected) {
+          label.textContent = selected.name.length > 22 ? selected.name.slice(0, 22) + '…' : selected.name;
+        } else {
+          label.textContent = 'Device Native';
+        }
+      }
+    }
+
+    // =========================================================================
+    // AUDIOBOOK DOCUMENT READING & GAPLESS KOKORO-82M PREFETCH PIPELINE
+    // =========================================================================
     function removeVoiceHighlights() {
       document.querySelectorAll('.pk-voice-active-block').forEach(el => {
         el.classList.remove('pk-voice-active-block');
@@ -8453,102 +9107,147 @@
       }
     }
 
-    function readTextAloud(text, title = 'Selection') {
-      if (!('speechSynthesis' in window)) {
-        showToast('Speech synthesis not supported on this browser', 'ochre');
-        return;
-      }
-      stopReadingAloud();
-      if (!text || !text.trim()) {
-        showToast('No text available to read', 'ochre');
-        return;
-      }
-
-      speechSentenceQueue = [
-        { text: text.replace(/[*_#`[\]()~>]/g, ' ').replace(/\s+/g, ' ').trim(), blockId: null, label: title }
-      ];
-      currentSpeechQueueIndex = 0;
-      isSpeechAudioActive = true;
-      isSpeechAudioPaused = false;
-
-      const hud = document.getElementById('pkAudioReaderHUD');
-      const label = document.getElementById('pkAudioReaderLabel');
-      if (hud && label) {
-        label.textContent = title.length > 24 ? title.slice(0, 24) + '…' : title;
-        hud.classList.remove('hidden');
-      }
-      updateVoiceStudioHUDLabels();
-      playNextSpeechSentence();
-      playChimeSound();
-    }
-
-    function toggleReadingNoteAloud() {
-      if (isSpeechAudioActive && window.speechSynthesis.speaking) {
-        stopReadingAloud();
-      } else {
-        startReadingActiveNoteAloud();
-      }
-    }
-
-    function startReadingActiveNoteAloud() {
-      if (!('speechSynthesis' in window)) {
-        showToast('Speech synthesis not supported in this browser', 'ochre');
-        return;
-      }
-      const note = getActiveNote();
-      if (!note) return;
-
-      stopReadingAloud();
-
-      // Chunk note into sentences and blocks to avoid mobile iOS/Android timeout stalls
-      const queue = [];
-      if (note.title && note.title.trim()) {
-        queue.push({
-          text: note.title.trim(),
-          blockId: 'title',
-          label: note.title
-        });
-      }
-
-      (note.blocks || []).forEach(b => {
-        if (!b.content || !b.content.trim()) return;
-        const clean = b.content.replace(/<[^>]*>/g, ' ').replace(/[*_#`[\]()~>]/g, ' ').replace(/\s+/g, ' ').trim();
-        if (!clean) return;
-
-        // Split sentences on punctuation followed by space
-        const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s && s.trim());
-        if (sentences.length > 0) {
-          sentences.forEach(s => {
-            queue.push({ text: s.trim(), blockId: b.id, label: b.type.toUpperCase() });
-          });
-        } else {
-          queue.push({ text: clean, blockId: b.id, label: b.type.toUpperCase() });
+    function clearKokoroPrefetchCache() {
+      kokoroPrefetchMap.forEach(promise => {
+        if (promise && typeof promise.then === 'function') {
+          promise.then(res => {
+            if (res && res.url) URL.revokeObjectURL(res.url);
+          }).catch(() => {});
         }
       });
+      kokoroPrefetchMap.clear();
+      if (kokoroActiveObjectUrl) {
+        URL.revokeObjectURL(kokoroActiveObjectUrl);
+        kokoroActiveObjectUrl = null;
+      }
+      if (kokoroPauseTimer) {
+        clearTimeout(kokoroPauseTimer);
+        kokoroPauseTimer = null;
+      }
+    }
 
-      if (queue.length === 0) {
-        showToast('Note has no text content to read', 'ochre');
+    function synthesizeKokoroChunk(index, sessionId) {
+      if (kokoroPrefetchMap.has(index)) {
+        return kokoroPrefetchMap.get(index);
+      }
+      const item = speechSentenceQueue[index];
+      if (!item) return Promise.resolve(null);
+
+      const settings = getVoiceSettings();
+      const voiceId = settings.kokoroVoiceId || 'af_heart';
+      const speed = settings.rate || 1.0;
+
+      const promise = (async () => {
+        const tts = await ensureKokoroEngineLoaded();
+        if (sessionId !== speechPlaybackSessionId) return null;
+        const rawAudio = await tts.generate(item.text, { voice: voiceId, speed });
+        if (sessionId !== speechPlaybackSessionId) return null;
+        const blob = rawAudio.toBlob();
+        const url = URL.createObjectURL(blob);
+        return { url };
+      })();
+
+      kokoroPrefetchMap.set(index, promise);
+      return promise;
+    }
+
+    async function playNextKokoroSentence(sessionId) {
+      if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
+      if (currentSpeechQueueIndex >= speechSentenceQueue.length) {
+        stopReadingAloud();
+        showToast('Finished reading document');
         return;
       }
 
-      speechSentenceQueue = queue;
-      currentSpeechQueueIndex = 0;
-      isSpeechAudioActive = true;
-      isSpeechAudioPaused = false;
+      const idx = currentSpeechQueueIndex;
+      const item = speechSentenceQueue[idx];
+      const settings = getVoiceSettings();
 
-      const hud = document.getElementById('pkAudioReaderHUD');
-      const label = document.getElementById('pkAudioReaderLabel');
-      if (hud && label) {
-        label.textContent = note.title ? (note.title.length > 22 ? note.title.slice(0, 22) + '…' : note.title) : 'Reading note...';
-        hud.classList.remove('hidden');
+      if (settings.autoScroll !== false) {
+        highlightVoiceBlock(item.blockId);
       }
-      updateVoiceStudioHUDLabels();
-      playNextSpeechSentence();
-      playChimeSound();
+
+      const kv = getSelectedKokoroVoice();
+      if (!kokoroPrefetchMap.has(idx)) {
+        updateVoiceStudioHUDLabels(
+          kokoroEngineState === 'ready'
+            ? `Kokoro-82M · ${kv.name} (synthesizing...)`
+            : `Loading Kokoro-82M...`
+        );
+      }
+
+      try {
+        const result = await synthesizeKokoroChunk(idx, sessionId);
+        kokoroPrefetchMap.delete(idx);
+
+        if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive) {
+          if (result && result.url) URL.revokeObjectURL(result.url);
+          return;
+        }
+        if (!result || !result.url) {
+          currentSpeechQueueIndex++;
+          playNextKokoroSentence(sessionId);
+          return;
+        }
+
+        // Prefetch the very next sentence immediately in the background for gapless audiobook reading!
+        if (idx + 1 < speechSentenceQueue.length) {
+          synthesizeKokoroChunk(idx + 1, sessionId).catch(() => {});
+        }
+
+        updateVoiceStudioHUDLabels(`Kokoro-82M · ${kv.name} (${idx + 1}/${speechSentenceQueue.length})`);
+
+        if (kokoroActiveObjectUrl) {
+          URL.revokeObjectURL(kokoroActiveObjectUrl);
+        }
+        kokoroActiveObjectUrl = result.url;
+
+        const audio = getKokoroAudioElement();
+        audio.src = result.url;
+
+        audio.onended = () => {
+          if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive) return;
+          if (kokoroActiveObjectUrl === result.url) {
+            URL.revokeObjectURL(result.url);
+            kokoroActiveObjectUrl = null;
+          }
+          if (!isSpeechAudioPaused) {
+            // Natural breathing pause (slightly longer after titles & headings)
+            const pauseMs = item.isHeading ? 300 : 140;
+            kokoroPauseTimer = setTimeout(() => {
+              if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
+                currentSpeechQueueIndex++;
+                playNextKokoroSentence(sessionId);
+              }
+            }, pauseMs);
+          }
+        };
+
+        audio.onerror = (err) => {
+          console.warn('Kokoro audio playback error:', err);
+          if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
+            currentSpeechQueueIndex++;
+            playNextKokoroSentence(sessionId);
+          }
+        };
+
+        if (!isSpeechAudioPaused) {
+          await audio.play();
+        }
+      } catch (err) {
+        if (sessionId !== speechPlaybackSessionId) return;
+        console.warn('Kokoro synthesis error, falling back to device TTS:', err);
+        showToast('Kokoro-82M unavailable right now — seamlessly using Device Native voice', 'ochre');
+        if ('speechSynthesis' in window) {
+          playNextDeviceSpeechSentence(sessionId);
+        } else {
+          stopReadingAloud();
+        }
+      }
     }
 
-    function playNextSpeechSentence() {
-      if (!isSpeechAudioActive || isSpeechAudioPaused) return;
+    function playNextDeviceSpeechSentence(sessionId) {
+      if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
       if (currentSpeechQueueIndex >= speechSentenceQueue.length) {
         stopReadingAloud();
         showToast('Finished reading document');
@@ -8569,17 +9268,17 @@
       utterance.pitch = settings.pitch || 1.0;
 
       utterance.onend = () => {
-        if (isSpeechAudioActive && !isSpeechAudioPaused) {
+        if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
           currentSpeechQueueIndex++;
-          playNextSpeechSentence();
+          playNextDeviceSpeechSentence(sessionId);
         }
       };
 
       utterance.onerror = (err) => {
         console.warn('Utterance speech end/error:', err);
-        if (isSpeechAudioActive && !isSpeechAudioPaused) {
+        if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
           currentSpeechQueueIndex++;
-          playNextSpeechSentence();
+          playNextDeviceSpeechSentence(sessionId);
         }
       };
 
@@ -8587,30 +9286,181 @@
       window.speechSynthesis.speak(utterance);
     }
 
+    function playNextSpeechSentence() {
+      const settings = getVoiceSettings();
+      const sessionId = speechPlaybackSessionId;
+      if (settings.engine === 'kokoro') {
+        playNextKokoroSentence(sessionId);
+      } else {
+        playNextDeviceSpeechSentence(sessionId);
+      }
+    }
+
+    function readTextAloud(text, title = 'Selection') {
+      unlockMobileAudioElement();
+      stopReadingAloud();
+
+      const clean = normalizeTextForNaturalSpeech(text);
+      const chunks = splitTextIntoNaturalChunks(clean, 220);
+      if (chunks.length === 0) {
+        showToast('No readable text selected', 'ochre');
+        return;
+      }
+
+      const settings = getVoiceSettings();
+      if (settings.engine === 'device' && !('speechSynthesis' in window)) {
+        showToast('Speech synthesis not supported on this browser', 'ochre');
+        return;
+      }
+
+      speechSentenceQueue = chunks.map(c => ({
+        text: c,
+        blockId: null,
+        label: title,
+        isHeading: false
+      }));
+      currentSpeechQueueIndex = 0;
+      speechPlaybackSessionId++;
+      isSpeechAudioActive = true;
+      isSpeechAudioPaused = false;
+
+      const hud = document.getElementById('pkAudioReaderHUD');
+      const label = document.getElementById('pkAudioReaderLabel');
+      if (hud && label) {
+        label.textContent = title.length > 24 ? title.slice(0, 24) + '…' : title;
+        hud.classList.remove('hidden');
+      }
+      updateVoiceStudioHUDLabels();
+      playNextSpeechSentence();
+      playChimeSound();
+    }
+
+    function toggleReadingNoteAloud() {
+      if (isSpeechAudioActive) {
+        stopReadingAloud();
+      } else {
+        startReadingActiveNoteAloud();
+      }
+    }
+
+    function startReadingActiveNoteAloud() {
+      unlockMobileAudioElement();
+      const note = getActiveNote();
+      if (!note) return;
+
+      const settings = getVoiceSettings();
+      if (settings.engine === 'device' && !('speechSynthesis' in window)) {
+        showToast('Speech synthesis not supported in this browser', 'ochre');
+        return;
+      }
+
+      stopReadingAloud();
+
+      // Build clean, naturally normalized sentence queue from title & blocks
+      const queue = [];
+      const cleanTitle = normalizeTextForNaturalSpeech(note.title || '');
+      if (cleanTitle) {
+        queue.push({
+          text: ensureTerminalPunctuation(cleanTitle),
+          blockId: 'title',
+          label: 'TITLE',
+          isHeading: true
+        });
+      }
+
+      (note.blocks || []).forEach(b => {
+        if (!b.content || !b.content.trim()) return;
+        const clean = normalizeTextForNaturalSpeech(b.content);
+        if (!clean) return;
+        const isHeading = ['h1', 'h2', 'h3'].includes(b.type);
+        const chunks = splitTextIntoNaturalChunks(clean, 220);
+        chunks.forEach((chunk, idx) => {
+          queue.push({
+            text: chunk,
+            blockId: b.id,
+            label: (b.type || 'TEXT').toUpperCase(),
+            isHeading: isHeading && idx === chunks.length - 1
+          });
+        });
+      });
+
+      if (queue.length === 0) {
+        showToast('Note has no text content to read', 'ochre');
+        return;
+      }
+
+      speechSentenceQueue = queue;
+      currentSpeechQueueIndex = 0;
+      speechPlaybackSessionId++;
+      isSpeechAudioActive = true;
+      isSpeechAudioPaused = false;
+
+      const hud = document.getElementById('pkAudioReaderHUD');
+      const label = document.getElementById('pkAudioReaderLabel');
+      if (hud && label) {
+        label.textContent = note.title ? (note.title.length > 22 ? note.title.slice(0, 22) + '…' : note.title) : 'Reading note...';
+        hud.classList.remove('hidden');
+      }
+      updateVoiceStudioHUDLabels();
+      playNextSpeechSentence();
+      playChimeSound();
+    }
+
     function togglePauseReadingAloud() {
-      if (!('speechSynthesis' in window)) return;
+      if (!isSpeechAudioActive) return;
+      const settings = getVoiceSettings();
       const pauseIcon = document.getElementById('pkAudioPauseIcon');
       const playIcon = document.getElementById('pkAudioPlayIcon');
 
       if (isSpeechAudioPaused) {
-        window.speechSynthesis.resume();
         isSpeechAudioPaused = false;
         if (pauseIcon) pauseIcon.classList.remove('hidden');
         if (playIcon) playIcon.classList.add('hidden');
+
+        if (settings.engine === 'kokoro') {
+          const audio = getKokoroAudioElement();
+          if (audio && audio.src && audio.paused && !audio.ended) {
+            audio.play().catch(() => {});
+          } else {
+            playNextKokoroSentence(speechPlaybackSessionId);
+          }
+        } else if ('speechSynthesis' in window) {
+          window.speechSynthesis.resume();
+        }
         showToast('Resumed reading');
       } else {
-        window.speechSynthesis.pause();
         isSpeechAudioPaused = true;
         if (pauseIcon) pauseIcon.classList.add('hidden');
         if (playIcon) playIcon.classList.remove('hidden');
+
+        if (kokoroPauseTimer) {
+          clearTimeout(kokoroPauseTimer);
+          kokoroPauseTimer = null;
+        }
+        if (settings.engine === 'kokoro') {
+          if (pkKokoroAudioEl) pkKokoroAudioEl.pause();
+        } else if ('speechSynthesis' in window) {
+          window.speechSynthesis.pause();
+        }
         showToast('Paused reading', 'ochre');
       }
     }
 
     function stopReadingAloud() {
+      speechPlaybackSessionId++;
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
+      if (pkKokoroAudioEl) {
+        try {
+          pkKokoroAudioEl.pause();
+          pkKokoroAudioEl.onended = null;
+          pkKokoroAudioEl.onerror = null;
+          pkKokoroAudioEl.currentTime = 0;
+        } catch (e) {}
+      }
+      clearKokoroPrefetchCache();
+
       isSpeechAudioActive = false;
       isSpeechAudioPaused = false;
       speechSentenceQueue = [];
@@ -13842,8 +14692,8 @@
         <button onclick="closeMobileMoreSheet(); openVoiceModelModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
           <span class="w-8 h-8 rounded-[4px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-sm shrink-0">🎙️</span>
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Voice Synthesis Studio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Switch male/female models, rate & pitch</div>
+            <div class="font-medium text-[var(--text-primary)]">Kokoro-82M Voice Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Switch Male & Female neural voices · Zero server</div>
           </div>
         </button>
 
@@ -13916,47 +14766,88 @@
   </div>
 
 
-  <!-- Voice Model Switcher Studio Modal (Zero Server, 100% On-Device Neural / Local Speech) -->
+  <!-- Voice Model Switcher Studio Modal (Kokoro-82M Neural ONNX + On-Device Fallback, Zero Server) -->
   <div id="voiceModelModalBackdrop" onclick="closeVoiceModelModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[980] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
-    <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
       
       <!-- Modal Header -->
       <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-2.5">
-          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm">🎙️</span>
-          <div>
-            <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Voice Synthesis Studio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]" id="voiceModelSubtitle">Local On-Device Models · Zero Server Required</div>
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🎙️</span>
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Kokoro-82M Voice Synthesis Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate" id="voiceModelSubtitle">100% On-Device Neural TTS · Phone & PC · Zero Server</div>
           </div>
         </div>
-        <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">✕</button>
       </div>
 
       <!-- Filters & Voice Selector Body -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-        
-        <!-- Detected Hardware Engine Banner -->
-        <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <div class="font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span id="detectedVoicesCount">Detecting local voice models...</span>
-            </div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Running entirely on your hardware · Works on phone & PC offline</div>
-          </div>
-          <button onclick="testSelectedVoice()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[11px] transition-colors flex items-center gap-1 cursor-pointer">
-            <span>▶ Test Voice</span>
+      <div class="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+
+        <!-- Dual-Engine Selector Tabs -->
+        <div class="flex items-center gap-1.5 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
+          <button id="voiceEngineTabKokoro" onclick="setVoiceEngine('kokoro')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--accent-vermilion)] text-white shadow-xs">
+            <span>⚡ Kokoro-82M Neural</span>
           </button>
+          <button id="voiceEngineTabDevice" onclick="setVoiceEngine('device')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <span>📱 Device Native</span>
+          </button>
+        </div>
+
+        <!-- Kokoro-82M / Engine Status & Model Cache Banner -->
+        <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2.5">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                <span id="voiceStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span id="detectedVoicesCount" class="truncate">Kokoro-82M Neural · 12 👨 Male, 15 👩 Female</span>
+              </div>
+              <div id="voiceEngineBannerSub" class="font-mono text-[10px] text-[var(--text-tertiary)] mt-0.5">Runs on phone & PC with zero server · Auto-caches on first play</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button id="kokoroPreloadBtn" onclick="preloadKokoroModelFromUI()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] font-mono text-[10px] transition-colors cursor-pointer">
+                ⬇ Load Model
+              </button>
+              <button onclick="testSelectedVoice()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[10px] font-medium transition-colors flex items-center gap-1 cursor-pointer">
+                <span>▶ Test Voice</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quantization Selector (Studio q8 vs Mobile Lite q4) -->
+          <div id="kokoroQuantToggleWrap" class="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[var(--border-hairline)]">
+            <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Model Weights (Cached Offline):</span>
+            <div class="flex items-center gap-1">
+              <button id="kokoroQuantQ8" onclick="setKokoroQuant('q8')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] cursor-pointer">
+                Studio q8 (~86MB)
+              </button>
+              <button id="kokoroQuantQ4" onclick="setKokoroQuant('q4')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer">
+                Mobile Lite q4 (~45MB)
+              </button>
+            </div>
+          </div>
+
+          <!-- Real-Time ONNX Weight Download & Init Progress Bar -->
+          <div id="kokoroProgressWrap" class="hidden space-y-1 pt-1">
+            <div class="flex items-center justify-between font-mono text-[10px]">
+              <span id="kokoroProgressLabel" class="text-[var(--text-secondary)] truncate">Downloading Kokoro-82M weights...</span>
+              <span id="kokoroProgressPct" class="text-[var(--accent-vermilion)] font-semibold">0%</span>
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] overflow-hidden">
+              <div id="kokoroProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-200 rounded-full" style="width: 5%"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Gender Filter Segmented Control -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Voice Model Gender & Type</label>
+            <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Voice Gender</label>
             <span id="voiceFilterCountBadge" class="font-mono text-[10px] text-[var(--accent-vermilion)]"></span>
           </div>
           <div class="grid grid-cols-3 gap-1 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
-            <button id="voiceFilterAll" onclick="setVoiceGenderFilter('all')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)]">
+            <button id="voiceFilterAll" onclick="setVoiceGenderFilter('all')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)]">
               All Voices
             </button>
             <button id="voiceFilterMale" onclick="setVoiceGenderFilter('male')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
@@ -13973,7 +14864,7 @@
           <input type="text"
                  id="voiceSearchInput"
                  oninput="handleVoiceSearchInput(this.value)"
-                 placeholder="Search voices by name (e.g. David, Zira, Google, Natural)..."
+                 placeholder="Search Kokoro-82M voices (e.g. Heart, Bella, Michael, Fenrir, British)..."
                  class="w-full pl-8 pr-3 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
           <svg class="w-3.5 h-3.5 text-[var(--text-tertiary)] absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
         </div>
@@ -13981,7 +14872,7 @@
         <!-- Available Voices List -->
         <div class="space-y-1.5">
           <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Select Voice Model</label>
-          <div id="voiceCardsList" class="max-h-52 overflow-y-auto space-y-1 pr-0.5">
+          <div id="voiceCardsList" class="max-h-56 overflow-y-auto space-y-1.5 pr-0.5">
             <!-- Dynamic Voice Cards injected by renderVoiceCardsList() -->
           </div>
         </div>
@@ -13991,29 +14882,29 @@
           <!-- Reading Speed -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Cadence / Speed</span>
-              <span id="voiceRateDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">1.0x</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Natural Speed</span>
+              <span id="voiceRateDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">1.00x</span>
             </div>
-            <input type="range" id="voiceRateSlider" min="0.75" max="1.75" step="0.05" value="1.0" oninput="handleVoiceRateChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
+            <input type="range" id="voiceRateSlider" min="0.75" max="1.6" step="0.05" value="1.0" oninput="handleVoiceRateChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
             <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
               <button onclick="setVoiceRatePreset(0.85)" class="hover:underline cursor-pointer">0.85x</button>
               <button onclick="setVoiceRatePreset(1.0)" class="hover:underline cursor-pointer">Normal (1.0x)</button>
-              <button onclick="setVoiceRatePreset(1.25)" class="hover:underline cursor-pointer">1.25x</button>
-              <button onclick="setVoiceRatePreset(1.5)" class="hover:underline cursor-pointer">1.5x</button>
+              <button onclick="setVoiceRatePreset(1.15)" class="hover:underline cursor-pointer">1.15x</button>
+              <button onclick="setVoiceRatePreset(1.3)" class="hover:underline cursor-pointer">1.3x</button>
             </div>
           </div>
 
-          <!-- Pitch Resonance -->
-          <div class="space-y-1.5">
+          <!-- Pitch Resonance (Device Native) -->
+          <div id="voicePitchControlWrap" class="space-y-1.5 transition-opacity">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Pitch / Timbre</span>
-              <span id="voicePitchDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">Standard (1.0)</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Pitch (Device Mode)</span>
+              <span id="voicePitchDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">Standard (1.00)</span>
             </div>
             <input type="range" id="voicePitchSlider" min="0.6" max="1.4" step="0.05" value="1.0" oninput="handleVoicePitchChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
             <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
-              <button onclick="setVoicePitchPreset(0.8)" class="hover:underline cursor-pointer">Deep (0.8)</button>
+              <button onclick="setVoicePitchPreset(0.85)" class="hover:underline cursor-pointer">Deep (0.85)</button>
               <button onclick="setVoicePitchPreset(1.0)" class="hover:underline cursor-pointer">Default (1.0)</button>
-              <button onclick="setVoicePitchPreset(1.2)" class="hover:underline cursor-pointer">High (1.2)</button>
+              <button onclick="setVoicePitchPreset(1.15)" class="hover:underline cursor-pointer">High (1.15)</button>
             </div>
           </div>
         </div>
@@ -14027,11 +14918,11 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="px-5 py-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0 font-mono text-xs">
+      <div class="px-5 py-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0 font-mono text-xs">
         <button onclick="testSelectedVoice()" class="px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1.5">
           <span>🔊 Audition</span>
         </button>
-        <button onclick="closeVoiceModelModal(); toggleReadingNoteAloud()" class="px-4 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium transition-opacity cursor-pointer flex items-center gap-1.5">
+        <button onclick="closeVoiceModelModal(); startReadingActiveNoteAloud()" class="px-4 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium transition-opacity cursor-pointer flex items-center gap-1.5">
           <span>▶ Listen to Active Note</span>
         </button>
       </div>

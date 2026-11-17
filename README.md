@@ -39,3 +39,4 @@ The visual identity of **PK Note** is inspired by Swiss modernist typography, ar
 - **Interactive Force-Directed Topology Graph**: Real-time D3-style damped velocity-Verlet physics simulation linking documents via semantic wiki-links (`[[Note Name]]`).
 - **Command Palette (`⌘K` / `Ctrl+K`)**: Rapid navigation, full-text fuzzy search, quick actions, and mode switching.
 - **Local-First Persistence**: Instant localStorage caching under `pk_note_vault_v2` with seamless automatic migration from legacy vaults.
+# PK-Note

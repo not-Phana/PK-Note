@@ -1528,8 +1528,11 @@
         <!-- Block-Based Document Canvas -->
         <div id="blocksContainer" class="space-y-1"></div>
 
+        <!-- Connected Knowledge Radar (Direct In-Document 2-Way Link Network) -->
+        <div id="docKnowledgeRadar" class="mt-8 pt-5 border-t border-[var(--border-hairline)] space-y-3 select-none"></div>
+
         <!-- Bottom Click-to-Append Zone -->
-        <div onclick="appendBlockAtEnd()" class="h-32 cursor-text flex items-start pt-5 group">
+        <div onclick="appendBlockAtEnd()" class="h-28 cursor-text flex items-start pt-4 group">
           <span class="font-mono text-[11px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
             Click to append block · Type <span class="text-[var(--text-secondary)]">/</span> for block types or <span class="text-[var(--accent-vermilion)]">[[</span> to reference a note
           </span>
@@ -2614,6 +2617,190 @@
     // =========================================================================
     // 6. WIKI-LINK SERIALIZATION & GRAPH EDGE EXTRACTION
     // =========================================================================
+
+    // =========================================================================
+    // WIKILINK LIVE HOVER PREVIEW & IN-DOCUMENT KNOWLEDGE RADAR
+    // =========================================================================
+    let wikiPreviewTimer = null;
+
+    function showWikiLinkPreview(event, targetTitle) {
+      if (!event || !targetTitle) return;
+      clearTimeout(wikiPreviewTimer);
+
+      const targetNote = state.notes.find(n => n.title.toLowerCase() === targetTitle.toLowerCase());
+      const card = document.getElementById('wikiLinkPreviewCard');
+      if (!card) return;
+
+      const rect = event.target.getBoundingClientRect();
+      const cardW = 320;
+      let left = rect.left;
+      if (left + cardW > window.innerWidth - 16) {
+        left = window.innerWidth - cardW - 16;
+      }
+      let top = rect.bottom + 8;
+      if (top + 160 > window.innerHeight) {
+        top = Math.max(8, rect.top - 160);
+      }
+      card.style.left = `${Math.max(12, left)}px`;
+      card.style.top = `${top}px`;
+
+      const glyphEl = document.getElementById('wikiPreviewGlyph');
+      const titleEl = document.getElementById('wikiPreviewTitle');
+      const folderEl = document.getElementById('wikiPreviewFolder');
+      const snippetEl = document.getElementById('wikiPreviewSnippet');
+      const metaEl = document.getElementById('wikiPreviewMeta');
+      const openBtn = document.getElementById('wikiPreviewOpenBtn');
+      const unlinkBtn = document.getElementById('wikiPreviewUnlinkBtn');
+
+      if (targetNote) {
+        if (glyphEl) glyphEl.innerHTML = getGlyphSVG(targetNote.glyph);
+        if (titleEl) titleEl.textContent = targetNote.title;
+        if (folderEl) folderEl.textContent = targetNote.folder || 'General';
+
+        // Extract excerpt from first blocks
+        const textSnippets = (targetNote.blocks || [])
+          .map(b => (b.content || '').replace(/\[\[|\]\]/g, ''))
+          .filter(Boolean)
+          .join(' · ');
+        if (snippetEl) {
+          snippetEl.textContent = textSnippets ? (textSnippets.slice(0, 140) + (textSnippets.length > 140 ? '…' : '')) : 'Empty document. Click to open and add thoughts.';
+        }
+        if (metaEl) {
+          const words = textSnippets ? textSnippets.split(/\s+/).length : 0;
+          metaEl.textContent = `${words} words · Modified ${targetNote.updatedAt || TODAY_KEY}`;
+        }
+        if (openBtn) {
+          openBtn.onclick = () => { hideWikiLinkPreview(); selectNote(targetNote.id); };
+        }
+        if (unlinkBtn) {
+          unlinkBtn.classList.remove('hidden');
+          unlinkBtn.onclick = () => {
+            hideWikiLinkPreview();
+            disconnectNotes(state.activeNoteId, targetNote.id);
+          };
+        }
+      } else {
+        if (glyphEl) glyphEl.innerHTML = getGlyphSVG('document');
+        if (titleEl) titleEl.textContent = targetTitle;
+        if (folderEl) folderEl.textContent = 'Uncreated Note';
+        if (snippetEl) snippetEl.textContent = 'This document has not been created yet. Click below to create it.';
+        if (metaEl) metaEl.textContent = 'DOC (Seed link)';
+        if (unlinkBtn) unlinkBtn.classList.add('hidden');
+        if (openBtn) {
+          openBtn.onclick = () => { hideWikiLinkPreview(); navigateToWikiTitle(null, targetTitle); };
+        }
+      }
+
+      card.classList.remove('hidden');
+    }
+
+    function scheduleHideWikiLinkPreview() {
+      clearTimeout(wikiPreviewTimer);
+      wikiPreviewTimer = setTimeout(() => {
+        hideWikiLinkPreview();
+      }, 260);
+    }
+
+    function cancelHideWikiLinkPreview() {
+      clearTimeout(wikiPreviewTimer);
+    }
+
+    function hideWikiLinkPreview() {
+      clearTimeout(wikiPreviewTimer);
+      const card = document.getElementById('wikiLinkPreviewCard');
+      if (card) card.classList.add('hidden');
+    }
+
+    function renderDocKnowledgeRadar(note) {
+      const radarEl = document.getElementById('docKnowledgeRadar');
+      if (!radarEl || !note) return;
+
+      const allLinks = computeVaultConnections();
+      const outgoingIds = new Set();
+      const incomingIds = new Set();
+
+      allLinks.forEach(l => {
+        if (l.source === note.id) outgoingIds.add(l.target);
+        if (l.target === note.id) incomingIds.add(l.source);
+      });
+
+      const outgoingNotes = state.notes.filter(n => outgoingIds.has(n.id));
+      const incomingNotes = state.notes.filter(n => incomingIds.has(n.id));
+      const totalCount = outgoingNotes.length + incomingNotes.length;
+
+      let html = `
+        <div class="p-3.5 rounded-lg bg-[var(--bg-panel)]/80 border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              <span class="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Connected Knowledge Radar</span>
+              <span class="font-mono text-[10px] text-[var(--text-tertiary)]">(${totalCount} links)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="openLinkNotePicker('${note.id}')" title="Link another document by mouse" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[10px] transition-colors flex items-center gap-1 cursor-pointer">
+                <span>+ Link Note</span>
+              </button>
+              <button onclick="openRightInspector('graph')" title="View in Topology Graph" class="px-2 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] border border-[var(--border-hairline)] transition-colors cursor-pointer">
+                Graph →
+              </button>
+            </div>
+          </div>
+      `;
+
+      if (totalCount === 0) {
+        html += `
+          <div class="py-2 text-center space-y-1">
+            <div class="font-mono text-[11px] text-[var(--text-tertiary)]">No linked documents yet.</div>
+            <div class="text-[11px] text-[var(--text-secondary)]">Type <span class="font-mono text-[var(--accent-vermilion)] font-medium">[[</span> anywhere in text or click <button onclick="openLinkNotePicker('${note.id}')" class="underline text-[var(--accent-vermilion)] font-semibold cursor-pointer">+ Link Note</button> to connect concepts with your mouse.</div>
+          </div>
+        `;
+      } else {
+        html += `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">`;
+        
+        // Outgoing References (Notes referenced in this document)
+        html += `
+          <div class="space-y-1.5">
+            <div class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] flex items-center gap-1">
+              <span>Outgoing References</span>
+              <span>(${outgoingNotes.length})</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              ${outgoingNotes.length > 0 ? outgoingNotes.map(n => `
+                <div class="group/pill inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-xs text-[var(--text-primary)] transition-colors">
+                  <span class="text-[var(--accent-ochre)] text-[10px]">${getGlyphSVG(n.glyph)}</span>
+                  <button onclick="selectNote('${n.id}')" class="hover:underline font-serif text-[12px] truncate max-w-[140px] cursor-pointer">${escapeHtml(n.title)}</button>
+                  <button onclick="disconnectNotes('${note.id}', '${n.id}')" title="Unlink" class="opacity-0 group-hover/pill:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">✕</button>
+                </div>
+              `).join('') : '<span class="font-mono text-[10px] text-[var(--text-tertiary)]">None referenced in prose</span>'}
+            </div>
+          </div>
+        `;
+
+        // Incoming References (Notes linking to this document)
+        html += `
+          <div class="space-y-1.5">
+            <div class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] flex items-center gap-1">
+              <span>Incoming References</span>
+              <span>(${incomingNotes.length})</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              ${incomingNotes.length > 0 ? incomingNotes.map(n => `
+                <div class="group/pill inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--accent-ochre)] text-xs text-[var(--text-primary)] transition-colors">
+                  <span class="text-[var(--accent-ochre)] text-[10px]">${getGlyphSVG(n.glyph)}</span>
+                  <button onclick="selectNote('${n.id}')" class="hover:underline font-serif text-[12px] truncate max-w-[140px] cursor-pointer">${escapeHtml(n.title)}</button>
+                  <button onclick="disconnectNotes('${n.id}', '${note.id}')" title="Unlink" class="opacity-0 group-hover/pill:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">✕</button>
+                </div>
+              `).join('') : '<span class="font-mono text-[10px] text-[var(--text-tertiary)]">No incoming references</span>'}
+            </div>
+          </div>
+        `;
+
+        html += `</div>`;
+      }
+
+      html += `</div>`;
+      radarEl.innerHTML = html;
+    }
     function renderRichBlockHTML(rawText) {
       if (!rawText) return '';
       const escaped = escapeHtml(rawText);
@@ -2621,7 +2808,7 @@
         const cleanTitle = title.trim();
         const target = state.notes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
         const statusClass = target ? '' : 'uncreated';
-        return `<span class="wiki-link-ref ${statusClass}" contenteditable="false" data-wiki-target="${escapeHtml(cleanTitle)}" onclick="navigateToWikiTitle(event, '${escapeHtml(cleanTitle).replace(/'/g, "\\'")}')">[[${escapeHtml(cleanTitle)}]]</span>`;
+        return `<span class="wiki-link-ref ${statusClass}" contenteditable="false" data-wiki-target="${escapeHtml(cleanTitle)}" onmouseenter="showWikiLinkPreview(event, '${escapeHtml(cleanTitle).replace(/'/g, "\\'")}')" onmouseleave="scheduleHideWikiLinkPreview()" onclick="navigateToWikiTitle(event, '${escapeHtml(cleanTitle).replace(/'/g, "\\'")}')">[[${escapeHtml(cleanTitle)}]]</span>`;
       });
     }
 
@@ -4613,6 +4800,7 @@
     function renderBlocks(note) {
       const container = document.getElementById('blocksContainer');
       container.innerHTML = note.blocks.map((block, index) => renderSingleBlockHTML(block, index)).join('');
+      renderDocKnowledgeRadar(note);
     }
 
     function renderSingleBlockHTML(block) {
@@ -6243,19 +6431,181 @@
       return null;
     }
 
+    // --- GRAPH NODE HOVER CARD & CANVAS NOTE CREATOR ---
+    let graphHoverCardTimer = null;
+    let canvasCreateCoords = { gx: 0, gy: 0 };
+    let isCuttingGesture = false;
+    let cutStart = null;
+    let cutCurrent = null;
+
+    function showGraphNodeHoverCard(canvas, node, canvasX, canvasY) {
+      clearTimeout(graphHoverCardTimer);
+      const card = document.getElementById('graphNodeHoverCard');
+      if (!card || !node) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const cardW = 280;
+      let left = canvasX + 16;
+      if (left + cardW > rect.width - 12) {
+        left = canvasX - cardW - 16;
+      }
+      let top = canvasY - 20;
+      if (top + 130 > rect.height) {
+        top = Math.max(12, rect.height - 140);
+      }
+      card.style.left = `${Math.max(10, left)}px`;
+      card.style.top = `${Math.max(10, top)}px`;
+
+      const note = state.notes.find(n => n.id === node.id);
+      if (!note) return;
+
+      const glyphEl = document.getElementById('graphNodeCardGlyph');
+      const titleEl = document.getElementById('graphNodeCardTitle');
+      const folderEl = document.getElementById('graphNodeCardFolder');
+      const snippetEl = document.getElementById('graphNodeCardSnippet');
+      const statsEl = document.getElementById('graphNodeCardStats');
+      const openBtn = document.getElementById('graphNodeCardOpenBtn');
+      const linkBtn = document.getElementById('graphNodeCardLinkBtn');
+
+      if (glyphEl) glyphEl.innerHTML = getGlyphSVG(note.glyph);
+      if (titleEl) titleEl.textContent = note.title;
+      if (folderEl) folderEl.textContent = note.folder || 'General';
+
+      const allLinks = computeVaultConnections();
+      const inCount = allLinks.filter(l => l.target === note.id).length;
+      const outCount = allLinks.filter(l => l.source === note.id).length;
+      if (statsEl) statsEl.textContent = `${inCount} incoming · ${outCount} outgoing`;
+
+      const textSnippets = (note.blocks || [])
+        .map(b => (b.content || '').replace(/\[\[|\]\]/g, ''))
+        .filter(Boolean)
+        .join(' · ');
+      if (snippetEl) {
+        snippetEl.textContent = textSnippets ? (textSnippets.slice(0, 110) + (textSnippets.length > 110 ? '…' : '')) : 'Empty document.';
+      }
+
+      if (openBtn) {
+        openBtn.onclick = () => { hideGraphNodeHoverCard(); selectNote(note.id); };
+      }
+      if (linkBtn) {
+        linkBtn.onclick = () => {
+          hideGraphNodeHoverCard();
+          connectNotes(state.activeNoteId, note.id);
+        };
+      }
+
+      card.classList.remove('hidden');
+    }
+
+    function hideGraphNodeHoverCard() {
+      clearTimeout(graphHoverCardTimer);
+      const card = document.getElementById('graphNodeHoverCard');
+      if (card) card.classList.add('hidden');
+    }
+
+    function promptCreateNoteAtCanvas(gx, gy, screenX, screenY) {
+      canvasCreateCoords = { gx, gy, screenX, screenY };
+      const modal = document.getElementById('canvasCreateNoteModal');
+      const input = document.getElementById('canvasCreateNoteTitle');
+      if (modal && input) {
+        input.value = '';
+        modal.classList.remove('hidden');
+        setTimeout(() => input.focus(), 60);
+      }
+    }
+
+    function closeCanvasCreateNoteModal() {
+      const modal = document.getElementById('canvasCreateNoteModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function confirmCanvasCreateNote() {
+      const input = document.getElementById('canvasCreateNoteTitle');
+      const autoLinkCheckbox = document.getElementById('canvasCreateNoteAutoLink');
+      const title = (input?.value || '').trim() || 'Untitled Note';
+
+      const nextNum = String(state.notes.length + 1).padStart(2, '0');
+      const newNote = {
+        id: generateId('note'),
+        code: `DOC-${nextNum}`,
+        title: title,
+        glyph: 'document',
+        folder: 'General',
+        favorite: false,
+        tags: [],
+        updatedAt: TODAY_KEY,
+        blocks: [
+          { id: generateId('b'), type: 'paragraph', content: '' }
+        ]
+      };
+
+      state.notes.unshift(newNote);
+
+      // Auto-link with active note if checked
+      const activeNote = getActiveNote();
+      if (autoLinkCheckbox && autoLinkCheckbox.checked && activeNote && activeNote.id !== newNote.id) {
+        connectNotes(activeNote.id, newNote.id, false);
+      }
+
+      closeCanvasCreateNoteModal();
+      persistState();
+      renderAll();
+      selectNote(newNote.id);
+
+      // Position the node at the double-clicked canvas coordinates
+      setTimeout(() => {
+        const found = graphNodes.find(n => n.id === newNote.id);
+        if (found) {
+          found.x = canvasCreateCoords.gx;
+          found.y = canvasCreateCoords.gy;
+        }
+        reheatGraph();
+      }, 50);
+
+      playPopSound();
+      triggerCelebration(canvasCreateCoords.screenX || window.innerWidth / 2, canvasCreateCoords.screenY || window.innerHeight / 2, 34);
+      showToast(`Created & Placed "${newNote.title}" on Graph!`);
+    }
+
+    // Geometry helper: do two line segments intersect?
+    function linesIntersect(p1, p2, p3, p4) {
+      function ccw(A, B, C) {
+        return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+      }
+      return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+    }
+
     function setupCanvasInteractions(canvas, isExpanded = false) {
       if (!canvas) return;
 
+      // Double-click empty space creates note at that spot!
+      canvas.addEventListener('dblclick', e => {
+        const pos = getGraphPointerPos(canvas, e);
+        const hit = findNodeAt(pos);
+        if (!hit) {
+          promptCreateNoteAtCanvas(pos.x, pos.y, pos.screenX, pos.screenY);
+        }
+      });
+
       canvas.addEventListener('pointerdown', e => {
-        // Right click handled separately by context menu
-        if (e.button === 2) return;
+        if (e.button === 2) return; // Right click handled by context menu
 
         const pos = getGraphPointerPos(canvas, e);
         const allLinks = computeVaultConnections();
         const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
 
-        // Check if middle click or Alt/Space held: pan mode
-        if (e.button === 1 || e.altKey) {
+        // Check if Laser Slicing Gesture (Holding Alt or D key while dragging)
+        if (e.altKey) {
+          isCuttingGesture = true;
+          cutStart = { x: pos.x, y: pos.y };
+          cutCurrent = { x: pos.x, y: pos.y };
+          canvas.setPointerCapture(e.pointerId);
+          canvas.style.cursor = 'crosshair';
+          return;
+        }
+
+        // Check if middle click: pan mode
+        if (e.button === 1) {
           isPanning = true;
           panStart = { x: pos.screenX - graphPan.x, y: pos.screenY - graphPan.y };
           canvas.setPointerCapture(e.pointerId);
@@ -6264,6 +6614,7 @@
 
         // Check if clicking connector handle on hovered node
         if (hoveredNode && findConnectorHandleAt(pos, hoveredNode)) {
+          hideGraphNodeHoverCard();
           startConnectionFromNode(hoveredNode);
           canvas.setPointerCapture(e.pointerId);
           return;
@@ -6271,6 +6622,7 @@
 
         const hit = findNodeAt(pos);
         if (hit) {
+          hideGraphNodeHoverCard();
           // If in connect mode or holding Shift: start connection wire!
           if (graphToolMode === 'connect' || e.shiftKey) {
             startConnectionFromNode(hit);
@@ -6294,6 +6646,7 @@
         }
 
         // Dragging empty space pans canvas
+        hideGraphNodeHoverCard();
         isPanning = true;
         panStart = { x: pos.screenX - graphPan.x, y: pos.screenY - graphPan.y };
         canvas.setPointerCapture(e.pointerId);
@@ -6303,6 +6656,13 @@
         const pos = getGraphPointerPos(canvas, e);
         const allLinks = computeVaultConnections();
         const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+
+        // Laser Slicing Gesture
+        if (isCuttingGesture && cutStart) {
+          cutCurrent = { x: pos.x, y: pos.y };
+          canvas.style.cursor = 'crosshair';
+          return;
+        }
 
         if (isPanning) {
           graphPan.x = pos.screenX - panStart.x;
@@ -6330,9 +6690,21 @@
         }
 
         // Idle hover
+        const prevHovered = hoveredNode;
         hoveredNode = findNodeAt(pos);
         connectorHandleHovered = hoveredNode ? findConnectorHandleAt(pos, hoveredNode) : false;
         hoveredEdge = !hoveredNode ? findEdgeAt(pos, allLinks, nodeMap) : null;
+
+        if (hoveredNode && hoveredNode !== prevHovered && !connectingSourceNode && !draggedNode) {
+          clearTimeout(graphHoverCardTimer);
+          graphHoverCardTimer = setTimeout(() => {
+            if (hoveredNode && !connectingSourceNode && !draggedNode) {
+              showGraphNodeHoverCard(canvas, hoveredNode, pos.canvasX, pos.canvasY);
+            }
+          }, 240);
+        } else if (!hoveredNode) {
+          hideGraphNodeHoverCard();
+        }
 
         if (connectorHandleHovered) {
           canvas.style.cursor = 'crosshair';
@@ -6347,6 +6719,32 @@
 
       canvas.addEventListener('pointerup', e => {
         const pos = getGraphPointerPos(canvas, e);
+
+        // Finish Laser Slicing Gesture
+        if (isCuttingGesture && cutStart && cutCurrent) {
+          const allLinks = computeVaultConnections();
+          const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+          let slicedCount = 0;
+
+          allLinks.forEach(edge => {
+            const s = nodeMap.get(edge.source);
+            const t = nodeMap.get(edge.target);
+            if (s && t && linesIntersect(cutStart, cutCurrent, s, t)) {
+              disconnectNotes(edge.source, edge.target);
+              slicedCount++;
+            }
+          });
+
+          if (slicedCount > 0) {
+            playMechanicalClick(1.25);
+            showToast(`✂️ Sliced & unlinked ${slicedCount} connection(s)!`);
+          }
+          isCuttingGesture = false;
+          cutStart = null;
+          cutCurrent = null;
+          canvas.style.cursor = 'grab';
+          return;
+        }
 
         if (isPanning) {
           isPanning = false;
@@ -6374,6 +6772,7 @@
       // Mouse Wheel Zoom
       canvas.addEventListener('wheel', e => {
         e.preventDefault();
+        hideGraphNodeHoverCard();
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -6403,6 +6802,8 @@
       // Escape key to cancel connection or close expanded graph
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
+          hideGraphNodeHoverCard();
+          hideWikiLinkPreview();
           if (connectingSourceNode) {
             cancelGraphConnection();
           } else if (isExpandedGraphOpen) {
@@ -6414,7 +6815,7 @@
       });
     }
 
-    // --- G. RENDER GRAPH ON CANVAS WITH ELASTIC LINK WIRE ---
+    // --- G. RENDER GRAPH WITH DEGREE SCALING, DIRECTIONAL ARROWS & LASER SLICE ---
     function drawGraphOnCanvas(canvas, isExpanded = false) {
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -6464,7 +6865,8 @@
         if (e.target === focusId) neighborSet.add(e.source);
       });
 
-      // 3. Render Topology Edges
+      // 3. Render Topology Edges with Directional Arrows & Energy Pulses
+      const now = performance.now();
       activeEdges.forEach(edge => {
         const s = nodeMap.get(edge.source);
         const t = nodeMap.get(edge.target);
@@ -6473,46 +6875,76 @@
         const isHighlighted = edge.source === focusId || edge.target === focusId;
         const isHovered = hoveredEdge && hoveredEdge.edge === edge;
 
+        // Base Line
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(t.x, t.y);
 
         if (isHovered) {
           ctx.strokeStyle = '#EF4444'; // Red hover for unlink cue
-          ctx.lineWidth = 3 / graphZoom;
+          ctx.lineWidth = 3.2 / graphZoom;
         } else if (isHighlighted) {
           ctx.strokeStyle = isDark ? '#D95338' : '#C8462B';
-          ctx.lineWidth = 1.6 / graphZoom;
+          ctx.lineWidth = 1.8 / graphZoom;
         } else {
-          ctx.strokeStyle = isDark ? '#333333' : '#D0CDC5';
-          ctx.lineWidth = 1 / graphZoom;
+          ctx.strokeStyle = isDark ? '#383838' : '#D0CDC5';
+          ctx.lineWidth = 1.1 / graphZoom;
         }
         ctx.stroke();
 
-        // If edge is hovered, render a small scissors unlink indicator at midpoint
+        // Directional Arrowheads (Point from source -> target reference)
+        const dx = t.x - s.x;
+        const dy = t.y - s.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const arrowDist = 0.58;
+        const ax = s.x + dx * arrowDist;
+        const ay = s.y + dy * arrowDist;
+        const arrowSize = (isHighlighted ? 4.5 : 3.5) / graphZoom;
+
+        ctx.beginPath();
+        ctx.moveTo(ax + ux * arrowSize, ay + uy * arrowSize);
+        ctx.lineTo(ax - uy * (arrowSize * 0.75) - ux * arrowSize, ay + ux * (arrowSize * 0.75) - uy * arrowSize);
+        ctx.lineTo(ax + uy * (arrowSize * 0.75) - ux * arrowSize, ay - ux * (arrowSize * 0.75) - uy * arrowSize);
+        ctx.closePath();
+        ctx.fillStyle = isHovered ? '#EF4444' : (isHighlighted ? (isDark ? '#D95338' : '#C8462B') : (isDark ? '#5A5A55' : '#AAA79E'));
+        ctx.fill();
+
+        // Subtle Living Energy Pulse (Particle moving along edge)
+        if (isHighlighted) {
+          const pulseOffset = ((now * 0.0006) % 1);
+          const px = s.x + dx * pulseOffset;
+          const py = s.y + dy * pulseOffset;
+          ctx.beginPath();
+          ctx.arc(px, py, 2 / graphZoom, 0, Math.PI * 2);
+          ctx.fillStyle = isDark ? '#F59E0B' : '#D97706';
+          ctx.fill();
+        }
+
+        // If edge is hovered, render scissors unlink badge at midpoint
         if (isHovered) {
           const midX = (s.x + t.x) / 2;
           const midY = (s.y + t.y) / 2;
           ctx.fillStyle = '#EF4444';
           ctx.beginPath();
-          ctx.arc(midX, midY, 6 / graphZoom, 0, Math.PI * 2);
+          ctx.arc(midX, midY, 7 / graphZoom, 0, Math.PI * 2);
           ctx.fill();
-          ctx.font = `${10 / graphZoom}px sans-serif`;
+          ctx.font = `bold ${9 / graphZoom}px sans-serif`;
           ctx.fillStyle = '#FFFFFF';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('✕', midX, midY);
+          ctx.fillText('✂', midX, midY);
         }
       });
 
-      // 4. Render Active Live Connection Wire (If connecting with mouse)
+      // 4. Render Active Live Connection Wire
       if (connectingSourceNode) {
         const s = { x: connectingSourceNode.x, y: connectingSourceNode.y };
         const t = connectingTargetNode
           ? { x: connectingTargetNode.x, y: connectingTargetNode.y }
           : connectingCurrentPos;
 
-        // Glowing outer pulse wire
         ctx.beginPath();
         const cpX1 = s.x + (t.x - s.x) * 0.45;
         const cpX2 = s.x + (t.x - s.x) * 0.55;
@@ -6522,7 +6954,6 @@
         ctx.lineWidth = 6 / graphZoom;
         ctx.stroke();
 
-        // Inner animated dashed elastic wire
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.bezierCurveTo(cpX1, s.y, cpX2, t.y, t.x, t.y);
@@ -6533,13 +6964,11 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Pulsing Target Dot / Snap Indicator
         ctx.beginPath();
         ctx.arc(t.x, t.y, (connectingTargetNode ? 7 : 4) / graphZoom, 0, Math.PI * 2);
         ctx.fillStyle = connectingTargetNode ? '#10B981' : '#D95338';
         ctx.fill();
 
-        // Magnetic Target Snap Aura
         if (connectingTargetNode) {
           ctx.beginPath();
           ctx.arc(t.x, t.y, 22 / graphZoom, 0, Math.PI * 2);
@@ -6547,8 +6976,7 @@
           ctx.lineWidth = 2 / graphZoom;
           ctx.stroke();
 
-          // Target Tooltip Badge
-          const badgeText = `✨ Release to Link with [[${connectingTargetNode.title}]]`;
+          const badgeText = `✨ Link with [[${connectingTargetNode.title}]]`;
           ctx.font = `600 ${11 / graphZoom}px "JetBrains Mono", monospace`;
           ctx.textAlign = 'center';
           const textW = ctx.measureText(badgeText).width;
@@ -6559,7 +6987,30 @@
         }
       }
 
-      // 5. Render Nodes
+      // 5. Render Laser Slicing Cut Line (If cutting gesture active)
+      if (isCuttingGesture && cutStart && cutCurrent) {
+        ctx.beginPath();
+        ctx.moveTo(cutStart.x, cutStart.y);
+        ctx.lineTo(cutCurrent.x, cutCurrent.y);
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+        ctx.lineWidth = 8 / graphZoom;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(cutStart.x, cutStart.y);
+        ctx.lineTo(cutCurrent.x, cutCurrent.y);
+        ctx.strokeStyle = '#EF4444';
+        ctx.lineWidth = 2.5 / graphZoom;
+        ctx.stroke();
+
+        // Laser Tip Glow
+        ctx.beginPath();
+        ctx.arc(cutCurrent.x, cutCurrent.y, 5 / graphZoom, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+      }
+
+      // 6. Render Nodes with Dynamic Degree Sizing & Hub Auras
       graphNodes.forEach(n => {
         const isActive = n.id === state.activeNoteId;
         const isHovered = hoveredNode && hoveredNode.id === n.id;
@@ -6567,26 +7018,37 @@
         const isConnectingSource = connectingSourceNode && connectingSourceNode.id === n.id;
         const isConnectingTarget = connectingTargetNode && connectingTargetNode.id === n.id;
         
-        // Search Filter Highlight (in Expanded Studio)
         const isSearchMatch = expandedGraphFilter ? n.title.toLowerCase().includes(expandedGraphFilter) : true;
-        const nodeOpacity = isSearchMatch ? 1 : 0.22;
+        const nodeOpacity = isSearchMatch ? 1 : 0.2;
 
+        // Degree Centrality: Scale radius with number of connections
+        const connectionCount = activeEdges.filter(e => e.source === n.id || e.target === n.id).length;
+        const dynamicBonus = Math.min(6.5, connectionCount * 1.3);
         const baseRadius = isActive ? 6.5 : (isHovered ? 6 : 4.5);
-        const radius = baseRadius / (graphZoom > 1.4 ? 1.15 : 1);
+        const radius = (baseRadius + dynamicBonus) / (graphZoom > 1.4 ? 1.15 : 1);
 
         ctx.save();
         ctx.globalAlpha = nodeOpacity;
 
-        // Aura Halo on active / hovered / connecting
+        // Hub Aura Rings for central notes (3+ connections)
+        if (connectionCount >= 3) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, radius + (6 / graphZoom), 0, Math.PI * 2);
+          ctx.strokeStyle = isDark ? 'rgba(245, 158, 11, 0.28)' : 'rgba(217, 119, 6, 0.22)';
+          ctx.lineWidth = 1 / graphZoom;
+          ctx.stroke();
+        }
+
+        // Active / Hover Aura Halo
         if (isActive || isHovered || isConnectingSource || isConnectingTarget) {
           ctx.beginPath();
           ctx.arc(n.x, n.y, radius + (5 / graphZoom), 0, Math.PI * 2);
           ctx.strokeStyle = isConnectingTarget ? '#10B981' : (isActive || isConnectingSource ? '#D95338' : '#C49A45');
-          ctx.lineWidth = 1.5 / graphZoom;
+          ctx.lineWidth = 1.6 / graphZoom;
           ctx.stroke();
         }
 
-        // Main Node Sphere
+        // Main Node Circle
         ctx.beginPath();
         ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
         ctx.fillStyle = isActive || isConnectingSource
@@ -6598,9 +7060,9 @@
               : (isDark ? '#5C5C58' : '#96948E');
         ctx.fill();
 
-        // 6. Draw Connector Ring & "+" Handle on Hovered Node (for mouse linking)
-        if (isHovered && !connectingSourceNode) {
-          const hx = n.x + 18;
+        // 7. Connector Ring & "+" Handle on Hovered Node
+        if (isHovered && !connectingSourceNode && !isCuttingGesture) {
+          const hx = n.x + radius + 10;
           const hy = n.y;
           const isHandleHovered = connectorHandleHovered;
           
@@ -6612,7 +7074,6 @@
           ctx.lineWidth = 1.2 / graphZoom;
           ctx.stroke();
 
-          // "+" icon inside handle
           ctx.font = `bold ${9 / graphZoom}px sans-serif`;
           ctx.fillStyle = '#FFFFFF';
           ctx.textAlign = 'center';
@@ -6622,7 +7083,7 @@
 
         // Node Title Label
         const shortTitle = n.title.length > 22 ? n.title.slice(0, 21) + '…' : n.title;
-        ctx.font = `${isActive || isHovered ? '600' : '400'} ${10 / graphZoom}px "JetBrains Mono", monospace`;
+        ctx.font = `${isActive || isHovered || connectionCount >= 3 ? '600' : '400'} ${10 / graphZoom}px "JetBrains Mono", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillStyle = isActive || isHovered || isConnectingTarget
@@ -6657,7 +7118,7 @@
         const centerX = w / 2;
         const centerY = h / 2;
 
-        // Force Simulation Physics: Centering & Node Repulsion
+        // Force Simulation Physics
         for (let i = 0; i < graphNodes.length; i++) {
           const a = graphNodes[i];
           a.vx += (centerX - a.x) * 0.007;
@@ -6679,7 +7140,7 @@
           }
         }
 
-        // Spring Attraction along Edges
+        // Spring Attraction
         activeEdges.forEach(edge => {
           const s = nodeMap.get(edge.source);
           const t = nodeMap.get(edge.target);
@@ -6687,7 +7148,7 @@
           const dx = t.x - s.x;
           const dy = t.y - s.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const spring = (dist - 92) * 0.035;
+          const spring = (dist - 94) * 0.035;
           const fx = (dx / dist) * spring;
           const fy = (dy / dist) * spring;
           s.vx += fx;
@@ -6696,7 +7157,7 @@
           t.vy -= fy;
         });
 
-        // Dampen Velocities and Update Positions
+        // Dampen Velocities
         graphNodes.forEach(n => {
           if (draggedNode && draggedNode.id === n.id) return;
           n.vx *= 0.82;
@@ -12469,6 +12930,70 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Live Wikilink Hover Page Preview Card -->
+  <div id="wikiLinkPreviewCard" onmouseenter="cancelHideWikiLinkPreview()" onmouseleave="hideWikiLinkPreview()" class="hidden fixed pointer-events-auto z-[970] w-80 p-3.5 rounded-lg bg-[var(--bg-panel)]/95 backdrop-blur-md border border-[var(--border-strong)] shadow-2xl space-y-2.5 select-none animate-toast-in text-xs transition-all duration-150">
+    <div class="flex items-center justify-between gap-2 border-b border-[var(--border-hairline)] pb-2">
+      <div class="flex items-center gap-2 truncate">
+        <span id="wikiPreviewGlyph" class="text-[var(--accent-ochre)] shrink-0"></span>
+        <span id="wikiPreviewTitle" class="font-serif font-semibold text-[var(--text-primary)] truncate text-sm"></span>
+      </div>
+      <span id="wikiPreviewFolder" class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] text-[var(--text-tertiary)] shrink-0"></span>
+    </div>
+    <p id="wikiPreviewSnippet" class="text-[12px] text-[var(--text-secondary)] line-clamp-3 leading-relaxed font-sans"></p>
+    <div class="flex items-center justify-between pt-1.5 border-t border-[var(--border-hairline)] text-[10px] font-mono">
+      <span id="wikiPreviewMeta" class="text-[var(--text-tertiary)]"></span>
+      <div class="flex items-center gap-1.5">
+        <button id="wikiPreviewUnlinkBtn" class="px-2 py-0.5 rounded hover:bg-red-500/15 text-red-500 transition-colors cursor-pointer">Unlink ✂</button>
+        <button id="wikiPreviewOpenBtn" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-hover)] text-white font-medium transition-colors cursor-pointer flex items-center gap-1">Open →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graph Node Interactive Hover Preview Card -->
+  <div id="graphNodeHoverCard" class="hidden absolute pointer-events-auto z-40 max-w-xs w-72 p-3 rounded-lg bg-[var(--bg-panel)]/95 backdrop-blur-md border border-[var(--border-strong)] shadow-2xl space-y-2 select-none animate-toast-in text-xs transition-opacity duration-150">
+    <div class="flex items-center justify-between gap-2 border-b border-[var(--border-hairline)] pb-1.5">
+      <div class="flex items-center gap-1.5 truncate">
+        <span id="graphNodeCardGlyph" class="text-[var(--accent-ochre)] shrink-0"></span>
+        <span id="graphNodeCardTitle" class="font-semibold text-[var(--text-primary)] truncate font-mono text-xs"></span>
+      </div>
+      <span id="graphNodeCardFolder" class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] text-[var(--text-tertiary)] shrink-0"></span>
+    </div>
+    <p id="graphNodeCardSnippet" class="text-[11px] text-[var(--text-secondary)] line-clamp-2 leading-relaxed"></p>
+    <div class="flex items-center justify-between pt-1.5 border-t border-[var(--border-hairline)] text-[10px] font-mono">
+      <span id="graphNodeCardStats" class="text-[var(--text-tertiary)]"></span>
+      <div class="flex items-center gap-1.5">
+        <button id="graphNodeCardOpenBtn" class="px-2 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer">Open</button>
+        <button id="graphNodeCardLinkBtn" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-hover)] text-white font-medium cursor-pointer">+ Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas Quick Note Creator Modal (Double-Click on Canvas) -->
+  <div id="canvasCreateNoteModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[965] flex items-center justify-center p-3 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-sm p-4 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl space-y-3 animate-modal-card">
+      <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-2">
+        <div class="flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--text-primary)] uppercase">
+          <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+          <span>Create Note at Position</span>
+        </div>
+        <button onclick="closeCanvasCreateNoteModal()" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+      <div class="space-y-2">
+        <label class="block font-mono text-[10px] uppercase text-[var(--text-tertiary)]">Document Title</label>
+        <input type="text" id="canvasCreateNoteTitle" placeholder="e.g. Distributed Consensus" onkeydown="if(event.key==='Enter') confirmCanvasCreateNote();" class="w-full px-3 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-vermilion)] font-serif" />
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="canvasCreateNoteAutoLink" checked class="accent-[var(--accent-vermilion)] cursor-pointer" />
+          <label for="canvasCreateNoteAutoLink" class="font-mono text-[11px] text-[var(--text-secondary)] cursor-pointer">Link automatically to active document</label>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-hairline)]">
+        <button onclick="closeCanvasCreateNoteModal()" class="px-3 py-1 rounded-[3px] font-mono text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] cursor-pointer">Cancel</button>
+        <button onclick="confirmCanvasCreateNote()" class="px-3.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-hover)] text-white font-mono text-xs font-medium cursor-pointer">Create & Link</button>
       </div>
     </div>
   </div>

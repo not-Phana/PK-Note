@@ -1301,6 +1301,22 @@
             </svg>
           </button>
 
+          <!-- 1-Tap Read Aloud Button (Always visible on Phone & Desktop!) -->
+          <button onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Note Aloud (Kokoro-82M Voice)" class="p-1.5 sm:px-2 sm:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+            <span class="hidden lg:inline font-mono text-[10px] tracking-tight" id="headerReadAloudLabel">LISTEN</span>
+          </button>
+
+          <!-- Kokoro-82M Voice Studio Quick Button (Desktop) -->
+          <button onclick="openVoiceModelModal()" id="desktopVoiceStudioBtn" title="Kokoro-82M Voice Studio (Switch Male/Female Voices)" class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <span>🎙️</span>
+            <span class="hidden xl:inline">VOICE</span>
+          </button>
+
           <!-- Mobile Undo Button (Always accessible on phone header) -->
           <button onclick="performUndo()" id="mobileHeaderUndoBtn" title="Undo Last Edit (Ctrl+Z)" class="md:hidden p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -9381,8 +9397,24 @@
         hud.classList.remove('hidden');
       }
       updateVoiceStudioHUDLabels();
+      updateHeaderReadAloudState();
       playNextSpeechSentence();
       playChimeSound();
+    }
+
+    function updateHeaderReadAloudState() {
+      const btn = document.getElementById('headerReadAloudBtn');
+      const label = document.getElementById('headerReadAloudLabel');
+      if (!btn) return;
+      if (isSpeechAudioActive) {
+        btn.className = 'p-1.5 sm:px-2 sm:py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] transition-colors flex items-center justify-center gap-1 cursor-pointer animate-pulse';
+        btn.title = 'Stop Reading Aloud';
+        if (label) label.textContent = 'STOP';
+      } else {
+        btn.className = 'p-1.5 sm:px-2 sm:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer';
+        btn.title = 'Read Note Aloud (Kokoro-82M Voice)';
+        if (label) label.textContent = 'LISTEN';
+      }
     }
 
     function toggleReadingNoteAloud() {
@@ -9452,6 +9484,7 @@
         hud.classList.remove('hidden');
       }
       updateVoiceStudioHUDLabels();
+      updateHeaderReadAloudState();
       playNextSpeechSentence();
       playChimeSound();
     }
@@ -9525,6 +9558,7 @@
       const playIcon = document.getElementById('pkAudioPlayIcon');
       if (pauseIcon) pauseIcon.classList.remove('hidden');
       if (playIcon) playIcon.classList.add('hidden');
+      updateHeaderReadAloudState();
     }
 
     function formatSelectionAsTodo() {
@@ -12234,6 +12268,48 @@
       if (el) openWikiLinkMenu(activeEditingBlockId, el, '');
     }
 
+    function openMobileSlashMenu() {
+      const note = getActiveNote();
+      if (!note) return;
+      let blockId = activeEditingBlockId;
+      if (!blockId && note.blocks && note.blocks.length > 0) {
+        blockId = note.blocks[note.blocks.length - 1].id;
+      }
+      if (!blockId) return;
+      const el = document.querySelector(`[data-block-id="${blockId}"]`);
+      if (el) {
+        openSlashMenu(blockId, el, '');
+      }
+    }
+
+    function applyMobileInlineFormat(kind) {
+      if (kind === 'bold') {
+        takeSnapshot('mobileBold');
+        document.execCommand('bold', false, null);
+        showToast('Bold toggled');
+      } else if (kind === 'italic') {
+        takeSnapshot('mobileItalic');
+        document.execCommand('italic', false, null);
+        showToast('Italic toggled');
+      } else if (kind === 'code') {
+        if (typeof formatSelectionWithCode === 'function') {
+          formatSelectionWithCode();
+        } else {
+          document.execCommand('insertText', false, '`code`');
+        }
+      }
+      scheduleSave();
+    }
+
+    function mobileReadSelectionOrNote() {
+      const sel = window.getSelection ? window.getSelection().toString().trim() : '';
+      if (sel) {
+        readTextAloud(sel, 'Selected Text');
+      } else {
+        toggleReadingNoteAloud();
+      }
+    }
+
     function dismissMobileKeyboard() {
       if (document.activeElement && document.activeElement.blur) {
         document.activeElement.blur();
@@ -13773,6 +13849,21 @@
       if (titleEl && active) {
         titleEl.textContent = active.title || 'Untitled Document';
       }
+      const voiceBadge = document.getElementById('mobileSheetVoiceBadge');
+      if (voiceBadge) {
+        const settings = getVoiceSettings();
+        if (settings.engine === 'kokoro') {
+          const kv = getSelectedKokoroVoice();
+          voiceBadge.textContent = `${kv.name} (${kv.gender === 'male' ? '👨' : '👩'}) · Kokoro-82M`;
+        } else {
+          const dv = getSelectedVoiceModel();
+          voiceBadge.textContent = dv ? dv.name.slice(0, 18) : 'Device Native';
+        }
+      }
+      const readLabel = document.getElementById('mobileSheetReadBtnLabel');
+      if (readLabel) {
+        readLabel.textContent = isSpeechAudioActive ? '⏹ Stop Reading' : '▶ Read Note Aloud';
+      }
       const sheet = document.getElementById('mobileMoreSheetBackdrop');
       if (sheet) {
         sheet.classList.remove('hidden');
@@ -14114,38 +14205,53 @@
     </div>
   </div>
 
-  <!-- Mobile Keyboard Accessory Bar (Visible only on mobile when editing) -->
+  <!-- Mobile Keyboard Accessory Bar (Desktop Formatting & Power Tools on Phone) -->
   <div id="mobileKeyboardAccessoryBar"
        class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] px-2 py-1.5 flex items-center justify-between gap-1 shadow-lg select-none translate-y-full opacity-0 pointer-events-none transition-all">
     <div class="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h1')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
+      <button type="button" onmousedown="event.preventDefault(); openMobileSlashMenu()" title="Insert Any Block (/)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/40 font-mono font-bold text-xs text-[var(--accent-vermilion)] hover:text-white min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        /
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('bold')" title="Bold (Ctrl+B)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        B
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('italic')" title="Italic (Ctrl+I)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        I
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('code')" title="Inline Code" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        &lt;/&gt;
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h1')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         H1
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h2')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-semibold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h2')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-semibold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         H2
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         •
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center" title="Todo block">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0" title="Todo block">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <polyline points="9 11 12 14 22 4"></polyline>
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
         </svg>
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         "
       </button>
-      <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center">
+      <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         [[
       </button>
-      <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer" title="Undo (↶)">
+      <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        🔊
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer shrink-0" title="Undo (↶)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
           <polyline points="7 6 3 10 7 14"></polyline>
         </svg>
       </button>
-      <button type="button" onmousedown="event.preventDefault(); performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer" title="Redo (↷)">
+      <button type="button" onmousedown="event.preventDefault(); performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer shrink-0" title="Redo (↷)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <path d="M21 10H11a5 5 0 0 0-5 5v2"></path>
           <polyline points="17 6 21 10 17 14"></polyline>
@@ -14220,6 +14326,18 @@
           <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           <span class="font-medium text-xs text-[var(--text-primary)]">Add Todo</span>
           <span class="text-[10px] text-[var(--text-tertiary)]">Checklist entry</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); toggleReadingNoteAloud()" class="p-3 rounded bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 hover:border-[var(--accent-vermilion)] flex flex-col items-start gap-1 transition-colors text-left">
+          <span class="text-base leading-none">🔊</span>
+          <span class="font-medium text-xs text-[var(--accent-vermilion)]">Read Aloud</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Listen with Kokoro-82M</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); openVoiceModelModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <span class="text-base leading-none">🎙️</span>
+          <span class="font-medium text-xs text-[var(--text-primary)]">Voice Studio</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Male & Female voices</span>
         </button>
       </div>
     </div>
@@ -14710,106 +14828,148 @@
   </div>
 
 
-  <!-- Mobile More Actions Bottom Sheet -->
+  <!-- Mobile Command Deck & Desktop Power Tools Sheet -->
   <div id="mobileMoreSheetBackdrop" onclick="closeMobileMoreSheet()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[975] flex items-end justify-center p-0 select-none animate-backdrop">
-    <div onclick="event.stopPropagation()" class="w-full max-h-[82vh] flex flex-col rounded-t-2xl bg-[var(--bg-panel)] border-t border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu pb-6">
+    <div onclick="event.stopPropagation()" class="w-full max-h-[86vh] flex flex-col rounded-t-2xl bg-[var(--bg-panel)] border-t border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu pb-6">
       
       <!-- Sheet Handle & Header -->
-      <div class="px-4 pt-3 pb-2 flex flex-col items-center border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0">
+      <div class="px-4 pt-3 pb-2.5 flex flex-col items-center border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0">
         <div class="w-10 h-1 rounded-full bg-[var(--border-strong)] mb-2"></div>
-        <div class="w-full flex items-center justify-between">
-          <div>
-            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate max-w-[240px]" id="mobileSheetDocTitle">Document Actions</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Workspace & Document Preferences</div>
+        <div class="w-full flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate" id="mobileSheetDocTitle">Document Tools</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Phone Command Deck · All Desktop Tools</div>
           </div>
-          <button onclick="closeMobileMoreSheet()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+          <button onclick="closeMobileMoreSheet()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">✕</button>
         </div>
       </div>
 
-      <!-- Sheet Options List -->
-      <div class="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
-        <!-- Quick Mobile Undo / Redo Actions -->
-        <div class="grid grid-cols-2 gap-2 pb-2 mb-1.5 border-b border-[var(--border-hairline)]">
-          <button onclick="closeMobileMoreSheet(); performUndo()" class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+      <!-- Command Deck Body -->
+      <div class="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
+
+        <!-- 1. Featured Kokoro-82M Read Out Loud & Voice Switcher -->
+        <div class="p-2.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Kokoro-82M Read Out Loud</span>
+            <span id="mobileSheetVoiceBadge" class="font-mono text-[10px] text-[var(--accent-vermilion)] truncate max-w-[165px]">Heart (👩) · Kokoro-82M</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="closeMobileMoreSheet(); toggleReadingNoteAloud()" class="py-2.5 px-3 rounded-lg bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium flex items-center justify-center gap-1.5 transition-opacity cursor-pointer shadow-xs">
+              <span id="mobileSheetReadBtnLabel">▶ Read Note Aloud</span>
+            </button>
+            <button onclick="closeMobileMoreSheet(); openVoiceModelModal()" class="py-2.5 px-3 rounded-lg bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-primary)] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+              <span>🎙️ Switch Voice</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Desktop Keyboard Shortcuts on Phone (Undo, Redo, Cmd+K) -->
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="closeMobileMoreSheet(); performUndo()" class="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors cursor-pointer">
             <svg class="w-4 h-4 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 0 1 5 5v2"/><polyline points="7 6 3 10 7 14"/></svg>
-            <div class="font-medium text-[var(--text-primary)]">Undo Edit (↶)</div>
+            <span class="font-mono text-[10px] font-medium text-[var(--text-primary)]">Undo</span>
           </button>
-          <button onclick="closeMobileMoreSheet(); performRedo()" class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <button onclick="closeMobileMoreSheet(); performRedo()" class="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors cursor-pointer">
             <svg class="w-4 h-4 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 0 0-5 5v2"/><polyline points="17 6 21 10 17 14"/></svg>
-            <div class="font-medium text-[var(--text-primary)]">Redo Edit (↷)</div>
+            <span class="font-mono text-[10px] font-medium text-[var(--text-primary)]">Redo</span>
+          </button>
+          <button onclick="closeMobileMoreSheet(); openCommandPalette()" class="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors cursor-pointer">
+            <span class="font-mono text-xs font-bold text-[var(--accent-vermilion)]">⌘K</span>
+            <span class="font-mono text-[10px] font-medium text-[var(--text-primary)]">Commands</span>
           </button>
         </div>
-        <button onclick="closeMobileMoreSheet(); openVoiceModelModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-sm shrink-0">🎙️</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Kokoro-82M Voice Studio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Switch Male & Female neural voices · Zero server</div>
+
+        <!-- 3. Compact 2-Column Computer Power Tools Grid -->
+        <div class="space-y-1.5">
+          <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold px-0.5">Desktop &amp; Document Tools</div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">🎨</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Themes &amp; Cover</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Colors &amp; banners</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openTypographyModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">🔤</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Typography</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">13 fonts &amp; size</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); toggleZenMode()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">🧘</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Zen Focus</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Distraction-free</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); toggleTheme()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">🌗</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Light / Dark</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Switch theme mode</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); duplicateNoteById(state.activeNoteId)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">📄</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Duplicate Note</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Clone current doc</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); copyNoteWikiLink(state.activeNoteId)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">🔗</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Copy [[Link]]</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Wiki-link to note</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); exportCurrentNoteMarkdown()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">📥</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Export .md</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Download Markdown</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); exportVaultBackupJSON()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">💾</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Backup Vault</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Save all JSON data</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); toggleSoundSetting()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">🎹</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Key Sounds</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Tactile audio clicks</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openUserGuideModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <span class="text-base shrink-0">📖</span>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Handbook</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Tips &amp; shortcuts</div>
+              </div>
+            </button>
           </div>
+        </div>
+
+        <!-- 4. Delete Note (Guarded Red Action) -->
+        <button onclick="closeMobileMoreSheet(); deleteActiveNote()" class="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-red-500/8 hover:bg-red-500/15 border border-red-500/25 text-red-500 font-medium transition-colors cursor-pointer">
+          <span>🗑️ Delete Current Document</span>
         </button>
 
-        <button onclick="closeMobileMoreSheet(); toggleReadingNoteAloud()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🔊</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Read Document Aloud</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Audiobook playback with active block tracking</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🎨</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Appearance, Banners & Themes</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Change cover art, accent inks & layout width</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); openTypographyModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-blue-500/10 text-blue-500 flex items-center justify-center text-sm shrink-0">🔤</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Typography Studio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">13 curated typefaces, scale & book indent</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); toggleZenMode()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-sm shrink-0">🧘</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Zen Focus Mode</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Dim all distractions for pure writing sanctuary</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); toggleSoundSetting()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-amber-500/10 text-amber-500 flex items-center justify-center text-sm shrink-0">🔊</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Tactile Haptic Audio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Mechanical key clicks & harmonic chime feedback</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); openUserGuideModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-purple-500/10 text-purple-500 flex items-center justify-center text-sm shrink-0">📖</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">PK Note Handbook & Tips</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Features, shortcuts & markdown tutorial</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); openNoteActionsMenu(event)" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-slate-500/10 text-slate-500 flex items-center justify-center text-sm shrink-0">💾</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-[var(--text-primary)]">Export & Backup Vault</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Download Markdown (.md) or full Vault JSON</div>
-          </div>
-        </button>
-
-        <button onclick="closeMobileMoreSheet(); deleteActiveNote()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/20 text-left transition-colors cursor-pointer">
-          <span class="w-8 h-8 rounded-[4px] bg-red-500/10 text-red-500 flex items-center justify-center text-sm shrink-0">🗑️</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-red-500">Delete Current Document</div>
-            <div class="font-mono text-[10px] text-red-500/70">Permanently remove this note from vault</div>
-          </div>
-        </button>
       </div>
 
     </div>

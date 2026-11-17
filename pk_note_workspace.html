@@ -949,6 +949,14 @@
       }
     }
 
+    /* Active Voice Highlight for Document Canvas */
+    .pk-voice-active-block {
+      outline: 2px solid var(--accent-vermilion) !important;
+      background-color: var(--accent-vermilion-tint) !important;
+      border-radius: 4px;
+      transition: all 0.25s ease;
+    }
+
     /* Audio Equalizer Waveform Bars */
     .pk-eq-bar {
       display: inline-block;
@@ -7295,6 +7303,7 @@
         { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'sparkles', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
         { kind: 'action', label: 'Toggle Magnetic Cursor Spotlight', hint: 'Luminous ambient spotlight following cursor', glyph: 'sun', shortcut: 'Spotlight', run: () => toggleCursorSpotlight() },
         { kind: 'action', label: 'Toggle Mechanical Typing Audio', hint: 'Tactile switch audio feedback while typing', glyph: 'terminal', shortcut: 'Typing', run: () => toggleMechanicalTyping() },
+        { kind: 'action', label: 'Voice Synthesis Studio: Switch Male/Female Voices', hint: 'Audition local voice models, switch gender, rate & pitch', glyph: 'sliders', shortcut: 'Voice', run: () => openVoiceModelModal() },
         { kind: 'action', label: 'Read Document Aloud (Voice Synth)', hint: 'Synthesize speech from active document or selection', glyph: 'volume', shortcut: 'Voice', run: () => toggleReadingNoteAloud() },
         { kind: 'action', label: 'Stop Voice Reading', hint: 'Halt active speech synthesizer audio reader', glyph: 'volume', shortcut: 'Stop', run: () => stopReadingAloud() },
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
@@ -8059,61 +8068,563 @@
       setTimeout(() => wave.remove(), 600);
     }
 
-    // Web Speech API Voice Reader
-    function readTextAloud(text, title = 'Selection') {
+    // =========================================================================
+    // 14. LOCAL ON-DEVICE VOICE SYNTHESIS STUDIO & AUDIO READER ENGINE
+    // =========================================================================
+    let localVoiceModels = [];
+    let activeVoiceGenderFilter = 'all'; // 'all' | 'male' | 'female'
+    let voiceSearchFilter = '';
+    let speechSentenceQueue = [];
+    let currentSpeechQueueIndex = 0;
+    let isSpeechAudioActive = false;
+    let isSpeechAudioPaused = false;
+    let currentActiveUtterance = null;
+
+    function getVoiceSettings() {
+      if (!state.voiceSettings) {
+        state.voiceSettings = {
+          voiceURI: '',
+          voiceName: '',
+          rate: 1.0,
+          pitch: 1.0,
+          genderFilter: 'all',
+          autoScroll: true
+        };
+      }
+      return state.voiceSettings;
+    }
+
+    function classifyVoiceGender(voice) {
+      if (!voice) return 'neutral';
+      const name = (voice.name || '').toLowerCase();
+      
+      // Explicit indicators in voice metadata
+      if (name.includes('female')) return 'female';
+      if (name.includes('male') && !name.includes('female')) return 'male';
+
+      // Known female model identifiers across Windows, iOS, Android & Mac
+      const femaleKeywords = [
+        'zira', 'jenny', 'aria', 'samantha', 'karen', 'susan', 'hazel',
+        'victoria', 'catherine', 'alice', 'elena', 'eva', 'fiona', 'moira',
+        'veena', 'tessa', 'serena', 'anna', 'kathy', 'princess', 'vicki',
+        'kate', 'sarah', 'linda', 'clara', 'stephanie', 'lucia', 'laura',
+        'helena', 'marie', 'camille', 'amira', 'julie', 'en-us-x-tpd'
+      ];
+      if (femaleKeywords.some(k => name.includes(k))) return 'female';
+
+      // Known male model identifiers across Windows, iOS, Android & Mac
+      const maleKeywords = [
+        'david', 'mark', 'george', 'daniel', 'arthur', 'oliver', 'guy',
+        'stefan', 'thomas', 'paul', 'aaron', 'alex', 'fred', 'ralph',
+        'bruce', 'junior', 'albert', 'tom', 'james', 'john', 'robert',
+        'william', 'richard', 'charles', 'bernard', 'damien', 'jorge',
+        'alva', 'diego', 'en-us-x-sfg', 'en-us-x-iol'
+      ];
+      if (maleKeywords.some(k => name.includes(k))) return 'male';
+
+      return 'neutral';
+    }
+
+    function loadDetectedVoiceModels() {
+      if (!('speechSynthesis' in window)) return [];
+      let voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        localVoiceModels = voices;
+      }
+      return localVoiceModels;
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        loadDetectedVoiceModels();
+        updateVoiceStudioHUDLabels();
+        renderVoiceCardsList();
+      };
+      // Initial trigger
+      setTimeout(loadDetectedVoiceModels, 100);
+    }
+
+    function getSelectedVoiceModel() {
+      const settings = getVoiceSettings();
+      const voices = loadDetectedVoiceModels();
+      if (!voices || voices.length === 0) return null;
+
+      // 1. Try matching by URI
+      if (settings.voiceURI) {
+        const found = voices.find(v => v.voiceURI === settings.voiceURI);
+        if (found) return found;
+      }
+
+      // 2. Try matching by Name
+      if (settings.voiceName) {
+        const found = voices.find(v => v.name === settings.voiceName);
+        if (found) return found;
+      }
+
+      // 3. Try matching by active gender filter
+      if (settings.genderFilter === 'male') {
+        const male = voices.find(v => classifyVoiceGender(v) === 'male' && v.lang && v.lang.startsWith('en'));
+        if (male) return male;
+      } else if (settings.genderFilter === 'female') {
+        const female = voices.find(v => classifyVoiceGender(v) === 'female' && v.lang && v.lang.startsWith('en'));
+        if (female) return female;
+      }
+
+      // 4. Default to high quality English natural or system default
+      const defaultVoice = voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.default)) ||
+                           voices.find(v => v.lang && v.lang.startsWith('en')) ||
+                           voices[0];
+      return defaultVoice;
+    }
+
+    function openVoiceModelModal() {
+      loadDetectedVoiceModels();
+      const backdrop = document.getElementById('voiceModelModalBackdrop');
+      if (backdrop) {
+        backdrop.classList.remove('hidden');
+        playWhooshSound();
+      }
+      syncVoiceStudioInputs();
+      renderVoiceCardsList();
+    }
+
+    function closeVoiceModelModal() {
+      const backdrop = document.getElementById('voiceModelModalBackdrop');
+      if (backdrop) backdrop.classList.add('hidden');
+    }
+
+    function syncVoiceStudioInputs() {
+      const settings = getVoiceSettings();
+      const rateSlider = document.getElementById('voiceRateSlider');
+      const rateDisp = document.getElementById('voiceRateDisplay');
+      if (rateSlider && rateDisp) {
+        rateSlider.value = settings.rate || 1.0;
+        rateDisp.textContent = `${Number(settings.rate || 1.0).toFixed(2)}x`;
+      }
+
+      const pitchSlider = document.getElementById('voicePitchSlider');
+      const pitchDisp = document.getElementById('voicePitchDisplay');
+      if (pitchSlider && pitchDisp) {
+        pitchSlider.value = settings.pitch || 1.0;
+        const p = Number(settings.pitch || 1.0);
+        pitchDisp.textContent = p < 0.9 ? `Deep Baritone (${p.toFixed(2)})` : p > 1.1 ? `High Soprano (${p.toFixed(2)})` : `Standard (${p.toFixed(2)})`;
+      }
+
+      const karaokeToggle = document.getElementById('voiceKaraokeToggle');
+      if (karaokeToggle) {
+        karaokeToggle.checked = settings.autoScroll !== false;
+      }
+
+      setVoiceGenderFilter(settings.genderFilter || 'all', false);
+    }
+
+    function setVoiceGenderFilter(filter, render = true) {
+      activeVoiceGenderFilter = filter;
+      const settings = getVoiceSettings();
+      settings.genderFilter = filter;
+      persistState();
+
+      ['all', 'male', 'female'].forEach(f => {
+        const btn = document.getElementById(`voiceFilter${f.charAt(0).toUpperCase() + f.slice(1)}`);
+        if (btn) {
+          if (f === filter) {
+            btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] shadow-xs';
+          } else {
+            btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
+          }
+        }
+      });
+
+      if (render) renderVoiceCardsList();
+    }
+
+    function handleVoiceSearchInput(query) {
+      voiceSearchFilter = (query || '').toLowerCase().trim();
+      renderVoiceCardsList();
+    }
+
+    function handleVoiceRateChange(val) {
+      const rate = parseFloat(val);
+      const settings = getVoiceSettings();
+      settings.rate = rate;
+      const rateDisp = document.getElementById('voiceRateDisplay');
+      if (rateDisp) rateDisp.textContent = `${rate.toFixed(2)}x`;
+      const ratePill = document.getElementById('pkAudioRatePill');
+      if (ratePill) ratePill.textContent = `${rate.toFixed(2)}x`;
+      persistState();
+    }
+
+    function setVoiceRatePreset(preset) {
+      const slider = document.getElementById('voiceRateSlider');
+      if (slider) slider.value = preset;
+      handleVoiceRateChange(preset);
+    }
+
+    function handleVoicePitchChange(val) {
+      const pitch = parseFloat(val);
+      const settings = getVoiceSettings();
+      settings.pitch = pitch;
+      const pitchDisp = document.getElementById('voicePitchDisplay');
+      if (pitchDisp) {
+        pitchDisp.textContent = pitch < 0.9 ? `Deep Baritone (${pitch.toFixed(2)})` : pitch > 1.1 ? `High Soprano (${pitch.toFixed(2)})` : `Standard (${pitch.toFixed(2)})`;
+      }
+      persistState();
+    }
+
+    function setVoicePitchPreset(preset) {
+      const slider = document.getElementById('voicePitchSlider');
+      if (slider) slider.value = preset;
+      handleVoicePitchChange(preset);
+    }
+
+    function handleVoiceKaraokeToggle(checked) {
+      const settings = getVoiceSettings();
+      settings.autoScroll = checked;
+      persistState();
+    }
+
+    function cycleAudioReaderRate() {
+      const settings = getVoiceSettings();
+      const rates = [1.0, 1.25, 1.5, 0.85];
+      const cur = settings.rate || 1.0;
+      let nextIdx = 0;
+      for (let i = 0; i < rates.length; i++) {
+        if (Math.abs(rates[i] - cur) < 0.05) {
+          nextIdx = (i + 1) % rates.length;
+          break;
+        }
+      }
+      const newRate = rates[nextIdx];
+      settings.rate = newRate;
+      persistState();
+      const ratePill = document.getElementById('pkAudioRatePill');
+      if (ratePill) ratePill.textContent = `${newRate}x`;
+      showToast(`Playback speed: ${newRate}x`, 'ochre');
+    }
+
+    function selectVoiceModel(voiceURI) {
+      const voices = loadDetectedVoiceModels();
+      const chosen = voices.find(v => v.voiceURI === voiceURI);
+      if (!chosen) return;
+      const settings = getVoiceSettings();
+      settings.voiceURI = chosen.voiceURI;
+      settings.voiceName = chosen.name;
+      persistState();
+      renderVoiceCardsList();
+      updateVoiceStudioHUDLabels();
+      showToast(`Selected voice: ${chosen.name.slice(0, 26)}`);
+      testSelectedVoice(chosen);
+    }
+
+    function renderVoiceCardsList() {
+      const container = document.getElementById('voiceCardsList');
+      if (!container) return;
+      const voices = loadDetectedVoiceModels();
+      const settings = getVoiceSettings();
+      const selected = getSelectedVoiceModel();
+
+      // Update detection count banner
+      const countEl = document.getElementById('detectedVoicesCount');
+      if (countEl) {
+        const maleCount = voices.filter(v => classifyVoiceGender(v) === 'male').length;
+        const femaleCount = voices.filter(v => classifyVoiceGender(v) === 'female').length;
+        countEl.textContent = `${voices.length} local voice models detected (${maleCount} 👨 Male, ${femaleCount} 👩 Female)`;
+      }
+
+      let filtered = voices;
+      if (activeVoiceGenderFilter === 'male') {
+        filtered = filtered.filter(v => classifyVoiceGender(v) === 'male');
+      } else if (activeVoiceGenderFilter === 'female') {
+        filtered = filtered.filter(v => classifyVoiceGender(v) === 'female');
+      }
+
+      if (voiceSearchFilter) {
+        filtered = filtered.filter(v => 
+          (v.name || '').toLowerCase().includes(voiceSearchFilter) ||
+          (v.lang || '').toLowerCase().includes(voiceSearchFilter)
+        );
+      }
+
+      const badgeCount = document.getElementById('voiceFilterCountBadge');
+      if (badgeCount) badgeCount.textContent = `${filtered.length} available`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-6 text-center text-[var(--text-tertiary)] font-mono text-[11px] space-y-1">
+            <div>No matching voice models found.</div>
+            <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Reset filter to All Voices</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(v => {
+        const isSelected = selected && (selected.voiceURI === v.voiceURI || selected.name === v.name);
+        const gender = classifyVoiceGender(v);
+        const genderBadge = gender === 'male' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-500 font-mono text-[9px] font-semibold">👨 MALE</span>' :
+                            gender === 'female' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/10 text-rose-500 font-mono text-[9px] font-semibold">👩 FEMALE</span>' :
+                            '<span class="px-1.5 py-0.5 rounded-[2px] bg-slate-500/10 text-slate-500 font-mono text-[9px]">SYSTEM</span>';
+
+        return `
+          <div onclick="selectVoiceModel('${escapeHtml(v.voiceURI)}')"
+               class="group p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${isSelected ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] shadow-xs' : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'}">
+            
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]'}">
+                ${isSelected ? '✓' : gender === 'male' ? '👨' : gender === 'female' ? '👩' : '🎙️'}
+              </span>
+              <div class="min-w-0">
+                <div class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[240px] sm:max-w-[340px]">
+                  ${escapeHtml(v.name)}
+                </div>
+                <div class="flex items-center gap-2 font-mono text-[10px] text-[var(--text-tertiary)]">
+                  <span>${escapeHtml(v.lang)}</span>
+                  <span>·</span>
+                  <span>${v.localService ? 'Offline On-Device' : 'System Neural'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              ${genderBadge}
+              <button onclick="event.stopPropagation(); testSelectedVoice(loadDetectedVoiceModels().find(x => x.voiceURI === '${escapeHtml(v.voiceURI)}'))"
+                      title="Audition Voice"
+                      class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+                ▶ Test
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function testSelectedVoice(targetVoice = null) {
       if (!('speechSynthesis' in window)) {
-        showToast('Speech synthesis not supported in this browser', 'info');
+        showToast('Speech synthesis not supported in this browser', 'ochre');
         return;
       }
       window.speechSynthesis.cancel();
+      const settings = getVoiceSettings();
+      const voice = targetVoice || getSelectedVoiceModel();
+
+      const samplePhrases = [
+        "PK Note voice model ready. Clear on-device speech synthesis with zero server dependencies.",
+        "Archival knowledge system active. Ready to read documents and notes aloud.",
+        "Neural cadence tuned. Listening to your thoughts in high fidelity."
+      ];
+      const text = samplePhrases[Math.floor(Math.random() * samplePhrases.length)];
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (voice) utterance.voice = voice;
+      utterance.rate = settings.rate || 1.0;
+      utterance.pitch = settings.pitch || 1.0;
+
+      window.speechSynthesis.speak(utterance);
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.9);
+      showToast(`Auditioning: ${voice ? voice.name.slice(0, 24) : 'Default'}`);
+    }
+
+    function updateVoiceStudioHUDLabels() {
+      const selected = getSelectedVoiceModel();
+      const label = document.getElementById('pkAudioReaderVoiceLabel');
+      if (label && selected) {
+        label.textContent = selected.name.length > 20 ? selected.name.slice(0, 20) + '…' : selected.name;
+      }
+    }
+
+    function removeVoiceHighlights() {
+      document.querySelectorAll('.pk-voice-active-block').forEach(el => {
+        el.classList.remove('pk-voice-active-block');
+      });
+    }
+
+    function highlightVoiceBlock(blockId) {
+      removeVoiceHighlights();
+      if (!blockId) return;
+      let targetEl = null;
+      if (blockId === 'title') {
+        targetEl = document.getElementById('docTitleInput');
+      } else {
+        targetEl = document.querySelector(`[data-block-id="${blockId}"]`);
+      }
+      if (targetEl) {
+        targetEl.classList.add('pk-voice-active-block');
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function readTextAloud(text, title = 'Selection') {
+      if (!('speechSynthesis' in window)) {
+        showToast('Speech synthesis not supported on this browser', 'ochre');
+        return;
+      }
+      stopReadingAloud();
       if (!text || !text.trim()) {
-        showToast('No text available to read', 'info');
+        showToast('No text available to read', 'ochre');
         return;
       }
 
-      const cleanText = text.replace(/[*_#`[\]()~>]/g, ' ').replace(/\s+/g, ' ').trim();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Alex')));
-      if (preferredVoice) utterance.voice = preferredVoice;
-
-      currentSpeechUtterance = utterance;
+      speechSentenceQueue = [
+        { text: text.replace(/[*_#`[\]()~>]/g, ' ').replace(/\s+/g, ' ').trim(), blockId: null, label: title }
+      ];
+      currentSpeechQueueIndex = 0;
+      isSpeechAudioActive = true;
+      isSpeechAudioPaused = false;
 
       const hud = document.getElementById('pkAudioReaderHUD');
       const label = document.getElementById('pkAudioReaderLabel');
       if (hud && label) {
-        label.textContent = `Reading ${title.length > 24 ? title.slice(0, 24) + '…' : title}`;
+        label.textContent = title.length > 24 ? title.slice(0, 24) + '…' : title;
         hud.classList.remove('hidden');
       }
-
-      utterance.onend = () => { stopReadingAloud(); };
-      utterance.onerror = () => { stopReadingAloud(); };
-
-      window.speechSynthesis.speak(utterance);
+      updateVoiceStudioHUDLabels();
+      playNextSpeechSentence();
       playChimeSound();
+    }
+
+    function toggleReadingNoteAloud() {
+      if (isSpeechAudioActive && window.speechSynthesis.speaking) {
+        stopReadingAloud();
+      } else {
+        startReadingActiveNoteAloud();
+      }
+    }
+
+    function startReadingActiveNoteAloud() {
+      if (!('speechSynthesis' in window)) {
+        showToast('Speech synthesis not supported in this browser', 'ochre');
+        return;
+      }
+      const note = getActiveNote();
+      if (!note) return;
+
+      stopReadingAloud();
+
+      // Chunk note into sentences and blocks to avoid mobile iOS/Android timeout stalls
+      const queue = [];
+      if (note.title && note.title.trim()) {
+        queue.push({
+          text: note.title.trim(),
+          blockId: 'title',
+          label: note.title
+        });
+      }
+
+      (note.blocks || []).forEach(b => {
+        if (!b.content || !b.content.trim()) return;
+        const clean = b.content.replace(/<[^>]*>/g, ' ').replace(/[*_#`[\]()~>]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!clean) return;
+
+        // Split sentences on punctuation followed by space
+        const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s && s.trim());
+        if (sentences.length > 0) {
+          sentences.forEach(s => {
+            queue.push({ text: s.trim(), blockId: b.id, label: b.type.toUpperCase() });
+          });
+        } else {
+          queue.push({ text: clean, blockId: b.id, label: b.type.toUpperCase() });
+        }
+      });
+
+      if (queue.length === 0) {
+        showToast('Note has no text content to read', 'ochre');
+        return;
+      }
+
+      speechSentenceQueue = queue;
+      currentSpeechQueueIndex = 0;
+      isSpeechAudioActive = true;
+      isSpeechAudioPaused = false;
+
+      const hud = document.getElementById('pkAudioReaderHUD');
+      const label = document.getElementById('pkAudioReaderLabel');
+      if (hud && label) {
+        label.textContent = note.title ? (note.title.length > 22 ? note.title.slice(0, 22) + '…' : note.title) : 'Reading note...';
+        hud.classList.remove('hidden');
+      }
+      updateVoiceStudioHUDLabels();
+      playNextSpeechSentence();
+      playChimeSound();
+    }
+
+    function playNextSpeechSentence() {
+      if (!isSpeechAudioActive || isSpeechAudioPaused) return;
+      if (currentSpeechQueueIndex >= speechSentenceQueue.length) {
+        stopReadingAloud();
+        showToast('Finished reading document');
+        return;
+      }
+
+      const item = speechSentenceQueue[currentSpeechQueueIndex];
+      const settings = getVoiceSettings();
+      const voice = getSelectedVoiceModel();
+
+      if (settings.autoScroll !== false) {
+        highlightVoiceBlock(item.blockId);
+      }
+
+      const utterance = new SpeechSynthesisUtterance(item.text);
+      if (voice) utterance.voice = voice;
+      utterance.rate = settings.rate || 1.0;
+      utterance.pitch = settings.pitch || 1.0;
+
+      utterance.onend = () => {
+        if (isSpeechAudioActive && !isSpeechAudioPaused) {
+          currentSpeechQueueIndex++;
+          playNextSpeechSentence();
+        }
+      };
+
+      utterance.onerror = (err) => {
+        console.warn('Utterance speech end/error:', err);
+        if (isSpeechAudioActive && !isSpeechAudioPaused) {
+          currentSpeechQueueIndex++;
+          playNextSpeechSentence();
+        }
+      };
+
+      currentActiveUtterance = utterance;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function togglePauseReadingAloud() {
+      if (!('speechSynthesis' in window)) return;
+      const pauseIcon = document.getElementById('pkAudioPauseIcon');
+      const playIcon = document.getElementById('pkAudioPlayIcon');
+
+      if (isSpeechAudioPaused) {
+        window.speechSynthesis.resume();
+        isSpeechAudioPaused = false;
+        if (pauseIcon) pauseIcon.classList.remove('hidden');
+        if (playIcon) playIcon.classList.add('hidden');
+        showToast('Resumed reading');
+      } else {
+        window.speechSynthesis.pause();
+        isSpeechAudioPaused = true;
+        if (pauseIcon) pauseIcon.classList.add('hidden');
+        if (playIcon) playIcon.classList.remove('hidden');
+        showToast('Paused reading', 'ochre');
+      }
     }
 
     function stopReadingAloud() {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
-      currentSpeechUtterance = null;
+      isSpeechAudioActive = false;
+      isSpeechAudioPaused = false;
+      speechSentenceQueue = [];
+      currentSpeechQueueIndex = 0;
+      currentActiveUtterance = null;
+      removeVoiceHighlights();
+
       const hud = document.getElementById('pkAudioReaderHUD');
       if (hud) hud.classList.add('hidden');
-    }
 
-    function toggleReadingNoteAloud() {
-      if (currentSpeechUtterance && window.speechSynthesis.speaking) {
-        stopReadingAloud();
-      } else {
-        const note = getActiveNote();
-        if (!note) return;
-        const allText = [note.title, ...note.blocks.map(b => b.content || '')].join('. ');
-        readTextAloud(allText, note.title);
-      }
+      const pauseIcon = document.getElementById('pkAudioPauseIcon');
+      const playIcon = document.getElementById('pkAudioPlayIcon');
+      if (pauseIcon) pauseIcon.classList.remove('hidden');
+      if (playIcon) playIcon.classList.add('hidden');
     }
 
     function formatSelectionAsTodo() {
@@ -12871,17 +13382,40 @@
     <div id="pkContextSubmenuItems" class="space-y-0.5 px-1 py-0.5 max-h-[60vh] overflow-y-auto"></div>
   </div>
 
-  <!-- Floating Ambient Audio Reader HUD (Web Speech API Equalizer) -->
-  <div id="pkAudioReaderHUD" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[900] flex items-center gap-3 px-4 py-2 rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl animate-menu select-none backdrop-blur-xl">
-    <div class="flex items-center gap-1 h-3.5 px-0.5">
+  <!-- Floating Ambient Audio Reader HUD (Web Speech API Equalizer & Controller) -->
+  <div id="pkAudioReaderHUD" class="hidden fixed bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-[900] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl animate-menu select-none backdrop-blur-xl max-w-[92vw]">
+    <div class="flex items-center gap-1 h-3.5 px-0.5 shrink-0" id="pkAudioEqWave">
       <span class="pk-eq-bar"></span>
       <span class="pk-eq-bar"></span>
       <span class="pk-eq-bar"></span>
       <span class="pk-eq-bar"></span>
       <span class="pk-eq-bar"></span>
     </div>
-    <span id="pkAudioReaderLabel" class="font-mono text-xs text-[var(--text-primary)] font-medium max-w-[220px] truncate">Reading note aloud...</span>
-    <button onclick="stopReadingAloud()" title="Stop Voice" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] transition-colors cursor-pointer flex items-center justify-center">
+    
+    <div class="flex flex-col min-w-0 max-w-[120px] sm:max-w-[200px]">
+      <span id="pkAudioReaderLabel" class="font-serif text-xs text-[var(--text-primary)] font-medium truncate">Reading document...</span>
+      <span id="pkAudioReaderVoiceLabel" class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Default Model</span>
+    </div>
+
+    <!-- Quick Voice Switcher Pill -->
+    <button onclick="openVoiceModelModal()" title="Switch Voice Model" class="shrink-0 px-2 py-0.5 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 transition-colors cursor-pointer">
+      <span>🎙️</span>
+      <span class="hidden sm:inline">Voice</span>
+    </button>
+
+    <!-- Speed Quick Cycle Pill -->
+    <button onclick="cycleAudioReaderRate()" id="pkAudioRatePill" title="Change Speech Rate" class="shrink-0 px-1.5 py-0.5 rounded font-mono text-[10px] text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
+      1.0x
+    </button>
+
+    <!-- Pause / Resume Toggle -->
+    <button onclick="togglePauseReadingAloud()" id="pkAudioPauseBtn" title="Pause / Resume" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center shrink-0">
+      <svg id="pkAudioPauseIcon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      <svg id="pkAudioPlayIcon" class="hidden w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </button>
+
+    <!-- Stop Button -->
+    <button onclick="stopReadingAloud()" title="Stop Voice" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] transition-colors cursor-pointer flex items-center justify-center shrink-0">
       <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
     </button>
   </div>
@@ -13305,6 +13839,22 @@
             <div class="font-medium text-[var(--text-primary)]">Redo Edit (↷)</div>
           </button>
         </div>
+        <button onclick="closeMobileMoreSheet(); openVoiceModelModal()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-sm shrink-0">🎙️</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Voice Synthesis Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Switch male/female models, rate & pitch</div>
+          </div>
+        </button>
+
+        <button onclick="closeMobileMoreSheet(); toggleReadingNoteAloud()" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🔊</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-[var(--text-primary)]">Read Document Aloud</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Audiobook playback with active block tracking</div>
+          </div>
+        </button>
+
         <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
           <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🎨</span>
           <div class="flex-1 min-w-0">
@@ -13359,6 +13909,130 @@
             <div class="font-medium text-red-500">Delete Current Document</div>
             <div class="font-mono text-[10px] text-red-500/70">Permanently remove this note from vault</div>
           </div>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Voice Model Switcher Studio Modal (Zero Server, 100% On-Device Neural / Local Speech) -->
+  <div id="voiceModelModalBackdrop" onclick="closeVoiceModelModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[980] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm">🎙️</span>
+          <div>
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Voice Synthesis Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]" id="voiceModelSubtitle">Local On-Device Models · Zero Server Required</div>
+          </div>
+        </div>
+        <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+
+      <!-- Filters & Voice Selector Body -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+        
+        <!-- Detected Hardware Engine Banner -->
+        <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div class="font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="detectedVoicesCount">Detecting local voice models...</span>
+            </div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Running entirely on your hardware · Works on phone & PC offline</div>
+          </div>
+          <button onclick="testSelectedVoice()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[11px] transition-colors flex items-center gap-1 cursor-pointer">
+            <span>▶ Test Voice</span>
+          </button>
+        </div>
+
+        <!-- Gender Filter Segmented Control -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Voice Model Gender & Type</label>
+            <span id="voiceFilterCountBadge" class="font-mono text-[10px] text-[var(--accent-vermilion)]"></span>
+          </div>
+          <div class="grid grid-cols-3 gap-1 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
+            <button id="voiceFilterAll" onclick="setVoiceGenderFilter('all')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)]">
+              All Voices
+            </button>
+            <button id="voiceFilterMale" onclick="setVoiceGenderFilter('male')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              👨 Male Voices
+            </button>
+            <button id="voiceFilterFemale" onclick="setVoiceGenderFilter('female')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              👩 Female Voices
+            </button>
+          </div>
+        </div>
+
+        <!-- Voice Search Input -->
+        <div class="relative">
+          <input type="text"
+                 id="voiceSearchInput"
+                 oninput="handleVoiceSearchInput(this.value)"
+                 placeholder="Search voices by name (e.g. David, Zira, Google, Natural)..."
+                 class="w-full pl-8 pr-3 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
+          <svg class="w-3.5 h-3.5 text-[var(--text-tertiary)] absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
+        </div>
+
+        <!-- Available Voices List -->
+        <div class="space-y-1.5">
+          <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Select Voice Model</label>
+          <div id="voiceCardsList" class="max-h-52 overflow-y-auto space-y-1 pr-0.5">
+            <!-- Dynamic Voice Cards injected by renderVoiceCardsList() -->
+          </div>
+        </div>
+
+        <!-- Acoustic & Cadence Tuning (Speed & Pitch) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[var(--border-hairline)]">
+          <!-- Reading Speed -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Cadence / Speed</span>
+              <span id="voiceRateDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">1.0x</span>
+            </div>
+            <input type="range" id="voiceRateSlider" min="0.75" max="1.75" step="0.05" value="1.0" oninput="handleVoiceRateChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
+            <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
+              <button onclick="setVoiceRatePreset(0.85)" class="hover:underline cursor-pointer">0.85x</button>
+              <button onclick="setVoiceRatePreset(1.0)" class="hover:underline cursor-pointer">Normal (1.0x)</button>
+              <button onclick="setVoiceRatePreset(1.25)" class="hover:underline cursor-pointer">1.25x</button>
+              <button onclick="setVoiceRatePreset(1.5)" class="hover:underline cursor-pointer">1.5x</button>
+            </div>
+          </div>
+
+          <!-- Pitch Resonance -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Pitch / Timbre</span>
+              <span id="voicePitchDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">Standard (1.0)</span>
+            </div>
+            <input type="range" id="voicePitchSlider" min="0.6" max="1.4" step="0.05" value="1.0" oninput="handleVoicePitchChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
+            <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
+              <button onclick="setVoicePitchPreset(0.8)" class="hover:underline cursor-pointer">Deep (0.8)</button>
+              <button onclick="setVoicePitchPreset(1.0)" class="hover:underline cursor-pointer">Default (1.0)</button>
+              <button onclick="setVoicePitchPreset(1.2)" class="hover:underline cursor-pointer">High (1.2)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Karaoke Highlighting Toggle -->
+        <label class="flex items-center gap-2 pt-1 cursor-pointer select-none">
+          <input type="checkbox" id="voiceKaraokeToggle" checked onchange="handleVoiceKaraokeToggle(this.checked)" class="accent-[var(--accent-vermilion)] rounded" />
+          <span class="text-xs text-[var(--text-secondary)]">Highlight active block & auto-scroll document while reading</span>
+        </label>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0 font-mono text-xs">
+        <button onclick="testSelectedVoice()" class="px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1.5">
+          <span>🔊 Audition</span>
+        </button>
+        <button onclick="closeVoiceModelModal(); toggleReadingNoteAloud()" class="px-4 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium transition-opacity cursor-pointer flex items-center gap-1.5">
+          <span>▶ Listen to Active Note</span>
         </button>
       </div>
 

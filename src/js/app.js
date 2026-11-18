@@ -6348,6 +6348,13 @@ function getVoiceSettings() {
       state.voiceSettings.engine = 'device';
     }
   }
+  // One-time recovery for phones previously auto-bounced to slow Kokoro WASM before Android Google TTS detection fix
+  if (!state.voiceSettings.voiceFastMobileFixV3) {
+    state.voiceSettings.voiceFastMobileFixV3 = true;
+    if (window.PK_LITE_MODE && kokoroEngineState !== 'ready') {
+      state.voiceSettings.engine = 'device';
+    }
+  }
   if (!state.voiceSettings.engine) state.voiceSettings.engine = 'device';
   if (!state.voiceSettings.kokoroVoiceId || !KOKORO_VOICE_CATALOG.some(v => v.id === state.voiceSettings.kokoroVoiceId)) {
     state.voiceSettings.kokoroVoiceId = 'af_heart';
@@ -6982,15 +6989,17 @@ function scoreNaturalDeviceVoice(voice) {
   else if (lang === 'en-gb' || lang === 'en_gb') score += 24;
   else if (lang.startsWith('en')) score += 16;
 
-  // Top-tier Neural / Natural / Premium / Enhanced voices (zero download, genuinely human!)
+  // Top-tier Neural / Natural / Premium / Enhanced / Android Network voices (zero download, genuinely human!)
+  const uri = (voice.voiceURI || '').toLowerCase();
   if (name.includes('natural')) score += 130;
   if (name.includes('neural')) score += 125;
   if (name.includes('multilingual')) score += 20;
-  if (name.includes('online')) score += 15;
+  if (name.includes('online') || uri.includes('-network') || voice.localService === false) score += 45;
   if (name.includes('premium') || name.includes('enhanced') || name.includes('siri')) score += 115;
   if (name.includes('wavenet') || name.includes('studio')) score += 105;
   if (name.includes('google us english') || name.includes('google uk english')) score += 92;
-  else if (name.includes('google')) score += 70;
+  else if (name.includes('google') || /en-[a-z]{2}-x-/.test(uri)) score += 75;
+  if (voice.default) score += 12;
 
   // Favorite ultra-natural flagship voices on Edge / Apple / Android
   if (/\b(ava|aria|jenny|emma|sonia|samantha|zoe|nicky|guy|andrew|brian)\b/.test(name)) score += 22;
@@ -7005,7 +7014,8 @@ function scoreNaturalDeviceVoice(voice) {
   return score;
 }
 
-// Strictly identify & remove EVERY robotic / legacy SAPI / eSpeak / novelty system voice from PK Note!
+// Strictly identify & remove EVERY robotic / legacy SAPI / eSpeak / novelty system voice from PK Note,
+// while preserving genuine Natural / Neural / Google / Android Speech Services / Siri / Enhanced voices!
 function isRoboticSystemVoice(voice) {
   if (!voice) return true;
   const name = (voice.name || '').toLowerCase();
@@ -7016,14 +7026,17 @@ function isRoboticSystemVoice(voice) {
   const roboticPattern = /(espeak|compact|eloquence|flite|festival|pico|mbrola|sapi|albert|bad news|bahh|bells|boing|bubbles|cellos|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|vicki|whisper|wobble|zarvox)/;
   if (roboticPattern.test(combined)) return true;
 
-  // Has genuine Neural / Natural / Online / Premium / Enhanced / Siri / Google / WaveNet / Studio quality?
-  const isNaturalQuality = /(natural|neural|online|premium|enhanced|siri|google|wavenet|studio|multilingual)/.test(combined);
+  // Block ALL legacy non-Natural Windows desktop voices (Microsoft David, Zira, Mark, Hazel, George, Susan, etc.)
+  if ((name.includes('microsoft') || name.includes('desktop')) && !/(natural|neural|online)/.test(combined)) {
+    return true;
+  }
+
+  // Cloud/network voices (localService === false) & modern Android Google/Samsung TTS voices are natural!
+  if (voice.localService === false) return false;
+  const isNaturalQuality = /(natural|neural|online|premium|enhanced|siri|google|wavenet|studio|multilingual|-network|-local|en-[a-z]{2}-x-|android|samsung|english\s*\(?united|english\s*\(?us|english\s*\(?uk|samantha|karen|daniel|moira|tessa|serena|martha|arthur|ava|allison|zoe|nicky)/.test(combined);
   if (isNaturalQuality) return false;
 
-  // Block ALL legacy non-Natural Windows desktop voices (Microsoft David, Zira, Mark, Hazel, George, Susan, etc.)
-  if (name.includes('microsoft') || name.includes('desktop')) return true;
-
-  // Block non-enhanced generic OS fallback voices
+  // Block unknown generic legacy OS fallback voices
   return true;
 }
 
@@ -7657,15 +7670,20 @@ function updateVoiceStudioHUDLabels(overrideStatus = null) {
 // =========================================================================
 // AUDIOBOOK DOCUMENT READING & GAPLESS KOKORO-82M PREFETCH PIPELINE
 // =========================================================================
+let lastHighlightedVoiceBlockId = null;
+
 function removeVoiceHighlights() {
+  lastHighlightedVoiceBlockId = null;
   document.querySelectorAll('.pk-voice-active-block').forEach(el => {
     el.classList.remove('pk-voice-active-block');
   });
 }
 
 function highlightVoiceBlock(blockId) {
+  if (blockId && blockId === lastHighlightedVoiceBlockId) return;
   removeVoiceHighlights();
   if (!blockId) return;
+  lastHighlightedVoiceBlockId = blockId;
   let targetEl = null;
   if (blockId === 'title') {
     targetEl = document.getElementById('docTitleInput');
@@ -7674,7 +7692,7 @@ function highlightVoiceBlock(blockId) {
   }
   if (targetEl) {
     targetEl.classList.add('pk-voice-active-block');
-    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    targetEl.scrollIntoView({ behavior: window.PK_LITE_MODE ? 'auto' : 'smooth', block: 'nearest' });
   }
 }
 
@@ -7697,6 +7715,9 @@ function clearKokoroPrefetchCache() {
   }
 }
 
+let kokoroSynthChain = Promise.resolve();
+let kokoroPrefetchDelayTimer = null;
+
 function synthesizeKokoroChunk(index, sessionId) {
   if (kokoroPrefetchMap.has(index)) {
     return kokoroPrefetchMap.get(index);
@@ -7709,7 +7730,6 @@ function synthesizeKokoroChunk(index, sessionId) {
   const trimmedTxt = (item.text || '').trim();
   const isQuestion = /\?$/.test(trimmedTxt);
   const isExclamation = /!$/.test(trimmedTxt);
-  // Expressive cadence: slightly unhurried on questions (?) & headings so rising intonation lands naturally!
   const baseRate = settings.rate || 1.0;
   const speed = isQuestion ? baseRate * 0.96
               : isExclamation ? baseRate * 1.03
@@ -7717,14 +7737,18 @@ function synthesizeKokoroChunk(index, sessionId) {
               : baseRate;
   const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
 
-  const promise = (async () => {
+  // Strictly serialize Kokoro WASM inference (1 at a time) + yield a frame so UI & audio never freeze!
+  const promise = (kokoroSynthChain = kokoroSynthChain.catch(() => {}).then(async () => {
+    if (sessionId !== speechPlaybackSessionId) return null;
+    await new Promise(r => setTimeout(r, 16));
+    if (sessionId !== speechPlaybackSessionId) return null;
     const tts = await ensureKokoroEngineLoaded();
     if (sessionId !== speechPlaybackSessionId) return null;
     const blob = await generateKokoroWavBlob(tts, item.text, voiceMeta, speed, pitch);
     if (sessionId !== speechPlaybackSessionId) return null;
     const url = URL.createObjectURL(blob);
     return { url };
-  })();
+  }));
 
   kokoroPrefetchMap.set(index, promise);
   return promise;
@@ -7767,14 +7791,6 @@ async function playNextKokoroSentence(sessionId) {
       currentSpeechQueueIndex++;
       playNextKokoroSentence(sessionId);
       return;
-    }
-
-    // Prefetch next 2 sentences immediately for truly gapless audiobook reading!
-    if (idx + 1 < speechSentenceQueue.length) {
-      synthesizeKokoroChunk(idx + 1, sessionId).catch(() => {});
-    }
-    if (idx + 2 < speechSentenceQueue.length) {
-      synthesizeKokoroChunk(idx + 2, sessionId).catch(() => {});
     }
 
     updateVoiceStudioHUDLabels(`Kokoro-82M · ${kv.name} (${idx + 1}/${speechSentenceQueue.length})`);
@@ -7820,6 +7836,16 @@ async function playNextKokoroSentence(sessionId) {
     if (!isSpeechAudioPaused) {
       try {
         await audio.play();
+        // Only prefetch next 1 sentence AFTER current audio starts playing (zero 2019-phone CPU lockup!)
+        if (idx + 1 < speechSentenceQueue.length) {
+          if (kokoroPrefetchDelayTimer) clearTimeout(kokoroPrefetchDelayTimer);
+          kokoroPrefetchDelayTimer = setTimeout(() => {
+            kokoroPrefetchDelayTimer = null;
+            if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
+              synthesizeKokoroChunk(idx + 1, sessionId).catch(() => {});
+            }
+          }, window.PK_LITE_MODE ? 350 : 80);
+        }
       } catch (playErr) {
         if (playErr && (playErr.name === 'NotAllowedError' || String(playErr).includes('play()'))) {
           // Mobile autoplay gesture expired while downloading — pause cleanly instead of ambushing with robotic OS voice!
@@ -7844,6 +7870,17 @@ async function playNextKokoroSentence(sessionId) {
   }
 }
 
+let lastSpeechCancelTs = 0;
+let deviceSpeakTimer = null;
+let deviceStartWatchdog = null;
+let deviceKeepAliveInterval = null;
+
+function clearDeviceSpeechTimers() {
+  if (deviceSpeakTimer) { clearTimeout(deviceSpeakTimer); deviceSpeakTimer = null; }
+  if (deviceStartWatchdog) { clearTimeout(deviceStartWatchdog); deviceStartWatchdog = null; }
+  if (deviceKeepAliveInterval) { clearInterval(deviceKeepAliveInterval); deviceKeepAliveInterval = null; }
+}
+
 function playNextDeviceSpeechSentence(sessionId) {
   if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
   if (currentSpeechQueueIndex >= speechSentenceQueue.length) {
@@ -7852,16 +7889,15 @@ function playNextDeviceSpeechSentence(sessionId) {
     return;
   }
 
+  clearDeviceSpeechTimers();
   const idx = currentSpeechQueueIndex;
   const item = speechSentenceQueue[idx];
   const settings = getVoiceSettings();
-  const voice = getSelectedVoiceModel();
+  let voice = getSelectedVoiceModel();
   if (!voice) {
-    stopReadingAloud();
-    showToast('No natural 0 MB voice in this browser — switch to Offline AI (Kokoro) in Voices', 'ochre');
-    openVoiceModelModal();
-    setVoiceEngine('kokoro');
-    return;
+    // Force one fresh voice check in case browser populated voices late
+    loadDetectedVoiceModels(true);
+    voice = getSelectedVoiceModel();
   }
 
   if (settings.autoScroll !== false) {
@@ -7870,7 +7906,7 @@ function playNextDeviceSpeechSentence(sessionId) {
 
   const shortName = voice && voice.name
     ? voice.name.replace(/Microsoft\s+|Online\s*\(Natural\)\s*-\s*English.*/gi, '').trim().slice(0, 18) || voice.name.slice(0, 18)
-    : 'Natural';
+    : 'System Natural';
   updateVoiceStudioHUDLabels(`${shortName} (${idx + 1}/${speechSentenceQueue.length})`);
 
   // Expressive prosody micro-tuning for questions (?), exclamations (!), and headings
@@ -7881,7 +7917,12 @@ function playNextDeviceSpeechSentence(sessionId) {
   const basePitch = settings.pitch || 1.0;
 
   const utterance = new SpeechSynthesisUtterance(item.text);
-  if (voice) utterance.voice = voice;
+  if (voice) {
+    utterance.voice = voice;
+    if (voice.lang) utterance.lang = voice.lang;
+  } else {
+    utterance.lang = navigator.language || 'en-US';
+  }
   utterance.rate = Math.max(0.75, Math.min(1.5,
     isQuestion ? baseRate * 0.96
     : isExclamation ? baseRate * 1.03
@@ -7894,10 +7935,12 @@ function playNextDeviceSpeechSentence(sessionId) {
     : basePitch
   ));
 
+  let started = false;
   let finished = false;
-  const advance = (delayMs = 150) => {
+  const advance = (delayMs = 130) => {
     if (finished) return;
     finished = true;
+    clearDeviceSpeechTimers();
     if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
     kokoroPauseTimer = setTimeout(() => {
       if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
@@ -7907,28 +7950,69 @@ function playNextDeviceSpeechSentence(sessionId) {
     }, delayMs);
   };
 
+  utterance.onstart = () => {
+    started = true;
+    if (deviceStartWatchdog) { clearTimeout(deviceStartWatchdog); deviceStartWatchdog = null; }
+  };
   utterance.onend = () => advance(
-    item.isHeading ? 360
-    : isQuestion ? 320
-    : isExclamation ? 230
-    : 150
+    item.isHeading ? 340
+    : isQuestion ? 300
+    : isExclamation ? 220
+    : 130
   );
   utterance.onerror = (err) => {
     const code = err && err.error ? err.error : '';
-    // Never race forward on user cancel/interrupt!
     if (code === 'canceled' || code === 'interrupted') return;
-    console.warn('Instant voice utterance error:', code);
-    advance(160);
+    advance(150);
   };
 
   currentActiveUtterance = utterance;
-  suppressVoicesChangedUntil = Date.now() + 1500;
-  try {
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utterance);
-  } catch (e) {
-    console.warn('speechSynthesis speak error:', e);
-    stopReadingAloud();
+
+  const doSpeak = () => {
+    if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
+    suppressVoicesChangedUntil = Date.now() + 1800;
+    try {
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utterance);
+
+      // Watchdog: if Android/Chrome silently wedged before starting, nudge resume() once so it never stays silent!
+      deviceStartWatchdog = setTimeout(() => {
+        if (started || finished || sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
+        try {
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (_) {}
+      }, 2200);
+
+      // Chrome 15-second pause bug keep-alive (lightweight, only active while speaking)
+      deviceKeepAliveInterval = setInterval(() => {
+        if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) {
+          clearInterval(deviceKeepAliveInterval);
+          deviceKeepAliveInterval = null;
+          return;
+        }
+        try {
+          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        } catch (_) {}
+      }, 10000);
+    } catch (e) {
+      stopReadingAloud();
+    }
+  };
+
+  // CRITICAL FOR CHROME / ANDROID: Never call speak() synchronously right after cancel() (silently drops speech!).
+  const sinceCancel = Date.now() - lastSpeechCancelTs;
+  if (sinceCancel < 95) {
+    deviceSpeakTimer = setTimeout(() => {
+      deviceSpeakTimer = null;
+      doSpeak();
+    }, 95 - sinceCancel);
+  } else {
+    doSpeak();
   }
 }
 
@@ -7947,7 +8031,7 @@ function readTextAloud(text, title = 'Selection') {
   stopReadingAloud();
 
   const clean = normalizeTextForNaturalSpeech(text);
-  const chunks = splitTextIntoNaturalChunks(clean, 220);
+  const chunks = splitTextIntoNaturalChunks(clean, window.PK_LITE_MODE ? 150 : 185);
   if (chunks.length === 0) {
     showToast('No readable text selected', 'ochre');
     return;
@@ -7979,7 +8063,6 @@ function readTextAloud(text, title = 'Selection') {
   updateVoiceStudioHUDLabels();
   updateHeaderReadAloudState();
   playNextSpeechSentence();
-  playChimeSound();
 }
 
 function updateHeaderReadAloudState() {
@@ -8045,7 +8128,7 @@ function startReadingActiveNoteAloud() {
     const clean = normalizeTextForNaturalSpeech(b.content);
     if (!clean) return;
     const isHeading = ['h1', 'h2', 'h3'].includes(b.type);
-    const chunks = splitTextIntoNaturalChunks(clean, 220);
+    const chunks = splitTextIntoNaturalChunks(clean, window.PK_LITE_MODE ? 150 : 185);
     chunks.forEach((chunk, idx) => {
       queue.push({
         text: chunk,
@@ -8076,7 +8159,6 @@ function startReadingActiveNoteAloud() {
   updateVoiceStudioHUDLabels();
   updateHeaderReadAloudState();
   playNextSpeechSentence();
-  playChimeSound();
 }
 
 function togglePauseReadingAloud() {
@@ -8121,13 +8203,23 @@ function togglePauseReadingAloud() {
 
 function stopReadingAloud() {
   speechPlaybackSessionId++;
+  clearDeviceSpeechTimers();
+  if (kokoroPrefetchDelayTimer) {
+    clearTimeout(kokoroPrefetchDelayTimer);
+    kokoroPrefetchDelayTimer = null;
+  }
   if (deviceAuditionTimer) {
     clearTimeout(deviceAuditionTimer);
     deviceAuditionTimer = null;
   }
   if ('speechSynthesis' in window) {
-    suppressVoicesChangedUntil = Date.now() + 1200;
-    window.speechSynthesis.cancel();
+    // CRITICAL FOR ANDROID: Only call cancel() when actually speaking/pending!
+    // Calling cancel() when idle stalls Android TTS Binder IPC & triggers Chrome's silent-drop bug on the next speak()!
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      suppressVoicesChangedUntil = Date.now() + 1200;
+      lastSpeechCancelTs = Date.now();
+      window.speechSynthesis.cancel();
+    }
   }
   if (pkKokoroAudioEl) {
     try {

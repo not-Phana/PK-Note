@@ -3106,8 +3106,25 @@ function renderSingleBlockHTML(block) {
   }
 
   const isTouchDevice = typeof window !== 'undefined' && (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const arranging = typeof pkMobileArrangeMode !== 'undefined' && pkMobileArrangeMode;
+  const mobileArrangeControls = arranging ? `
+    <div class="flex sm:hidden items-center gap-1 pl-2 shrink-0 select-none self-center">
+      <button type="button" onclick="duplicateBlock('${block.id}')" title="Duplicate block" class="w-8 h-8 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+      <button type="button" onclick="deleteBlock('${block.id}')" title="Delete block" class="w-8 h-8 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-rose-500 flex items-center justify-center cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+      <button type="button" data-drag-handle="${block.id}" style="touch-action: none;" onclick="handleBlockHandleTap(event, '${block.id}')" title="Hold & drag to move block" class="w-9 h-9 rounded-md bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-[var(--accent-vermilion)] flex items-center justify-center cursor-grab active:cursor-grabbing">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="15" cy="18" r="1.2"/></svg>
+      </button>
+    </div>
+  ` : '';
+  const rowCls = arranging
+    ? 'block-row group relative flex items-start rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] px-2.5 py-1.5 my-1.5'
+    : 'block-row group relative flex items-start rounded-[2px]';
   return `
-    <div class="block-row group relative flex items-start rounded-[2px]"
+    <div class="${rowCls}"
          data-row-id="${block.id}"
          ${isTouchDevice ? '' : 'draggable="true"'}
          ondragstart="handleBlockDragStart(event, '${block.id}')"
@@ -3116,6 +3133,7 @@ function renderSingleBlockHTML(block) {
          ondrop="handleBlockDrop(event, '${block.id}')">
       ${gutter}
       ${innerBlock}
+      ${mobileArrangeControls}
     </div>
   `;
 }
@@ -15713,10 +15731,47 @@ function pkHaptic(ms = 12) {
   try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
 }
 
-// --- 19A. SAFE BLOCK HANDLE TAP MENU + TRUE TOUCH/POINTER BLOCK DRAG & DROP ---
+// --- 19A. CLEAN MOBILE ARRANGE MODE + TRUE TOUCH/POINTER BLOCK DRAG & DROP ---
+let pkMobileArrangeMode = false;
 let pkTouchMenuBlockId = null;
 let pkBlockDragState = null;
 let pkSuppressNextHandleClick = false;
+
+function toggleMobileArrangeMode(forceState = null) {
+  const note = getActiveNote();
+  if (note && note.locked && forceState !== false) {
+    showToast('Unlock note to arrange blocks', 'ochre');
+    return;
+  }
+  pkMobileArrangeMode = forceState === null ? !pkMobileArrangeMode : !!forceState;
+  const btn = document.getElementById('mobileArrangeModeBtn');
+  const lbl = document.getElementById('mobileArrangeModeLabel');
+  const kbBtn = document.getElementById('mobileKbArrangeBtn');
+  if (btn && lbl) {
+    if (pkMobileArrangeMode) {
+      btn.className = 'shrink-0 py-1.5 px-2.5 rounded-lg bg-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold flex items-center gap-1 cursor-pointer';
+      lbl.textContent = 'Done';
+    } else {
+      btn.className = 'shrink-0 py-1.5 px-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-[11px] font-medium flex items-center gap-1 cursor-pointer';
+      lbl.textContent = 'Arrange';
+    }
+  }
+  if (kbBtn) {
+    kbBtn.classList.toggle('bg-[var(--accent-vermilion)]', pkMobileArrangeMode);
+    kbBtn.classList.toggle('text-white', pkMobileArrangeMode);
+    kbBtn.classList.toggle('bg-[var(--bg-canvas)]', !pkMobileArrangeMode);
+    kbBtn.classList.toggle('text-[var(--text-secondary)]', !pkMobileArrangeMode);
+  }
+  if (pkMobileArrangeMode && typeof dismissMobileKeyboard === 'function') {
+    dismissMobileKeyboard();
+  }
+  closeBlockTouchMenu();
+  if (note) renderBlocks(note);
+  pkHaptic(8);
+  if (pkMobileArrangeMode) {
+    showToast('Drag the right handle with your finger to move blocks · Tap Done when finished');
+  }
+}
 
 function closeBlockTouchMenu() {
   const menu = document.getElementById('pkBlockTouchMenu');
@@ -15834,7 +15889,7 @@ document.addEventListener('pointermove', (e) => {
 
     const rect = pkBlockDragState.row.getBoundingClientRect();
     const ghost = document.createElement('div');
-    ghost.className = 'fixed pointer-events-none z-[936] rounded-lg border border-[var(--accent-vermilion)] bg-[var(--bg-panel)]/95 shadow-2xl px-3 py-2 text-xs text-[var(--text-primary)] truncate backdrop-blur-md';
+    ghost.className = 'fixed pointer-events-none z-[936] rounded-lg border border-[var(--accent-vermilion)] bg-[var(--bg-panel)] shadow-2xl px-3 py-2 text-xs text-[var(--text-primary)] truncate';
     ghost.style.width = `${Math.min(rect.width, window.innerWidth - 32)}px`;
     ghost.style.left = `${Math.max(16, rect.left)}px`;
     ghost.style.top = `${e.clientY - 20}px`;
@@ -16208,9 +16263,151 @@ if (document.readyState === 'loading') {
 }
 
 // =========================================================================
-// 20. CLEAN TOUCH UTILITIES (No accidental paragraph slide/delete, no header/tag flick!)
+// 20. INTENTIONAL FINGER DRAG & DROP (Sidebar Notes & Calendar Events)
 // =========================================================================
 function pkSpawnTouchRipple() {}
+
+// --- 20B. INTENTIONAL 380ms HOLD SIDEBAR NOTE FINGER DRAG & DROP ---
+(function initSidebarNoteFingerDragDrop() {
+  let noteDrag = null;
+  let holdTimer = null;
+
+  function clearSidebarDropHighlights() {
+    document.querySelectorAll('.pk-folder-drop-hot').forEach(el => {
+      el.classList.remove('pk-folder-drop-hot');
+      el.style.outline = '';
+      el.style.backgroundColor = '';
+    });
+    const line = document.getElementById('pkBlockDropLine');
+    if (line) line.classList.add('hidden');
+  }
+
+  function activateNoteDrag(x, y) {
+    if (!noteDrag || noteDrag.active) return;
+    noteDrag.active = true;
+    pkHaptic(14);
+    const ghost = document.createElement('div');
+    ghost.className = 'fixed pointer-events-none z-[990] px-3 py-2 rounded-lg bg-[var(--bg-panel)] border border-[var(--accent-vermilion)] shadow-2xl font-serif text-xs font-medium text-[var(--text-primary)] truncate max-w-[230px]';
+    ghost.textContent = noteDrag.title || 'Moving note...';
+    ghost.style.left = `${Math.max(8, x - 90)}px`;
+    ghost.style.top = `${Math.max(8, y - 22)}px`;
+    document.body.appendChild(ghost);
+    noteDrag.ghost = ghost;
+    noteDrag.btn.style.opacity = '0.35';
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button === 2) return;
+    const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
+    const btn = targetEl ? targetEl.closest('.sidebar-note-btn[data-note-id]') : null;
+    if (!btn) return;
+    const noteId = btn.getAttribute('data-note-id');
+    const note = state.notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    noteDrag = {
+      pointerId: e.pointerId, noteId, title: note.title || 'Untitled', btn,
+      startX: e.clientX, startY: e.clientY, active: false, ghost: null,
+      targetFolder: null, targetNoteId: null, insertBefore: true
+    };
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      if (noteDrag) activateNoteDrag(noteDrag.startX, noteDrag.startY);
+    }, 380);
+  }, { passive: true });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!noteDrag || e.pointerId !== noteDrag.pointerId) return;
+    const dx = e.clientX - noteDrag.startX;
+    const dy = e.clientY - noteDrag.startY;
+    if (!noteDrag.active) {
+      if (Math.hypot(dx, dy) > 8) {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        noteDrag = null;
+      }
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    if (noteDrag.ghost) {
+      noteDrag.ghost.style.left = `${Math.max(8, Math.min(window.innerWidth - 180, e.clientX - 80))}px`;
+      noteDrag.ghost.style.top = `${Math.max(8, Math.min(window.innerHeight - 44, e.clientY - 22))}px`;
+    }
+    clearSidebarDropHighlights();
+    noteDrag.targetFolder = null;
+    noteDrag.targetNoteId = null;
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    if (!under) return;
+    const folderEl = under.closest('[data-folder-drop]');
+    if (folderEl) {
+      noteDrag.targetFolder = folderEl.getAttribute('data-folder-drop');
+      folderEl.classList.add('pk-folder-drop-hot');
+      folderEl.style.outline = '1.5px solid var(--accent-vermilion)';
+      folderEl.style.backgroundColor = 'var(--accent-vermilion-tint)';
+      return;
+    }
+    const otherNoteBtn = under.closest('.sidebar-note-btn[data-note-id]');
+    if (otherNoteBtn && otherNoteBtn.getAttribute('data-note-id') !== noteDrag.noteId) {
+      const r = otherNoteBtn.getBoundingClientRect();
+      noteDrag.targetNoteId = otherNoteBtn.getAttribute('data-note-id');
+      noteDrag.insertBefore = e.clientY < (r.top + r.height / 2);
+      const line = document.getElementById('pkBlockDropLine');
+      if (line) {
+        line.style.left = `${r.left}px`;
+        line.style.width = `${r.width}px`;
+        line.style.top = `${noteDrag.insertBefore ? r.top - 1 : r.bottom - 1}px`;
+        line.classList.remove('hidden');
+      }
+    }
+  }, { passive: false });
+
+  function finishSidebarNoteDrag(e) {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (!noteDrag || (e && e.pointerId !== noteDrag.pointerId)) return;
+    const st = noteDrag;
+    noteDrag = null;
+    if (st.ghost) st.ghost.remove();
+    if (st.btn) st.btn.style.opacity = '';
+    clearSidebarDropHighlights();
+    if (!st.active) return;
+
+    const suppressClick = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+    window.addEventListener('click', suppressClick, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener('click', suppressClick, { capture: true }), 80);
+
+    const movingNote = state.notes.find(n => n.id === st.noteId);
+    if (!movingNote) return;
+    if (st.targetFolder) {
+      movingNote.folder = st.targetFolder;
+      state.expandedFolders[st.targetFolder] = true;
+      renderSidebar();
+      if (state.activeNoteId === movingNote.id) renderActiveNote();
+      persistState();
+      pkHaptic(14);
+      showToast(`Moved "${movingNote.title}" to ${st.targetFolder}`);
+      return;
+    }
+    if (st.targetNoteId) {
+      const fromIdx = state.notes.findIndex(n => n.id === st.noteId);
+      const targetNote = state.notes.find(n => n.id === st.targetNoteId);
+      if (fromIdx >= 0 && targetNote) {
+        movingNote.folder = targetNote.folder || 'General';
+        state.notes.splice(fromIdx, 1);
+        let toIdx = state.notes.findIndex(n => n.id === st.targetNoteId);
+        if (!st.insertBefore) toIdx++;
+        state.notes.splice(toIdx, 0, movingNote);
+        renderSidebar();
+        persistState();
+        pkHaptic(12);
+        showToast(`Reordered "${movingNote.title}"`);
+      }
+    }
+  }
+  document.addEventListener('pointerup', finishSidebarNoteDrag);
+  document.addEventListener('pointercancel', finishSidebarNoteDrag);
+  document.addEventListener('touchmove', (e) => {
+    if (noteDrag && noteDrag.active && e.cancelable) e.preventDefault();
+  }, { passive: false });
+})();
 
 // --- 20C. FINGER DRAG & DROP CALENDAR EVENTS ON MONTH GRID ---
 (function initCalendarEventFingerDragDrop() {

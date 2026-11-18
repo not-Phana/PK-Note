@@ -480,11 +480,17 @@
           </h1>
         </div>
 
-        <!-- Mobile Compact Metadata Summary Toggle (Saves ~115px of phone height; tap to edit folder & tags) -->
-        <button type="button" onclick="toggleMobileMetaLedger()" id="mobileMetaToggleBtn" class="sm:hidden w-full mb-4 py-1.5 px-2.5 rounded-lg bg-[var(--bg-panel)]/70 border border-[var(--border-hairline)] flex items-center justify-between font-mono text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
-          <span class="truncate" id="mobileMetaSummaryText">General · 1 min read · Details</span>
-          <svg id="mobileMetaChevron" class="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0 transition-transform" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
+        <!-- Mobile Compact Details + 1-Tap Finger Arrange Toggle (Zero Extra Height!) -->
+        <div class="sm:hidden flex items-center gap-1.5 mb-3.5 select-none">
+          <button type="button" onclick="toggleMobileMetaLedger()" id="mobileMetaToggleBtn" class="flex-1 min-w-0 py-1.5 px-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-center justify-between font-mono text-[11px] text-[var(--text-secondary)] cursor-pointer">
+            <span class="truncate" id="mobileMetaSummaryText">General · 1 min read · Details</span>
+            <svg id="mobileMetaChevron" class="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0 transition-transform" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button type="button" onclick="toggleMobileArrangeMode()" id="mobileArrangeModeBtn" title="Drag, reorder, duplicate or delete blocks with your finger" class="shrink-0 py-1.5 px-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-[11px] font-medium flex items-center gap-1 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg>
+            <span id="mobileArrangeModeLabel">Arrange</span>
+          </button>
+        </div>
 
         <!-- Archival Metadata Properties Ledger (Always visible on tablet/desktop; toggled on phone) -->
         <div id="archivalMetadataLedger" class="hidden sm:block mb-5 sm:mb-8 py-2 sm:py-3 border-y border-[var(--border-hairline)] space-y-1.5 sm:space-y-2 text-xs">
@@ -1298,6 +1304,9 @@
       </button>
       <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileInlineFormat('bold')" title="Bold" class="px-2.5 py-1.5 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[38px] min-h-[38px] flex items-center justify-center shrink-0">
         B
+      </button>
+      <button type="button" onpointerdown="event.preventDefault()" onclick="toggleMobileArrangeMode()" id="mobileKbArrangeBtn" title="Arrange & drag blocks with finger" class="px-2.5 py-1.5 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] min-w-[38px] min-h-[38px] flex items-center justify-center shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg>
       </button>
     </div>
     <button type="button" onpointerdown="event.preventDefault()" onclick="dismissMobileKeyboard()" class="shrink-0 px-3 py-1.5 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-primary)] min-h-[38px] flex items-center font-mono font-medium">

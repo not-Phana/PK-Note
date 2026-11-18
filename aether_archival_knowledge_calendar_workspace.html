@@ -1778,7 +1778,7 @@
 
       <!-- HTML5 Canvas Viewport -->
       <div id="graphCanvasWrapper" class="relative flex-1 w-full bg-[var(--bg-canvas)] overflow-hidden cursor-grab active:cursor-grabbing select-none">
-        <canvas id="knowledgeGraphCanvas" class="block w-full h-full"></canvas>
+        <canvas id="knowledgeGraphCanvas" class="block w-full h-full" style="touch-action: none;"></canvas>
         
         <!-- Live Connection HUD Guidance Bar -->
         <div id="graphCanvasHUD" class="hidden absolute top-2 left-2 right-2 px-2.5 py-1.5 rounded-[3px] bg-black/85 backdrop-blur-md text-white text-[11px] font-mono flex items-center justify-between border border-white/20 z-20 shadow-lg animate-toast-in select-none">
@@ -4873,7 +4873,7 @@
           <button onclick="insertBlockAfter('${block.id}')" title="Insert block below" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
-          <button onclick="deleteBlock('${block.id}')" title="Drag to reorder · Click to delete" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] cursor-grab active:cursor-grabbing">
+          <button type="button" data-drag-handle="${block.id}" style="touch-action: none;" onclick="handleBlockHandleTap(event, '${block.id}')" title="Drag to reorder · Tap for block actions" class="p-1 sm:p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] cursor-grab active:cursor-grabbing">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
           </button>
         </div>
@@ -14940,7 +14940,7 @@
 
       <!-- Studio Canvas Area -->
       <div id="expandedGraphCanvasWrapper" class="relative flex-1 w-full bg-[var(--bg-canvas)] overflow-hidden cursor-grab active:cursor-grabbing select-none">
-        <canvas id="expandedKnowledgeGraphCanvas" class="block w-full h-full"></canvas>
+        <canvas id="expandedKnowledgeGraphCanvas" class="block w-full h-full" style="touch-action: none;"></canvas>
 
         <!-- Studio Floating Link Guidance HUD -->
         <div id="expGraphHUD" class="hidden absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/85 backdrop-blur-md text-white text-xs font-mono flex items-center gap-3 border border-white/20 z-20 shadow-2xl animate-toast-in select-none">
@@ -16279,6 +16279,613 @@
       persistState();
       if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
       showToast(note.locked ? 'Note locked (read-only mode)' : 'Note unlocked for editing');
+    }
+  </script>
+
+  <!-- Floating Block Quick Action Pill (Tap 6-dot handle for safe Up/Down/Duplicate/Delete) -->
+  <div id="pkBlockTouchMenu" class="hidden fixed z-[940] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-1 flex items-center gap-0.5 select-none backdrop-blur-xl font-mono text-[10px]">
+    <button type="button" onclick="moveTouchMenuBlock(-1)" title="Move Block Up" class="px-2 py-1.5 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] flex items-center gap-1 cursor-pointer">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      <span>Up</span>
+    </button>
+    <button type="button" onclick="moveTouchMenuBlock(1)" title="Move Block Down" class="px-2 py-1.5 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] flex items-center gap-1 cursor-pointer">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      <span>Down</span>
+    </button>
+    <button type="button" onclick="duplicateTouchMenuBlock()" title="Duplicate Block" class="px-2 py-1.5 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] cursor-pointer">Copy</button>
+    <button type="button" onclick="deleteTouchMenuBlock()" title="Delete Block" class="px-2 py-1.5 rounded-[3px] hover:bg-red-500/15 text-red-500 font-semibold cursor-pointer">Delete</button>
+  </div>
+
+  <!-- Crisp Vermilion Drop Insertion Indicator for Finger & Pointer Block Reordering -->
+  <div id="pkBlockDropLine" class="hidden fixed pointer-events-none z-[935] h-[2.5px] rounded-full bg-[var(--accent-vermilion)] shadow-sm"></div>
+
+  <script>
+    // =========================================================================
+    // 19. FINGER-FIRST TOUCH, DRAG, DROP & GESTURE ENGINE
+    //     Block Drag-Drop · Draggable HUDs · Graph Pinch/Long-Press ·
+    //     Swipe-Down Sheets · Edge-Swipe Sidebars · Calendar/Todo/Multi-Finger
+    // =========================================================================
+    function pkHaptic(ms = 12) {
+      try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+    }
+
+    // --- 19A. SAFE BLOCK HANDLE TAP MENU + TRUE TOUCH/POINTER BLOCK DRAG & DROP ---
+    let pkTouchMenuBlockId = null;
+    let pkBlockDragState = null;
+    let pkSuppressNextHandleClick = false;
+
+    function closeBlockTouchMenu() {
+      const menu = document.getElementById('pkBlockTouchMenu');
+      if (menu) menu.classList.add('hidden');
+      pkTouchMenuBlockId = null;
+    }
+
+    function handleBlockHandleTap(e, blockId) {
+      if (e) e.stopPropagation();
+      if (pkSuppressNextHandleClick) {
+        pkSuppressNextHandleClick = false;
+        return;
+      }
+      const note = getActiveNote();
+      if (note && note.locked) {
+        showToast('Note is locked (read-only)', 'ochre');
+        return;
+      }
+      const menu = document.getElementById('pkBlockTouchMenu');
+      if (!menu) return;
+      if (pkTouchMenuBlockId === blockId && !menu.classList.contains('hidden')) {
+        closeBlockTouchMenu();
+        return;
+      }
+      pkTouchMenuBlockId = blockId;
+      menu.classList.remove('hidden');
+
+      const btnRect = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : { left: 20, bottom: 120 };
+      const menuW = menu.offsetWidth || 210;
+      const left = Math.max(8, Math.min(window.innerWidth - menuW - 8, btnRect.left));
+      const top = Math.max(52, Math.min(window.innerHeight - 60, btnRect.bottom + 6));
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+      pkHaptic(8);
+    }
+
+    function moveTouchMenuBlock(delta) {
+      if (!pkTouchMenuBlockId) return;
+      const note = getActiveNote();
+      if (!note || note.locked) return;
+      const idx = note.blocks.findIndex(b => b.id === pkTouchMenuBlockId);
+      const targetIdx = idx + delta;
+      if (idx < 0 || targetIdx < 0 || targetIdx >= note.blocks.length) {
+        closeBlockTouchMenu();
+        return;
+      }
+      if (typeof takeSnapshot === 'function') takeSnapshot('move-block');
+      const [moved] = note.blocks.splice(idx, 1);
+      note.blocks.splice(targetIdx, 0, moved);
+      note.updatedAt = TODAY_KEY;
+      renderBlocks(note);
+      persistState();
+      pkHaptic(10);
+      closeBlockTouchMenu();
+    }
+
+    function duplicateTouchMenuBlock() {
+      if (!pkTouchMenuBlockId) return;
+      if (typeof duplicateBlock === 'function') {
+        duplicateBlock(pkTouchMenuBlockId);
+      }
+      pkHaptic(10);
+      closeBlockTouchMenu();
+    }
+
+    function deleteTouchMenuBlock() {
+      if (!pkTouchMenuBlockId) return;
+      const id = pkTouchMenuBlockId;
+      closeBlockTouchMenu();
+      deleteBlock(id);
+      pkHaptic(14);
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+      const menu = document.getElementById('pkBlockTouchMenu');
+      if (menu && !menu.classList.contains('hidden')) {
+        if (!e.target.closest('#pkBlockTouchMenu') && !e.target.closest('[data-drag-handle]')) {
+          closeBlockTouchMenu();
+        }
+      }
+
+      const handle = e.target.closest('[data-drag-handle]');
+      if (!handle || e.button === 2) return;
+      const note = getActiveNote();
+      if (!note || note.locked) return;
+
+      const blockId = handle.getAttribute('data-drag-handle');
+      const row = handle.closest('.block-row');
+      if (!row) return;
+
+      pkBlockDragState = {
+        pointerId: e.pointerId,
+        blockId,
+        row,
+        startX: e.clientX,
+        startY: e.clientY,
+        active: false,
+        ghost: null,
+        targetIndex: -1
+      };
+    }, { passive: true });
+
+    document.addEventListener('pointermove', (e) => {
+      if (!pkBlockDragState || e.pointerId !== pkBlockDragState.pointerId) return;
+
+      const dx = e.clientX - pkBlockDragState.startX;
+      const dy = e.clientY - pkBlockDragState.startY;
+
+      if (!pkBlockDragState.active) {
+        if (Math.hypot(dx, dy) < 7) return;
+        pkBlockDragState.active = true;
+        pkSuppressNextHandleClick = true;
+        closeBlockTouchMenu();
+        pkHaptic(12);
+
+        const rect = pkBlockDragState.row.getBoundingClientRect();
+        const ghost = document.createElement('div');
+        ghost.className = 'fixed pointer-events-none z-[936] rounded-lg border border-[var(--accent-vermilion)] bg-[var(--bg-panel)]/95 shadow-2xl px-3 py-2 text-xs text-[var(--text-primary)] truncate backdrop-blur-md';
+        ghost.style.width = `${Math.min(rect.width, window.innerWidth - 32)}px`;
+        ghost.style.left = `${Math.max(16, rect.left)}px`;
+        ghost.style.top = `${e.clientY - 20}px`;
+        const textPreview = (pkBlockDragState.row.innerText || 'Block').trim().slice(0, 72);
+        ghost.textContent = textPreview || 'Moving block...';
+        document.body.appendChild(ghost);
+        pkBlockDragState.ghost = ghost;
+        pkBlockDragState.row.style.opacity = '0.35';
+      }
+
+      if (e.cancelable) e.preventDefault();
+
+      if (pkBlockDragState.ghost) {
+        pkBlockDragState.ghost.style.top = `${e.clientY - 20}px`;
+      }
+
+      // Auto-scroll editor container near top/bottom viewport edges
+      const scroller = document.getElementById('editorScrollArea') || document.querySelector('main');
+      if (scroller) {
+        if (e.clientY < 95) scroller.scrollTop -= 10;
+        else if (e.clientY > window.innerHeight - 95) scroller.scrollTop += 10;
+      }
+
+      // Compute exact insertion index & draw vermilion drop indicator line
+      const rows = Array.from(document.querySelectorAll('#blocksContainer .block-row'));
+      const dropLine = document.getElementById('pkBlockDropLine');
+      if (rows.length === 0 || !dropLine) return;
+
+      let insertIdx = rows.length;
+      let lineY = rows[rows.length - 1].getBoundingClientRect().bottom + 2;
+      const baseRect = rows[0].getBoundingClientRect();
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i].getBoundingClientRect();
+        const midY = r.top + r.height / 2;
+        if (e.clientY < midY) {
+          insertIdx = i;
+          lineY = r.top - 2;
+          break;
+        }
+      }
+
+      pkBlockDragState.targetIndex = insertIdx;
+      dropLine.style.left = `${Math.max(12, baseRect.left)}px`;
+      dropLine.style.width = `${Math.min(baseRect.width, window.innerWidth - 24)}px`;
+      dropLine.style.top = `${lineY}px`;
+      dropLine.classList.remove('hidden');
+    }, { passive: false });
+
+    function finishBlockTouchDrag(e) {
+      if (!pkBlockDragState || (e && e.pointerId !== pkBlockDragState.pointerId)) return;
+      const st = pkBlockDragState;
+      pkBlockDragState = null;
+
+      if (st.ghost) st.ghost.remove();
+      if (st.row) st.row.style.opacity = '';
+      const dropLine = document.getElementById('pkBlockDropLine');
+      if (dropLine) dropLine.classList.add('hidden');
+
+      if (!st.active || st.targetIndex < 0) return;
+      setTimeout(() => { pkSuppressNextHandleClick = false; }, 60);
+
+      const note = getActiveNote();
+      if (!note || note.locked) return;
+      const fromIdx = note.blocks.findIndex(b => b.id === st.blockId);
+      if (fromIdx < 0) return;
+
+      let toIdx = st.targetIndex;
+      if (toIdx > fromIdx) toIdx--;
+      if (toIdx === fromIdx) return;
+
+      if (typeof takeSnapshot === 'function') takeSnapshot('touch-reorder-block');
+      const [moved] = note.blocks.splice(fromIdx, 1);
+      note.blocks.splice(toIdx, 0, moved);
+      note.updatedAt = TODAY_KEY;
+      renderBlocks(note);
+      persistState();
+      pkHaptic(14);
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.9);
+      showToast('Reordered block');
+    }
+
+    document.addEventListener('pointerup', finishBlockTouchDrag);
+    document.addEventListener('pointercancel', finishBlockTouchDrag);
+
+    // --- 19B. DRAGGABLE FLOATING WIDGETS (Move HUDs Anywhere With Your Finger!) ---
+    function makeFloatingWidgetDraggable(elId) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      el.style.touchAction = 'none';
+
+      let drag = null;
+      let lastTapTs = 0;
+
+      // Double-tap widget body to snap back to default centered/docked position
+      el.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button, input, textarea, select, a, label')) return;
+        const now = Date.now();
+        if (now - lastTapTs < 300) {
+          el.style.left = '';
+          el.style.top = '';
+          el.style.right = '';
+          el.style.bottom = '';
+          el.style.margin = '';
+          lastTapTs = 0;
+          pkHaptic(8);
+          showToast('Widget position reset');
+          return;
+        }
+        lastTapTs = now;
+
+        const rect = el.getBoundingClientRect();
+        drag = {
+          pointerId: e.pointerId,
+          startX: e.clientX,
+          startY: e.clientY,
+          origLeft: rect.left,
+          origTop: rect.top,
+          moved: false
+        };
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!drag || e.pointerId !== drag.pointerId) return;
+        const dx = e.clientX - drag.startX;
+        const dy = e.clientY - drag.startY;
+        if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+
+        drag.moved = true;
+        const w = el.offsetWidth;
+        const h = el.offsetHeight;
+        const nextLeft = Math.max(6, Math.min(window.innerWidth - w - 6, drag.origLeft + dx));
+        const nextTop = Math.max(6, Math.min(window.innerHeight - h - 6, drag.origTop + dy));
+
+        el.style.margin = '0';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        el.style.left = `${nextLeft}px`;
+        el.style.top = `${nextTop}px`;
+      });
+
+      const endDrag = (e) => {
+        if (drag && e.pointerId === drag.pointerId) drag = null;
+      };
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+    }
+
+    // --- 19C. KNOWLEDGE GRAPH MULTI-TOUCH: 2-FINGER PINCH-ZOOM, LONG-PRESS LINK, DOUBLE-TAP CREATE ---
+    function attachGraphFingerGestures(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+
+      let pinchState = null;
+      let longPressTimer = null;
+      let touchStartInfo = null;
+      let lastEmptyTapTs = 0;
+
+      canvas.addEventListener('touchstart', (e) => {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+
+        // 2-Finger Pinch-to-Zoom + 2-Finger Pan
+        if (e.touches.length === 2) {
+          if (e.cancelable) e.preventDefault();
+          const t1 = e.touches[0], t2 = e.touches[1];
+          const rect = canvas.getBoundingClientRect();
+          const midX = (t1.clientX + t2.clientX) / 2 - rect.left;
+          const midY = (t1.clientY + t2.clientY) / 2 - rect.top;
+          pinchState = {
+            startDist: Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY) || 1,
+            startZoom: graphZoom,
+            startPanX: graphPan.x,
+            startPanY: graphPan.y,
+            startMidX: midX,
+            startMidY: midY
+          };
+          return;
+        }
+
+        // 1-Finger: Long-press on a node to start connection wire OR double-tap empty canvas to create note
+        if (e.touches.length === 1) {
+          const t = e.touches[0];
+          const pos = getGraphPointerPos(canvas, t);
+          touchStartInfo = { x: t.clientX, y: t.clientY, pos };
+          const hit = findNodeAt(pos);
+
+          if (hit) {
+            longPressTimer = setTimeout(() => {
+              longPressTimer = null;
+              if (typeof draggedNode !== 'undefined') draggedNode = null;
+              if (typeof startConnectionFromNode === 'function') {
+                startConnectionFromNode(hit);
+                pkHaptic(20);
+                showToast(`Drag finger from "${hit.title}" to another note to link`);
+              }
+            }, 420);
+          } else {
+            const now = Date.now();
+            if (now - lastEmptyTapTs < 320 && typeof promptCreateNoteAtCanvas === 'function') {
+              lastEmptyTapTs = 0;
+              pkHaptic(10);
+              promptCreateNoteAtCanvas(pos.x, pos.y, pos.screenX, pos.screenY);
+            } else {
+              lastEmptyTapTs = now;
+            }
+          }
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', (e) => {
+        if (pinchState && e.touches.length === 2) {
+          if (e.cancelable) e.preventDefault();
+          const t1 = e.touches[0], t2 = e.touches[1];
+          const rect = canvas.getBoundingClientRect();
+          const midX = (t1.clientX + t2.clientX) / 2 - rect.left;
+          const midY = (t1.clientY + t2.clientY) / 2 - rect.top;
+          const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY) || 1;
+          const scaleRatio = dist / pinchState.startDist;
+          const nextZoom = Math.max(0.35, Math.min(3.0, pinchState.startZoom * scaleRatio));
+
+          // Keep the world point under the pinch midpoint anchored smoothly
+          const worldX = (pinchState.startMidX - pinchState.startPanX) / pinchState.startZoom;
+          const worldY = (pinchState.startMidY - pinchState.startPanY) / pinchState.startZoom;
+          graphZoom = nextZoom;
+          graphPan.x = midX - worldX * nextZoom;
+          graphPan.y = midY - worldY * nextZoom;
+          if (typeof updateGraphZoomBadges === 'function') updateGraphZoomBadges();
+          return;
+        }
+
+        if (longPressTimer && touchStartInfo && e.touches.length === 1) {
+          const t = e.touches[0];
+          if (Math.hypot(t.clientX - touchStartInfo.x, t.clientY - touchStartInfo.y) > 10) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+        }
+      }, { passive: false });
+
+      const endTouch = (e) => {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (e.touches.length < 2) pinchState = null;
+      };
+      canvas.addEventListener('touchend', endTouch);
+      canvas.addEventListener('touchcancel', endTouch);
+    }
+
+    // --- 19D. SWIPE-DOWN-TO-DISMISS ON ALL MOBILE BOTTOM SHEETS ---
+    function attachSwipeDownDismiss(backdropId, closeFn) {
+      const backdrop = document.getElementById(backdropId);
+      if (!backdrop) return;
+      const sheet = backdrop.firstElementChild;
+      if (!sheet) return;
+
+      let swipe = null;
+
+      sheet.addEventListener('touchstart', (e) => {
+        if (window.innerWidth >= 640 || e.touches.length !== 1) return;
+        const scrollArea = sheet.querySelector('.overflow-y-auto');
+        // Allow swipe-down when touching header or when scrolled to top
+        const inScroll = scrollArea && scrollArea.contains(e.target);
+        if (inScroll && scrollArea.scrollTop > 4) return;
+        swipe = {
+          startY: e.touches[0].clientY,
+          dy: 0,
+          active: false
+        };
+      }, { passive: true });
+
+      sheet.addEventListener('touchmove', (e) => {
+        if (!swipe || e.touches.length !== 1) return;
+        const dy = e.touches[0].clientY - swipe.startY;
+        if (dy <= 6) return;
+        swipe.active = true;
+        swipe.dy = dy;
+        sheet.style.transition = 'none';
+        sheet.style.transform = `translateY(${dy}px)`;
+      }, { passive: true });
+
+      const finishSwipe = () => {
+        if (!swipe) return;
+        const dy = swipe.dy;
+        const wasActive = swipe.active;
+        swipe = null;
+        if (!wasActive) return;
+
+        sheet.style.transition = 'transform 0.18s ease-out';
+        if (dy > 75) {
+          sheet.style.transform = `translateY(100%)`;
+          pkHaptic(8);
+          setTimeout(() => {
+            sheet.style.transition = '';
+            sheet.style.transform = '';
+            closeFn();
+          }, 170);
+        } else {
+          sheet.style.transform = 'translateY(0)';
+          setTimeout(() => { sheet.style.transition = ''; sheet.style.transform = ''; }, 180);
+        }
+      };
+      sheet.addEventListener('touchend', finishSwipe);
+      sheet.addEventListener('touchcancel', finishSwipe);
+    }
+
+    // --- 19E. EDGE-SWIPE SIDEBARS, CALENDAR FLICK, TODO SWIPE-TO-CHECK & 2/3-FINGER UNDO/REDO ---
+    (function initGlobalFingerGestures() {
+      let gesture = null;
+      let multiTap = null;
+
+      document.addEventListener('touchstart', (e) => {
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement ? e.target.parentElement : null);
+
+        // Multi-finger Undo (2-finger tap) / Redo (3-finger tap) on editor canvas
+        if ((e.touches.length === 2 || e.touches.length === 3) && !(targetEl && targetEl.closest('canvas'))) {
+          multiTap = {
+            fingers: e.touches.length,
+            startTs: Date.now(),
+            pts: Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY })),
+            moved: false
+          };
+          gesture = null;
+          return;
+        }
+
+        if (e.touches.length !== 1) { gesture = null; return; }
+        // Skip global swipes if inside graph canvas, sliders, or open modals
+        if (targetEl && targetEl.closest('canvas, input[type="range"], [data-drag-handle], #voiceModelModalBackdrop, #mobileMoreSheetBackdrop, #templatesModalBackdrop, #focusTimerModalBackdrop')) {
+          gesture = null;
+          return;
+        }
+
+        const t = e.touches[0];
+        gesture = {
+          startX: t.clientX,
+          startY: t.clientY,
+          startTs: Date.now(),
+          target: targetEl,
+          todoRow: targetEl ? targetEl.closest('.block-row') : null
+        };
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        if (multiTap) {
+          for (let i = 0; i < Math.min(e.touches.length, multiTap.pts.length); i++) {
+            if (Math.hypot(e.touches[i].clientX - multiTap.pts[i].x, e.touches[i].clientY - multiTap.pts[i].y) > 16) {
+              multiTap.moved = true;
+            }
+          }
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchend', (e) => {
+        // Complete 2-finger / 3-finger tap -> Undo / Redo
+        if (multiTap && e.touches.length === 0) {
+          const dt = Date.now() - multiTap.startTs;
+          const fingers = multiTap.fingers;
+          const moved = multiTap.moved;
+          multiTap = null;
+          if (!moved && dt < 280) {
+            if (fingers === 2 && typeof performUndo === 'function') {
+              performUndo();
+              pkHaptic(10);
+            } else if (fingers === 3 && typeof performRedo === 'function') {
+              performRedo();
+              pkHaptic(12);
+            }
+          }
+          return;
+        }
+
+        if (!gesture || e.changedTouches.length === 0) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - gesture.startX;
+        const dy = t.clientY - gesture.startY;
+        const dt = Date.now() - gesture.startTs;
+        const g = gesture;
+        gesture = null;
+
+        // Require horizontal deliberate swipe
+        if (dt > 550 || Math.abs(dx) < 55 || Math.abs(dy) > Math.abs(dx) * 0.65) return;
+
+        const W = window.innerWidth;
+
+        // 1. Edge-swipe on Mobile / Tablet (< 1024px) for Left Vault Sidebar & Right Inspector
+        if (W < 1024) {
+          if (state.leftSidebarOpen && dx < -60) {
+            closeMobileSidebar();
+            pkHaptic(8);
+            return;
+          }
+          if (state.rightSidebarOpen && dx > 60) {
+            closeRightSidebar();
+            pkHaptic(8);
+            return;
+          }
+          if (!state.leftSidebarOpen && !state.rightSidebarOpen && g.startX < 30 && dx > 55) {
+            toggleLeftSidebar();
+            pkHaptic(10);
+            return;
+          }
+          if (!state.leftSidebarOpen && !state.rightSidebarOpen && g.startX > W - 30 && dx < -55) {
+            toggleRightSidebar();
+            pkHaptic(10);
+            return;
+          }
+        }
+
+        // 2. Calendar Horizontal Flick -> Next / Previous Month, Week, or Day
+        if (state.appMode === 'calendar' && typeof navigateCalendar === 'function') {
+          navigateCalendar(dx < 0 ? 1 : -1);
+          pkHaptic(8);
+          return;
+        }
+
+        // 3. Swipe Right on a Todo Block Row -> Toggle Done/Undone
+        if (dx > 68 && g.todoRow) {
+          const rowId = g.todoRow.getAttribute('data-row-id');
+          const note = getActiveNote();
+          if (note && !note.locked && rowId) {
+            const blk = note.blocks.find(b => b.id === rowId);
+            if (blk && blk.type === 'todo') {
+              if (typeof takeSnapshot === 'function') takeSnapshot('swipe-todo');
+              blk.checked = !blk.checked;
+              note.updatedAt = TODAY_KEY;
+              renderBlocks(note);
+              persistState();
+              pkHaptic(12);
+              showToast(blk.checked ? 'Marked task complete' : 'Reopened task');
+            }
+          }
+        }
+      }, { passive: true });
+    })();
+
+    // Initialize all finger-first widgets, graph touch, and swipe-down sheets
+    function initFingerControlEngine() {
+      makeFloatingWidgetDraggable('pkAudioReaderHUD');
+      makeFloatingWidgetDraggable('pkFocusTimerHUD');
+      makeFloatingWidgetDraggable('pkDictationHUD');
+      makeFloatingWidgetDraggable('pkFindReplaceBar');
+
+      attachGraphFingerGestures('knowledgeGraphCanvas');
+      attachGraphFingerGestures('expandedKnowledgeGraphCanvas');
+
+      attachSwipeDownDismiss('mobileMoreSheetBackdrop', closeMobileMoreSheet);
+      attachSwipeDownDismiss('voiceModelModalBackdrop', closeVoiceModelModal);
+      attachSwipeDownDismiss('templatesModalBackdrop', closeTemplatesModal);
+      attachSwipeDownDismiss('focusTimerModalBackdrop', closeFocusTimerModal);
+      attachSwipeDownDismiss('mobileQuickMenuBackdrop', closeMobileQuickMenu);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initFingerControlEngine);
+    } else {
+      initFingerControlEngine();
     }
   </script>
 

@@ -163,6 +163,30 @@
       memU8.set(qBytes, qPtr);
       memU8.set(tBytes, tPtr);
       return w.fuzzy_score_ascii(qPtr, qBytes.length, tPtr, tBytes.length);
+    },
+
+    // 6. Native Rust Text & Readability Analyzer (Vault Pulse / Reading Rhythm)
+    analyzeText(text) {
+      if (!this.ready || !enc || typeof text !== 'string') return null;
+      const bytes = enc.encode(text);
+      if (bytes.length > 1024 * 1024) return null;
+      const w = this.exports;
+      w.arena_reset();
+      const ptr = bytes.length > 0 ? w.arena_alloc(bytes.length, 1) : 0;
+      const outPtr = w.arena_alloc(20, 4);
+      if (!outPtr) return null;
+      if (bytes.length > 0 && ptr) {
+        new Uint8Array(this.memory.buffer, ptr, bytes.length).set(bytes);
+      }
+      w.analyze_text_stats(ptr, bytes.length, outPtr);
+      const out = new Uint32Array(this.memory.buffer, outPtr, 5);
+      return {
+        words: out[0],
+        sentences: out[1],
+        nonWsChars: out[2],
+        syllables: out[3],
+        longWords: out[4]
+      };
     }
   };
 

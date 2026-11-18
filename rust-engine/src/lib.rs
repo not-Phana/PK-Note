@@ -443,3 +443,119 @@ pub extern "C" fn fuzzy_score_ascii(
 
     -1
 }
+
+// ============================================================================
+// 6. FAST NATIVE TEXT & READABILITY ANALYZER (VAULT PULSE / READING RHYTHM)
+// out_u32_ptr: [words, sentences, non_ws_chars, syllables, long_words]
+// ============================================================================
+#[inline(always)]
+fn is_ascii_alpha(b: u8) -> bool {
+    (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
+}
+
+#[inline(always)]
+fn is_ascii_vowel(b: u8) -> bool {
+    let l = to_lower_ascii(b);
+    l == b'a' || l == b'e' || l == b'i' || l == b'o' || l == b'u' || l == b'y'
+}
+
+#[no_mangle]
+pub extern "C" fn analyze_text_stats(
+    ptr: *const u8,
+    len: usize,
+    out_u32_ptr: *mut u32,
+) {
+    if out_u32_ptr.is_null() {
+        return;
+    }
+    let out = unsafe { core::slice::from_raw_parts_mut(out_u32_ptr, 5) };
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+    out[4] = 0;
+    if ptr.is_null() || len == 0 {
+        return;
+    }
+    let bytes = unsafe { core::slice::from_raw_parts(ptr, len) };
+
+    let mut words: u32 = 0;
+    let mut sentences: u32 = 0;
+    let mut non_ws: u32 = 0;
+    let mut syllables: u32 = 0;
+    let mut long_words: u32 = 0;
+
+    let mut in_word = false;
+    let mut word_letters: u32 = 0;
+    let mut word_syl: u32 = 0;
+    let mut prev_vowel = false;
+    let mut last_letter: u8 = 0;
+    let mut in_punct_run = false;
+
+    for i in 0..len {
+        let b = bytes[i];
+        let is_ws = b == b' ' || b == b'\n' || b == b'\r' || b == b'\t';
+        if !is_ws {
+            non_ws += 1;
+        }
+
+        if b == b'.' || b == b'!' || b == b'?' {
+            if !in_punct_run {
+                sentences += 1;
+                in_punct_run = true;
+            }
+        } else if !is_ws {
+            in_punct_run = false;
+        }
+
+        let is_word_char = is_ascii_alpha(b) || (b >= b'0' && b <= b'9') || b == b'\'' || b >= 128;
+        if is_word_char {
+            if !in_word {
+                in_word = true;
+                words += 1;
+                word_letters = 0;
+                word_syl = 0;
+                prev_vowel = false;
+                last_letter = 0;
+            }
+            if is_ascii_alpha(b) {
+                word_letters += 1;
+                let v = is_ascii_vowel(b);
+                if v && !prev_vowel {
+                    word_syl += 1;
+                }
+                prev_vowel = v;
+                last_letter = to_lower_ascii(b);
+            }
+        } else if in_word {
+            if word_letters >= 7 {
+                long_words += 1;
+            }
+            if word_syl > 1 && last_letter == b'e' {
+                word_syl -= 1;
+            }
+            syllables += if word_syl == 0 && word_letters > 0 { 1 } else { word_syl };
+            in_word = false;
+        }
+    }
+
+    if in_word {
+        if word_letters >= 7 {
+            long_words += 1;
+        }
+        if word_syl > 1 && last_letter == b'e' {
+            word_syl -= 1;
+        }
+        syllables += if word_syl == 0 && word_letters > 0 { 1 } else { word_syl };
+    }
+
+    if words > 0 && sentences == 0 {
+        sentences = 1;
+    }
+
+    out[0] = words;
+    out[1] = sentences;
+    out[2] = non_ws;
+    out[3] = syllables;
+    out[4] = long_words;
+}

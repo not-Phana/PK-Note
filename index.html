@@ -331,6 +331,23 @@
             <span id="desktopFocusTimerLabel" class="hidden xl:inline">TIMER</span>
           </button>
 
+          <!-- Study Flashcards Button (Desktop) -->
+          <button onclick="openStudyDeckModal()" id="desktopStudyDeckBtn" title="Study Flashcards (Auto-Generated from Notes)" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg>
+            <span class="hidden 2xl:inline">STUDY</span>
+          </button>
+
+          <!-- Ambient Focus Soundscapes Button (Desktop) -->
+          <button onclick="openSoundscapeModal()" id="desktopSoundscapeBtn" title="Focus Soundscapes (0 MB Procedural Audio)" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 12h2l2-5 3 10 3-8 2 6 2-3h4"/></svg>
+            <span id="desktopSoundscapeLabel" class="hidden 2xl:inline">AMBIENT</span>
+          </button>
+
+          <!-- Quick Scratchpad Button (Desktop) -->
+          <button onclick="toggleScratchpadDrawer()" id="desktopScratchpadBtn" title="Quick Scratchpad (Alt+S)" class="hidden xl:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+
           <!-- Mobile Undo Button (36x36 comfortable touch target on phone header) -->
           <button onclick="performUndo()" id="mobileHeaderUndoBtn" title="Undo Last Edit (Ctrl+Z)" class="md:hidden w-9 h-9 rounded-md text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
@@ -2039,6 +2056,46 @@
               </div>
             </button>
 
+            <button onclick="closeMobileMoreSheet(); openStudyDeckModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Study Deck</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Auto flashcards</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openSoundscapeModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-ochre)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 12h2l2-5 3 10 3-8 2 6 2-3h4"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Soundscapes</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Rain, fire &amp; focus</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openTimeCapsuleModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Time-Capsule</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Snapshots &amp; diff</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openVaultPulseModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Vault Pulse</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">WASM stats &amp; streak</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); toggleScratchpadDrawer()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-ochre)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Scratchpad</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Quick sticky capture</div>
+              </div>
+            </button>
+
             <button onclick="closeMobileMoreSheet(); toggleNoteLock()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
               <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <div class="min-w-0">
@@ -2525,7 +2582,198 @@
   <!-- Live Floating Slide Action Indicator (Appears while sliding a block left/right with your finger) -->
   <div id="pkBlockSlideBadge" class="hidden fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md transition-colors"></div>
 
+  <!-- =====================================================================
+       SIGNATURE CRAFT SUITE MODALS (100% Client-Side, Pure HTML, Zero Emoji)
+       1. Study Deck · 2. Soundscapes · 3. Time-Capsule · 4. Vault Pulse · 5. Scratchpad
+       ===================================================================== -->
+
+  <!-- 1. Study Deck (Auto-Generated Interactive Flashcards + Spaced Recall) -->
+  <div id="pkStudyDeckBackdrop" onclick="closeStudyDeckModal()" class="hidden fixed inset-0 bg-black/65 z-[984] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg>
+          </span>
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Study Deck</div>
+            <div id="pkStudyDeckSubtitle" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Auto-extracted from your notes</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="pkStudyScopeNoteBtn" onclick="setStudyDeckScope('note')" class="px-2 py-1 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion)] text-white cursor-pointer">Note</button>
+          <button id="pkStudyScopeVaultBtn" onclick="setStudyDeckScope('vault')" class="px-2 py-1 rounded-[3px] font-mono text-[10px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Vault</button>
+          <button onclick="closeStudyDeckModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        </div>
+      </div>
+
+      <div class="p-4 space-y-3 overflow-y-auto flex-1">
+        <div class="flex items-center justify-between font-mono text-[10px] text-[var(--text-tertiary)]">
+          <span id="pkStudyProgressLabel">Card 0 of 0</span>
+          <span id="pkStudyMasteryLabel" class="text-[var(--accent-vermilion)] font-semibold">0 mastered</span>
+        </div>
+        <div class="w-full h-1 rounded-full bg-[var(--bg-canvas)] overflow-hidden border border-[var(--border-hairline)]">
+          <div id="pkStudyProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-200" style="width: 0%"></div>
+        </div>
+
+        <!-- Tactile Flip Card -->
+        <div id="pkStudyCardSurface" onclick="flipStudyCard()" class="pk-study-card min-h-[210px] p-5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-strong)] flex flex-col justify-between cursor-pointer">
+          <div class="flex items-center justify-between gap-2">
+            <span id="pkStudyCardSideTag" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold uppercase tracking-wider">PROMPT</span>
+            <span id="pkStudyCardSource" class="font-mono text-[9px] text-[var(--text-tertiary)] truncate"></span>
+          </div>
+          <div id="pkStudyCardText" class="my-4 font-serif text-base leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap break-words"></div>
+          <div class="flex items-center justify-between pt-2 border-t border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-tertiary)]">
+            <span id="pkStudyFlipHint">Tap card or press Space to reveal answer</span>
+            <button type="button" onclick="event.stopPropagation(); speakCurrentStudyCard()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] flex items-center gap-1 cursor-pointer">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              <span>Read</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Spaced Recall Rating Controls -->
+        <div id="pkStudyRatingRow" class="grid grid-cols-3 gap-2 font-mono text-xs">
+          <button onclick="rateStudyCard('again')" class="py-2.5 px-3 rounded-lg bg-[var(--bg-canvas)] hover:bg-rose-500/10 border border-[var(--border-hairline)] hover:border-rose-500/50 text-[var(--text-primary)] cursor-pointer flex flex-col items-center gap-0.5">
+            <span class="font-semibold text-rose-500">Again</span>
+            <span class="text-[9px] text-[var(--text-tertiary)]">Review soon</span>
+          </button>
+          <button onclick="rateStudyCard('good')" class="py-2.5 px-3 rounded-lg bg-[var(--bg-canvas)] hover:bg-amber-500/10 border border-[var(--border-hairline)] hover:border-amber-500/50 text-[var(--text-primary)] cursor-pointer flex flex-col items-center gap-0.5">
+            <span class="font-semibold text-[var(--accent-ochre)]">Good</span>
+            <span class="text-[9px] text-[var(--text-tertiary)]">Solid recall</span>
+          </button>
+          <button onclick="rateStudyCard('easy')" class="py-2.5 px-3 rounded-lg bg-[var(--bg-canvas)] hover:bg-emerald-500/10 border border-[var(--border-hairline)] hover:border-emerald-500/50 text-[var(--text-primary)] cursor-pointer flex flex-col items-center gap-0.5">
+            <span class="font-semibold text-emerald-500">Mastered</span>
+            <span class="text-[9px] text-[var(--text-tertiary)]">Lock it in</span>
+          </button>
+        </div>
+
+        <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-relaxed pt-1">
+          Tip: Write <span class="text-[var(--text-primary)]">Question :: Answer</span> on any line, or use Headings + paragraphs to generate cards automatically.
+        </div>
+      </div>
+
+      <div class="px-4 py-2.5 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between font-mono text-[10px] shrink-0">
+        <button onclick="shuffleStudyDeck()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Shuffle</button>
+        <button onclick="resetStudyMastery()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">Reset Mastery</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Ambient Focus Soundscapes Modal (0 MB Procedural Web Audio Synthesizer) -->
+  <div id="pkSoundscapeBackdrop" onclick="closeSoundscapeModal()" class="hidden fixed inset-0 bg-black/65 z-[984] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-md max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M3 12h2l2-5 3 10 3-8 2 6 2-3h4"/></svg>
+          </span>
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Focus Soundscapes</div>
+            <div id="pkSoundscapeStatus" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">0 MB procedural audio · Offline ready</div>
+          </div>
+        </div>
+        <button onclick="closeSoundscapeModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+
+      <div class="p-4 space-y-3 overflow-y-auto flex-1">
+        <div id="pkSoundscapeGrid" class="grid grid-cols-1 gap-2">
+          <!-- Rendered by renderSoundscapeModal() -->
+        </div>
+
+        <div class="pt-2 border-t border-[var(--border-hairline)] space-y-1.5">
+          <div class="flex items-center justify-between font-mono text-[10px]">
+            <span class="uppercase tracking-wider text-[var(--text-tertiary)]">Master Volume</span>
+            <span id="pkSoundscapeVolLabel" class="text-[var(--accent-vermilion)] font-semibold">35%</span>
+          </div>
+          <input type="range" id="pkSoundscapeVolSlider" min="5" max="100" step="1" value="35" oninput="setSoundscapeVolume(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
+        </div>
+      </div>
+
+      <div class="px-4 py-2.5 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between font-mono text-xs shrink-0">
+        <span class="text-[10px] text-[var(--text-tertiary)]">Zero CPU when stopped</span>
+        <button onclick="stopSoundscape()" class="px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-rose-500/15 border border-[var(--border-hairline)] text-[var(--text-primary)] hover:text-rose-500 text-[11px] cursor-pointer">Stop Audio</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Time-Capsule Note Snapshots & Visual Diff Modal -->
+  <div id="pkTimeCapsuleBackdrop" onclick="closeTimeCapsuleModal()" class="hidden fixed inset-0 bg-black/65 z-[984] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
+          </span>
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Time-Capsule Snapshots</div>
+            <div id="pkTimeCapsuleNoteTitle" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Version history &amp; visual diff</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="stampNoteSnapshot(true)" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-semibold cursor-pointer">+ Stamp Now</button>
+          <button onclick="closeTimeCapsuleModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        </div>
+      </div>
+
+      <div class="p-4 space-y-3 overflow-y-auto flex-1 text-xs">
+        <div id="pkTimeCapsuleList" class="space-y-2"></div>
+        <div id="pkTimeCapsuleDiffWrap" class="hidden pt-3 border-t border-[var(--border-hairline)] space-y-2">
+          <div class="flex items-center justify-between font-mono text-[10px]">
+            <span id="pkTimeCapsuleDiffHeader" class="uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Diff vs Current</span>
+            <button id="pkTimeCapsuleRestoreBtn" onclick="restoreSelectedSnapshot()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Restore Snapshot</button>
+          </div>
+          <div id="pkTimeCapsuleDiffBody" class="max-h-56 overflow-y-auto p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[11px] leading-relaxed space-y-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Vault Pulse & Rust WASM Reading Rhythm Modal -->
+  <div id="pkVaultPulseBackdrop" onclick="closeVaultPulseModal()" class="hidden fixed inset-0 bg-black/65 z-[984] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Vault Pulse</div>
+            <div id="pkVaultPulseEngineTag" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Rust WebAssembly Analytics</div>
+          </div>
+        </div>
+        <button onclick="closeVaultPulseModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+
+      <div id="pkVaultPulseBody" class="p-4 space-y-4 overflow-y-auto flex-1 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- 5. Floating Quick Scratchpad Drawer (Alt+S — Persistent Across Notes & Calendar) -->
+  <div id="pkScratchpadDrawer" class="hidden fixed bottom-20 md:bottom-5 right-3 md:right-5 w-[calc(100vw-24px)] max-w-sm z-[930] rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col overflow-hidden">
+    <div class="px-3.5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span class="font-mono text-[10px] uppercase tracking-wider font-semibold text-[var(--text-primary)]">Quick Scratchpad</span>
+        <span id="pkScratchpadCount" class="font-mono text-[9px] text-[var(--text-tertiary)]">0 words</span>
+      </div>
+      <button onclick="toggleScratchpadDrawer(false)" class="w-6 h-6 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-mono text-xs flex items-center justify-center cursor-pointer">✕</button>
+    </div>
+    <textarea id="pkScratchpadInput"
+              oninput="handleScratchpadInput(this.value)"
+              placeholder="Capture a fleeting thought, link, or reminder without leaving your page..."
+              class="w-full h-36 p-3 bg-[var(--bg-panel)] text-xs font-sans text-[var(--text-primary)] placeholder-[var(--text-tertiary)] resize-none focus:outline-none leading-relaxed"></textarea>
+    <div class="px-3 py-2 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-1.5 font-mono text-[10px]">
+      <button onclick="clearScratchpadText()" class="px-2 py-1 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 cursor-pointer">Clear</button>
+      <div class="flex items-center gap-1.5">
+        <button onclick="sendScratchpadToActiveNote()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Append to Note</button>
+        <button onclick="promoteScratchpadToNewNote()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">New Note</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./js/wasm-bridge.min.js" defer></script>
   <script src="./js/app.min.js" defer></script>
+  <script src="./js/special-craft.min.js" defer></script>
 </body>
 </html>

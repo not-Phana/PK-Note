@@ -906,6 +906,19 @@ body.zen-active .block-row:focus-within {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Study Deck Tactile Card & Vault Pulse Heatmap */
+.pk-study-card {
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+.pk-study-card:active {
+  transform: scale(0.985);
+}
+.pk-heat-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 2px;
+  border: 1px solid var(--border-hairline);
+}
+
 /* Voice Studio Layout Containment (Zero Scroll Jank & Zero Full-Modal Repaints) */
 #voiceCardsList {
   contain: layout style;

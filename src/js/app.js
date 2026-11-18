@@ -2837,7 +2837,7 @@ function renderSingleBlockHTML(block) {
   const richContent = renderRichBlockHTML(block.content);
 
   const gutter = `
-    <div class="opacity-60 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center gap-0.5 pr-1 pt-1 select-none shrink-0 -ml-7 sm:-ml-11 w-7 sm:w-11 justify-end">
+    <div class="hidden sm:flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-center gap-0.5 pr-1 pt-1 select-none shrink-0 -ml-11 w-11 justify-end">
       <button onclick="insertBlockAfter('${block.id}')" title="Insert block below" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
@@ -16139,117 +16139,48 @@ function attachSwipeDownDismiss(backdropId, closeFn) {
   sheet.addEventListener('touchcancel', finishSwipe);
 }
 
-// --- 19E. EDGE-SWIPE SIDEBARS, CALENDAR FLICK, TODO SWIPE-TO-CHECK & 2/3-FINGER UNDO/REDO ---
+// --- 19E. CLEAN NON-INTRUSIVE MOBILE GESTURES (Never fights Android Back, scrolling, or text selection!) ---
+//     Only allows: swipe to CLOSE an already-open sidebar/inspector, and Calendar month flick.
 (function initGlobalFingerGestures() {
   let gesture = null;
-  let multiTap = null;
 
   document.addEventListener('touchstart', (e) => {
-    const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement ? e.target.parentElement : null);
-
-    // Multi-finger Undo (2-finger tap) / Redo (3-finger tap) on editor canvas
-    if ((e.touches.length === 2 || e.touches.length === 3) && !(targetEl && targetEl.closest('canvas'))) {
-      multiTap = {
-        fingers: e.touches.length,
-        startTs: Date.now(),
-        pts: Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY })),
-        moved: false
-      };
-      gesture = null;
-      return;
-    }
-
     if (e.touches.length !== 1) { gesture = null; return; }
-    // Skip global swipes if inside graph canvas, sliders, or open modals
-    if (targetEl && targetEl.closest('canvas, input[type="range"], [data-drag-handle], #voiceModelModalBackdrop, #mobileMoreSheetBackdrop, #templatesModalBackdrop, #focusTimerModalBackdrop')) {
+    const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement ? e.target.parentElement : null);
+    if (targetEl && targetEl.closest('canvas, input, textarea, [contenteditable="true"], [data-drag-handle]')) {
       gesture = null;
       return;
     }
-
     const t = e.touches[0];
-    gesture = {
-      startX: t.clientX,
-      startY: t.clientY,
-      startTs: Date.now(),
-      target: targetEl,
-      todoRow: targetEl ? targetEl.closest('.block-row') : null
-    };
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (multiTap) {
-      for (let i = 0; i < Math.min(e.touches.length, multiTap.pts.length); i++) {
-        if (Math.hypot(e.touches[i].clientX - multiTap.pts[i].x, e.touches[i].clientY - multiTap.pts[i].y) > 16) {
-          multiTap.moved = true;
-        }
-      }
-    }
+    gesture = { startX: t.clientX, startY: t.clientY, startTs: Date.now() };
   }, { passive: true });
 
   document.addEventListener('touchend', (e) => {
-    // Complete 2-finger / 3-finger tap -> Undo / Redo
-    if (multiTap && e.touches.length === 0) {
-      const dt = Date.now() - multiTap.startTs;
-      const fingers = multiTap.fingers;
-      const moved = multiTap.moved;
-      multiTap = null;
-      if (!moved && dt < 280) {
-        if (fingers === 2 && typeof performUndo === 'function') {
-          performUndo();
-          pkHaptic(10);
-        } else if (fingers === 3 && typeof performRedo === 'function') {
-          performRedo();
-          pkHaptic(12);
-        }
-      }
-      return;
-    }
-
     if (!gesture || e.changedTouches.length === 0) return;
     const t = e.changedTouches[0];
     const dx = t.clientX - gesture.startX;
     const dy = t.clientY - gesture.startY;
     const dt = Date.now() - gesture.startTs;
-    const g = gesture;
     gesture = null;
 
-    // Require horizontal deliberate swipe
-    if (dt > 550 || Math.abs(dx) < 55 || Math.abs(dy) > Math.abs(dx) * 0.65) return;
+    if (dt > 500 || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.5) return;
 
-    const W = window.innerWidth;
-
-    // 1. Edge-swipe on Mobile / Tablet (< 1024px) for Left Vault Sidebar & Right Inspector
-    if (W < 1024) {
-      if (state.leftSidebarOpen && dx < -60) {
+    // Only swipe to CLOSE already-open mobile sidebars (never hijack screen edges from Android Back!)
+    if (window.innerWidth < 1024) {
+      if (state.leftSidebarOpen && dx < -70) {
         closeMobileSidebar();
-        pkHaptic(8);
         return;
       }
-      if (state.rightSidebarOpen && dx > 60) {
+      if (state.rightSidebarOpen && dx > 70) {
         closeRightSidebar();
-        pkHaptic(8);
-        return;
-      }
-      if (!state.leftSidebarOpen && !state.rightSidebarOpen && g.startX < 30 && dx > 55) {
-        toggleLeftSidebar();
-        pkHaptic(10);
-        return;
-      }
-      if (!state.leftSidebarOpen && !state.rightSidebarOpen && g.startX > W - 30 && dx < -55) {
-        toggleRightSidebar();
-        pkHaptic(10);
         return;
       }
     }
 
-    // 2. Calendar Horizontal Flick -> Next / Previous Month, Week, or Day
-    if (state.appMode === 'calendar' && typeof navigateCalendar === 'function') {
+    // Calendar horizontal flick -> Next / Previous period
+    if (state.appMode === 'calendar' && !state.leftSidebarOpen && !state.rightSidebarOpen && typeof navigateCalendar === 'function') {
       navigateCalendar(dx < 0 ? 1 : -1);
-      pkHaptic(8);
-      return;
     }
-
-    // (Todo & paragraph horizontal sliding is handled smoothly by Section 20D live spring-physics!)
   }, { passive: true });
 })();
 
@@ -16277,212 +16208,9 @@ if (document.readyState === 'loading') {
 }
 
 // =========================================================================
-// 20. MAGNETIC FINGER-PHYSICS & FULL-APP DRAG/DROP SUITE
-//     Touch Ripples · Sidebar Note Drag-Drop · Calendar Event Finger Drag ·
-//     Live Spring Block Slide · Header Flick Note Switch · Tag Flick
+// 20. CLEAN TOUCH UTILITIES (No accidental paragraph slide/delete, no header/tag flick!)
 // =========================================================================
-
-// --- 20A. MINIMALIST SWISS VERMILION MICRO-RING TOUCH RIPPLE ---
-function pkSpawnTouchRipple(x, y, color = 'var(--accent-vermilion)') {
-  try {
-    const ring = document.createElement('div');
-    ring.style.cssText = `
-      position: fixed;
-      left: ${x}px;
-      top: ${y}px;
-      width: 14px;
-      height: 14px;
-      margin-left: -7px;
-      margin-top: -7px;
-      border-radius: 9999px;
-      border: 1.5px solid ${color};
-      pointer-events: none;
-      z-index: 9999;
-      opacity: 0.9;
-      transform: scale(0.6);
-      transition: transform 0.36s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.36s ease-out;
-    `;
-    document.body.appendChild(ring);
-    requestAnimationFrame(() => {
-      ring.style.transform = 'scale(3.6)';
-      ring.style.opacity = '0';
-    });
-    setTimeout(() => ring.remove(), 380);
-  } catch (e) {}
-}
-
-// --- 20B. FINGER DRAG & DROP NOTES IN SIDEBAR (REORDER & MOVE ACROSS FOLDERS!) ---
-(function initSidebarNoteFingerDragDrop() {
-  let noteDrag = null;
-  let holdTimer = null;
-
-  function clearSidebarDropHighlights() {
-    document.querySelectorAll('.pk-folder-drop-hot').forEach(el => {
-      el.classList.remove('pk-folder-drop-hot');
-      el.style.outline = '';
-      el.style.backgroundColor = '';
-    });
-    const line = document.getElementById('pkBlockDropLine');
-    if (line) line.classList.add('hidden');
-  }
-
-  function activateNoteDrag(x, y) {
-    if (!noteDrag || noteDrag.active) return;
-    noteDrag.active = true;
-    pkHaptic(14);
-    pkSpawnTouchRipple(x, y);
-
-    const ghost = document.createElement('div');
-    ghost.className = 'fixed pointer-events-none z-[990] px-3 py-2 rounded-lg bg-[var(--bg-panel)]/95 border border-[var(--accent-vermilion)] shadow-2xl font-serif text-xs font-medium text-[var(--text-primary)] truncate max-w-[230px] backdrop-blur-md';
-    ghost.textContent = noteDrag.title || 'Moving note...';
-    ghost.style.left = `${Math.max(8, x - 90)}px`;
-    ghost.style.top = `${Math.max(8, y - 22)}px`;
-    document.body.appendChild(ghost);
-    noteDrag.ghost = ghost;
-    noteDrag.btn.style.opacity = '0.35';
-  }
-
-  document.addEventListener('pointerdown', (e) => {
-    if (e.button === 2) return;
-    const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
-    const btn = targetEl ? targetEl.closest('.sidebar-note-btn[data-note-id]') : null;
-    if (!btn) return;
-
-    const noteId = btn.getAttribute('data-note-id');
-    const note = state.notes.find(n => n.id === noteId);
-    if (!note) return;
-
-    noteDrag = {
-      pointerId: e.pointerId,
-      noteId,
-      title: note.title || 'Untitled',
-      btn,
-      startX: e.clientX,
-      startY: e.clientY,
-      active: false,
-      ghost: null,
-      targetFolder: null,
-      targetNoteId: null,
-      insertBefore: true
-    };
-
-    // Long-press 260ms lifts the note cleanly for finger drag-and-drop without blocking normal taps/scrolls
-    holdTimer = setTimeout(() => {
-      holdTimer = null;
-      if (noteDrag) activateNoteDrag(noteDrag.startX, noteDrag.startY);
-    }, 260);
-  }, { passive: true });
-
-  document.addEventListener('pointermove', (e) => {
-    if (!noteDrag || e.pointerId !== noteDrag.pointerId) return;
-    const dx = e.clientX - noteDrag.startX;
-    const dy = e.clientY - noteDrag.startY;
-
-    if (!noteDrag.active) {
-      if (Math.hypot(dx, dy) > 10) {
-        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-        // Cancel if user is just scrolling the sidebar vertically before long-press
-        noteDrag = null;
-      }
-      return;
-    }
-
-    if (e.cancelable) e.preventDefault();
-    if (noteDrag.ghost) {
-      noteDrag.ghost.style.left = `${Math.max(8, Math.min(window.innerWidth - 180, e.clientX - 80))}px`;
-      noteDrag.ghost.style.top = `${Math.max(8, Math.min(window.innerHeight - 44, e.clientY - 22))}px`;
-    }
-
-    clearSidebarDropHighlights();
-    noteDrag.targetFolder = null;
-    noteDrag.targetNoteId = null;
-
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    if (!under) return;
-
-    const folderEl = under.closest('[data-folder-drop]');
-    if (folderEl) {
-      noteDrag.targetFolder = folderEl.getAttribute('data-folder-drop');
-      folderEl.classList.add('pk-folder-drop-hot');
-      folderEl.style.outline = '1.5px solid var(--accent-vermilion)';
-      folderEl.style.backgroundColor = 'var(--accent-vermilion-tint)';
-      return;
-    }
-
-    const otherNoteBtn = under.closest('.sidebar-note-btn[data-note-id]');
-    if (otherNoteBtn && otherNoteBtn.getAttribute('data-note-id') !== noteDrag.noteId) {
-      const r = otherNoteBtn.getBoundingClientRect();
-      noteDrag.targetNoteId = otherNoteBtn.getAttribute('data-note-id');
-      noteDrag.insertBefore = e.clientY < (r.top + r.height / 2);
-      const line = document.getElementById('pkBlockDropLine');
-      if (line) {
-        line.style.left = `${r.left}px`;
-        line.style.width = `${r.width}px`;
-        line.style.top = `${noteDrag.insertBefore ? r.top - 1 : r.bottom - 1}px`;
-        line.classList.remove('hidden');
-      }
-    }
-  }, { passive: false });
-
-  function finishSidebarNoteDrag(e) {
-    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-    if (!noteDrag || (e && e.pointerId !== noteDrag.pointerId)) return;
-
-    const st = noteDrag;
-    noteDrag = null;
-    if (st.ghost) st.ghost.remove();
-    if (st.btn) st.btn.style.opacity = '';
-    clearSidebarDropHighlights();
-
-    if (!st.active) return;
-
-    // Prevent the trailing click from re-selecting/closing sidebar accidentally
-    const suppressClick = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
-    window.addEventListener('click', suppressClick, { capture: true, once: true });
-    setTimeout(() => window.removeEventListener('click', suppressClick, { capture: true }), 80);
-
-    const movingNote = state.notes.find(n => n.id === st.noteId);
-    if (!movingNote) return;
-
-    if (st.targetFolder) {
-      movingNote.folder = st.targetFolder;
-      state.expandedFolders[st.targetFolder] = true;
-      renderSidebar();
-      if (state.activeNoteId === movingNote.id) renderActiveNote();
-      persistState();
-      pkHaptic(16);
-      if (e) pkSpawnTouchRipple(e.clientX, e.clientY);
-      showToast(`Moved "${movingNote.title}" to ${st.targetFolder}`);
-      return;
-    }
-
-    if (st.targetNoteId) {
-      const fromIdx = state.notes.findIndex(n => n.id === st.noteId);
-      const targetNote = state.notes.find(n => n.id === st.targetNoteId);
-      if (fromIdx >= 0 && targetNote) {
-        movingNote.folder = targetNote.folder || 'General';
-        state.notes.splice(fromIdx, 1);
-        let toIdx = state.notes.findIndex(n => n.id === st.targetNoteId);
-        if (!st.insertBefore) toIdx++;
-        state.notes.splice(toIdx, 0, movingNote);
-        renderSidebar();
-        persistState();
-        pkHaptic(14);
-        if (e) pkSpawnTouchRipple(e.clientX, e.clientY);
-        showToast(`Reordered "${movingNote.title}"`);
-      }
-    }
-  }
-
-  document.addEventListener('pointerup', finishSidebarNoteDrag);
-  document.addEventListener('pointercancel', finishSidebarNoteDrag);
-  document.addEventListener('touchmove', (e) => {
-    if (noteDrag && noteDrag.active && e.cancelable) e.preventDefault();
-  }, { passive: false });
-  document.addEventListener('contextmenu', (e) => {
-    if (noteDrag && noteDrag.active) e.preventDefault();
-  });
-})();
+function pkSpawnTouchRipple() {}
 
 // --- 20C. FINGER DRAG & DROP CALENDAR EVENTS ON MONTH GRID ---
 (function initCalendarEventFingerDragDrop() {
@@ -16617,214 +16345,5 @@ function pkSpawnTouchRipple(x, y, color = 'var(--accent-vermilion)') {
   });
 })();
 
-// --- 20D. LIVE SPRING-PHYSICS FINGER SLIDING ON ANY BLOCK ROW ---
-//     Slide Right -> Complete/Reopen Todo (or Convert to Todo!)
-//     Slide Left  -> Duplicate (-65px) or Delete (-125px, Undo supported!)
-(function initLiveSpringBlockSliding() {
-  let slide = null;
-  const badge = document.getElementById('pkBlockSlideBadge');
-
-  document.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
-    if (!targetEl || targetEl.closest('[data-drag-handle], input, button, canvas')) return;
-    const row = targetEl.closest('#blocksContainer .block-row');
-    if (!row) return;
-    const note = getActiveNote();
-    if (!note || note.locked) return;
-
-    const t = e.touches[0];
-    // Ignore screen-edge swipes reserved for Left/Right Sidebars
-    if (t.clientX < 32 || t.clientX > window.innerWidth - 32) return;
-
-    const rowId = row.getAttribute('data-row-id');
-    const blk = note.blocks.find(b => b.id === rowId);
-    if (!blk) return;
-
-    slide = {
-      row,
-      blockId: rowId,
-      blockType: blk.type,
-      checked: !!blk.checked,
-      startX: t.clientX,
-      startY: t.clientY,
-      dx: 0,
-      lockedHoriz: false,
-      aborted: false
-    };
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!slide || slide.aborted || e.touches.length !== 1) return;
-    const t = e.touches[0];
-    const dx = t.clientX - slide.startX;
-    const dy = t.clientY - slide.startY;
-
-    if (!slide.lockedHoriz) {
-      if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
-        slide.aborted = true;
-        return;
-      }
-      if (Math.abs(dx) < 18) return;
-      slide.lockedHoriz = true;
-    }
-
-    // Rubber-band damped offset so the block glides physically under your finger!
-    const clamped = Math.max(-150, Math.min(110, dx * 0.72));
-    slide.dx = dx;
-    slide.row.style.transition = 'none';
-    slide.row.style.transform = `translateX(${clamped}px)`;
-
-    if (badge) {
-      const r = slide.row.getBoundingClientRect();
-      badge.style.top = `${Math.max(54, r.top + r.height / 2 - 12)}px`;
-      if (dx > 62) {
-        badge.textContent = slide.blockType === 'todo' ? (slide.checked ? 'Reopen' : 'Complete') : 'Make Todo';
-        badge.style.left = '14px';
-        badge.style.right = 'auto';
-        badge.className = 'fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md bg-emerald-600 text-white';
-      } else if (dx < -120) {
-        badge.textContent = 'Delete';
-        badge.style.left = 'auto';
-        badge.style.right = '14px';
-        badge.className = 'fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md bg-red-600 text-white';
-      } else if (dx < -62) {
-        badge.textContent = 'Duplicate';
-        badge.style.left = 'auto';
-        badge.style.right = '14px';
-        badge.className = 'fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md bg-[var(--accent-vermilion)] text-white';
-      } else {
-        badge.classList.add('hidden');
-      }
-    }
-  }, { passive: true });
-
-  const endSlide = (e) => {
-    if (!slide) return;
-    const st = slide;
-    slide = null;
-    if (badge) badge.classList.add('hidden');
-
-    if (!st.lockedHoriz || st.aborted) return;
-
-    // Smooth spring-back animation
-    st.row.style.transition = 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)';
-    st.row.style.transform = 'translateX(0)';
-    setTimeout(() => { st.row.style.transition = ''; st.row.style.transform = ''; }, 250);
-
-    const note = getActiveNote();
-    if (!note || note.locked) return;
-    const blk = note.blocks.find(b => b.id === st.blockId);
-    if (!blk) return;
-
-    const touchPt = e && e.changedTouches && e.changedTouches[0];
-    if (st.dx > 62) {
-      if (typeof takeSnapshot === 'function') takeSnapshot('slide-right-block');
-      if (blk.type === 'todo') {
-        blk.checked = !blk.checked;
-        showToast(blk.checked ? 'Marked task complete' : 'Reopened task');
-      } else {
-        blk.type = 'todo';
-        blk.checked = false;
-        showToast('Converted block to Todo');
-      }
-      note.updatedAt = TODAY_KEY;
-      renderBlocks(note);
-      persistState();
-      pkHaptic(12);
-      if (touchPt) pkSpawnTouchRipple(touchPt.clientX, touchPt.clientY, '#10B981');
-    } else if (st.dx < -120) {
-      deleteBlock(st.blockId);
-      pkHaptic(16);
-      if (touchPt) pkSpawnTouchRipple(touchPt.clientX, touchPt.clientY, '#EF4444');
-    } else if (st.dx < -62) {
-      if (typeof duplicateBlock === 'function') duplicateBlock(st.blockId);
-      pkHaptic(10);
-      if (touchPt) pkSpawnTouchRipple(touchPt.clientX, touchPt.clientY);
-    }
-  };
-
-  document.addEventListener('touchend', endSlide, { passive: true });
-  document.addEventListener('touchcancel', endSlide, { passive: true });
-})();
-
-// --- 20E. 1-THUMB HEADER FLICK TO FLIP BETWEEN NOTES ---
-(function initHeaderNoteFlick() {
-  const header = document.getElementById('topHeaderBar');
-  if (!header) return;
-  let startX = 0, startY = 0, tracking = false;
-
-  header.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1 || state.appMode !== 'workspace') return;
-    const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
-    if (targetEl && targetEl.closest('button')) return;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    tracking = true;
-  }, { passive: true });
-
-  header.addEventListener('touchend', (e) => {
-    if (!tracking || e.changedTouches.length === 0) return;
-    tracking = false;
-    const dx = e.changedTouches[0].clientX - startX;
-    const dy = e.changedTouches[0].clientY - startY;
-    if (Math.abs(dx) < 55 || Math.abs(dy) > 40 || state.notes.length < 2) return;
-
-    const curIdx = state.notes.findIndex(n => n.id === state.activeNoteId);
-    if (curIdx < 0) return;
-    const nextIdx = (curIdx + (dx < 0 ? 1 : -1) + state.notes.length) % state.notes.length;
-    selectNote(state.notes[nextIdx].id);
-    pkHaptic(10);
-    pkSpawnTouchRipple(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-    showToast(`Switched to "${state.notes[nextIdx].title || 'Untitled'}"`);
-  }, { passive: true });
-})();
-
-// --- 20F. FLICK TAG PILLS UP/DOWN TO POP THEM OFF CLEANLY ---
-(function initTagPillFlick() {
-  let tagDrag = null;
-
-  document.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    const note = getActiveNote();
-    if (note && note.locked) return;
-    const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
-    const pill = targetEl ? targetEl.closest('[data-tag-pill]') : null;
-    if (!pill || targetEl.closest('button')) return;
-    tagDrag = {
-      pill,
-      tag: pill.getAttribute('data-tag-pill'),
-      startY: e.touches[0].clientY,
-      dy: 0
-    };
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!tagDrag || e.touches.length !== 1) return;
-    const dy = e.touches[0].clientY - tagDrag.startY;
-    if (Math.abs(dy) < 10) return;
-    tagDrag.dy = dy;
-    tagDrag.pill.style.transition = 'none';
-    tagDrag.pill.style.transform = `translateY(${dy}px) scale(${Math.max(0.7, 1 - Math.abs(dy) / 140)})`;
-    tagDrag.pill.style.opacity = `${Math.max(0.2, 1 - Math.abs(dy) / 70)}`;
-  }, { passive: true });
-
-  const endTag = (e) => {
-    if (!tagDrag) return;
-    const st = tagDrag;
-    tagDrag = null;
-    if (Math.abs(st.dy) > 42 && typeof removeTag === 'function') {
-      removeTag(st.tag);
-      pkHaptic(10);
-      const pt = e.changedTouches && e.changedTouches[0];
-      if (pt) pkSpawnTouchRipple(pt.clientX, pt.clientY);
-      showToast(`Removed #${st.tag}`);
-    } else {
-      st.pill.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
-      st.pill.style.transform = '';
-      st.pill.style.opacity = '';
-    }
-  };
-  document.addEventListener('touchend', endTag, { passive: true });
-  document.addEventListener('touchcancel', endTag, { passive: true });
-})();
+// Sections 20D (accidental paragraph slide-to-delete/todo), 20E (header note flick), and 20F (tag pill flick)
+// removed so normal finger scrolling, tapping, and text selection feel 100% natural on mobile phones!

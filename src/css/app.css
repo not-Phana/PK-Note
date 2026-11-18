@@ -1075,5 +1075,19 @@ html.pk-lite-gpu .animate-ping {
   100% { transform: scaleY(1.0); }
 }
 
+/* =========================================================================
+   MOBILE & DESKTOP CONTENTEDITABLE PRECISION (PRESERVE SPACES & TOUCH TAP)
+   ========================================================================= */
+[data-block-id][contenteditable="true"],
+#docTitleInput {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 
 

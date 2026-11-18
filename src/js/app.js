@@ -751,20 +751,28 @@ function renderRichBlockHTML(rawText) {
 
 function serializeEditableBlock(el) {
   let result = '';
-  el.childNodes.forEach(node => {
+  const nodes = el.childNodes;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
     if (node.nodeType === Node.TEXT_NODE) {
-      result += node.textContent;
+      result += node.textContent.replace(/\u00A0/g, ' ');
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       if (node.classList && node.classList.contains('wiki-link-ref')) {
         const targetTitle = node.getAttribute('data-wiki-target') || node.innerText.replace(/^\[\[|\]\]$/g, '').trim();
         result += `[[${targetTitle}]]`;
       } else if (node.tagName === 'BR') {
-        result += '\n';
+        // Ignore browser's trailing placeholder <br> at the very end of an empty block
+        if (i < nodes.length - 1 || result.length > 0) {
+          result += '\n';
+        }
+      } else if (node.tagName === 'DIV' || node.tagName === 'P') {
+        if (result.length > 0 && !result.endsWith('\n')) result += '\n';
+        result += serializeEditableBlock(node);
       } else {
         result += serializeEditableBlock(node);
       }
     }
-  });
+  }
   return result;
 }
 
@@ -3097,10 +3105,11 @@ function renderSingleBlockHTML(block) {
       `;
   }
 
+  const isTouchDevice = typeof window !== 'undefined' && (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   return `
     <div class="block-row group relative flex items-start rounded-[2px]"
          data-row-id="${block.id}"
-         draggable="true"
+         ${isTouchDevice ? '' : 'draggable="true"'}
          ondragstart="handleBlockDragStart(event, '${block.id}')"
          ondragover="handleBlockDragOver(event, '${block.id}')"
          ondragleave="handleBlockDragLeave(event)"
@@ -3145,6 +3154,250 @@ function guardActiveNoteEditable(quiet = false) {
   return note;
 }
 
+function isTouchPrimaryDevice() {
+  return typeof window !== 'undefined' && (
+    (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+    ('ontouchstart' in window && window.innerWidth <= 1024)
+  );
+}
+
+let pkTypingPersistTimer = null;
+function scheduleTypingSideEffects() {
+  if (pkTypingPersistTimer) clearTimeout(pkTypingPersistTimer);
+  pkTypingPersistTimer = setTimeout(() => {
+    pkTypingPersistTimer = null;
+    if (typeof renderInspector === 'function') renderInspector();
+    if (typeof persistState === 'function') persistState();
+  }, 320);
+}
+
+function flushTypingSideEffects() {
+  if (pkTypingPersistTimer) {
+    clearTimeout(pkTypingPersistTimer);
+    pkTypingPersistTimer = null;
+    if (typeof renderInspector === 'function') renderInspector();
+    if (typeof persistState === 'function') persistState();
+  }
+}
+
+function getBlockCaretOffset(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return -1;
+  const range = sel.getRangeAt(0);
+  if (!el.contains(range.startContainer)) return -1;
+  try {
+    const pre = range.cloneRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.startContainer, range.startOffset);
+    return pre.toString().replace(/\u00A0/g, ' ').length;
+  } catch (_) {
+    return -1;
+  }
+}
+
+function setBlockCaretOffset(el, charOffset) {
+  if (!el) return;
+  el.focus();
+  const sel = window.getSelection();
+  if (!sel) return;
+  const target = Math.max(0, charOffset);
+  let remaining = target;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let node = walker.nextNode();
+  while (node) {
+    const len = node.textContent.length;
+    if (remaining <= len) {
+      const range = document.createRange();
+      range.setStart(node, remaining);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    remaining -= len;
+    node = walker.nextNode();
+  }
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// Split block cleanly at caret (used by Desktop Enter AND Mobile/Android beforeinput insertParagraph!)
+function splitBlockAtCaret(el, blockId) {
+  const note = guardActiveNoteEditable();
+  if (!note) return false;
+  const idx = note.blocks.findIndex(b => b.id === blockId);
+  if (idx === -1) return false;
+  const block = note.blocks[idx];
+  if (block.type === 'code' || block.type === 'table' || block.type === 'sketch') return false;
+
+  const fullText = el ? serializeEditableBlock(el) : (block.content || '');
+  const caretPos = el ? getBlockCaretOffset(el) : fullText.length;
+
+  // Pressing Enter on an empty bullet/todo turns it back into a normal paragraph (like Notion/Obsidian)
+  if ((block.type === 'todo' || block.type === 'bullet') && fullText.trim() === '') {
+    block.type = 'paragraph';
+    block.content = '';
+    note.updatedAt = TODAY_KEY;
+    renderBlocks(note);
+    focusBlock(block.id, true, true);
+    flushTypingSideEffects();
+    persistState();
+    return true;
+  }
+
+  let beforeText = fullText;
+  let afterText = '';
+  if (caretPos >= 0 && caretPos <= fullText.length) {
+    beforeText = fullText.slice(0, caretPos);
+    afterText = fullText.slice(caretPos);
+  }
+
+  block.content = beforeText;
+  const nextType = (block.type === 'todo' || block.type === 'bullet') ? block.type : 'paragraph';
+  const newBlock = {
+    id: generateId('b'),
+    type: nextType,
+    checked: false,
+    content: afterText
+  };
+  note.blocks.splice(idx + 1, 0, newBlock);
+  note.updatedAt = TODAY_KEY;
+  renderBlocks(note);
+  // Focus SYNCHRONOUSLY so Android/iOS soft keyboards stay open!
+  focusBlock(newBlock.id, true, true);
+  if (typeof updateWordCount === 'function') updateWordCount(note);
+  flushTypingSideEffects();
+  persistState();
+  return true;
+}
+
+// Clean Backspace at empty block or start of block (works on Desktop + Android/iOS soft keyboards!)
+function handleBlockStartBackspace(el, blockId) {
+  const note = guardActiveNoteEditable();
+  if (!note) return false;
+  const idx = note.blocks.findIndex(b => b.id === blockId);
+  if (idx === -1) return false;
+  const block = note.blocks[idx];
+  if (block.type === 'code' || block.type === 'table' || block.type === 'sketch') return false;
+
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount && !sel.getRangeAt(0).collapsed) return false;
+
+  const rawText = el ? serializeEditableBlock(el) : (block.content || '');
+  const caretPos = el ? getBlockCaretOffset(el) : 0;
+
+  if (rawText === '') {
+    if (block.type !== 'paragraph') {
+      block.type = 'paragraph';
+      renderBlocks(note);
+      focusBlock(block.id, true, true);
+      persistState();
+      return true;
+    } else if (note.blocks.length > 1 && idx > 0) {
+      const prevBlock = note.blocks[idx - 1];
+      note.blocks.splice(idx, 1);
+      renderBlocks(note);
+      focusBlock(prevBlock.id, false, true);
+      persistState();
+      return true;
+    }
+    return false;
+  }
+
+  // Caret at position 0 of a non-empty block: convert styled block to paragraph or merge with previous text block
+  if (caretPos === 0) {
+    if (block.type !== 'paragraph') {
+      block.type = 'paragraph';
+      block.content = rawText;
+      renderBlocks(note);
+      focusBlock(block.id, true, true);
+      persistState();
+      return true;
+    }
+    if (idx > 0) {
+      const prevBlock = note.blocks[idx - 1];
+      if (['paragraph', 'h1', 'h2', 'h3', 'bullet', 'todo', 'quote', 'callout'].includes(prevBlock.type)) {
+        const joinOffset = (prevBlock.content || '').length;
+        prevBlock.content = (prevBlock.content || '') + rawText;
+        note.blocks.splice(idx, 1);
+        note.updatedAt = TODAY_KEY;
+        renderBlocks(note);
+        const prevEl = document.querySelector(`[data-block-id="${prevBlock.id}"]`);
+        if (prevEl) setBlockCaretOffset(prevEl, joinOffset);
+        else focusBlock(prevBlock.id, false, true);
+        if (typeof updateWordCount === 'function') updateWordCount(note);
+        persistState();
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Delegated Mobile-First beforeinput Handler (Fixes Android/OPPO/iOS Enter & Backspace where keydown sends "Unidentified"!)
+document.addEventListener('beforeinput', (e) => {
+  const target = e.target;
+  if (!target || !target.closest) return;
+
+  // Title Enter on mobile -> jump cleanly to first block without inserting newline in H1
+  if (target.id === 'docTitleInput' && (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak')) {
+    e.preventDefault();
+    const note = getActiveNote();
+    if (note && note.blocks && note.blocks.length > 0) {
+      focusBlock(note.blocks[0].id, true, true);
+    } else {
+      appendBlockAtEnd();
+    }
+    return;
+  }
+
+  const blockEl = target.closest('[data-block-id][contenteditable="true"]');
+  if (!blockEl) return;
+  const blockId = blockEl.getAttribute('data-block-id');
+  if (!blockId) return;
+
+  const note = getActiveNote();
+  if (note && note.locked) {
+    e.preventDefault();
+    return;
+  }
+  const block = note && note.blocks ? note.blocks.find(b => b.id === blockId) : null;
+  if (!block || block.type === 'code' || block.type === 'table' || block.type === 'sketch') return;
+
+  // Mobile/Desktop Enter via beforeinput (insertParagraph)
+  if (e.inputType === 'insertParagraph') {
+    const slashEl = document.getElementById('slashMenu');
+    if (slashEl && !slashEl.classList.contains('hidden')) {
+      e.preventDefault();
+      confirmSlashSelection();
+      return;
+    }
+    const wikiEl = document.getElementById('wikiLinkMenu');
+    if (wikiEl && !wikiEl.classList.contains('hidden')) {
+      e.preventDefault();
+      confirmWikiSelection();
+      return;
+    }
+    e.preventDefault();
+    splitBlockAtCaret(blockEl, blockId);
+    return;
+  }
+
+  // Mobile Backspace at start of block or empty block
+  if (e.inputType === 'deleteContentBackward') {
+    const raw = serializeEditableBlock(blockEl);
+    const caretPos = getBlockCaretOffset(blockEl);
+    if (raw === '' || caretPos === 0) {
+      if (handleBlockStartBackspace(blockEl, blockId)) {
+        e.preventDefault();
+      }
+    }
+  }
+});
+
 function handleBlockInput(e, blockId) {
   const note = guardActiveNoteEditable(true);
   if (!note) return;
@@ -3153,21 +3406,51 @@ function handleBlockInput(e, blockId) {
   const block = note.blocks.find(b => b.id === blockId);
   if (!block) return;
 
-  // Autocorrect check on typing delimiter, mobile input, or autocomplete
-  if (e.data && /[\s.,!?;:]/.test(e.data)) {
-    triggerAutocorrectCheck(el, blockId);
-  } else if (e.inputType === 'insertText' && (!e.data || /[\s.,!?;:]$/.test(el.innerText))) {
-    triggerAutocorrectCheck(el, blockId);
+  const isComposing = !!(e.isComposing || e.inputType === 'insertCompositionText');
+  const isTouch = isTouchPrimaryDevice();
+
+  // Desktop-only autocorrect (NEVER fight Gboard/OPPO/iOS IME composition or touch spacebar!)
+  if (!isComposing && !isTouch) {
+    if (e.data && /[\s.,!?;:]/.test(e.data)) {
+      triggerAutocorrectCheck(el, blockId);
+    } else if (e.inputType === 'insertText' && (!e.data || /[\s.,!?;:]$/.test(el.innerText))) {
+      triggerAutocorrectCheck(el, blockId);
+    }
   }
 
-  block.content = serializeEditableBlock(el);
+  const serialized = serializeEditableBlock(el);
+
+  // Mobile Fallback: if a soft keyboard bypassed beforeinput.preventDefault() and injected a newline on Enter, split cleanly!
+  if (!isComposing && block.type !== 'code' && (e.inputType === 'insertParagraph' || (serialized.includes('\n') && e.inputType !== 'insertLineBreak'))) {
+    const lines = serialized.replace(/\r/g, '').split('\n');
+    if (lines.length >= 2) {
+      const idx = note.blocks.findIndex(b => b.id === blockId);
+      block.content = lines[0];
+      const nextType = (block.type === 'todo' || block.type === 'bullet') ? block.type : 'paragraph';
+      let lastId = block.id;
+      for (let i = 1; i < lines.length; i++) {
+        const nb = { id: generateId('b'), type: nextType, checked: false, content: lines[i] };
+        note.blocks.splice(idx + i, 0, nb);
+        lastId = nb.id;
+      }
+      note.updatedAt = TODAY_KEY;
+      renderBlocks(note);
+      focusBlock(lastId, true, true);
+      updateWordCount(note);
+      flushTypingSideEffects();
+      persistState();
+      return;
+    }
+  }
+
+  block.content = serialized;
   note.updatedAt = TODAY_KEY;
   updateWordCount(note);
 
-  const plainText = el.innerText;
+  const plainText = serialized;
 
   // Live Obsidian / Notion Markdown Shortcuts at start of paragraph (# , ## , ### , - , [] , > , >> , --- , ```)
-  if (block.type === 'paragraph') {
+  if (!isComposing && block.type === 'paragraph') {
     const mdRules = [
       [/^###\s+/, 'h3'],
       [/^##\s+/, 'h2'],
@@ -3185,8 +3468,8 @@ function handleBlockInput(e, blockId) {
         if (nextType === 'todo') block.checked = false;
         if (nextType === 'toggle') { block.open = true; block.body = block.body || ''; }
         renderBlocks(note);
-        focusBlock(block.id, false);
-        renderInspector();
+        focusBlock(block.id, false, true);
+        flushTypingSideEffects();
         persistState();
         return;
       }
@@ -3204,7 +3487,7 @@ function handleBlockInput(e, blockId) {
       block.language = 'typescript';
       block.content = '';
       renderBlocks(note);
-      focusBlock(block.id, false);
+      focusBlock(block.id, false, true);
       persistState();
       return;
     }
@@ -3224,8 +3507,8 @@ function handleBlockInput(e, blockId) {
     closeWikiLinkMenu();
   }
 
-  renderInspector();
-  persistState();
+  // Debounced persist + inspector rebuild (zero keystroke stutter on mobile!)
+  scheduleTypingSideEffects();
 }
 
 function handleCodeInput(e, blockId) {
@@ -3235,7 +3518,7 @@ function handleCodeInput(e, blockId) {
   if (block) {
     block.content = e.currentTarget.innerText;
     updateWordCount(note);
-    persistState();
+    scheduleTypingSideEffects();
   }
 }
 
@@ -3250,8 +3533,13 @@ function handleBlockBlur(e, blockId) {
   const note = getActiveNote();
   const block = note && note.blocks ? note.blocks.find(b => b.id === blockId) : null;
   if (block && block.type !== 'code' && block.type !== 'divider' && block.type !== 'table' && block.type !== 'sketch') {
-    e.currentTarget.innerHTML = renderRichBlockHTML(block.content);
+    block.content = serializeEditableBlock(e.currentTarget);
+    // Only rewrite innerHTML on blur if there are [[wiki]] links to hydrate (avoids unnecessary DOM churn on mobile!)
+    if (block.content && block.content.includes('[[')) {
+      e.currentTarget.innerHTML = renderRichBlockHTML(block.content);
+    }
   }
+  flushTypingSideEffects();
 }
 
 function handleBlockKeydown(e, blockId) {
@@ -3263,15 +3551,19 @@ function handleBlockKeydown(e, blockId) {
     }
     return;
   }
-  // Check Autocorrect Backspace Undo before anything else
-  if (e.key === 'Backspace') {
+
+  // Ignore IME composition keydowns (Android Gboard sends keyCode 229 / Unidentified — handled cleanly by beforeinput/input!)
+  if (e.isComposing || e.keyCode === 229) return;
+
+  // Check Autocorrect Backspace Undo (desktop only)
+  if (e.key === 'Backspace' && !isTouchPrimaryDevice()) {
     if (checkAutocorrectUndoOnBackspace(e, blockId)) {
       return;
     }
   }
 
-  // Check Autocorrect word delimiter trigger
-  if (e.key === ' ' || e.key === '.' || e.key === ',' || e.key === '!' || e.key === '?' || e.key === ';' || e.key === ':') {
+  // Desktop-only Autocorrect word delimiter trigger
+  if (!isTouchPrimaryDevice() && (e.key === ' ' || e.key === '.' || e.key === ',' || e.key === '!' || e.key === '?' || e.key === ';' || e.key === ':')) {
     const targetEl = e.currentTarget;
     setTimeout(() => triggerAutocorrectCheck(targetEl, blockId), 0);
   }
@@ -3293,71 +3585,55 @@ function handleBlockKeydown(e, blockId) {
   const note = getActiveNote();
   const idx = note.blocks.findIndex(b => b.id === blockId);
   if (idx === -1) return;
-  const block = note.blocks[idx];
 
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    const nextType = (block.type === 'todo' || block.type === 'bullet') ? block.type : 'paragraph';
-    const newBlock = {
-      id: generateId('b'),
-      type: nextType,
-      checked: false,
-      content: ''
-    };
-    note.blocks.splice(idx + 1, 0, newBlock);
-    renderBlocks(note);
-    focusBlock(newBlock.id, true);
-    persistState();
+    splitBlockAtCaret(e.currentTarget, blockId);
+    return;
   }
 
   if (e.key === 'Backspace') {
-    const text = e.currentTarget.innerText.trim();
-    if (text === '') {
-      if (block.type !== 'paragraph') {
-        e.preventDefault();
-        block.type = 'paragraph';
-        renderBlocks(note);
-        focusBlock(block.id, true);
-        persistState();
-      } else if (note.blocks.length > 1) {
-        e.preventDefault();
-        const prevBlock = note.blocks[Math.max(0, idx - 1)];
-        note.blocks.splice(idx, 1);
-        renderBlocks(note);
-        focusBlock(prevBlock.id, false);
-        persistState();
-      }
+    if (handleBlockStartBackspace(e.currentTarget, blockId)) {
+      e.preventDefault();
+      return;
     }
   }
 
   if (e.key === 'ArrowUp' && idx > 0) {
-    const sel = window.getSelection();
-    if (sel && sel.anchorOffset === 0) {
+    const caret = getBlockCaretOffset(e.currentTarget);
+    if (caret === 0) {
       e.preventDefault();
-      focusBlock(note.blocks[idx - 1].id, false);
+      focusBlock(note.blocks[idx - 1].id, false, true);
     }
   }
   if (e.key === 'ArrowDown' && idx < note.blocks.length - 1) {
-    const sel = window.getSelection();
-    if (sel && sel.anchorOffset >= e.currentTarget.innerText.length) {
+    const caret = getBlockCaretOffset(e.currentTarget);
+    const len = serializeEditableBlock(e.currentTarget).length;
+    if (caret >= len) {
       e.preventDefault();
-      focusBlock(note.blocks[idx + 1].id, true);
+      focusBlock(note.blocks[idx + 1].id, true, true);
     }
   }
 }
 
-function focusBlock(blockId, atStart = false) {
-  requestAnimationFrame(() => {
+function focusBlock(blockId, atStart = false, immediate = true) {
+  const doFocus = () => {
     const el = document.querySelector(`[data-block-id="${blockId}"]`);
     if (!el) return;
     el.focus();
-    const range = document.createRange();
     const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
     range.selectNodeContents(el);
     range.collapse(atStart);
     sel.removeAllRanges();
     sel.addRange(range);
-  });
+  };
+  if (immediate && document.querySelector(`[data-block-id="${blockId}"]`)) {
+    doFocus();
+  } else {
+    requestAnimationFrame(doFocus);
+  }
 }
 
 function insertBlockAfter(blockId) {
@@ -11912,6 +12188,7 @@ function undoLastAutocorrection() {
 }
 
 function handleTitleInputAutocorrect(e) {
+  if (e.isComposing || e.inputType === 'insertCompositionText' || (typeof isTouchPrimaryDevice === 'function' && isTouchPrimaryDevice())) return;
   if ((e.data && /[\s.,!?;:]/.test(e.data)) || e.inputType === 'insertText') {
     const el = document.getElementById('docTitleInput');
     if (el) triggerAutocorrectCheck(el, null);
@@ -11931,11 +12208,14 @@ function handleBlockFocus(e, blockId) {
   activeEditingBlockId = blockId;
   if (window.innerWidth < 768) {
     showMobileAccessoryBar();
-    // Ensure the active block is visible above virtual keyboard
-    setTimeout(() => {
-      const el = e.currentTarget;
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
+    const el = e.currentTarget;
+    if (el) {
+      setTimeout(() => {
+        if (document.activeElement === el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        }
+      }, 180);
+    }
   }
 }
 

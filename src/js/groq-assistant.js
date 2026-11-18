@@ -1,6 +1,6 @@
 // ============================================================================
-// PK NOTE — MULTI-PROVIDER AI ASSISTANT (Gemini · Groq · NVIDIA · Local Model)
-// 100% Client-Side BYOK & Local Server Support, SSE Streaming, Zero Emoji
+// PK NOTE — MULTI-PROVIDER FREE AI ASSISTANT (Gemini · OpenRouter Free · Groq · NVIDIA · Local)
+// 100% Client-Side BYOK & Local Server Support, Ranked Free Models, SSE Streaming, Zero Emoji
 // Full PK Note integration: Active Note, Vault, Calendar, Study Deck, Voice
 // ============================================================================
 
@@ -13,20 +13,53 @@ const PK_AI_PROVIDERS = {
     name: 'Gemini AI',
     shortName: 'Gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-3.5-flash-lite',
+    defaultModel: 'gemini-3-flash-preview',
     requiresKey: true,
     keyPlaceholder: 'AIza... or AQ....',
     keyLabel: 'Gemini API Key (Saved Locally)',
     keyUrl: 'https://aistudio.google.com/apikey',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Fast · Recommended)' },
-      { id: 'gemini-flash-lite-latest', label: 'gemini-flash-lite-latest (Auto-Latest Lite)' },
-      { id: 'gemini-3.8-flash', label: 'gemini-3.8-flash (Latest Flash)' },
-      { id: 'gemini-flash-latest', label: 'gemini-flash-latest (Auto-Latest Flash)' },
-      { id: 'gemma-4-31b-it', label: 'gemma-4-31b-it (Gemma 4 · 31B)' },
-      { id: 'gemma-4-26b-a4b-it', label: 'gemma-4-26b-a4b-it (Gemma 4 · 26B Fast)' },
-      { id: 'gemini-pro-latest', label: 'gemini-pro-latest (Pro · Paid Tier)' }
+      { id: 'gemini-3-flash-preview', label: '#1 gemini-3-flash-preview (Best Free · Fastest Flash)' },
+      { id: 'gemini-3.8-flash', label: '#2 gemini-3.8-flash (Top Quality · Latest Flash)' },
+      { id: 'gemini-3.5-flash-lite', label: '#3 gemini-3.5-flash-lite (Rock-Solid Free Lite)' },
+      { id: 'gemini-3.1-flash-lite', label: '#4 gemini-3.1-flash-lite (Fast Stable Lite)' },
+      { id: 'gemini-flash-lite-latest', label: '#5 gemini-flash-lite-latest (Auto-Latest Lite)' },
+      { id: 'gemini-4-hydrogen', label: '#6 gemini-4-hydrogen (Gemini 4 Free Tier)' },
+      { id: 'gemma-4-31b-it', label: '#7 gemma-4-31b-it (Gemma 4 · 31B Open)' },
+      { id: 'gemma-4-26b-a4b-it', label: '#8 gemma-4-26b-a4b-it (Gemma 4 · 26B MoE)' },
+      { id: 'gemini-flash-latest', label: '#9 gemini-flash-latest (Auto-Latest Flash)' },
+      { id: 'gemini-3.7-flash', label: '#10 gemini-3.7-flash (3.7 Flash)' },
+      { id: 'gemini-3.1-flash-lite-preview', label: '#11 gemini-3.1-flash-lite-preview (3.1 Lite)' }
+    ]
+  },
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter Free',
+    shortName: 'Free OR',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    defaultModel: 'openrouter/free',
+    requiresKey: true,
+    keyPlaceholder: 'sk-or-v1-...',
+    keyLabel: 'OpenRouter Key (Free $0 Models Only)',
+    keyUrl: 'https://openrouter.ai/keys',
+    keyLinkText: 'Get free key',
+    models: [
+      { id: 'openrouter/free', label: '#1 openrouter/free (Auto-Router · Always Working Free)' },
+      { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: '#2 nemotron-3-ultra-550b (550B Flagship · 1M Ctx · Free)' },
+      { id: 'nvidia/nemotron-3.5-super-vl:free', label: '#3 nemotron-3.5-super-vl (120B Super · 1M Ctx · Free)' },
+      { id: 'google/gemma-4-31b-it:free', label: '#4 gemma-4-31b-it (Gemma 4 · 31B · 262K Ctx · Free)' },
+      { id: 'nvidia/nemotron-3.5-lightning:free', label: '#5 nemotron-3.5-lightning (Fast 30B · 1M Ctx · Free)' },
+      { id: 'google/gemma-4-26b-a4b-it:free', label: '#6 gemma-4-26b-a4b-it (Gemma 4 · 26B MoE · Free)' },
+      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', label: '#7 nemotron-3-nano-omni (Reasoning 30B · Free)' },
+      { id: 'baidu/ernie-5.5-flash-preview:free', label: '#8 ernie-5.5-flash (ERNIE 5.5 · 1M Ctx · Free)' },
+      { id: 'inclusionai/ling-3.2-flash:free', label: '#9 ling-3.2-flash (Ling 3.2 · 1M Ctx · Free)' },
+      { id: 'cohere/north-mini-code:free', label: '#10 north-mini-code (Coding Specialist · Free)' },
+      { id: 'dots-studio/dots-3-note-preview:free', label: '#11 dots-3-note (Notes Specialist · 512K Ctx · Free)' },
+      { id: 'thinkingmachines/inkling-2-small:free', label: '#12 inkling-2-small (Inkling 2 · 1M Ctx · Free)' },
+      { id: 'particle-ai/particle-1:free', label: '#13 particle-1 (Particle-1 · 1M Ctx · Free)' },
+      { id: 'recursive/flint-v1.0:free', label: '#14 flint-v1.0 (Flint · 262K Ctx · Free)' },
+      { id: 'liquid/lfm-3-1.7b:free', label: '#15 lfm-3-1.7b (Ultra-Fast 1.7B · Free)' }
     ]
   },
   groq: {
@@ -41,10 +74,10 @@ const PK_AI_PROVIDERS = {
     keyUrl: 'https://console.groq.com/keys',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'openai/gpt-oss-120b', label: 'openai/gpt-oss-120b (Best Overall · 120B)' },
-      { id: 'qwen/qwen3.8-27b', label: 'qwen/qwen3.8-27b (Qwen 3.8 · 27B)' },
-      { id: 'openai/gpt-oss-20b', label: 'openai/gpt-oss-20b (Ultra-Fast · 20B)' },
-      { id: 'allam-2-7b', label: 'allam-2-7b (Compact · 7B)' }
+      { id: 'openai/gpt-oss-120b', label: '#1 openai/gpt-oss-120b (Best Overall · 120B Reasoning)' },
+      { id: 'qwen/qwen3.8-27b', label: '#2 qwen/qwen3.8-27b (Best Writing & Code · 27B)' },
+      { id: 'openai/gpt-oss-20b', label: '#3 openai/gpt-oss-20b (Ultra-Fast · 20B)' },
+      { id: 'allam-2-7b', label: '#4 allam-2-7b (Compact Fast · 7B)' }
     ]
   },
   nvidia: {
@@ -59,16 +92,16 @@ const PK_AI_PROVIDERS = {
     keyUrl: 'https://build.nvidia.com/explore/discover',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: 'nemotron-3.5-lightning-30b-a3b (Fast)' },
-      { id: 'google/gemma-4-31b-it', label: 'gemma-4-31b-it (Balanced)' },
-      { id: 'nvidia/nemotron-3.5-super-vl-120b-a12b', label: 'nemotron-3.5-super-vl-120b-a12b (Super 120B)' },
-      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: 'nemotron-3-ultra-550b-a55b (Ultra 550B)' },
-      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'nemotron-3-nano-omni-30b (Reasoning)' },
-      { id: 'mistralai/mistral-large-4-1t-a52b', label: 'mistral-large-4-1t-a52b (Mistral Large 4)' },
-      { id: 'moonshotai/kimi-k3.1-pro', label: 'kimi-k3.1-pro (Kimi K3.1)' },
-      { id: 'minimaxai/minimax-m3.1-flash', label: 'minimax-m3.1-flash (Fast)' },
-      { id: 'z-ai/glm-5.3-flash', label: 'glm-5.3-flash (GLM 5.3)' },
-      { id: 'google/gemma-3-12b-it', label: 'gemma-3-12b-it (Gemma 3 12B)' }
+      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: '#1 nemotron-3-ultra-550b (Flagship 550B Ultra)' },
+      { id: 'mistralai/mistral-large-4-1t-a52b', label: '#2 mistral-large-4-1t (Mistral Large 4 · 1T MoE)' },
+      { id: 'moonshotai/kimi-k3.1-pro', label: '#3 kimi-k3.1-pro (Kimi K3.1 Pro · Long Ctx)' },
+      { id: 'nvidia/nemotron-3.5-super-vl-120b-a12b', label: '#4 nemotron-3.5-super-vl (Super 120B)' },
+      { id: 'google/gemma-4-31b-it', label: '#5 gemma-4-31b-it (Gemma 4 · 31B Balanced)' },
+      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: '#6 nemotron-3.5-lightning (Fast 30B)' },
+      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: '#7 nemotron-3-nano-omni (Reasoning 30B)' },
+      { id: 'minimaxai/minimax-m3.1-flash', label: '#8 minimax-m3.1-flash (MiniMax Flash)' },
+      { id: 'z-ai/glm-5.3-flash', label: '#9 glm-5.3-flash (GLM 5.3 Flash)' },
+      { id: 'google/gemma-3-12b-it', label: '#10 gemma-3-12b-it (Gemma 3 · 12B Compact)' }
     ]
   },
   local: {
@@ -83,20 +116,20 @@ const PK_AI_PROVIDERS = {
     keyUrl: '',
     keyLinkText: '',
     models: [
-      { id: 'google/gemma-4-e4b', label: 'google/gemma-4-e4b (LM Studio · 7.5B)' },
-      { id: 'qwen/qwen3.5-9b', label: 'qwen/qwen3.5-9b (LM Studio · 9B)' },
-      { id: 'google/gemma-4-12b', label: 'google/gemma-4-12b (LM Studio · 12B)' },
-      { id: 'google/gemma-4-e2b', label: 'google/gemma-4-e2b (LM Studio · 4.6B Fast)' },
-      { id: 'nvidia/nemotron-3-nano-4b', label: 'nvidia/nemotron-3-nano-4b (LM Studio · 4B Fast)' },
-      { id: 'gemma-3-270m-it', label: 'gemma-3-270m-it (LM Studio · 270M Instant)' },
-      { id: 'prism-ml/bonsai-27b', label: 'prism-ml/bonsai-27b (LM Studio · 27B)' },
-      { id: 'liquid/lfm2-24b-a2b', label: 'liquid/lfm2-24b-a2b (LM Studio · 24B MoE)' },
-      { id: 'gemma-4-12b-it-qat', label: 'gemma-4-12b-it-qat (LM Studio · 12B QAT)' },
-      { id: 'gemma-4-12b-it-qat-deepseek-distill', label: 'gemma-4-12b-it-qat-deepseek-distill (LM Studio · 12B)' },
-      { id: 'gemma-4-12b-coder-fable5-composer2.5-v1', label: 'gemma-4-12b-coder-fable5-composer2.5-v1 (LM Studio · Coder)' },
-      { id: 'gemma-4-e4b-uncensored-hauhaucs-aggressive', label: 'gemma-4-e4b-uncensored-hauhaucs-aggressive (LM Studio)' },
-      { id: 'gemma-4-e2b-uncensored-hauhaucs-aggressive', label: 'gemma-4-e2b-uncensored-hauhaucs-aggressive (LM Studio)' },
-      { id: 'kimi-k3.1-pro:cloud', label: 'kimi-k3.1-pro:cloud (Ollama · :11434)' }
+      { id: 'kimi-k3.1-pro:cloud', label: '#1 kimi-k3.1-pro:cloud (Cloud-Scale · Ollama :11434)' },
+      { id: 'prism-ml/bonsai-27b', label: '#2 prism-ml/bonsai-27b (Largest Local · 27B)' },
+      { id: 'liquid/lfm2-24b-a2b', label: '#3 liquid/lfm2-24b-a2b (Fast MoE · 24B)' },
+      { id: 'google/gemma-4-12b', label: '#4 google/gemma-4-12b (Top Quality · 12B)' },
+      { id: 'gemma-4-12b-it-qat', label: '#5 gemma-4-12b-it-qat (High Accuracy · 12B QAT)' },
+      { id: 'gemma-4-12b-it-qat-deepseek-distill', label: '#6 gemma-4-12b-deepseek-distill (Reasoning · 12B)' },
+      { id: 'gemma-4-12b-coder-fable5-composer2.5-v1', label: '#7 gemma-4-12b-coder (Coding · 12B)' },
+      { id: 'qwen/qwen3.5-9b', label: '#8 qwen/qwen3.5-9b (Strong All-Rounder · 9B)' },
+      { id: 'google/gemma-4-e4b', label: '#9 google/gemma-4-e4b (Best Speed/Quality · 7.5B)' },
+      { id: 'google/gemma-4-e2b', label: '#10 google/gemma-4-e2b (Fast Light · 4.6B)' },
+      { id: 'nvidia/nemotron-3-nano-4b', label: '#11 nvidia/nemotron-3-nano-4b (Fast · 4B)' },
+      { id: 'gemma-4-e4b-uncensored-hauhaucs-aggressive', label: '#12 gemma-4-e4b-uncensored (7.5B)' },
+      { id: 'gemma-4-e2b-uncensored-hauhaucs-aggressive', label: '#13 gemma-4-e2b-uncensored (4.6B)' },
+      { id: 'gemma-3-270m-it', label: '#14 gemma-3-270m-it (Instant Tiny · 270M)' }
     ]
   }
 };
@@ -170,6 +203,12 @@ function getDefaultAiConfig() {
       model: PK_AI_PROVIDERS.gemini.defaultModel,
       discoveredModels: []
     },
+    openrouter: {
+      apiKey: '',
+      baseUrl: PK_AI_PROVIDERS.openrouter.defaultBaseUrl,
+      model: PK_AI_PROVIDERS.openrouter.defaultModel,
+      discoveredModels: []
+    },
     groq: {
       apiKey: '',
       baseUrl: PK_AI_PROVIDERS.groq.defaultBaseUrl,
@@ -211,7 +250,7 @@ function loadAiConfig() {
     if (rawV2) {
       const parsed = JSON.parse(rawV2);
       const provider = PK_AI_PROVIDERS[parsed.provider] ? parsed.provider : 'groq';
-      ['gemini', 'groq', 'nvidia', 'local'].forEach(pid => {
+      ['gemini', 'openrouter', 'groq', 'nvidia', 'local'].forEach(pid => {
         const src = parsed[pid] || {};
         def[pid] = {
           apiKey: typeof src.apiKey === 'string' ? src.apiKey.trim() : '',
@@ -345,7 +384,7 @@ function captureCurrentProviderInputsIntoConfig(cfg) {
   const customInp = document.getElementById('pkGroqCustomModelInput');
 
   if (keyInput) cfg[pid].apiKey = keyInput.value.trim();
-  if (pid !== 'groq' && pid !== 'gemini' && baseInput && baseInput.value.trim()) {
+  if (pid !== 'groq' && pid !== 'gemini' && pid !== 'openrouter' && baseInput && baseInput.value.trim()) {
     cfg[pid].baseUrl = baseInput.value.trim();
   }
   if (modelSel) {
@@ -368,21 +407,35 @@ function populateModelSelectForProvider(pid, data) {
   const seen = new Set();
   const options = [];
 
-  // Put live discovered models first (e.g. installed Ollama/LM Studio models or fetched cloud models)
-  (data.discoveredModels || []).forEach(id => {
-    if (!seen.has(id)) {
-      seen.add(id);
-      options.push({ id, label: pid === 'local' ? `${id} (Detected)` : id });
-    }
-  });
-
-  // Add curated presets for this provider
-  spec.models.forEach(m => {
-    if (!seen.has(m.id)) {
-      seen.add(m.id);
-      options.push(m);
-    }
-  });
+  if (pid === 'local') {
+    // Local: put live-detected running models first, then ranked library presets
+    (data.discoveredModels || []).forEach(id => {
+      if (!seen.has(id)) {
+        seen.add(id);
+        options.push({ id, label: `${id} (Running)` });
+      }
+    });
+    spec.models.forEach(m => {
+      if (!seen.has(m.id)) {
+        seen.add(m.id);
+        options.push(m);
+      }
+    });
+  } else {
+    // Cloud providers: always show live-verified ranked #1..#N presets first, then any extra live models
+    spec.models.forEach(m => {
+      if (!seen.has(m.id)) {
+        seen.add(m.id);
+        options.push(m);
+      }
+    });
+    (data.discoveredModels || []).forEach(id => {
+      if (!seen.has(id)) {
+        seen.add(id);
+        options.push({ id, label: `${id} (Live)` });
+      }
+    });
+  }
 
   modelSel.innerHTML = options.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.label)}</option>`).join('') +
     '<option value="custom">Custom Model ID...</option>';
@@ -399,9 +452,11 @@ function populateModelSelectForProvider(pid, data) {
         ? 'e.g. google/gemma-4-e4b, qwen/qwen3.5-9b...'
         : pid === 'nvidia'
           ? 'e.g. nvidia/nemotron-3.5-lightning-30b-a3b'
-          : pid === 'gemini'
-            ? 'e.g. gemini-2.5-flash, gemini-2.5-pro'
-            : 'e.g. openai/gpt-oss-120b';
+          : pid === 'openrouter'
+            ? 'e.g. openrouter/free, google/gemma-4-31b-it:free'
+            : pid === 'gemini'
+              ? 'e.g. gemini-3-flash-preview, gemini-3.5-flash-lite'
+              : 'e.g. openai/gpt-oss-120b';
     }
   }
 }
@@ -412,10 +467,11 @@ function syncGroqHeaderAndSettingsUI() {
   const ready = isProviderReady(spec.id, data);
 
   // Provider tabs highlight
-  const activeTabCls = 'px-1.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate';
-  const idleTabCls = 'px-1.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate';
+  const activeTabCls = 'px-1 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate';
+  const idleTabCls = 'px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate';
   const tabs = [
     ['gemini', 'pkAiProviderTabGemini'],
+    ['openrouter', 'pkAiProviderTabOpenrouter'],
     ['groq', 'pkAiProviderTabGroq'],
     ['nvidia', 'pkAiProviderTabNvidia'],
     ['local', 'pkAiProviderTabLocal']
@@ -444,7 +500,7 @@ function syncGroqHeaderAndSettingsUI() {
     else keyBtnLabel.textContent = ready ? spec.shortName : 'Add Key';
   }
 
-  // Endpoint section (shown for NVIDIA & Local, hidden for Groq & Gemini)
+  // Endpoint section (shown for NVIDIA & Local, hidden for direct-CORS Gemini / OpenRouter / Groq)
   const endpointSec = document.getElementById('pkAiEndpointSection');
   const baseLabel = document.getElementById('pkAiBaseUrlLabel');
   const baseInput = document.getElementById('pkAiBaseUrlInput');
@@ -452,7 +508,7 @@ function syncGroqHeaderAndSettingsUI() {
   const nvidiaHint = document.getElementById('pkAiNvidiaCorsHint');
   const localHint = document.getElementById('pkAiLocalCorsHint');
 
-  if (endpointSec) endpointSec.classList.toggle('hidden', spec.id === 'groq' || spec.id === 'gemini');
+  if (endpointSec) endpointSec.classList.toggle('hidden', spec.id === 'groq' || spec.id === 'gemini' || spec.id === 'openrouter');
   if (localPresets) localPresets.classList.toggle('hidden', spec.id !== 'local');
   if (nvidiaHint) nvidiaHint.classList.toggle('hidden', spec.id !== 'nvidia');
   if (localHint) localHint.classList.toggle('hidden', spec.id !== 'local');
@@ -925,9 +981,11 @@ async function pasteAiApiKey() {
       }
       const cfg = loadAiConfig();
       captureCurrentProviderInputsIntoConfig(cfg);
-      // Smart auto-switch provider if key prefix clearly identifies Gemini (AIza / AQ.), Groq, or NVIDIA
+      // Smart auto-switch provider if key prefix clearly identifies Gemini, OpenRouter, Groq, or NVIDIA
       if (/^(?:AIza|AQ\.)/i.test(cleaned) && cfg.provider !== 'gemini') {
         cfg.provider = 'gemini';
+      } else if (/^sk-or-/i.test(cleaned) && cfg.provider !== 'openrouter') {
+        cfg.provider = 'openrouter';
       } else if (/^gsk_/i.test(cleaned) && cfg.provider !== 'groq') {
         cfg.provider = 'groq';
       } else if (/^nvapi-/i.test(cleaned) && cfg.provider !== 'nvidia') {
@@ -1075,7 +1133,7 @@ const PK_LOCAL_AUTO_PORTS = [
 ];
 
 function isNonChatModelId(id) {
-  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety|imagen|veo|aqa|bison|gecko|lyria|robotics|computer-use|native-audio|image-generation|-image\b|nano-banana|transcribe|deep-research|decision-|antigravity-preview|customtools|live-translate|\blive-/i.test(String(id || ''));
+  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety|imagen|veo|aqa|bison|gecko|lyria|robotics|computer-use|native-audio|image-generation|-image\b|nano-banana|transcribe|deep-research|decision-|antigravity-preview|customtools|live-translate|\blive-|-live$/i.test(String(id || ''));
 }
 
 function isModelNotFoundError(status, msg) {
@@ -1129,12 +1187,20 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
   const headers = {};
   if (apiKey && apiKey.trim()) headers['Authorization'] = `Bearer ${apiKey.trim()}`;
 
-  // 1. Standard OpenAI-compatible GET /v1/models (also supports Gemini /v1beta/openai/models)
+  // 1. Standard OpenAI-compatible GET /v1/models (supports Gemini, OpenRouter Free, Groq, NVIDIA, Local)
   try {
     const res = await fetch(endpoints.modelsUrl, { method: 'GET', headers });
     if (res.ok) {
       const json = await res.json();
-      const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
+      let list = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
+      if (pid === 'openrouter') {
+        // Strictly keep FREE ($0) chat models on OpenRouter so users never get billed
+        list = list.filter(item => {
+          const id = typeof item === 'string' ? item : (item && item.id) || '';
+          const isZeroCost = item && item.pricing && Number(item.pricing.prompt) === 0 && Number(item.pricing.completion) === 0;
+          return id === 'openrouter/free' || /:free$/i.test(id) || isZeroCost;
+        });
+      }
       let ids = list
         .map(item => {
           const raw = typeof item === 'string' ? item : (item && (item.id || item.name || item.model)) || '';
@@ -1142,9 +1208,14 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
         })
         .filter(id => id && !isNonChatModelId(id));
       if (pid === 'gemini') {
+        ids = ids.filter(id => !PK_RETIRED_GEMINI_MODELS.has(id));
         const geminiFirst = ids.filter(id => /^gemini-/i.test(id));
         const others = ids.filter(id => !/^gemini-/i.test(id));
         ids = [...geminiFirst, ...others];
+      } else if (pid === 'openrouter') {
+        const routerFirst = ids.filter(id => id === 'openrouter/free');
+        const rest = ids.filter(id => id !== 'openrouter/free');
+        ids = [...routerFirst, ...rest];
       }
       if (ids.length > 0) return [...new Set(ids)];
     }
@@ -1985,10 +2056,14 @@ async function sendGroqPrompt(overrideText) {
     if (!res.ok && spec.id !== 'local') {
       const errJson = await res.json().catch(() => ({}));
       const errMsg = extractStreamErr(errJson, res.status);
-      if (spec.id === 'gemini' && res.status === 503 && activeModel !== 'gemini-3.5-flash-lite') {
-        activeModel = 'gemini-3.5-flash-lite';
-        if (typeof showToast === 'function') showToast('Model busy (503) — falling back to gemini-3.5-flash-lite', 'ochre');
-        res = await doChatFetch(endpoints.chatUrl, activeModel);
+      if (spec.id === 'gemini' && res.status === 503) {
+        const gemFallbacks = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].filter(m => m !== activeModel);
+        for (const fb of gemFallbacks) {
+          activeModel = fb;
+          if (typeof showToast === 'function') showToast(`Model busy (503) — trying ${fb}`, 'ochre');
+          res = await doChatFetch(endpoints.chatUrl, activeModel);
+          if (res.ok || res.status !== 503) break;
+        }
       } else if (isModelNotFoundError(res.status, errMsg)) {
         const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
         const fallbackModel = liveModels.find(m => m !== activeModel && !(spec.id === 'gemini' && PK_RETIRED_GEMINI_MODELS.has(m)));

@@ -2786,14 +2786,15 @@
 
       <!-- Collapsible Multi-Provider AI Settings Panel (Groq · NVIDIA AI · Local Model) -->
       <div id="pkGroqSettingsPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[64vh] overflow-y-auto select-text">
-        <!-- 4-Way Provider Switcher -->
+        <!-- 5-Way Free & Local AI Provider Switcher -->
         <div class="space-y-1">
-          <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">AI Provider</div>
-          <div class="grid grid-cols-4 gap-1 font-mono text-[10px]">
-            <button type="button" id="pkAiProviderTabGemini" onclick="selectAiProvider('gemini')" class="px-1.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Gemini</button>
-            <button type="button" id="pkAiProviderTabGroq" onclick="selectAiProvider('groq')" class="px-1.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate">Groq</button>
-            <button type="button" id="pkAiProviderTabNvidia" onclick="selectAiProvider('nvidia')" class="px-1.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">NVIDIA</button>
-            <button type="button" id="pkAiProviderTabLocal" onclick="selectAiProvider('local')" class="px-1.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Local</button>
+          <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">AI Provider (Free &amp; Local)</div>
+          <div class="grid grid-cols-5 gap-1 font-mono text-[9.5px]">
+            <button type="button" id="pkAiProviderTabGemini" onclick="selectAiProvider('gemini')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Gemini</button>
+            <button type="button" id="pkAiProviderTabOpenrouter" onclick="selectAiProvider('openrouter')" title="OpenRouter — 15+ Free AI Models (Zero Proxy)" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Free OR</button>
+            <button type="button" id="pkAiProviderTabGroq" onclick="selectAiProvider('groq')" class="px-1 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate">Groq</button>
+            <button type="button" id="pkAiProviderTabNvidia" onclick="selectAiProvider('nvidia')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">NVIDIA</button>
+            <button type="button" id="pkAiProviderTabLocal" onclick="selectAiProvider('local')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Local</button>
           </div>
         </div>
 

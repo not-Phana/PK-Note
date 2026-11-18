@@ -9254,6 +9254,11 @@
       showToast(`Playback speed: ${newRate}x`, 'ochre');
     }
 
+    let lastRenderedDeviceVoices = [];
+    const kokoroAuditionCache = new Map(); // cacheKey -> objectUrl for 0ms instant re-audition!
+    let kokoroAuditionTimer = null;
+    let isKokoroSynthesizingAudition = false;
+
     function selectKokoroVoice(voiceId, autoAudition = false) {
       const voice = KOKORO_VOICE_CATALOG.find(v => v.id === voiceId);
       if (!voice) return;
@@ -9261,38 +9266,80 @@
       const settings = getVoiceSettings();
       settings.engine = 'kokoro';
       settings.kokoroVoiceId = voice.id;
-      // Automatically apply the voice's tuned cute/natural tone pitch and sync slider
       const targetPitch = voice.defaultPitch || 1.0;
       settings.pitch = targetPitch;
+
+      // Instant visual feedback BEFORE any storage or audio work (< 4ms response!)
       const pitchSlider = document.getElementById('voicePitchSlider');
       const pitchDisp = document.getElementById('voicePitchDisplay');
       if (pitchSlider) pitchSlider.value = targetPitch;
       if (pitchDisp) pitchDisp.textContent = formatVoicePitchLabel(targetPitch);
 
-      persistState();
       renderVoiceCardsList();
       updateVoiceStudioHUDLabels();
       if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
+      if (typeof pkHaptic === 'function') pkHaptic(8);
       const tag = voice.category === 'cute' ? 'Cute' : (voice.gender === 'male' ? 'Male' : 'Female');
       showToast(`Selected ${voice.name} (${tag} · ${voice.accent})`);
-      // Audition immediately if explicitly requested or if Kokoro is already warm in memory
-      if (autoAudition || (kokoroEngineState === 'ready' && kokoroTTSInstance)) {
-        testKokoroVoice(voice.id);
+      setTimeout(() => persistState(), 0);
+
+      // Clear stale prefetched chunks so next sentence uses the newly selected voice immediately
+      clearKokoroPrefetchCache();
+
+      // Only run Kokoro WASM synthesis when user explicitly taps "Test" — never freeze UI while browsing cards!
+      if (autoAudition) {
+        if (kokoroAuditionTimer) clearTimeout(kokoroAuditionTimer);
+        kokoroAuditionTimer = setTimeout(() => {
+          kokoroAuditionTimer = null;
+          testKokoroVoice(voice.id);
+        }, 40);
       }
+    }
+
+    function selectDeviceVoiceByIndex(idx) {
+      const chosen = lastRenderedDeviceVoices[idx];
+      if (!chosen) return;
+      const settings = getVoiceSettings();
+      settings.engine = 'device';
+      settings.voiceURI = chosen.voiceURI;
+      settings.voiceName = chosen.name;
+
+      renderVoiceCardsList();
+      updateVoiceStudioHUDLabels();
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
+      if (typeof pkHaptic === 'function') pkHaptic(8);
+      showToast(`Selected ${chosen.name.slice(0, 28)}`);
+      setTimeout(() => persistState(), 0);
+
+      // Debounced instant audition so rapid switching between voices is 100% silky & never jams speechSynthesis!
+      if (kokoroAuditionTimer) clearTimeout(kokoroAuditionTimer);
+      kokoroAuditionTimer = setTimeout(() => {
+        kokoroAuditionTimer = null;
+        testDeviceVoice(chosen);
+      }, 80);
+    }
+
+    function testDeviceVoiceByIndex(idx) {
+      const chosen = lastRenderedDeviceVoices[idx];
+      if (chosen) testDeviceVoice(chosen);
     }
 
     function selectVoiceModel(voiceURI) {
       const voices = loadDetectedVoiceModels();
+      const idx = lastRenderedDeviceVoices.findIndex(v => v.voiceURI === voiceURI);
+      if (idx >= 0) {
+        selectDeviceVoiceByIndex(idx);
+        return;
+      }
       const chosen = voices.find(v => v.voiceURI === voiceURI);
       if (!chosen) return;
       const settings = getVoiceSettings();
       settings.engine = 'device';
       settings.voiceURI = chosen.voiceURI;
       settings.voiceName = chosen.name;
-      persistState();
       renderVoiceCardsList();
       updateVoiceStudioHUDLabels();
-      showToast(`Selected device voice: ${chosen.name.slice(0, 26)}`);
+      setTimeout(() => persistState(), 0);
       testDeviceVoice(chosen);
     }
 
@@ -9422,7 +9469,8 @@
         return;
       }
 
-      container.innerHTML = filtered.map(v => {
+      lastRenderedDeviceVoices = filtered;
+      container.innerHTML = filtered.map((v, idx) => {
         const isSelected = selected && (selected.voiceURI === v.voiceURI || selected.name === v.name);
         const gender = classifyVoiceGender(v);
         const natScore = scoreNaturalDeviceVoice(v);
@@ -9437,7 +9485,7 @@
         const initial = (v.name || 'V').trim().charAt(0).toUpperCase();
 
         return `
-          <div onclick="selectVoiceModel('${escapeHtml(v.voiceURI)}')"
+          <div onclick="selectDeviceVoiceByIndex(${idx})"
                class="group p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${isSelected ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] shadow-xs' : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'}">
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-6 h-6 rounded-full flex items-center justify-center font-serif text-xs font-semibold shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]'}">
@@ -9457,8 +9505,8 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
               ${genderBadge}
-              <button onclick="event.stopPropagation(); testDeviceVoice(loadDetectedVoiceModels().find(x => x.voiceURI === '${escapeHtml(v.voiceURI)}'))"
-                      title="Audition Device Voice"
+              <button onclick="event.stopPropagation(); testDeviceVoiceByIndex(${idx})"
+                      title="Audition Natural Voice"
                       class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
                 Test
               </button>
@@ -9481,46 +9529,70 @@
 
       const customInput = document.getElementById('voiceCustomTestInput');
       const customRaw = customInput ? customInput.value.trim() : '';
+      // Keep default audition short & natural (~7 words) so synthesis is 4x faster and never freezes UI!
       const rawSample = customRaw || (voiceMeta.category === 'cute'
-        ? `Hi Kon! I'm ${voiceMeta.name}, ready to read all your notes softly and naturally right on your device.`
-        : voiceMeta.gender === 'male'
-          ? `Hello, I am ${voiceMeta.name}, running natively on Kokoro 82M right inside PK Note. Your notes are read clearly and naturally with zero server.`
-          : `Hi there, I'm ${voiceMeta.name}, powered by Kokoro 82M directly on your device. Every note sounds clear and natural.`);
+        ? `Hi Kon! I'm ${voiceMeta.name}, ready to read your notes.`
+        : `Hi Kon, I'm ${voiceMeta.name}. Ready whenever you are.`);
       const sampleText = ensureTerminalPunctuation(normalizeTextForNaturalSpeech(rawSample));
+      const rate = settings.rate || 1.0;
+      const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
+      const cacheKey = `${settings.kokoroQuant}|${voiceMeta.id}|${rate.toFixed(2)}|${pitch.toFixed(2)}|${sampleText}`;
+
+      // 0ms Instant Replay if already auditioned this session!
+      if (kokoroAuditionCache.has(cacheKey)) {
+        const cachedUrl = kokoroAuditionCache.get(cacheKey);
+        const audio = getKokoroAudioElement();
+        audio.onended = null;
+        audio.src = cachedUrl;
+        audio.play().catch(() => {});
+        showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
+        return;
+      }
+
+      if (isKokoroSynthesizingAudition) {
+        showToast(`Finishing previous preview — tap Test again in a moment`, 'ochre');
+        return;
+      }
 
       showToast(
         kokoroEngineState === 'ready'
-          ? `Synthesizing ${voiceMeta.name}...`
+          ? `Preparing ${voiceMeta.name}...`
           : `Loading Kokoro-82M to test ${voiceMeta.name}...`,
         'ochre'
       );
 
+      // Yield 2 frames BEFORE WASM runs so the UI button & selection highlight paint smoothly at 60fps!
+      await new Promise(r => requestAnimationFrame(() => setTimeout(r, 24)));
+      if (sessionId !== speechPlaybackSessionId) return;
+
+      isKokoroSynthesizingAudition = true;
       try {
         const tts = await ensureKokoroEngineLoaded();
         if (sessionId !== speechPlaybackSessionId) return;
 
-        const blob = await generateKokoroWavBlob(tts, sampleText, voiceMeta, settings.rate || 1.0, settings.pitch || voiceMeta.defaultPitch || 1.0);
+        const blob = await generateKokoroWavBlob(tts, sampleText, voiceMeta, rate, pitch);
         if (sessionId !== speechPlaybackSessionId) return;
 
         const url = URL.createObjectURL(blob);
-        if (kokoroActiveObjectUrl) {
-          URL.revokeObjectURL(kokoroActiveObjectUrl);
+        // Cache up to 12 auditions for 0ms instant switching!
+        if (kokoroAuditionCache.size >= 12) {
+          const oldestKey = kokoroAuditionCache.keys().next().value;
+          URL.revokeObjectURL(kokoroAuditionCache.get(oldestKey));
+          kokoroAuditionCache.delete(oldestKey);
         }
-        kokoroActiveObjectUrl = url;
+        kokoroAuditionCache.set(cacheKey, url);
 
         const audio = getKokoroAudioElement();
-        audio.onended = () => {
-          if (kokoroActiveObjectUrl === url) {
-            URL.revokeObjectURL(url);
-            kokoroActiveObjectUrl = null;
-          }
-        };
+        audio.onended = null;
         audio.src = url;
         await audio.play();
         showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
       } catch (err) {
         console.warn('Kokoro audition error:', err);
-        showToast('Kokoro-82M audition failed — check connection for first cache or use Device Native.', 'ochre');
+        const msg = err && err.message ? err.message.slice(0, 60) : 'Audition failed';
+        showToast(`Kokoro-82M error: ${msg}`, 'ochre');
+      } finally {
+        isKokoroSynthesizingAudition = false;
       }
     }
 

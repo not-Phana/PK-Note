@@ -298,7 +298,7 @@
           </button>
 
           <!-- 1-Tap Read Aloud Button (Desktop — on phone, Listen sits directly in the Action Bar below!) -->
-          <button onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Note Aloud" class="hidden md:flex md:px-2 md:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center gap-1 cursor-pointer">
+          <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Selection or Note Aloud" class="hidden md:flex md:px-2 md:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center gap-1 cursor-pointer">
             <svg class="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
               <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -458,7 +458,7 @@
           <span>Dictate</span>
         </button>
 
-        <button type="button" onclick="toggleReadingNoteAloud()" id="mobileRibbonListenBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer truncate">
+        <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="toggleReadingNoteAloud()" id="mobileRibbonListenBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer truncate">
           <svg class="w-3.5 h-3.5 shrink-0 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           <span id="mobileRibbonListenLabel">Listen</span>
         </button>
@@ -1581,6 +1581,15 @@
     <div id="pkAudioHudProgressTrack" class="hidden w-full h-[3px] bg-[var(--bg-canvas)]">
       <div id="pkAudioHudProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-150" style="width: 5%"></div>
     </div>
+  </div>
+
+  <!-- Floating Selection-Only Read Aloud Pill (Appears automatically whenever text is highlighted on PC or phone) -->
+  <div id="pkSelectionReadBar" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" class="hidden fixed bottom-[80px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[92vw] z-[910] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/60 shadow-xl select-none">
+    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="readCurrentSelectionOnly()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-vermilion)] hover:opacity-95 text-white font-mono text-[11px] font-semibold cursor-pointer">
+      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <span id="pkSelectionReadLabel">Read Selected</span>
+    </button>
+    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="dismissSelectionReadBar()" title="Dismiss" class="w-6 h-6 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] font-mono text-[11px] flex items-center justify-center cursor-pointer">✕</button>
   </div>
 
 

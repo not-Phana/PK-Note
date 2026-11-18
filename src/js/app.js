@@ -8228,8 +8228,9 @@ function synthesizeKokoroChunk(index, sessionId) {
 async function playNextKokoroSentence(sessionId) {
   if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
   if (currentSpeechQueueIndex >= speechSentenceQueue.length) {
+    const wasSelection = isReadingSelectionOnly;
     stopReadingAloud();
-    showToast('Finished reading document');
+    showToast(wasSelection ? 'Finished reading selection' : 'Finished reading document');
     return;
   }
 
@@ -8344,8 +8345,9 @@ function clearDeviceSpeechTimers() {
 function playNextDeviceSpeechSentence(sessionId) {
   if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
   if (currentSpeechQueueIndex >= speechSentenceQueue.length) {
+    const wasSelection = isReadingSelectionOnly;
     stopReadingAloud();
-    showToast('Finished reading document');
+    showToast(wasSelection ? 'Finished reading selection' : 'Finished reading document');
     return;
   }
 
@@ -8523,7 +8525,123 @@ function splitFirstChunkForFastStart(chunks, firstMaxChars) {
   return chunks;
 }
 
-function readTextAloud(text, title = 'Selection') {
+// =========================================================================
+// SELECTION-ONLY READ ALOUD ENGINE (READ STRICTLY WHAT YOU HIGHLIGHT!)
+// =========================================================================
+let pkLastSelectedReadableText = '';
+let pkLastSelectedReadableTs = 0;
+let pkSelectionBarDismissedText = '';
+let pkSelectionSyncTimer = null;
+let isReadingSelectionOnly = false;
+
+function getReadableSelectedText(allowRecentCache = false) {
+  let text = '';
+  try {
+    const active = document.activeElement;
+    // Handle text selection inside #docTitleInput or non-secret textareas (ignore API key / search inputs!)
+    if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'))) {
+      const id = active.id || '';
+      const isIgnored = /ApiKey|BaseUrl|Search|Filter|CustomModel|MemoryAdd/i.test(id) || active.classList.contains('pk-key-masked');
+      if (!isIgnored && typeof active.selectionStart === 'number' && active.selectionEnd > active.selectionStart) {
+        text = active.value.slice(active.selectionStart, active.selectionEnd).trim();
+      }
+    }
+    if (!text && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) {
+        const anchorNode = sel.anchorNode;
+        const anchorEl = anchorNode && anchorNode.nodeType === 1 ? anchorNode : (anchorNode ? anchorNode.parentElement : null);
+        // Only capture selections inside readable content (editor canvas, AI chat messages, study deck, scratchpad, preview)
+        const inIgnoredInput = anchorEl && anchorEl.closest('#pkGroqSettingsPanel, #pkAiMemoryPanel, #voiceModelModalBackdrop, #commandPaletteBackdrop');
+        if (!inIgnoredInput) {
+          text = sel.toString().trim();
+        }
+      }
+    }
+  } catch (_) {}
+
+  if (text) {
+    pkLastSelectedReadableText = text;
+    pkLastSelectedReadableTs = Date.now();
+    return text;
+  }
+  if (allowRecentCache && pkLastSelectedReadableText && (Date.now() - pkLastSelectedReadableTs < 1800)) {
+    return pkLastSelectedReadableText;
+  }
+  return '';
+}
+
+function syncSelectionReadBar() {
+  const bar = document.getElementById('pkSelectionReadBar');
+  const lbl = document.getElementById('pkSelectionReadLabel');
+  const sel = getReadableSelectedText(false);
+
+  if (!sel) {
+    pkSelectionBarDismissedText = '';
+    if (bar) bar.classList.add('hidden');
+    updateHeaderReadAloudState();
+    return;
+  }
+
+  updateHeaderReadAloudState();
+  if (!bar) return;
+  if (sel === pkSelectionBarDismissedText) {
+    bar.classList.add('hidden');
+    return;
+  }
+
+  const wordCount = sel.split(/\s+/).filter(Boolean).length;
+  if (lbl) {
+    lbl.textContent = wordCount === 1 ? 'Read Selected (1 word)' : `Read Selected (${wordCount} words)`;
+  }
+  // Shift cleanly above the audio reader HUD if it is currently visible
+  const hud = document.getElementById('pkAudioReaderHUD');
+  const hudVisible = hud && !hud.classList.contains('hidden');
+  bar.style.bottom = hudVisible ? (window.innerWidth < 640 ? '132px' : '74px') : '';
+  bar.classList.remove('hidden');
+}
+
+function scheduleSelectionReadBarSync() {
+  if (pkSelectionSyncTimer) clearTimeout(pkSelectionSyncTimer);
+  pkSelectionSyncTimer = setTimeout(syncSelectionReadBar, 70);
+}
+
+function dismissSelectionReadBar() {
+  const sel = getReadableSelectedText(true);
+  if (sel) pkSelectionBarDismissedText = sel;
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (bar) bar.classList.add('hidden');
+}
+
+function readCurrentSelectionOnly() {
+  const sel = getReadableSelectedText(true);
+  if (!sel) {
+    showToast('Highlight any text first to read just that part', 'ochre');
+    return;
+  }
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (bar) bar.classList.add('hidden');
+  readTextAloud(sel, 'Selected Part');
+}
+
+function readSingleBlockAloud(blockId) {
+  const note = getActiveNote();
+  if (!note) return;
+  const block = (note.blocks || []).find(b => b.id === blockId);
+  if (!block || !block.content || !block.content.trim()) {
+    showToast('This block is empty', 'ochre');
+    return;
+  }
+  readTextAloud(block.content, 'Selected Block');
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('selectionchange', scheduleSelectionReadBarSync);
+  document.addEventListener('mouseup', scheduleSelectionReadBarSync, { passive: true });
+  document.addEventListener('touchend', scheduleSelectionReadBarSync, { passive: true });
+}
+
+function readTextAloud(text, title = 'Selected Part') {
   const settings = getVoiceSettings();
   stopReadingAloud();
   // Only unlock HTML5/WebAudio for Kokoro — never steal Android AudioFocus when using Instant speechSynthesis!
@@ -8547,6 +8665,8 @@ function readTextAloud(text, title = 'Selection') {
     unlockMobileAudioElement();
   }
 
+  // Strictly queue ONLY the selected text — nothing before or after it!
+  isReadingSelectionOnly = true;
   speechSentenceQueue = chunks.map(c => ({
     text: c,
     blockId: null,
@@ -8574,32 +8694,45 @@ function updateHeaderReadAloudState() {
   const label = document.getElementById('headerReadAloudLabel');
   const mobBtn = document.getElementById('mobileRibbonListenBtn');
   const mobLabel = document.getElementById('mobileRibbonListenLabel');
+  const hasSel = !isSpeechAudioActive && !!getReadableSelectedText(false);
 
   if (btn) {
     if (isSpeechAudioActive) {
       btn.className = 'w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] transition-colors flex items-center justify-center gap-1 cursor-pointer animate-pulse';
       btn.title = 'Stop Reading Aloud';
       if (label) label.textContent = 'STOP';
+    } else if (hasSel) {
+      btn.className = 'hidden md:flex md:px-2 md:py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/60 transition-colors items-center justify-center gap-1 cursor-pointer';
+      btn.title = 'Read Selected Text Only';
+      if (label) label.textContent = 'READ SEL';
     } else {
-      btn.className = 'w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer';
-      btn.title = 'Read Note Aloud (Kokoro-82M Voice)';
+      btn.className = 'hidden md:flex md:px-2 md:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center gap-1 cursor-pointer';
+      btn.title = 'Read Selection or Note Aloud';
       if (label) label.textContent = 'LISTEN';
     }
   }
   if (mobBtn) {
-    mobBtn.className = isSpeechAudioActive
-      ? 'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-mono text-[11px] font-semibold active:scale-95 transition-all cursor-pointer'
-      : 'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer';
+    mobBtn.className = isSpeechAudioActive || hasSel
+      ? 'inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-mono text-[11px] font-semibold active:scale-95 transition-all cursor-pointer truncate'
+      : 'inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer truncate';
   }
-  if (mobLabel) mobLabel.textContent = isSpeechAudioActive ? 'Stop' : 'Listen';
+  if (mobLabel) mobLabel.textContent = isSpeechAudioActive ? 'Stop' : (hasSel ? 'Read Sel' : 'Listen');
 }
 
 function toggleReadingNoteAloud() {
   if (isSpeechAudioActive) {
     stopReadingAloud();
-  } else {
-    startReadingActiveNoteAloud();
+    return;
   }
+  // If user highlighted ANY part of the note/text, read STRICTLY AND ONLY that highlighted part!
+  const selectedText = getReadableSelectedText(true);
+  if (selectedText) {
+    const bar = document.getElementById('pkSelectionReadBar');
+    if (bar) bar.classList.add('hidden');
+    readTextAloud(selectedText, 'Selected Part');
+    return;
+  }
+  startReadingActiveNoteAloud();
 }
 
 function startReadingActiveNoteAloud() {
@@ -8654,6 +8787,7 @@ function startReadingActiveNoteAloud() {
     return;
   }
 
+  isReadingSelectionOnly = false;
   speechSentenceQueue = queue;
   currentSpeechQueueIndex = 0;
   speechPlaybackSessionId++;
@@ -8719,6 +8853,7 @@ function togglePauseReadingAloud() {
 }
 
 function stopReadingAloud() {
+  isReadingSelectionOnly = false;
   speechPlaybackSessionId++;
   cancelKokoroWorkerJobs(speechPlaybackSessionId);
   clearDeviceSpeechTimers();
@@ -8938,6 +9073,7 @@ document.addEventListener('contextmenu', e => {
         { label: 'Move Block Down', shortcut: 'Alt+↓', icon: 'chevronDown', action: () => moveBlockRelative(block.id, 1) },
         { label: 'Insert Block Above', shortcut: '⇧↵', icon: 'document', action: () => insertBlockBefore(block.id) },
         { label: 'Insert Block Below', shortcut: '↵', icon: 'document', action: () => insertBlockAfter(block.id) },
+        { label: 'Read This Block Only', icon: 'volume', action: () => readSingleBlockAloud(block.id) },
         { label: 'Duplicate Block', shortcut: '⌘D', icon: 'layers', action: () => duplicateBlock(block.id) },
         { label: 'Copy Markdown', icon: 'copy', action: () => copyBlockMarkdown(block.id) },
         { type: 'divider' },
@@ -11585,9 +11721,9 @@ function applyMobileInlineFormat(kind) {
 }
 
 function mobileReadSelectionOrNote() {
-  const sel = window.getSelection ? window.getSelection().toString().trim() : '';
+  const sel = getReadableSelectedText(true);
   if (sel) {
-    readTextAloud(sel, 'Selected Text');
+    readTextAloud(sel, 'Selected Part');
   } else {
     toggleReadingNoteAloud();
   }

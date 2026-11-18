@@ -6270,7 +6270,8 @@ function encodePcmToWavBlob(float32Samples, sampleRate, applyWarmthFilter = true
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-// Generate Kokoro-82M audio in its optimal pure-human prosody zone (zero chipmunk/vocoder artifacts!)
+// Generate Kokoro-82M audio at ALWAYS-STANDARD 24000 Hz WAV (100% compatible with every Android/iOS decoder!)
+// Pitch sculpting (0.90..1.14) is applied cleanly in hardware via AudioBufferSourceNode.playbackRate / audio.playbackRate.
 async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0) {
   const pitch = Math.max(0.90, Math.min(1.14, Number(userPitch) || voiceMeta.defaultPitch || 1.0));
   const baseId = voiceMeta.baseVoice || voiceMeta.id || 'af_heart';
@@ -6279,9 +6280,10 @@ async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userP
   const rawAudio = await tts.generate(text, { voice: baseId, speed: compensatedSpeed });
 
   const nativeSr = rawAudio.sampling_rate || 24000;
-  const targetSr = Math.abs(pitch - 1.0) < 0.01 ? nativeSr : Math.round(nativeSr * pitch);
   const isQuantized = (getVoiceSettings().kokoroQuant || 'fp16') === 'q8';
-  return encodePcmToWavBlob(rawAudio.audio, targetSr, isQuantized);
+  const blob = encodePcmToWavBlob(rawAudio.audio, nativeSr, isQuantized);
+  blob._pkPitch = pitch;
+  return blob;
 }
 
 let localVoiceModels = [];
@@ -6331,6 +6333,9 @@ function stopVoiceAudioCtxSource() {
     try { pkVoiceAudioSource.onended = null; pkVoiceAudioSource.stop(); } catch (_) {}
     pkVoiceAudioSource = null;
   }
+  if (pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'suspended') {
+    pkVoiceAudioCtx.resume().catch(() => {});
+  }
 }
 
 // Dual-unlock HTML5 <audio> AND Web Audio AudioContext synchronously inside the user's tap gesture!
@@ -6377,6 +6382,7 @@ function unlockMobileAudioElement() {
 // - Falls back seamlessly to DOM-attached <audio> element if Web Audio is unavailable.
 async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
   stopVoiceAudioCtxSource();
+  const pitch = Math.max(0.90, Math.min(1.14, Number(blob && blob._pkPitch) || 1.0));
 
   // Prefer direct Web Audio PCM playback on mobile/phones (eliminates Android MediaPlayerService 0.11s stall!)
   if (blob && (window.PK_LITE_MODE || (pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'running'))) {
@@ -6390,6 +6396,7 @@ async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
           const decoded = await pkVoiceAudioCtx.decodeAudioData(ab.slice(0));
           const src = pkVoiceAudioCtx.createBufferSource();
           src.buffer = decoded;
+          src.playbackRate.value = pitch;
           src.connect(pkVoiceAudioCtx.destination);
           src.onended = () => {
             if (pkVoiceAudioSource === src) pkVoiceAudioSource = null;
@@ -6408,6 +6415,11 @@ async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
   audio.onerror = onError || null;
   audio.src = url;
   try {
+    if ('preservesPitch' in audio) audio.preservesPitch = false;
+    else if ('webkitPreservesPitch' in audio) audio.webkitPreservesPitch = false;
+    audio.playbackRate = pitch;
+  } catch (_) {}
+  try {
     await audio.play();
     return true;
   } catch (playErr) {
@@ -6418,6 +6430,7 @@ async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
         const decoded = await pkVoiceAudioCtx.decodeAudioData(ab.slice(0));
         const src = pkVoiceAudioCtx.createBufferSource();
         src.buffer = decoded;
+        src.playbackRate.value = pitch;
         src.connect(pkVoiceAudioCtx.destination);
         src.onended = () => {
           if (pkVoiceAudioSource === src) pkVoiceAudioSource = null;
@@ -6703,6 +6716,7 @@ function setKokoroQuant(quant) {
   }
   if (settings.kokoroQuant === next) return;
   settings.kokoroQuant = next;
+  terminateKokoroWorker();
   kokoroTTSInstance = null;
   kokoroLoadPromise = null;
   kokoroLoadedQuant = null;
@@ -6811,7 +6825,9 @@ function releaseUnusedAIEngines(keepEngine) {
     kokoroEngineState = 'idle';
     clearKokoroPrefetchCache();
     if (typeof kokoroAuditionCache !== 'undefined') {
-      kokoroAuditionCache.forEach(url => { try { URL.revokeObjectURL(url); } catch (e) {} });
+      kokoroAuditionCache.forEach(entry => {
+        try { URL.revokeObjectURL(typeof entry === 'string' ? entry : entry.url); } catch (e) {}
+      });
       kokoroAuditionCache.clear();
     }
   }
@@ -6856,43 +6872,49 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
       const activeVoiceName = getSelectedKokoroVoice().name;
 
       // FAST PATH: Run Kokoro-82M in a dedicated off-main-thread Web Worker (0ms UI lag, locked 60fps on 2019 phones!)
+      // If Module Web Worker fails on an older mobile browser/WebView, seamlessly falls through to in-page KokoroTTS!
       const worker = getOrCreateKokoroWorker(expectedMB, alreadyCached);
       if (worker) {
-        kokoroLoadProgressPct = alreadyCached ? 45 : 8;
-        kokoroLoadStatusText = alreadyCached
-          ? `Loading ${activeVoiceName} from device cache (0 MB download)...`
-          : `Downloading Kokoro-82M (${expectedMB} MB once)...`;
-        updateKokoroEngineUI();
-        updateKokoroHudProgress(true, kokoroLoadProgressPct);
-        updateVoiceStudioHUDLabels(alreadyCached ? `Loading ${activeVoiceName}...` : `Downloading (${expectedMB} MB once)...`);
+        try {
+          kokoroLoadProgressPct = alreadyCached ? 45 : 8;
+          kokoroLoadStatusText = alreadyCached
+            ? `Loading ${activeVoiceName} from device cache (0 MB download)...`
+            : `Downloading Kokoro-82M (${expectedMB} MB once)...`;
+          updateKokoroEngineUI();
+          updateKokoroHudProgress(true, kokoroLoadProgressPct);
+          updateVoiceStudioHUDLabels(alreadyCached ? `Loading ${activeVoiceName}...` : `Downloading (${expectedMB} MB once)...`);
 
-        await callKokoroWorker(worker, { type: 'init', dtype: targetQuant });
+          await callKokoroWorker(worker, { type: 'init', dtype: targetQuant });
 
-        const workerProxy = {
-          isWorkerProxy: true,
-          async generate(text, opts = {}) {
-            const w = getOrCreateKokoroWorker(expectedMB, true);
-            if (!w) throw new Error('Kokoro worker unavailable');
-            const res = await callKokoroWorker(w, {
-              type: 'generate',
-              dtype: targetQuant,
-              text,
-              voice: opts.voice || 'af_heart',
-              speed: opts.speed || 1.0
-            });
-            return { audio: new Float32Array(res.audio), sampling_rate: res.sampleRate || 24000 };
-          }
-        };
+          const workerProxy = {
+            isWorkerProxy: true,
+            async generate(text, opts = {}) {
+              const w = getOrCreateKokoroWorker(expectedMB, true);
+              if (!w) throw new Error('Kokoro worker unavailable');
+              const res = await callKokoroWorker(w, {
+                type: 'generate',
+                dtype: targetQuant,
+                text,
+                voice: opts.voice || 'af_heart',
+                speed: opts.speed || 1.0
+              });
+              return { audio: new Float32Array(res.audio), sampling_rate: res.sampleRate || 24000 };
+            }
+          };
 
-        kokoroTTSInstance = workerProxy;
-        kokoroEngineState = 'ready';
-        kokoroLoadProgressPct = 100;
-        kokoroIsCachedLocally = true;
-        kokoroLoadStatusText = 'Kokoro-82M Ready (Off-Thread · Cached Offline)';
-        updateKokoroEngineUI();
-        updateKokoroHudProgress(false, 100);
-        updateVoiceStudioHUDLabels();
-        return workerProxy;
+          kokoroTTSInstance = workerProxy;
+          kokoroEngineState = 'ready';
+          kokoroLoadProgressPct = 100;
+          kokoroIsCachedLocally = true;
+          kokoroLoadStatusText = 'Kokoro-82M Ready (Off-Thread · Cached Offline)';
+          updateKokoroEngineUI();
+          updateKokoroHudProgress(false, 100);
+          updateVoiceStudioHUDLabels();
+          return workerProxy;
+        } catch (workerErr) {
+          console.warn('Kokoro Web Worker unavailable — falling back to in-page runtime:', workerErr);
+          terminateKokoroWorker();
+        }
       }
 
       // FALLBACK PATH (file:// local open without HTTP server): In-page KokoroTTS
@@ -7612,14 +7634,13 @@ function selectKokoroVoice(voiceId, autoAudition = false) {
   flushPersistStateNow();
   clearKokoroPrefetchCache();
 
-  // Only run Kokoro WASM synthesis when user explicitly taps "Test" — never freeze UI while switching!
+  // Only run Kokoro WASM synthesis when user explicitly taps "Test" — call synchronously inside tap gesture so mobile audio unlocks!
   if (autoAudition) {
-    unlockMobileAudioElement();
-    if (kokoroAuditionTimer) clearTimeout(kokoroAuditionTimer);
-    kokoroAuditionTimer = setTimeout(() => {
+    if (kokoroAuditionTimer) {
+      clearTimeout(kokoroAuditionTimer);
       kokoroAuditionTimer = null;
-      testKokoroVoice(voice.id);
-    }, 40);
+    }
+    testKokoroVoice(voice.id);
   }
 }
 
@@ -7841,13 +7862,12 @@ async function testKokoroVoice(voiceId = null) {
   const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
   const cacheKey = `${settings.kokoroQuant}|${voiceMeta.id}|${rate.toFixed(2)}|${pitch.toFixed(2)}|${sampleText}`;
 
-  // 0ms Instant Replay if already auditioned this session!
+  // 0ms Instant Replay if already auditioned this session (uses Web Audio / DOM audio reliably!)
   if (kokoroAuditionCache.has(cacheKey)) {
-    const cachedUrl = kokoroAuditionCache.get(cacheKey);
-    const audio = getKokoroAudioElement();
-    audio.onended = null;
-    audio.src = cachedUrl;
-    audio.play().catch(() => {});
+    const cached = kokoroAuditionCache.get(cacheKey);
+    const cachedUrl = typeof cached === 'string' ? cached : cached.url;
+    const cachedBlob = typeof cached === 'string' ? null : cached.blob;
+    playKokoroUrlOrBlob(cachedUrl, cachedBlob, null, null).catch(() => {});
     showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
     return;
   }
@@ -7882,10 +7902,11 @@ async function testKokoroVoice(voiceId = null) {
     // Cache up to 12 auditions for 0ms instant switching!
     if (kokoroAuditionCache.size >= 12) {
       const oldestKey = kokoroAuditionCache.keys().next().value;
-      URL.revokeObjectURL(kokoroAuditionCache.get(oldestKey));
+      const oldest = kokoroAuditionCache.get(oldestKey);
+      try { URL.revokeObjectURL(typeof oldest === 'string' ? oldest : oldest.url); } catch (_) {}
       kokoroAuditionCache.delete(oldestKey);
     }
-    kokoroAuditionCache.set(cacheKey, url);
+    kokoroAuditionCache.set(cacheKey, { url, blob });
 
     await playKokoroUrlOrBlob(url, blob, null, null);
     showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);

@@ -1,5 +1,5 @@
 // PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
-const CACHE_NAME = 'pk-note-v2.0.8';
+const CACHE_NAME = 'pk-note-v2.0.9';
 
 const PRECACHE_ASSETS = [
   './',
@@ -61,8 +61,11 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // 1. Navigation / HTML Document Requests: Network-First with cache-busting (Guarantees freshest version on every refresh!)
-  if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
+  // 1. HTML, JS, CSS & WASM Core App Files: Network-First with cache-busting (Guarantees phone gets latest fixes on first refresh!)
+  const isCoreAppAsset = req.mode === 'navigate'
+    || req.headers.get('accept')?.includes('text/html')
+    || /\.(?:js|css|wasm)$/i.test(url.pathname);
+  if (isCoreAppAsset) {
     event.respondWith(
       fetch(req, { cache: 'no-cache' })
         .then(networkResponse => {
@@ -73,8 +76,7 @@ self.addEventListener('fetch', event => {
           return networkResponse;
         })
         .catch(() => {
-          // Fall back to cached index.html when offline
-          return caches.match(req).then(cached => cached || caches.match('./index.html'));
+          return caches.match(req).then(cached => cached || (req.mode === 'navigate' ? caches.match('./index.html') : undefined));
         })
     );
     return;

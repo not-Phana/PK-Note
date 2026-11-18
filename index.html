@@ -45,7 +45,7 @@
   <!-- =====================================================================
        LEFT SIDEBAR: ARCHIVAL INDEX, MODE SWITCHER & MINI CALENDAR
        ===================================================================== -->
-  <aside id="leftSidebar" class="panel-transition fixed md:static inset-y-0 left-0 h-full w-[82vw] max-w-[300px] md:w-64 shrink-0 flex flex-col border-r border-[var(--border-hairline)] bg-[var(--bg-panel)] z-[75] md:z-30 overflow-hidden shadow-2xl md:shadow-none -translate-x-full md:translate-x-0">
+  <aside id="leftSidebar" class="panel-transition fixed md:static inset-y-0 left-0 h-full w-[82vw] max-w-[300px] md:w-64 shrink-0 flex flex-col border-r border-[var(--border-hairline)] bg-[var(--bg-panel)] z-[75] md:z-30 overflow-hidden shadow-2xl md:shadow-none -translate-x-full md:translate-x-0 pb-[64px] md:pb-0">
     
     <!-- Workspace Header -->
     <div class="h-11 px-3 flex items-center justify-between border-b border-[var(--border-hairline)] shrink-0">
@@ -763,7 +763,7 @@
   <!-- =====================================================================
        RIGHT CONTEXTUAL INSPECTOR (WORKSPACE MODE): GRAPH, BACKLINKS & OUTLINE
        ===================================================================== -->
-  <aside id="rightSidebar" class="panel-transition fixed lg:static inset-y-0 right-0 h-full w-full sm:w-80 flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] z-[75] lg:z-30 overflow-hidden shadow-2xl lg:shadow-none translate-x-full lg:translate-x-0">
+  <aside id="rightSidebar" class="panel-transition fixed lg:static inset-y-0 right-0 h-full w-full sm:w-80 flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] z-[75] lg:z-30 overflow-hidden shadow-2xl lg:shadow-none translate-x-full lg:translate-x-0 pb-[64px] md:pb-0">
     
     <!-- Segmented Tab Header -->
     <div class="h-11 px-3 flex items-center justify-between border-b border-[var(--border-hairline)] shrink-0">
@@ -890,7 +890,7 @@
   <!-- =====================================================================
        EVENT CREATION / INSPECTION / EDITING MODAL DIALOG
        ===================================================================== -->
-  <div id="eventModalBackdrop" onclick="closeEventModal(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-backdrop">
+  <div id="eventModalBackdrop" onclick="closeEventModal(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[960] flex items-center justify-center p-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-lg popover-surface overflow-hidden animate-modal-card flex flex-col max-h-[90vh]">
       
       <!-- Modal Header -->
@@ -1060,7 +1060,7 @@
        ===================================================================== -->
 
   <!-- Slash Command Menu (`/`) -->
-  <div id="slashMenu" class="hidden fixed w-64 popover-surface z-50 overflow-hidden animate-menu">
+  <div id="slashMenu" class="hidden fixed w-64 popover-surface z-[920] overflow-hidden animate-menu">
     <div class="px-3 py-1.5 border-b border-[var(--border-hairline)] flex items-center justify-between">
       <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Block Type</span>
       <span class="font-mono text-[10px] text-[var(--text-tertiary)]">↑↓ ↵</span>
@@ -1069,7 +1069,7 @@
   </div>
 
   <!-- Wiki-Link Autocomplete Menu (`[[`) -->
-  <div id="wikiLinkMenu" class="hidden fixed w-72 popover-surface z-50 overflow-hidden animate-menu">
+  <div id="wikiLinkMenu" class="hidden fixed w-72 popover-surface z-[920] overflow-hidden animate-menu">
     <div class="px-3 py-1.5 border-b border-[var(--border-hairline)] flex items-center justify-between">
       <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--accent-vermilion)]">Reference Note</span>
       <span id="wikiQueryLabel" class="font-mono text-[10px] text-[var(--text-tertiary)]">[[...]]</span>
@@ -1078,7 +1078,7 @@
   </div>
 
   <!-- Command Palette (`Cmd/Ctrl + K`) — Redesigned High-End Swiss Spotlight -->
-  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] px-4 animate-backdrop">
+  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[970] flex items-start justify-center pt-[10vh] px-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-cmd-card flex flex-col max-h-[82vh]">
       <!-- Search Bar -->
       <div class="px-4 py-3.5 border-b border-[var(--border-hairline)] flex items-center gap-3 bg-[var(--bg-canvas)]">
@@ -1144,7 +1144,7 @@
   </div>
 
   <!-- Minimal Status Toast Container -->
-  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-1.5 pointer-events-none"></div>
+  <div id="toastContainer" class="fixed bottom-20 md:bottom-4 right-4 z-[990] flex flex-col gap-1.5 pointer-events-none"></div>
 
 
 
@@ -1310,60 +1310,60 @@
 
   <!-- Mobile Keyboard Accessory Bar (Desktop Formatting & Power Tools on Phone) -->
   <div id="mobileKeyboardAccessoryBar"
-       class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] px-2 py-1.5 flex items-center justify-between gap-1 shadow-lg select-none translate-y-full opacity-0 pointer-events-none transition-all">
+       class="md:hidden fixed bottom-0 left-0 right-0 z-[88] bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] px-2 py-1.5 flex items-center justify-between gap-1 shadow-lg select-none translate-y-full opacity-0 pointer-events-none transition-all">
     <div class="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
-      <button type="button" onmousedown="event.preventDefault(); toggleVoiceDictation()" id="mobileDictateBtn" title="Voice Dictation (Whisper or Talk)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] text-white min-w-[36px] min-h-[36px] flex items-center justify-center gap-1 font-mono text-[10px] font-semibold shrink-0 cursor-pointer">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="toggleVoiceDictation()" id="mobileDictateBtn" title="Voice Dictation (Whisper or Talk)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] text-white min-w-[36px] min-h-[36px] flex items-center justify-center gap-1 font-mono text-[10px] font-semibold shrink-0 cursor-pointer">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
         <span>Mic</span>
       </button>
-      <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0" title="Undo">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0" title="Undo">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 0 1 5 5v2"></path><polyline points="7 6 3 10 7 14"></polyline></svg>
       </button>
-      <button type="button" onmousedown="event.preventDefault(); performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0" title="Redo">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0" title="Redo">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 0 0-5 5v2"></path><polyline points="17 6 21 10 17 14"></polyline></svg>
       </button>
-      <button type="button" onmousedown="event.preventDefault(); openMobileSlashMenu()" title="Insert Any Block (/)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono font-bold text-xs text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="openMobileSlashMenu()" title="Insert Any Block (/)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono font-bold text-xs text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         /
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0" title="Todo block">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0" title="Todo block">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('bold')" title="Bold" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileInlineFormat('bold')" title="Bold" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         B
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('italic')" title="Italic" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileInlineFormat('italic')" title="Italic" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         I
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h1')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileBlockFormat('h1')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         H1
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h2')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-semibold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileBlockFormat('h2')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-semibold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         H2
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         •
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         "
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('code')" title="Inline Code" class="px-2 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="applyMobileInlineFormat('code')" title="Inline Code" class="px-2 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         &lt;/&gt;
       </button>
-      <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         [[
       </button>
-      <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+      <button type="button" onpointerdown="event.preventDefault()" onclick="mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       </button>
     </div>
-    <button type="button" onmousedown="event.preventDefault(); dismissMobileKeyboard()" class="shrink-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] min-h-[34px] flex items-center gap-1 font-mono">
+    <button type="button" onpointerdown="event.preventDefault()" onclick="dismissMobileKeyboard()" class="shrink-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] min-h-[34px] flex items-center gap-1 font-mono">
       <span>DONE</span>
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
   </div>
 
   <!-- Mobile Bottom Navigation Bar (Visible on mobile screens < md, iPhone safe-area aware) -->
-  <nav id="mobileBottomNav" style="padding-bottom: env(safe-area-inset-bottom);" class="md:hidden fixed bottom-0 left-0 right-0 min-h-[58px] bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] z-30 flex items-center justify-around px-2 select-none">
+  <nav id="mobileBottomNav" style="padding-bottom: env(safe-area-inset-bottom);" class="md:hidden fixed bottom-0 left-0 right-0 min-h-[58px] bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] z-[85] flex items-center justify-around px-2 select-none">
     <!-- Notes Tab -->
     <button onclick="mobileNavSelect('notes')" id="mobileNavNotes" class="flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] transition-colors">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -1395,7 +1395,7 @@
   </nav>
 
   <!-- Mobile Quick Action Sheet -->
-  <div id="mobileQuickMenuBackdrop" onclick="closeMobileQuickMenu()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div id="mobileQuickMenuBackdrop" onclick="closeMobileQuickMenu()" class="hidden fixed inset-0 bg-black/60 z-[960] flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div onclick="event.stopPropagation()" class="w-full sm:max-w-sm rounded-t-xl sm:rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-4 space-y-3 pb-8 sm:pb-4 shadow-2xl animate-menu">
       <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
         <span class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Quick Create</span>
@@ -1454,7 +1454,7 @@
   </div>
 
   <!-- In-App PWA Install Dialog / Banner -->
-  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-backdrop">
+  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[985] flex items-center justify-center p-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-5 space-y-4 shadow-2xl animate-modal-card">
       <div class="flex items-center gap-3">
         <img src="icon-192.png" alt="PK Note App Icon" class="w-12 h-12 rounded-lg border border-[var(--border-hairline)] shrink-0" />
@@ -1774,7 +1774,7 @@
   <canvas id="celebrationCanvas" class="fixed inset-0 pointer-events-none z-[9999]"></canvas>
 
   <!-- Zen Focus Mode HUD Indicator -->
-  <div id="zenModeIndicator" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white backdrop-blur-md border border-white/20 font-mono text-xs flex items-center gap-2.5 z-50 shadow-2xl transition-all select-none animate-toast-in">
+  <div id="zenModeIndicator" class="hidden fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white backdrop-blur-md border border-white/20 font-mono text-xs flex items-center gap-2.5 z-[905] shadow-2xl transition-all select-none animate-toast-in">
     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
     <span class="font-medium tracking-wide">ZEN FOCUS ACTIVE</span>
     <span class="text-white/40 text-[10px]">&bull;</span>
@@ -2063,7 +2063,7 @@
               </div>
             </button>
 
-            <button onclick="closeMobileMoreSheet(); openTypographyModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+            <button onclick="closeMobileMoreSheet(); openCustomizerModal('layout')" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
               <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Typography</div>

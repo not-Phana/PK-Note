@@ -5670,20 +5670,29 @@ function closeRightSidebar() {
 
 function mobileNavSelect(action) {
   if (action === 'notes') {
-    if (state.appMode === 'workspace') {
-      toggleLeftSidebar();
-    } else {
+    if (state.appMode !== 'workspace') {
       setAppMode('workspace');
+      closeMobileSidebar();
       closeRightSidebar();
+    } else if (state.rightSidebarOpen) {
+      // Returning from Graph/Inspector back to Notes cleanly closes Graph instead of opening left drawer!
+      closeRightSidebar();
+    } else {
+      toggleLeftSidebar();
     }
   } else if (action === 'calendar') {
     setAppMode('calendar');
     closeMobileSidebar();
     closeRightSidebar();
   } else if (action === 'graph') {
-    state.appMode = 'workspace';
-    closeMobileSidebar();
-    openRightInspector('graph');
+    if (state.appMode === 'workspace' && state.rightSidebarOpen) {
+      // Tapping GRAPH while already open cleanly toggles it closed!
+      closeRightSidebar();
+    } else {
+      state.appMode = 'workspace';
+      closeMobileSidebar();
+      openRightInspector('graph');
+    }
   }
   updateMobileNavState();
 }
@@ -5713,18 +5722,26 @@ function updateMobileNavState() {
 }
 
 function openMobileQuickMenu() {
-  document.getElementById('mobileQuickMenuBackdrop').classList.remove('hidden');
+  if (window.innerWidth < 768) {
+    closeMobileSidebar();
+    closeRightSidebar();
+  }
+  const el = document.getElementById('mobileQuickMenuBackdrop');
+  if (el) el.classList.remove('hidden');
 }
 
 function closeMobileQuickMenu() {
-  document.getElementById('mobileQuickMenuBackdrop').classList.add('hidden');
+  const el = document.getElementById('mobileQuickMenuBackdrop');
+  if (el) el.classList.add('hidden');
 }
 
 function appendTodoAtEnd() {
-  state.appMode = 'workspace';
+  setAppMode('workspace');
   closeMobileSidebar();
   closeRightSidebar();
-  const note = getActiveNote();
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  takeSnapshot('appendTodoAtEnd');
   const newBlock = {
     id: generateId('b'),
     type: 'todo',
@@ -5735,6 +5752,7 @@ function appendTodoAtEnd() {
   renderBlocks(note);
   focusBlock(newBlock.id, true);
   persistState();
+  showToast('Todo block added');
 }
 
 // =========================================================================
@@ -10843,29 +10861,34 @@ function hideMobileAccessoryBar() {
 }
 
 function applyMobileBlockFormat(type) {
-  if (!activeEditingBlockId) return;
-  takeSnapshot('applyMobileBlockFormat');
-  const note = getActiveNote();
-  const block = note.blocks.find(b => b.id === activeEditingBlockId);
+  const note = guardActiveNoteEditable();
+  if (!note || !note.blocks || note.blocks.length === 0) return;
+  const blockId = activeEditingBlockId || note.blocks[note.blocks.length - 1].id;
+  const block = note.blocks.find(b => b.id === blockId);
   if (!block) return;
 
+  takeSnapshot('applyMobileBlockFormat');
   block.type = type;
   if (type === 'todo') block.checked = false;
   renderBlocks(note);
-  focusBlock(activeEditingBlockId, true);
+  focusBlock(blockId, true);
   persistState();
   showToast(`Converted to ${type.toUpperCase()}`);
 }
 
 function insertMobileWikiLink() {
-  if (!activeEditingBlockId) return;
+  const note = guardActiveNoteEditable();
+  if (!note || !note.blocks || note.blocks.length === 0) return;
+  const blockId = activeEditingBlockId || note.blocks[note.blocks.length - 1].id;
+  const el = document.querySelector(`[data-block-id="${blockId}"]`);
+  if (!el) return;
+  if (document.activeElement !== el) focusBlock(blockId, true);
   document.execCommand('insertText', false, '[[');
-  const el = document.querySelector(`[data-block-id="${activeEditingBlockId}"]`);
-  if (el) openWikiLinkMenu(activeEditingBlockId, el, '');
+  openWikiLinkMenu(blockId, el, '');
 }
 
 function openMobileSlashMenu() {
-  const note = getActiveNote();
+  const note = guardActiveNoteEditable();
   if (!note) return;
   let blockId = activeEditingBlockId;
   if (!blockId && note.blocks && note.blocks.length > 0) {
@@ -10879,6 +10902,8 @@ function openMobileSlashMenu() {
 }
 
 function applyMobileInlineFormat(kind) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
   if (kind === 'bold') {
     takeSnapshot('mobileBold');
     document.execCommand('bold', false, null);

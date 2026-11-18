@@ -13,17 +13,17 @@ const PK_AI_PROVIDERS = {
     name: 'Groq Cloud',
     shortName: 'Groq',
     defaultBaseUrl: 'https://api.groq.com/openai/v1',
-    defaultModel: 'llama-3.3-70b-versatile',
+    defaultModel: 'openai/gpt-oss-120b',
     requiresKey: true,
     keyPlaceholder: 'gsk_...',
     keyLabel: 'Groq API Key (Saved Locally)',
     keyUrl: 'https://console.groq.com/keys',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'llama-3.3-70b-versatile', label: 'llama-3.3-70b-versatile (Best Overall)' },
-      { id: 'llama-3.1-8b-instant', label: 'llama-3.1-8b-instant (Ultra-Fast)' },
-      { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'llama-4-scout-17b-16e-instruct (Llama 4)' },
-      { id: 'qwen/qwen3-32b', label: 'qwen/qwen3-32b (Deep Reasoning)' }
+      { id: 'openai/gpt-oss-120b', label: 'openai/gpt-oss-120b (Best Overall · 120B)' },
+      { id: 'qwen/qwen3.8-27b', label: 'qwen/qwen3.8-27b (Qwen 3.8 · 27B)' },
+      { id: 'openai/gpt-oss-20b', label: 'openai/gpt-oss-20b (Ultra-Fast · 20B)' },
+      { id: 'allam-2-7b', label: 'allam-2-7b (Compact · 7B)' }
     ]
   },
   nvidia: {
@@ -144,6 +144,13 @@ function getDefaultAiConfig() {
   };
 }
 
+const PK_RETIRED_GROQ_MODELS = new Set([
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3-32b'
+]);
+
 function loadAiConfig() {
   const def = getDefaultAiConfig();
   try {
@@ -161,12 +168,19 @@ function loadAiConfig() {
         };
       });
       def.provider = provider;
+      let migrated = false;
+      // Upgrade retired Groq presets automatically to live active default
+      if (PK_RETIRED_GROQ_MODELS.has(def.groq.model)) {
+        def.groq.model = PK_AI_PROVIDERS.groq.defaultModel;
+        migrated = true;
+      }
       // Upgrade untouched v2.3.0 generic local default (llama3.2) to user's installed LM Studio library
       if (def.local.baseUrl === 'http://localhost:11434/v1' && def.local.model === 'llama3.2' && def.local.discoveredModels.length === 0) {
         def.local.baseUrl = PK_AI_PROVIDERS.local.defaultBaseUrl;
         def.local.model = PK_AI_PROVIDERS.local.defaultModel;
-        saveAiConfig(def);
+        migrated = true;
       }
+      if (migrated) saveAiConfig(def);
       return def;
     }
     // Migrate legacy Groq v1 key seamlessly
@@ -174,7 +188,9 @@ function loadAiConfig() {
     if (rawV1) {
       const legacy = JSON.parse(rawV1);
       if (typeof legacy.apiKey === 'string') def.groq.apiKey = legacy.apiKey.trim();
-      if (typeof legacy.model === 'string' && legacy.model.trim()) def.groq.model = legacy.model.trim();
+      if (typeof legacy.model === 'string' && legacy.model.trim() && !PK_RETIRED_GROQ_MODELS.has(legacy.model.trim())) {
+        def.groq.model = legacy.model.trim();
+      }
       saveAiConfig(def);
     }
   } catch (_) {}
@@ -662,7 +678,11 @@ const PK_LOCAL_AUTO_PORTS = [
 ];
 
 function isNonChatModelId(id) {
-  return /embed|phonon|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety/i.test(String(id || ''));
+  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety/i.test(String(id || ''));
+}
+
+function isModelNotFoundError(status, msg) {
+  return status === 404 || status === 410 || /does not exist|not found|decommissioned|retired|no access|not have access/i.test(String(msg || ''));
 }
 
 async function probeLocalBaseUrl(baseUrl, apiKey) {
@@ -826,17 +846,38 @@ async function testGroqConnection() {
     }
 
     const endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
-    const res = await fetch(endpoints.chatUrl, {
+    const runPing = (modelId) => fetch(endpoints.chatUrl, {
       method: 'POST',
       headers: buildAuthHeaders(data.apiKey),
       body: JSON.stringify({
-        model: data.model,
+        model: modelId,
         messages: [{ role: 'user', content: 'Reply with OK.' }],
-        max_tokens: 16,
+        max_tokens: 64,
         temperature: 0,
         stream: false
       })
     });
+
+    let res = await runPing(data.model);
+
+    // Auto-recover if a cloud model was retired/unavailable on this key
+    if (!res.ok && spec.id !== 'local') {
+      const errData = await res.json().catch(() => ({}));
+      const msg = errData?.error?.message || errData?.detail || errData?.title || `HTTP ${res.status}`;
+      if (isModelNotFoundError(res.status, msg)) {
+        const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
+        const fallbackModel = liveModels.find(m => m !== data.model);
+        if (fallbackModel) {
+          data.discoveredModels = liveModels;
+          data.model = fallbackModel;
+          res = await runPing(fallbackModel);
+        } else {
+          throw new Error(msg);
+        }
+      } else {
+        throw new Error(msg);
+      }
+    }
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -1277,7 +1318,7 @@ function parseSseDataLine(line, stateObj) {
       : (choice && choice.message && typeof choice.message.content === 'string' ? choice.message.content : '');
     const deltaReason = choice && choice.delta && typeof choice.delta.reasoning_content === 'string'
       ? choice.delta.reasoning_content
-      : '';
+      : (choice && choice.delta && typeof choice.delta.reasoning === 'string' ? choice.delta.reasoning : '');
     if (deltaReason) {
       stateObj.reasoning += deltaReason;
       stateObj.isReasoning = true;
@@ -1399,6 +1440,28 @@ async function sendGroqPrompt(overrideText) {
       }
     }
 
+    if (!res.ok && spec.id !== 'local') {
+      const errJson = await res.json().catch(() => ({}));
+      const errMsg = errJson?.error?.message || errJson?.detail || errJson?.title || `${spec.shortName} HTTP ${res.status}`;
+      if (isModelNotFoundError(res.status, errMsg)) {
+        const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
+        const fallbackModel = liveModels.find(m => m !== activeModel);
+        if (fallbackModel) {
+          activeModel = fallbackModel;
+          data.model = fallbackModel;
+          data.discoveredModels = liveModels;
+          saveAiConfig(cfg);
+          syncGroqHeaderAndSettingsUI();
+          if (typeof showToast === 'function') showToast(`Switched to active model: ${fallbackModel.split('/').pop()}`);
+          res = await doChatFetch(endpoints.chatUrl, activeModel);
+        } else {
+          throw new Error(errMsg);
+        }
+      } else {
+        throw new Error(errMsg);
+      }
+    }
+
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({}));
       const errMsg = errJson?.error?.message || errJson?.detail || errJson?.title || `${spec.shortName} HTTP ${res.status}`;
@@ -1416,6 +1479,7 @@ async function sendGroqPrompt(overrideText) {
         choice?.message?.content ||
         fullJson?.message?.content ||
         choice?.message?.reasoning_content ||
+        choice?.message?.reasoning ||
         '';
     } else {
       const decoder = new TextDecoder('utf-8');

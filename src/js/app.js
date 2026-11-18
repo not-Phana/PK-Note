@@ -6361,7 +6361,8 @@ function unlockMobileAudioElement() {
     const p = audio.play();
     if (p && typeof p.then === 'function') {
       p.then(() => {
-        audio.pause();
+        // Guard against race where real speech started before silent WAV promise resolved!
+        if (audio.src === SILENT_WAV_DATA_URI) audio.pause();
         pkKokoroAudioUnlocked = true;
       }).catch(() => {});
     } else {
@@ -6370,10 +6371,38 @@ function unlockMobileAudioElement() {
   } catch (_) {}
 }
 
-// Plays WAV via <audio>; if Android Chrome/iOS Safari rejects <audio>.play() after a long download,
-// seamlessly plays through the already-unlocked Web Audio AudioContext (ZERO NotAllowedError!).
+// Plays Kokoro WAV cleanly:
+// - On phones (PK_LITE_MODE) or when Web Audio AudioContext is ready, plays via AudioBufferSourceNode
+//   directly on Android OpenSL ES / AAudio (ZERO Stagefright 0.11s blob-audio stutter/stall!).
+// - Falls back seamlessly to DOM-attached <audio> element if Web Audio is unavailable.
 async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
   stopVoiceAudioCtxSource();
+
+  // Prefer direct Web Audio PCM playback on mobile/phones (eliminates Android MediaPlayerService 0.11s stall!)
+  if (blob && (window.PK_LITE_MODE || (pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'running'))) {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx && !pkVoiceAudioCtx) pkVoiceAudioCtx = new AudioCtx();
+      if (pkVoiceAudioCtx) {
+        if (pkVoiceAudioCtx.state === 'suspended') await pkVoiceAudioCtx.resume();
+        if (pkVoiceAudioCtx.state === 'running') {
+          const ab = await blob.arrayBuffer();
+          const decoded = await pkVoiceAudioCtx.decodeAudioData(ab.slice(0));
+          const src = pkVoiceAudioCtx.createBufferSource();
+          src.buffer = decoded;
+          src.connect(pkVoiceAudioCtx.destination);
+          src.onended = () => {
+            if (pkVoiceAudioSource === src) pkVoiceAudioSource = null;
+            if (typeof onEnded === 'function') onEnded();
+          };
+          pkVoiceAudioSource = src;
+          src.start(0);
+          return true;
+        }
+      }
+    } catch (_) {}
+  }
+
   const audio = getKokoroAudioElement();
   audio.onended = onEnded || null;
   audio.onerror = onError || null;
@@ -8128,15 +8157,17 @@ async function playNextKokoroSentence(sessionId) {
     if (!isSpeechAudioPaused) {
       try {
         await playKokoroUrlOrBlob(result.url, result.blob, onEndedHandler, onErrorHandler);
-        // Only prefetch next 1 sentence AFTER current audio starts playing (zero 2019-phone CPU lockup!)
-        if (idx + 1 < speechSentenceQueue.length) {
+        // CRITICAL FOR 2019 PHONES: Never run background ONNX WASM inference while audio is playing
+        // (prevents CPU/RAM-bus starvation that causes 0.11s nanosecond audio stutters!).
+        // Only prefetch next sentence on desktop (non-lite) devices.
+        if (!window.PK_LITE_MODE && idx + 1 < speechSentenceQueue.length) {
           if (kokoroPrefetchDelayTimer) clearTimeout(kokoroPrefetchDelayTimer);
           kokoroPrefetchDelayTimer = setTimeout(() => {
             kokoroPrefetchDelayTimer = null;
             if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
               synthesizeKokoroChunk(idx + 1, sessionId).catch(() => {});
             }
-          }, window.PK_LITE_MODE ? 250 : 80);
+          }, 80);
         }
       } catch (playErr) {
         if (playErr && (playErr.name === 'NotAllowedError' || String(playErr).includes('play()'))) {
@@ -8186,12 +8217,15 @@ function playNextDeviceSpeechSentence(sessionId) {
   const item = speechSentenceQueue[idx];
   const settings = getVoiceSettings();
   let voice = getSelectedVoiceModel();
+  let allowAndroidPendingBind = false;
   if (!voice) {
     loadDetectedVoiceModels(true);
     voice = getSelectedVoiceModel();
+    if (!voice && IS_ANDROID_BROWSER && ('speechSynthesis' in window)) {
+      const rawVoiceList = window.speechSynthesis.getVoices();
+      allowAndroidPendingBind = !rawVoiceList || rawVoiceList.length === 0;
+    }
   }
-  const rawVoiceList = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
-  const allowAndroidPendingBind = IS_ANDROID_BROWSER && rawVoiceList.length === 0;
 
   // ZERO ROBOTIC FALLBACK on desktop/non-Android (or Android with only robotic voices):
   // Seamlessly hand off to off-main-thread Kokoro-82M Neural AI right away so the user's tap reads immediately!
@@ -8228,17 +8262,15 @@ function playNextDeviceSpeechSentence(sessionId) {
   } else {
     utterance.lang = navigator.language || 'en-US';
   }
-  utterance.rate = Math.max(0.75, Math.min(1.5,
-    isQuestion ? baseRate * 0.96
-    : isExclamation ? baseRate * 1.03
-    : item.isHeading ? baseRate * 0.95
-    : baseRate
-  ));
-  utterance.pitch = Math.max(0.90, Math.min(1.16,
-    isQuestion ? basePitch + 0.025
-    : isExclamation ? basePitch + 0.015
-    : basePitch
-  ));
+  const rawRate = isQuestion ? baseRate * 0.96
+                : isExclamation ? baseRate * 1.03
+                : item.isHeading ? baseRate * 0.95
+                : baseRate;
+  const rawPitch = isQuestion ? basePitch + 0.025
+                 : isExclamation ? basePitch + 0.015
+                 : basePitch;
+  utterance.rate = Math.round(Math.max(0.75, Math.min(1.5, rawRate)) * 100) / 100;
+  utterance.pitch = Math.round(Math.max(0.90, Math.min(1.16, rawPitch)) * 100) / 100;
 
   let started = false;
   let finished = false;
@@ -8277,33 +8309,34 @@ function playNextDeviceSpeechSentence(sessionId) {
     if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
     suppressVoicesChangedUntil = Date.now() + 1800;
     try {
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      if (!IS_ANDROID_BROWSER && window.speechSynthesis.paused) window.speechSynthesis.resume();
       window.speechSynthesis.speak(utterance);
 
-      // Watchdog: if Android/Chrome silently wedged before starting, nudge resume() once so it never stays silent!
-      deviceStartWatchdog = setTimeout(() => {
-        if (started || finished || sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
-        try {
-          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
-            window.speechSynthesis.speak(utterance);
-          }
-        } catch (_) {}
-      }, 2200);
+      // Desktop Chrome 15-second pause bug keep-alive ONLY (NEVER call resume() on Android while speaking — it stutters/cuts Android TTS!)
+      if (!IS_ANDROID_BROWSER) {
+        deviceStartWatchdog = setTimeout(() => {
+          if (started || finished || sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
+          try {
+            if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+            if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+              window.speechSynthesis.speak(utterance);
+            }
+          } catch (_) {}
+        }, 2500);
 
-      // Chrome 15-second pause bug keep-alive (lightweight, only active while speaking)
-      deviceKeepAliveInterval = setInterval(() => {
-        if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) {
-          clearInterval(deviceKeepAliveInterval);
-          deviceKeepAliveInterval = null;
-          return;
-        }
-        try {
-          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-            window.speechSynthesis.resume();
+        deviceKeepAliveInterval = setInterval(() => {
+          if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) {
+            clearInterval(deviceKeepAliveInterval);
+            deviceKeepAliveInterval = null;
+            return;
           }
-        } catch (_) {}
-      }, 10000);
+          try {
+            if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+              window.speechSynthesis.resume();
+            }
+          } catch (_) {}
+        }, 10000);
+      }
     } catch (e) {
       stopReadingAloud();
     }

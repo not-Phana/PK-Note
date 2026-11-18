@@ -457,8 +457,26 @@
          =================================================================== -->
     <div id="documentScrollArea" class="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth select-text relative isolate">
 
+      <!-- Obsidian-Style Multi-Tab Workspace Strip + Split View & Notion Database Controls -->
+      <div id="pkNoteTabsBar" class="sticky top-0 z-20 h-8 bg-[var(--bg-panel)] border-b border-[var(--border-hairline)] flex items-center justify-between gap-1 select-none">
+        <div class="flex items-center min-w-0 flex-1 overflow-x-auto scrollbar-none">
+          <div id="pkNoteTabsList" class="flex items-center"></div>
+          <button type="button" onclick="openNewTabNote()" title="New Note Tab" class="w-7 h-8 shrink-0 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] font-mono text-sm cursor-pointer">+</button>
+        </div>
+        <div class="flex items-center gap-1 px-2 shrink-0 border-l border-[var(--border-hairline)] bg-[var(--bg-panel)]">
+          <button type="button" id="pkTabsSplitBtn" onclick="toggleSplitNotePane()" title="Side-by-Side Split View (Alt+\)" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 cursor-pointer shrink-0">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            <span class="hidden sm:inline">Split</span>
+          </button>
+          <button type="button" onclick="openDatabaseModal()" title="Notion Database View: Table &amp; Kanban (Alt+D)" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 cursor-pointer shrink-0">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span class="hidden sm:inline">Database</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Sticky Mobile 4-Button Edge-to-Edge Tool Ribbon (Zero Clipping on Any Phone Width!) -->
-      <div id="mobileActionRibbon" class="md:hidden sticky top-0 z-20 px-3 py-2 bg-[var(--bg-canvas)]/95 backdrop-blur-md border-b border-[var(--border-hairline)] grid grid-cols-4 gap-1.5 select-none">
+      <div id="mobileActionRibbon" class="md:hidden sticky top-8 z-20 px-3 py-2 bg-[var(--bg-canvas)]/95 backdrop-blur-md border-b border-[var(--border-hairline)] grid grid-cols-4 gap-1.5 select-none">
         <button type="button" onclick="toggleVoiceDictation()" id="mobileRibbonDictateBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold shadow-xs active:scale-95 transition-transform cursor-pointer truncate">
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
           <span>Dictate</span>
@@ -497,8 +515,10 @@
         </div>
       </div>
 
+      <!-- Obsidian Split Grid Wrapper (1 column normally; 2 live side-by-side notes when Split View is active) -->
+      <div id="pkEditorSplitGrid" class="relative z-[1] w-full">
       <!-- Configurable Reading Measure Container (Clean mobile left gutter for thumb drag handles!) -->
-      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto pl-9 pr-4 sm:px-10 pt-4 sm:pt-5 pb-36 transition-all duration-150">
+      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto pl-9 pr-4 sm:px-10 pt-4 sm:pt-5 pb-36 transition-all duration-150 w-full">
         
         <!-- Document Customization Quick Bar -->
         <div id="docQuickActionRow" class="hidden sm:flex items-center gap-3 mb-2.5 text-[11px] font-mono text-[var(--text-tertiary)] opacity-60 hover:opacity-100 transition-opacity select-none">
@@ -635,6 +655,9 @@
                    onkeydown="handleTagKeydown(event)"
                    class="bg-transparent font-mono text-[11px] text-[var(--text-secondary)] placeholder-[var(--text-tertiary)] px-1.5 py-0.5 rounded-[2px] hover:bg-[var(--bg-panel)] focus:bg-[var(--bg-panel)] focus:outline-none w-24 transition-colors" />
           </div>
+
+          <!-- Notion / Obsidian Structured Properties Row (Status · Priority · Due · Custom YAML Frontmatter) -->
+          <div id="pkNotePropertiesSection"></div>
         </div>
 
         <!-- Block-Based Document Canvas -->
@@ -658,10 +681,29 @@
         <!-- Bottom Click-to-Append Zone (Hidden when note is locked) -->
         <div id="desktopAppendZone" onclick="appendBlockAtEnd()" class="h-32 cursor-text flex items-start pt-4 group">
           <span class="hidden sm:inline font-mono text-[11px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
-            Click to append block · Type <span class="text-[var(--text-secondary)]">/</span> for block types or <span class="text-[var(--accent-vermilion)]">[[</span> to reference a note
+            Click to append block · Type <span class="text-[var(--text-secondary)]">/</span> for blocks (<span class="text-[var(--text-secondary)]">/toggle</span>, <span class="text-[var(--text-secondary)]">/table</span>) or <span class="text-[var(--accent-vermilion)]">[[</span> to link
           </span>
         </div>
 
+      </div>
+
+      <!-- Obsidian Side-by-Side Split Note Pane (Live Dual-Note Editing) -->
+      <div id="pkSplitNotePane" class="hidden border-t lg:border-t-0 lg:border-l border-[var(--border-hairline)] bg-[var(--bg-panel)]/35 px-5 sm:px-8 pt-4 pb-24 flex flex-col gap-3 min-h-[60vh]">
+        <div class="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border-hairline)] select-none">
+          <select id="pkSplitNoteSelect" onchange="setSplitPaneNote(this.value)" class="flex-1 min-w-0 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]"></select>
+          <div class="flex items-center gap-1 shrink-0 font-mono text-[10px]">
+            <button type="button" onclick="swapSplitPaneNotes()" title="Swap left and right notes" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Swap</button>
+            <button type="button" onclick="focusSplitPaneAsPrimary()" title="Make primary" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Open</button>
+            <button type="button" onclick="closeSplitNotePane()" title="Close split pane" class="w-6 h-6 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer">✕</button>
+          </div>
+        </div>
+        <input id="pkSplitTitleInput" type="text" oninput="handleSplitTitleInput(this.value)" placeholder="Note title..." class="w-full bg-transparent font-serif text-2xl font-medium text-[var(--text-primary)] focus:outline-none border-b border-transparent focus:border-[var(--border-hairline)] pb-1" />
+        <div id="pkSplitMetaLine" class="font-mono text-[10px] text-[var(--text-tertiary)]"></div>
+        <div id="pkSplitEncryptedNotice" class="hidden p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--accent-vermilion)]/40 font-mono text-[11px] text-[var(--text-secondary)]">
+          This note is Vault-Encrypted (AES-256-GCM). Open it as primary to decrypt.
+        </div>
+        <textarea id="pkSplitBodyTextarea" oninput="handleSplitBodyInput(this.value)" placeholder="Edit second note side-by-side (Markdown supported: #, ##, -, [], >, >>, ---)..." class="flex-1 min-h-[380px] w-full bg-transparent text-[14.5px] leading-[1.75] font-sans text-[var(--text-primary)] resize-none focus:outline-none"></textarea>
+      </div>
       </div>
     </div>
 
@@ -3235,10 +3277,42 @@
     </div>
   </div>
 
+  <!-- 9. Notion-Style Vault Database View Modal (Live Table & Kanban Status Board · Alt+D) -->
+  <div id="pkDatabaseBackdrop" onclick="closeDatabaseModal()" class="hidden fixed inset-0 bg-black/65 z-[988] flex items-center justify-center p-2 sm:p-5 select-none">
+    <div onclick="event.stopPropagation()" class="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-strong)] shadow-2xl overflow-hidden select-text">
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex flex-wrap items-center justify-between gap-2 shrink-0 select-none">
+        <div class="flex items-center gap-2.5">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </span>
+          <div>
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Vault Database</div>
+            <div id="pkDbCountLabel" class="font-mono text-[9.5px] text-[var(--text-tertiary)]">0 notes</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+          <button type="button" id="pkDbTabTable" onclick="setDatabaseViewMode('table')" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Table</button>
+          <button type="button" id="pkDbTabBoard" onclick="setDatabaseViewMode('board')" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Kanban Board</button>
+          <select id="pkDatabaseFolderSelect" onchange="setDatabaseFolderFilter(this.value)" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">
+            <option value="ALL">All Collections</option>
+          </select>
+          <input type="text" id="pkDatabaseSearchInput" oninput="renderDatabaseView()" placeholder="Filter notes..." class="w-32 sm:w-44 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+          <button type="button" onclick="openNewTabNote(); closeDatabaseModal()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">+ New</button>
+          <button type="button" onclick="closeDatabaseModal()" class="w-7 h-7 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer">✕</button>
+        </div>
+      </div>
+
+      <!-- Table / Kanban Content Viewport -->
+      <div id="pkDatabaseContent" class="flex-1 overflow-y-auto p-3 sm:p-4"></div>
+    </div>
+  </div>
+
   <script src="./js/wasm-bridge.min.js" defer></script>
   <script src="./js/app.min.js" defer></script>
   <script src="./js/special-craft.min.js" defer></script>
   <script src="./js/special-studio.min.js" defer></script>
+  <script src="./js/obsidian-notion.min.js" defer></script>
   <script src="./js/ai-memory.min.js" defer></script>
   <script src="./js/groq-assistant.min.js" defer></script>
 </body>

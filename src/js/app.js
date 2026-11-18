@@ -488,6 +488,8 @@ const SLASH_COMMANDS = [
   { type: 'h3', label: 'Heading 3', desc: 'Tertiary subsection heading', glyph: 'hash', shortcut: '###' },
   { type: 'bullet', label: 'Bullet List', desc: 'Unordered archival list item', glyph: 'list', shortcut: '-' },
   { type: 'todo', label: 'Checklist Item', desc: 'Interactive task checkbox', glyph: 'checkSquare', shortcut: '[]' },
+  { type: 'toggle', label: 'Toggle Section', desc: 'Collapsible Notion-style accordion', glyph: 'chevronDown', shortcut: '>>' },
+  { type: 'table', label: 'Table Grid', desc: 'Editable multi-column Notion table', glyph: 'grid', shortcut: '| |' },
   { type: 'callout', label: 'Callout Block', desc: 'Left-ruled emphasis note', glyph: 'alert', shortcut: '>' },
   { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
   { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
@@ -832,6 +834,9 @@ function renderAll() {
   } else {
     renderActiveDocument();
     renderInspector();
+    if (typeof renderNoteTabsBar === 'function') renderNoteTabsBar();
+    if (typeof renderNotePropertiesBar === 'function') renderNotePropertiesBar();
+    if (typeof renderSplitNotePane === 'function') renderSplitNotePane();
   }
   if (typeof updateMobileUndoButtons === 'function') {
     updateMobileUndoButtons();
@@ -2979,6 +2984,65 @@ function renderSingleBlockHTML(block) {
       `;
       break;
 
+    case 'toggle': {
+      const isOpen = block.open !== false;
+      innerBlock = `
+        <div class="flex-1 my-1 rounded-[5px] border border-[var(--border-hairline)] bg-[var(--bg-panel)]/50 px-2.5 py-1.5">
+          <div class="flex items-start gap-2">
+            <button type="button" onclick="toggleCollapsibleBlock('${block.id}')" title="Toggle section" class="mt-1 w-4 h-4 rounded hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0 cursor-pointer transition-transform ${isOpen ? 'rotate-90' : ''}">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg>
+            </button>
+            <div contenteditable="true"
+                 data-block-id="${block.id}"
+                 data-placeholder="Toggle heading..."
+                 spellcheck="true"
+                 onfocus="handleBlockFocus(event, '${block.id}')"
+                 oninput="handleBlockInput(event, '${block.id}')"
+                 onkeydown="handleBlockKeydown(event, '${block.id}')"
+                 onblur="handleBlockBlur(event, '${block.id}')"
+                 class="flex-1 font-medium text-[15px] leading-[1.6] text-[var(--text-primary)]">${richContent}</div>
+          </div>
+          ${isOpen ? `
+            <div contenteditable="true"
+                 data-placeholder="Write hidden toggle details..."
+                 spellcheck="true"
+                 oninput="handleToggleBodyInput(event, '${block.id}')"
+                 class="mt-1.5 ml-6 pl-2.5 border-l border-[var(--border-strong)] text-[14px] leading-[1.65] text-[var(--text-secondary)] whitespace-pre-wrap focus:outline-none min-h-[24px]">${escapeHtml(block.body || '')}</div>
+          ` : ''}
+        </div>
+      `;
+      break;
+    }
+
+    case 'table': {
+      const rows = (Array.isArray(block.rows) && block.rows.length > 0)
+        ? block.rows
+        : [['Column 1', 'Column 2', 'Column 3'], ['', '', ''], ['', '', '']];
+      const rowsHtml = rows.map((row, rIdx) => `
+        <tr class="${rIdx === 0 ? 'bg-[var(--bg-panel)] font-mono text-[11px] font-semibold uppercase tracking-wide' : 'bg-[var(--bg-canvas)] text-[13px]'}">
+          ${row.map((cell, cIdx) => `
+            <td contenteditable="true"
+                oninput="handleTableCellInput(event, '${block.id}', ${rIdx}, ${cIdx})"
+                class="border border-[var(--border-hairline)] px-2.5 py-1.5 text-[var(--text-primary)] focus:outline-none focus:bg-[var(--accent-vermilion-tint)]/20 min-w-[80px] align-top">${escapeHtml(cell || '')}</td>
+          `).join('')}
+        </tr>
+      `).join('');
+      innerBlock = `
+        <div class="flex-1 my-2.5 space-y-1.5">
+          <div class="overflow-x-auto rounded-[4px] border border-[var(--border-hairline)]">
+            <table class="w-full border-collapse">${rowsHtml}</table>
+          </div>
+          <div class="flex items-center gap-1.5 font-mono text-[9.5px] text-[var(--text-tertiary)] select-none">
+            <button type="button" onclick="mutateTableBlock('${block.id}', 'addRow')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] cursor-pointer">+ Row</button>
+            <button type="button" onclick="mutateTableBlock('${block.id}', 'addCol')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] cursor-pointer">+ Col</button>
+            <button type="button" onclick="mutateTableBlock('${block.id}', 'delRow')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] cursor-pointer">- Row</button>
+            <button type="button" onclick="mutateTableBlock('${block.id}', 'delCol')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] cursor-pointer">- Col</button>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
     case 'sketch':
       innerBlock = `
         <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden">
@@ -3084,6 +3148,51 @@ function handleBlockInput(e, blockId) {
   updateWordCount(note);
 
   const plainText = el.innerText;
+
+  // Live Obsidian / Notion Markdown Shortcuts at start of paragraph (# , ## , ### , - , [] , > , >> , --- , ```)
+  if (block.type === 'paragraph') {
+    const mdRules = [
+      [/^###\s+/, 'h3'],
+      [/^##\s+/, 'h2'],
+      [/^#\s+/, 'h1'],
+      [/^>>\s+/, 'toggle'],
+      [/^>\s+/, 'quote'],
+      [/^(?:\[\s?\]|-\s+\[\s?\])\s+/, 'todo'],
+      [/^[-*]\s+/, 'bullet']
+    ];
+    for (let i = 0; i < mdRules.length; i++) {
+      if (mdRules[i][0].test(plainText)) {
+        const nextType = mdRules[i][1];
+        block.type = nextType;
+        block.content = plainText.replace(mdRules[i][0], '');
+        if (nextType === 'todo') block.checked = false;
+        if (nextType === 'toggle') { block.open = true; block.body = block.body || ''; }
+        renderBlocks(note);
+        focusBlock(block.id, false);
+        renderInspector();
+        persistState();
+        return;
+      }
+    }
+    if (/^---$/.test(plainText.trim())) {
+      block.type = 'divider';
+      block.content = '';
+      renderBlocks(note);
+      appendBlockAtEnd();
+      persistState();
+      return;
+    }
+    if (/^```$/.test(plainText.trim())) {
+      block.type = 'code';
+      block.language = 'typescript';
+      block.content = '';
+      renderBlocks(note);
+      focusBlock(block.id, false);
+      persistState();
+      return;
+    }
+  }
+
   const slashMatch = plainText.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
   if (slashMatch) {
     openSlashMenu(blockId, el, slashMatch[1]);
@@ -3431,11 +3540,15 @@ function applySlashCommand(newType) {
     block.content = (block.content || '').replace(/(?:^|\s)\/[a-zA-Z0-9]*$/, '').trim();
     block.type = newType;
     if (newType === 'code' && !block.language) block.language = 'typescript';
+    if (newType === 'toggle') { block.open = true; if (typeof block.body !== 'string') block.body = ''; }
+    if (newType === 'table' && !Array.isArray(block.rows)) {
+      block.rows = [['Column 1', 'Column 2', 'Column 3'], ['', '', ''], ['', '', '']];
+    }
   }
   const targetId = activeSlashBlockId;
   closeSlashMenu();
   renderBlocks(note);
-  if (newType !== 'divider') {
+  if (newType !== 'divider' && newType !== 'table') {
     focusBlock(targetId, false);
   }
   renderInspector();
@@ -5378,6 +5491,8 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: 'Find & Replace in Active Note', hint: 'Search text across all blocks with match navigation & replace all', glyph: 'search', shortcut: 'Ctrl+H', run: () => openFindReplaceBar() },
     { kind: 'action', label: 'Note Templates Gallery', hint: 'Create or insert structured Meeting, Journal, Study, Project & Book templates', glyph: 'document', shortcut: 'Tpl', run: () => openTemplatesModal() },
     { kind: 'action', label: 'Pomodoro Focus Timer', hint: '25m / 50m study & deep work timer with chime & session tracker', glyph: 'clock', shortcut: 'Timer', run: () => openFocusTimerModal() },
+    { kind: 'action', label: 'Notion Database View: Table & Kanban Board', hint: 'Manage all notes in a sortable Notion table or Kanban status board (Alt+D)', glyph: 'grid', shortcut: 'Alt+D', run: () => openDatabaseModal() },
+    { kind: 'action', label: 'Obsidian Split View: Dual Side-by-Side Notes', hint: 'Edit two notes side-by-side at the same time (Alt+\\)', glyph: 'layers', shortcut: 'Alt+\\', run: () => toggleSplitNotePane() },
     { kind: 'action', label: 'PK Special Studio (Vault · Habits · Sketch · Cinema)', hint: 'AES-256 Vault Lock, Daily Habits, Canvas Sketchpad & Spotlight Teleprompter (Alt+P)', glyph: 'sparkles', shortcut: 'Alt+P', run: () => openSpecialStudio() },
     { kind: 'action', label: 'Special: Secret Vault Lock (AES-256-GCM)', hint: 'Encrypt or decrypt active note with real Web Crypto passphrase protection', glyph: 'alert', shortcut: 'Vault', run: () => openSpecialStudio('vault') },
     { kind: 'action', label: 'Special: Daily Habits & Briefing Generator', hint: '7-day streak matrix + 1-tap Daily Briefing note with calendar events', glyph: 'checkSquare', shortcut: 'Habits', run: () => openSpecialStudio('habits') },
@@ -9107,6 +9222,8 @@ document.addEventListener('contextmenu', e => {
             { label: 'Heading 2', icon: 'hash', action: () => convertBlockType(block.id, 'h2') },
             { label: 'Heading 3', icon: 'hash', action: () => convertBlockType(block.id, 'h3') },
             { label: 'Todo Checklist', icon: 'checkSquare', action: () => convertBlockType(block.id, 'todo') },
+            { label: 'Toggle Section', icon: 'chevronDown', action: () => convertBlockType(block.id, 'toggle') },
+            { label: 'Table Grid', icon: 'grid', action: () => convertBlockType(block.id, 'table') },
             { label: 'Bulleted List', icon: 'list', action: () => convertBlockType(block.id, 'bullet') },
             { label: 'Blockquote', icon: 'quote', action: () => convertBlockType(block.id, 'quote') },
             { label: 'Code Block', icon: 'terminal', action: () => convertBlockType(block.id, 'code') },
@@ -9629,8 +9746,12 @@ function convertBlockType(blockId, targetType) {
   const block = note.blocks.find(b => b.id === blockId);
   if (block) {
     block.type = targetType;
+    if (targetType === 'toggle') { block.open = true; if (typeof block.body !== 'string') block.body = ''; }
+    if (targetType === 'table' && !Array.isArray(block.rows)) {
+      block.rows = [['Column 1', 'Column 2', 'Column 3'], ['', '', ''], ['', '', '']];
+    }
     renderBlocks(note);
-    focusBlock(block.id, true);
+    if (targetType !== 'table') focusBlock(block.id, true);
     persistState();
     showToast(`Converted to ${targetType}`);
   }
@@ -10988,6 +11109,15 @@ function exportCurrentNoteMarkdown() {
   if (Array.isArray(note.tags) && note.tags.length > 0) {
     lines.push('tags: [' + note.tags.map(t => '"' + t + '"').join(', ') + ']');
   }
+  if (note.properties) {
+    if (note.properties.status) lines.push('status: "' + note.properties.status + '"');
+    if (note.properties.priority) lines.push('priority: "' + note.properties.priority + '"');
+    if (note.properties.due) lines.push('due: "' + note.properties.due + '"');
+    (note.properties.custom || []).forEach(kv => {
+      const k = String(kv.key || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+      if (k && kv.value) lines.push(`${k}: "${String(kv.value).replace(/"/g, '\\"')}"`);
+    });
+  }
   lines.push('---');
   lines.push('');
 
@@ -10999,6 +11129,17 @@ function exportCurrentNoteMarkdown() {
       case 'h3': lines.push('### ' + c, ''); break;
       case 'bullet': lines.push('- ' + c); break;
       case 'todo': lines.push((b.checked ? '- [x] ' : '- [ ] ') + c); break;
+      case 'toggle': lines.push(`<details><summary>${c}</summary>`, '', b.body || '', '</details>', ''); break;
+      case 'table': {
+        const rows = Array.isArray(b.rows) && b.rows.length > 0 ? b.rows : [];
+        if (rows.length > 0) {
+          lines.push('| ' + rows[0].join(' | ') + ' |');
+          lines.push('| ' + rows[0].map(() => '---').join(' | ') + ' |');
+          for (let ri = 1; ri < rows.length; ri++) lines.push('| ' + rows[ri].join(' | ') + ' |');
+          lines.push('');
+        }
+        break;
+      }
       case 'quote': lines.push('> ' + c, ''); break;
       case 'callout': lines.push('> [!NOTE]', '> ' + c, ''); break;
       case 'code': lines.push('```' + (b.language || ''), c, '```', ''); break;

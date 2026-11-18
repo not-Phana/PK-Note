@@ -50,6 +50,7 @@ const jsFiles = [
   ['src/js/app.js', 'js/app.min.js'],
   ['src/js/special-craft.js', 'js/special-craft.min.js'],
   ['src/js/special-studio.js', 'js/special-studio.min.js'],
+  ['src/js/obsidian-notion.js', 'js/obsidian-notion.min.js'],
   ['src/js/groq-assistant.js', 'js/groq-assistant.min.js']
 ];
 for (const [src, dst] of jsFiles) {

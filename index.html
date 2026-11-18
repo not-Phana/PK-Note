@@ -8830,8 +8830,9 @@
       if (!rawText) return '';
       let text = String(rawText);
 
-      // 1. Decode common HTML entities and strip HTML tags
+      // 1. Decode common HTML entities and strip HTML tags WITHOUT clobbering existing ? or ! punctuation!
       text = text
+        .replace(/([.!?])\s*(?:<br\s*\/?>|<\/(?:p|div|li|h[1-6]|blockquote)>)/gi, '$1 ')
         .replace(/<br\s*\/?>/gi, '. ')
         .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, '. ')
         .replace(/<[^>]*>/g, ' ')
@@ -8839,8 +8840,8 @@
         .replace(/&amp;/gi, ' and ')
         .replace(/&lt;/gi, ' less than ')
         .replace(/&gt;/gi, ' greater than ')
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/&quot;|[“”«»]/g, '"')
+        .replace(/&#39;|&apos;|[‘’]/g, "'")
         .replace(/&mdash;|—/g, ', ')
         .replace(/&ndash;|–/g, ' to ');
 
@@ -8890,10 +8891,23 @@
       // 5. Fix ALL-CAPS words (e.g. KON -> Kon, NOTE -> Note) so they are spoken as natural words
       text = normalizeUppercaseWordsForNaturalSpeech(text);
 
-      // 6. Tidy punctuation and whitespace for smooth breathing cadence
+      // 6. Preserve expressive punctuation (?, !, ...) & conversational phrasing so questions truly sound like questions!
       text = text
+        // Turn parenthetical asides "(like this)" into natural spoken commas ", like this,"
+        .replace(/\(\s*([^()]{2,80}?)\s*\)/g, ', $1, ')
+        // Unwrap quotes cleanly around dialogue/questions ("Why?" -> Why?) so phonemizers attach rising pitch directly to the final word!
+        .replace(/"([^"]+)"/g, '$1')
+        .replace(/([?!])["']+/g, '$1')
+        .replace(/["']+([?!])/g, '$1')
         .replace(/\s+([,.;:!?])/g, '$1')
-        .replace(/([.!?]){2,}/g, '$1')
+        // Preserve natural ellipses (...) while NEVER letting a period overwrite ? or !
+        .replace(/\.{3,}|…/g, '\u2026')
+        .replace(/([.!?]{2,})/g, (cluster) => {
+          if (cluster.includes('?')) return '?';
+          if (cluster.includes('!')) return '!';
+          return '.';
+        })
+        .replace(/\u2026/g, '...')
         .replace(/,\s*,+/g, ',')
         .replace(/\s+/g, ' ')
         .trim();
@@ -8907,18 +8921,28 @@
       // Protect common honorifics/abbreviations so sentence splitting doesn't break after Dr. / Mr. / Ms.
       const protectedText = cleanText.replace(/\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|No|Fig)\./g, '$1\u0000');
 
-      // Split on terminal sentence punctuation followed by whitespace
+      // Split on terminal sentence punctuation followed by whitespace (keep ... intact)
       const rawSentences = protectedText
-        .split(/(?<=[.!?])\s+/)
+        .split(/(?<=[.!?])(?<!\.\.\.)\s+/)
         .map(s => s.replace(/\u0000/g, '.').trim())
         .filter(Boolean);
 
-      // Group short adjacent sentences into cohesive natural breath groups (up to ~300 chars)
-      // so Kokoro-82M's StyleTTS2 prosody model generates lifelike multi-sentence cadence & breathing!
+      // Group short adjacent flat statements into cohesive breath groups,
+      // BUT keep every question (?) and exclamation (!) as its OWN expressive prosody turn
+      // so the voice cleanly lifts pitch on every "?" and energizes every "!"!
       const groupedSentences = [];
       let breathGroup = '';
       for (const s of rawSentences) {
         const punctuated = ensureTerminalPunctuation(s);
+        const isExpressive = /[?!]$/.test(punctuated);
+        if (isExpressive) {
+          if (breathGroup) {
+            groupedSentences.push(breathGroup);
+            breathGroup = '';
+          }
+          groupedSentences.push(punctuated);
+          continue;
+        }
         if (!breathGroup) {
           breathGroup = punctuated;
         } else if ((breathGroup.length + 1 + punctuated.length) <= maxChunkChars) {
@@ -9717,7 +9741,15 @@
 
       const settings = getVoiceSettings();
       const voiceMeta = getSelectedKokoroVoice();
-      const speed = settings.rate || 1.0;
+      const trimmedTxt = (item.text || '').trim();
+      const isQuestion = /\?$/.test(trimmedTxt);
+      const isExclamation = /!$/.test(trimmedTxt);
+      // Expressive cadence: slightly unhurried on questions (?) & headings so rising intonation lands naturally!
+      const baseRate = settings.rate || 1.0;
+      const speed = isQuestion ? baseRate * 0.96
+                  : isExclamation ? baseRate * 1.03
+                  : item.isHeading ? baseRate * 0.95
+                  : baseRate;
       const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
 
       const promise = (async () => {
@@ -9797,8 +9829,12 @@
             kokoroActiveObjectUrl = null;
           }
           if (!isSpeechAudioPaused) {
-            // Natural narrator breathing pause (longer after titles & headings)
-            const pauseMs = item.isHeading ? 380 : 180;
+            // Expressive narrator pauses: thoughtful beat after questions (?), crisp beat after (!), longer after headings
+            const trimmedTxt = (item.text || '').trim();
+            const pauseMs = item.isHeading ? 380
+                          : /\?$/.test(trimmedTxt) ? 320
+                          : /!$/.test(trimmedTxt) ? 240
+                          : 175;
             kokoroPauseTimer = setTimeout(() => {
               if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
                 currentSpeechQueueIndex++;
@@ -9872,14 +9908,29 @@
         : 'Natural';
       updateVoiceStudioHUDLabels(`${shortName} (${idx + 1}/${speechSentenceQueue.length})`);
 
-      // Guard against Chrome's 15-second utterance freeze by ensuring clean sub-200 char flow
+      // Expressive prosody micro-tuning for questions (?), exclamations (!), and headings
+      const trimmedTxt = (item.text || '').trim();
+      const isQuestion = /\?$/.test(trimmedTxt);
+      const isExclamation = /!$/.test(trimmedTxt);
+      const baseRate = settings.rate || 1.0;
+      const basePitch = settings.pitch || 1.0;
+
       const utterance = new SpeechSynthesisUtterance(item.text);
       if (voice) utterance.voice = voice;
-      utterance.rate = Math.max(0.75, Math.min(1.5, settings.rate || 1.0));
-      utterance.pitch = Math.max(0.90, Math.min(1.14, settings.pitch || 1.0));
+      utterance.rate = Math.max(0.75, Math.min(1.5,
+        isQuestion ? baseRate * 0.96
+        : isExclamation ? baseRate * 1.03
+        : item.isHeading ? baseRate * 0.95
+        : baseRate
+      ));
+      utterance.pitch = Math.max(0.90, Math.min(1.16,
+        isQuestion ? basePitch + 0.025
+        : isExclamation ? basePitch + 0.015
+        : basePitch
+      ));
 
       let finished = false;
-      const advance = (delayMs = 130) => {
+      const advance = (delayMs = 150) => {
         if (finished) return;
         finished = true;
         if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
@@ -9891,7 +9942,12 @@
         }, delayMs);
       };
 
-      utterance.onend = () => advance(item.isHeading ? 300 : 120);
+      utterance.onend = () => advance(
+        item.isHeading ? 360
+        : isQuestion ? 320
+        : isExclamation ? 230
+        : 150
+      );
       utterance.onerror = (err) => {
         const code = err && err.error ? err.error : '';
         // Never race forward on user cancel/interrupt!

@@ -9571,9 +9571,23 @@ function quickContextAction(type) {
   closeContextMenu();
 }
 
+let pkLastPointerType = 'mouse';
+document.addEventListener('pointerdown', (e) => {
+  if (e && e.pointerType) pkLastPointerType = e.pointerType;
+}, { passive: true, capture: true });
+
 document.addEventListener('contextmenu', e => {
-  // Shift + Right Click allows power-users to open the native browser inspect/menu
-  if (e.shiftKey) return;
+  // Never hijack long-press on mobile / touch devices — let native phone Copy/Paste/Select work cleanly!
+  if (
+    e.shiftKey ||
+    e.pointerType === 'touch' ||
+    e.pointerType === 'pen' ||
+    pkLastPointerType === 'touch' ||
+    pkLastPointerType === 'pen' ||
+    (typeof isTouchPrimaryDevice === 'function' && isTouchPrimaryDevice())
+  ) {
+    return;
+  }
 
   e.preventDefault();
   closeContextMenu();

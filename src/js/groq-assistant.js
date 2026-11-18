@@ -194,39 +194,66 @@ window.onPKMemoryReady = async function () {
 // ============================================================================
 // MULTI-PROVIDER CONFIG STORAGE (WITH AUTOMATIC LEGACY GROQ MIGRATION)
 // ============================================================================
+function makeAiKeyId() {
+  return 'k_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+function maskAiKeyTail(key) {
+  const k = String(key || '').trim();
+  if (!k) return 'empty';
+  if (k.length <= 6) return '••••';
+  return '…' + k.slice(-4);
+}
+
+function normalizeProviderKeys(src) {
+  const rawKeys = Array.isArray(src && src.keys) ? src.keys : [];
+  const keys = rawKeys
+    .filter(item => item && typeof item === 'object')
+    .map((item, idx) => ({
+      id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `k_${idx + 1}`,
+      label: typeof item.label === 'string' && item.label.trim() ? item.label.trim().slice(0, 24) : `Key ${idx + 1}`,
+      key: typeof item.key === 'string' ? item.key.trim() : ''
+    }));
+  const legacyKey = typeof (src && src.apiKey) === 'string' ? src.apiKey.trim() : '';
+  if (keys.length === 0) {
+    keys.push({ id: 'k_1', label: 'Key 1', key: legacyKey });
+  }
+  let activeKeyId = typeof (src && src.activeKeyId) === 'string' ? src.activeKeyId : keys[0].id;
+  let active = keys.find(k => k.id === activeKeyId) || keys[0];
+  activeKeyId = active.id;
+  return { keys, activeKeyId, apiKey: active.key };
+}
+
+function syncActiveKeySlot(provData, newKeyValue = null) {
+  if (!provData) return;
+  if (!Array.isArray(provData.keys) || provData.keys.length === 0) {
+    provData.keys = [{ id: 'k_1', label: 'Key 1', key: provData.apiKey || '' }];
+    provData.activeKeyId = 'k_1';
+  }
+  let slot = provData.keys.find(k => k.id === provData.activeKeyId) || provData.keys[0];
+  provData.activeKeyId = slot.id;
+  if (newKeyValue !== null) {
+    slot.key = String(newKeyValue).trim();
+  }
+  provData.apiKey = slot.key;
+}
+
 function getDefaultAiConfig() {
+  const mk = (pid) => ({
+    apiKey: '',
+    activeKeyId: 'k_1',
+    keys: [{ id: 'k_1', label: 'Key 1', key: '' }],
+    baseUrl: PK_AI_PROVIDERS[pid].defaultBaseUrl,
+    model: PK_AI_PROVIDERS[pid].defaultModel,
+    discoveredModels: []
+  });
   return {
     provider: 'groq',
-    gemini: {
-      apiKey: '',
-      baseUrl: PK_AI_PROVIDERS.gemini.defaultBaseUrl,
-      model: PK_AI_PROVIDERS.gemini.defaultModel,
-      discoveredModels: []
-    },
-    openrouter: {
-      apiKey: '',
-      baseUrl: PK_AI_PROVIDERS.openrouter.defaultBaseUrl,
-      model: PK_AI_PROVIDERS.openrouter.defaultModel,
-      discoveredModels: []
-    },
-    groq: {
-      apiKey: '',
-      baseUrl: PK_AI_PROVIDERS.groq.defaultBaseUrl,
-      model: PK_AI_PROVIDERS.groq.defaultModel,
-      discoveredModels: []
-    },
-    nvidia: {
-      apiKey: '',
-      baseUrl: PK_AI_PROVIDERS.nvidia.defaultBaseUrl,
-      model: PK_AI_PROVIDERS.nvidia.defaultModel,
-      discoveredModels: []
-    },
-    local: {
-      apiKey: '',
-      baseUrl: PK_AI_PROVIDERS.local.defaultBaseUrl,
-      model: PK_AI_PROVIDERS.local.defaultModel,
-      discoveredModels: []
-    }
+    gemini: mk('gemini'),
+    openrouter: mk('openrouter'),
+    groq: mk('groq'),
+    nvidia: mk('nvidia'),
+    local: mk('local')
   };
 }
 
@@ -252,8 +279,11 @@ function loadAiConfig() {
       const provider = PK_AI_PROVIDERS[parsed.provider] ? parsed.provider : 'groq';
       ['gemini', 'openrouter', 'groq', 'nvidia', 'local'].forEach(pid => {
         const src = parsed[pid] || {};
+        const normKeys = normalizeProviderKeys(src);
         def[pid] = {
-          apiKey: typeof src.apiKey === 'string' ? src.apiKey.trim() : '',
+          apiKey: normKeys.apiKey,
+          activeKeyId: normKeys.activeKeyId,
+          keys: normKeys.keys,
           baseUrl: typeof src.baseUrl === 'string' && src.baseUrl.trim() ? src.baseUrl.trim() : PK_AI_PROVIDERS[pid].defaultBaseUrl,
           model: typeof src.model === 'string' && src.model.trim() ? src.model.trim() : PK_AI_PROVIDERS[pid].defaultModel,
           discoveredModels: Array.isArray(src.discoveredModels) ? src.discoveredModels.filter(x => typeof x === 'string' && x.trim()) : []
@@ -383,7 +413,7 @@ function captureCurrentProviderInputsIntoConfig(cfg) {
   const modelSel = document.getElementById('pkGroqModelSelect');
   const customInp = document.getElementById('pkGroqCustomModelInput');
 
-  if (keyInput) cfg[pid].apiKey = keyInput.value.trim();
+  if (keyInput) syncActiveKeySlot(cfg[pid], keyInput.value.trim());
   if (pid !== 'groq' && pid !== 'gemini' && pid !== 'openrouter' && baseInput && baseInput.value.trim()) {
     cfg[pid].baseUrl = baseInput.value.trim();
   }
@@ -396,6 +426,193 @@ function captureCurrentProviderInputsIntoConfig(cfg) {
     }
   }
   return cfg;
+}
+
+function populateKeySlotsForProvider(pid, data) {
+  const row = document.getElementById('pkAiKeySlotsRow');
+  const sel = document.getElementById('pkAiKeySlotSelect');
+  if (!sel) return;
+  if (row) row.classList.toggle('hidden', pid === 'local');
+  const keys = Array.isArray(data.keys) && data.keys.length > 0
+    ? data.keys
+    : [{ id: 'k_1', label: 'Key 1', key: data.apiKey || '' }];
+  sel.innerHTML = keys.map((slot, idx) => {
+    const lbl = slot.label || `Key ${idx + 1}`;
+    const tail = maskAiKeyTail(slot.key);
+    return `<option value="${escapeHtml(slot.id)}">${escapeHtml(lbl)} (${escapeHtml(tail)})</option>`;
+  }).join('');
+  sel.value = data.activeKeyId || keys[0].id;
+}
+
+function syncQuickComposerSwitchers(cfg) {
+  const quickKeySel = document.getElementById('pkAiQuickKeySelect');
+  const quickModelSel = document.getElementById('pkAiQuickModelSelect');
+  const { spec, data } = getActiveProviderSpec(cfg);
+
+  if (quickKeySel) {
+    const opts = [];
+    const providerOrder = ['gemini', 'openrouter', 'groq', 'nvidia', 'local'];
+    providerOrder.forEach(pid => {
+      const pSpec = PK_AI_PROVIDERS[pid];
+      const pData = cfg[pid];
+      if (!pSpec || !pData) return;
+      if (pid === 'local') {
+        opts.push({ val: 'local::k_1', label: 'Local · Offline' });
+        return;
+      }
+      const slots = Array.isArray(pData.keys) ? pData.keys : [];
+      const filled = slots.filter(s => s && s.key);
+      if (filled.length > 0) {
+        filled.forEach((slot, idx) => {
+          const kName = slot.label || `Key ${idx + 1}`;
+          const suffix = filled.length > 1 ? ` · ${kName} (${maskAiKeyTail(slot.key)})` : ` · ${kName}`;
+          opts.push({ val: `${pid}::${slot.id}`, label: `${pSpec.shortName}${suffix}` });
+        });
+      } else if (pid === cfg.provider) {
+        const curSlot = slots.find(s => s.id === pData.activeKeyId) || slots[0] || { id: 'k_1', label: 'Key 1' };
+        opts.push({ val: `${pid}::${curSlot.id}`, label: `${pSpec.shortName} · No Key` });
+      }
+    });
+    // Also offer quick jump to unconfigured free providers at the bottom
+    ['gemini', 'openrouter', 'groq', 'nvidia'].forEach(pid => {
+      if (pid === cfg.provider) return;
+      const pData = cfg[pid];
+      const hasAny = pData && Array.isArray(pData.keys) && pData.keys.some(s => s && s.key);
+      if (!hasAny) {
+        opts.push({ val: `${pid}::setup`, label: `+ Setup ${PK_AI_PROVIDERS[pid].shortName}` });
+      }
+    });
+    quickKeySel.innerHTML = opts.map(o => `<option value="${escapeHtml(o.val)}">${escapeHtml(o.label)}</option>`).join('');
+    const currentVal = `${cfg.provider}::${data.activeKeyId || 'k_1'}`;
+    if (opts.some(o => o.val === currentVal)) {
+      quickKeySel.value = currentVal;
+    }
+  }
+
+  if (quickModelSel) {
+    const seen = new Set();
+    const mOpts = [];
+    if (spec.id === 'local') {
+      (data.discoveredModels || []).forEach(id => {
+        if (!seen.has(id)) { seen.add(id); mOpts.push({ id, label: id.split('/').pop() }); }
+      });
+      spec.models.forEach(m => {
+        if (!seen.has(m.id)) { seen.add(m.id); mOpts.push({ id: m.id, label: m.label.replace(/\s*\([^)]*\)$/, '') }); }
+      });
+    } else {
+      spec.models.forEach(m => {
+        if (!seen.has(m.id)) { seen.add(m.id); mOpts.push({ id: m.id, label: m.label.replace(/\s*\([^)]*\)$/, '') }); }
+      });
+      (data.discoveredModels || []).forEach(id => {
+        if (!seen.has(id)) { seen.add(id); mOpts.push({ id, label: id.split('/').pop() }); }
+      });
+    }
+    if (data.model && !seen.has(data.model)) {
+      mOpts.unshift({ id: data.model, label: data.model.split('/').pop() });
+    }
+    quickModelSel.innerHTML = mOpts.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.label)}</option>`).join('');
+    if (data.model) quickModelSel.value = data.model;
+  }
+}
+
+function selectAiKeySlot(slotId) {
+  const cfg = loadAiConfig();
+  const { spec, data } = getActiveProviderSpec(cfg);
+  // Save whatever is currently typed into the previous slot first
+  const keyInput = document.getElementById('pkGroqApiKeyInput');
+  if (keyInput) syncActiveKeySlot(data, keyInput.value.trim());
+
+  const target = (data.keys || []).find(k => k.id === slotId);
+  if (!target) return;
+  data.activeKeyId = target.id;
+  data.apiKey = target.key;
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  if (typeof showToast === 'function') {
+    showToast(`Switched ${spec.shortName} to ${target.label} (${maskAiKeyTail(target.key)})`);
+  }
+}
+
+function addAiKeySlot() {
+  const cfg = loadAiConfig();
+  const { spec, data } = getActiveProviderSpec(cfg);
+  const keyInput = document.getElementById('pkGroqApiKeyInput');
+  if (keyInput) syncActiveKeySlot(data, keyInput.value.trim());
+
+  if (!Array.isArray(data.keys)) data.keys = [];
+  const nextNum = data.keys.length + 1;
+  const newSlot = { id: makeAiKeyId(), label: `Key ${nextNum}`, key: '' };
+  data.keys.push(newSlot);
+  data.activeKeyId = newSlot.id;
+  data.apiKey = '';
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  const inp = document.getElementById('pkGroqApiKeyInput');
+  if (inp) {
+    inp.value = '';
+    inp.focus();
+  }
+  if (typeof showToast === 'function') {
+    showToast(`Added ${spec.shortName} ${newSlot.label} — paste your key now`);
+  }
+}
+
+function renameAiKeySlot() {
+  const cfg = loadAiConfig();
+  const { data } = getActiveProviderSpec(cfg);
+  const slot = (data.keys || []).find(k => k.id === data.activeKeyId);
+  if (!slot) return;
+  const nextName = window.prompt('Name this API key (e.g. Personal, Backup, Account 2):', slot.label || 'Key 1');
+  if (nextName === null) return;
+  const clean = String(nextName).trim().slice(0, 24);
+  if (!clean) return;
+  slot.label = clean;
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  if (typeof showToast === 'function') showToast(`Renamed key to "${clean}"`);
+}
+
+function handleQuickAiKeySwitch(val) {
+  if (!val) return;
+  const [pid, slotId] = String(val).split('::');
+  if (!PK_AI_PROVIDERS[pid]) return;
+  const cfg = loadAiConfig();
+  cfg.provider = pid;
+  if (slotId === 'setup') {
+    saveAiConfig(cfg);
+    syncGroqHeaderAndSettingsUI();
+    const panel = document.getElementById('pkGroqSettingsPanel');
+    if (panel) panel.classList.remove('hidden');
+    const inp = document.getElementById('pkGroqApiKeyInput');
+    if (inp) setTimeout(() => inp.focus(), 60);
+    return;
+  }
+  const pData = cfg[pid];
+  if (pData && Array.isArray(pData.keys)) {
+    const slot = pData.keys.find(k => k.id === slotId);
+    if (slot) {
+      pData.activeKeyId = slot.id;
+      pData.apiKey = slot.key;
+    }
+  }
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  renderGroqMessages();
+  const activeSlot = (cfg[pid].keys || []).find(k => k.id === cfg[pid].activeKeyId);
+  const label = pid === 'local' ? 'Local Model' : `${PK_AI_PROVIDERS[pid].shortName} · ${(activeSlot && activeSlot.label) || 'Key 1'}`;
+  if (typeof showToast === 'function') showToast(`Switched AI to ${label}`);
+}
+
+function handleQuickAiModelSwitch(modelId) {
+  if (!modelId) return;
+  const cfg = loadAiConfig();
+  const { spec, data } = getActiveProviderSpec(cfg);
+  data.model = modelId;
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  if (typeof showToast === 'function') {
+    showToast(`${spec.shortName} model: ${modelId.split('/').pop()}`);
+  }
 }
 
 function populateModelSelectForProvider(pid, data) {
@@ -485,19 +702,22 @@ function syncGroqHeaderAndSettingsUI() {
   const sub = document.getElementById('pkGroqHeaderSub');
   const keyBtnLabel = document.getElementById('pkGroqKeyBtnLabel');
   const shortModel = (data.model || spec.defaultModel).split('/').pop();
+  const filledKeys = (data.keys || []).filter(k => k && k.key);
+  const activeSlot = (data.keys || []).find(k => k.id === data.activeKeyId);
+  const keySuffix = filledKeys.length > 1 && activeSlot ? ` · ${activeSlot.label}` : '';
   if (sub) {
     if (spec.id === 'local') {
       const shortHost = (data.baseUrl || spec.defaultBaseUrl).replace(/^https?:\/\//i, '').replace(/\/v1.*$/i, '');
       sub.textContent = `Local · ${shortModel} · ${shortHost}`;
     } else if (ready) {
-      sub.textContent = `${spec.shortName} · ${shortModel} · Ready`;
+      sub.textContent = `${spec.shortName}${keySuffix} · ${shortModel} · Ready`;
     } else {
       sub.textContent = `${spec.name} · Add your API key to start`;
     }
   }
   if (keyBtnLabel) {
     if (spec.id === 'local') keyBtnLabel.textContent = 'Local';
-    else keyBtnLabel.textContent = ready ? spec.shortName : 'Add Key';
+    else keyBtnLabel.textContent = ready ? (filledKeys.length > 1 ? `${spec.shortName} (${filledKeys.length})` : spec.shortName) : 'Add Key';
   }
 
   // Endpoint section (shown for NVIDIA & Local, hidden for direct-CORS Gemini / OpenRouter / Groq)
@@ -552,7 +772,9 @@ function syncGroqHeaderAndSettingsUI() {
   if (modelLabel) modelLabel.textContent = `${spec.shortName} Model`;
   if (fetchBtn) fetchBtn.textContent = spec.id === 'local' ? 'Scan local models' : 'Fetch live models';
 
+  populateKeySlotsForProvider(spec.id, data);
   populateModelSelectForProvider(spec.id, data);
+  syncQuickComposerSwitchers(cfg);
   updateGroqScopeButtons();
 }
 
@@ -982,6 +1204,7 @@ async function pasteAiApiKey() {
       const cfg = loadAiConfig();
       captureCurrentProviderInputsIntoConfig(cfg);
       // Smart auto-switch provider if key prefix clearly identifies Gemini, OpenRouter, Groq, or NVIDIA
+      const prevPid = cfg.provider;
       if (/^(?:AIza|AQ\.)/i.test(cleaned) && cfg.provider !== 'gemini') {
         cfg.provider = 'gemini';
       } else if (/^sk-or-/i.test(cleaned) && cfg.provider !== 'openrouter') {
@@ -991,11 +1214,26 @@ async function pasteAiApiKey() {
       } else if (/^nvapi-/i.test(cleaned) && cfg.provider !== 'nvidia') {
         cfg.provider = 'nvidia';
       }
-      cfg[cfg.provider].apiKey = cleaned;
+      const targetProv = cfg[cfg.provider];
+      const existingMatch = (targetProv.keys || []).find(s => s.key === cleaned);
+      if (existingMatch) {
+        targetProv.activeKeyId = existingMatch.id;
+        targetProv.apiKey = existingMatch.key;
+      } else if (prevPid !== cfg.provider && targetProv.apiKey && targetProv.apiKey !== cleaned) {
+        // Don't overwrite Key 1 on auto-switch -> create Key 2 automatically!
+        const nextNum = (targetProv.keys ? targetProv.keys.length : 1) + 1;
+        const newSlot = { id: makeAiKeyId(), label: `Key ${nextNum}`, key: cleaned };
+        targetProv.keys.push(newSlot);
+        targetProv.activeKeyId = newSlot.id;
+        targetProv.apiKey = cleaned;
+      } else {
+        syncActiveKeySlot(targetProv, cleaned);
+      }
       saveAiConfig(cfg);
       syncGroqHeaderAndSettingsUI();
+      const actSlot = (targetProv.keys || []).find(s => s.id === targetProv.activeKeyId);
       if (typeof showToast === 'function') {
-        showToast(`Pasted ${PK_AI_PROVIDERS[cfg.provider].shortName} API key — tap Test or Save`);
+        showToast(`Pasted ${PK_AI_PROVIDERS[cfg.provider].shortName} ${(actSlot && actSlot.label) || 'Key 1'} — tap Test or Save`);
       }
       return;
     } catch (_) {
@@ -1067,8 +1305,21 @@ function saveGroqSettingsFromUI() {
 
 function clearGroqApiKey() {
   const cfg = loadAiConfig();
-  const { spec } = getActiveProviderSpec(cfg);
-  cfg[spec.id].apiKey = '';
+  const { spec, data } = getActiveProviderSpec(cfg);
+  const keys = Array.isArray(data.keys) ? data.keys : [];
+  if (keys.length > 1) {
+    const removed = keys.find(k => k.id === data.activeKeyId);
+    data.keys = keys.filter(k => k.id !== data.activeKeyId);
+    data.activeKeyId = data.keys[0].id;
+    data.apiKey = data.keys[0].key;
+    saveAiConfig(cfg);
+    syncGroqHeaderAndSettingsUI();
+    if (typeof showToast === 'function') {
+      showToast(`Removed ${spec.shortName} ${(removed && removed.label) || 'key'} — switched to ${data.keys[0].label}`, 'ochre');
+    }
+    return;
+  }
+  syncActiveKeySlot(data, '');
   saveAiConfig(cfg);
   syncGroqHeaderAndSettingsUI();
   if (typeof showToast === 'function') {
@@ -2056,7 +2307,24 @@ async function sendGroqPrompt(overrideText) {
     if (!res.ok && spec.id !== 'local') {
       const errJson = await res.json().catch(() => ({}));
       const errMsg = extractStreamErr(errJson, res.status);
-      if (spec.id === 'gemini' && res.status === 503) {
+      if (res.status === 429) {
+        // Automatic backup key rotation when 2+ keys are saved on this provider!
+        const altKeys = (data.keys || []).filter(s => s && s.key && s.id !== data.activeKeyId);
+        let rotated = false;
+        for (const alt of altKeys) {
+          data.activeKeyId = alt.id;
+          data.apiKey = alt.key;
+          saveAiConfig(cfg);
+          syncGroqHeaderAndSettingsUI();
+          if (typeof showToast === 'function') showToast(`Rate-limited (429) — auto-switched to ${alt.label}`, 'ochre');
+          res = await doChatFetch(endpoints.chatUrl, activeModel);
+          if (res.ok || res.status !== 429) {
+            rotated = true;
+            break;
+          }
+        }
+        if (!rotated && !res.ok) throw new Error(errMsg);
+      } else if (spec.id === 'gemini' && res.status === 503) {
         const gemFallbacks = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].filter(m => m !== activeModel);
         for (const fb of gemFallbacks) {
           activeModel = fb;

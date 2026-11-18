@@ -1312,8 +1312,11 @@
           </button>
 
           <!-- Kokoro-82M Voice Studio Quick Button (Desktop) -->
-          <button onclick="openVoiceModelModal()" id="desktopVoiceStudioBtn" title="Kokoro-82M Voice Studio (Switch Male/Female Voices)" class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
-            <span>🎙️</span>
+          <button onclick="openVoiceModelModal()" id="desktopVoiceStudioBtn" title="Kokoro-82M Voice Studio (Switch Voices)" class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
             <span class="hidden xl:inline">VOICE</span>
           </button>
 
@@ -7034,7 +7037,7 @@
           ctx.lineWidth = 2 / graphZoom;
           ctx.stroke();
 
-          const badgeText = `✨ Link with [[${connectingTargetNode.title}]]`;
+          const badgeText = `Link with [[${connectingTargetNode.title}]]`;
           ctx.font = `600 ${11 / graphZoom}px "JetBrains Mono", monospace`;
           ctx.textAlign = 'center';
           const textW = ctx.measureText(badgeText).width;
@@ -8091,39 +8094,98 @@
     const KOKORO_MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
     const KOKORO_ESM_URL = 'https://esm.sh/kokoro-js@1.2.1';
 
-    // Official Kokoro-82M v1.0 Voice Roster — Verified Male & Female Presets
+    // Official Kokoro-82M v1.0 Voice Roster — Cute/Small, Female & Male Presets (Clean Editorial UI)
     const KOKORO_VOICE_CATALOG = [
+      // Cute / Small Voices (Vocal-tract pitch & formant tuned on soft Kokoro-82M bases)
+      { id: 'cute_mimi',   baseVoice: 'af_sky',    defaultPitch: 1.30, name: 'Mimi',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Tiny, sweet & extra cute' },
+      { id: 'cute_yuki',   baseVoice: 'af_sky',    defaultPitch: 1.22, name: 'Yuki',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Soft, light & cute' },
+      { id: 'cute_hana',   baseVoice: 'af_bella',  defaultPitch: 1.20, name: 'Hana',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Warm, bubbly & sweet' },
+      { id: 'cute_koko',   baseVoice: 'af_nicole', defaultPitch: 1.24, name: 'Koko',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Gentle, petite & cozy' },
+      { id: 'cute_lumi',   baseVoice: 'af_nova',   defaultPitch: 1.26, name: 'Lumi',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Bright, cheerful & small' },
+      { id: 'cute_sora',   baseVoice: 'af_heart',  defaultPitch: 1.15, name: 'Sora',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Youthful, soft & natural' },
+
       // Female Voices (US & UK — Ordered by official Kokoro-82M naturalness grade)
-      { id: 'af_heart',    name: 'Heart',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'A',  badge: '❤️', style: 'Flagship Warm & Natural' },
-      { id: 'af_bella',    name: 'Bella',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'A-', badge: '🔥', style: 'Expressive & Engaging' },
-      { id: 'af_nicole',   name: 'Nicole',   gender: 'female', accent: 'US', lang: 'en-US', grade: 'B-', badge: '🎧', style: 'Studio Whisper-Clear' },
-      { id: 'bf_emma',     name: 'Emma',     gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'B-', badge: '🇬🇧', style: 'British Crisp & Poised' },
-      { id: 'af_aoede',    name: 'Aoede',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'C+', badge: '🎵', style: 'Melodic & Smooth' },
-      { id: 'af_kore',     name: 'Kore',     gender: 'female', accent: 'US', lang: 'en-US', grade: 'C+', badge: '✨', style: 'Clear & Balanced' },
-      { id: 'af_sarah',    name: 'Sarah',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'C+', badge: '🌿', style: 'Calm Conversational' },
-      { id: 'af_alloy',    name: 'Alloy',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'C',  badge: '🎙️', style: 'Neutral & Versatile' },
-      { id: 'af_nova',     name: 'Nova',     gender: 'female', accent: 'US', lang: 'en-US', grade: 'C',  badge: '🌟', style: 'Bright & Energetic' },
-      { id: 'bf_isabella', name: 'Isabella', gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'C',  badge: '🇬🇧', style: 'British Refined' },
-      { id: 'af_sky',      name: 'Sky',      gender: 'female', accent: 'US', lang: 'en-US', grade: 'C-', badge: '☁️', style: 'Soft & Airy' },
-      { id: 'af_jessica',  name: 'Jessica',  gender: 'female', accent: 'US', lang: 'en-US', grade: 'D',  badge: '💬', style: 'Friendly Everyday' },
-      { id: 'af_river',    name: 'River',    gender: 'female', accent: 'US', lang: 'en-US', grade: 'D',  badge: '🌊', style: 'Gentle Flowing' },
-      { id: 'bf_alice',    name: 'Alice',    gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'D',  badge: '🇬🇧', style: 'British Narrative' },
-      { id: 'bf_lily',     name: 'Lily',     gender: 'female', accent: 'UK', lang: 'en-GB', grade: 'D',  badge: '🇬🇧', style: 'British Classic' },
+      { id: 'af_heart',    baseVoice: 'af_heart',    defaultPitch: 1.0, name: 'Heart',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'A',  style: 'Flagship Warm & Natural' },
+      { id: 'af_bella',    baseVoice: 'af_bella',    defaultPitch: 1.0, name: 'Bella',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'A-', style: 'Expressive & Engaging' },
+      { id: 'af_nicole',   baseVoice: 'af_nicole',   defaultPitch: 1.0, name: 'Nicole',   gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'B-', style: 'Studio Whisper-Clear' },
+      { id: 'bf_emma',     baseVoice: 'bf_emma',     defaultPitch: 1.0, name: 'Emma',     gender: 'female', category: 'female', accent: 'UK', lang: 'en-GB', grade: 'B-', style: 'British Crisp & Poised' },
+      { id: 'af_aoede',    baseVoice: 'af_aoede',    defaultPitch: 1.0, name: 'Aoede',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C+', style: 'Melodic & Smooth' },
+      { id: 'af_kore',     baseVoice: 'af_kore',     defaultPitch: 1.0, name: 'Kore',     gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C+', style: 'Clear & Balanced' },
+      { id: 'af_sarah',    baseVoice: 'af_sarah',    defaultPitch: 1.0, name: 'Sarah',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C+', style: 'Calm Conversational' },
+      { id: 'af_alloy',    baseVoice: 'af_alloy',    defaultPitch: 1.0, name: 'Alloy',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C',  style: 'Neutral & Versatile' },
+      { id: 'af_nova',     baseVoice: 'af_nova',     defaultPitch: 1.0, name: 'Nova',     gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C',  style: 'Bright & Energetic' },
+      { id: 'bf_isabella', baseVoice: 'bf_isabella', defaultPitch: 1.0, name: 'Isabella', gender: 'female', category: 'female', accent: 'UK', lang: 'en-GB', grade: 'C',  style: 'British Refined' },
+      { id: 'af_sky',      baseVoice: 'af_sky',      defaultPitch: 1.0, name: 'Sky',      gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C-', style: 'Soft & Airy' },
+      { id: 'af_jessica',  baseVoice: 'af_jessica',  defaultPitch: 1.0, name: 'Jessica',  gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'D',  style: 'Friendly Everyday' },
+      { id: 'af_river',    baseVoice: 'af_river',    defaultPitch: 1.0, name: 'River',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'D',  style: 'Gentle Flowing' },
+      { id: 'bf_alice',    baseVoice: 'bf_alice',    defaultPitch: 1.0, name: 'Alice',    gender: 'female', category: 'female', accent: 'UK', lang: 'en-GB', grade: 'D',  style: 'British Narrative' },
+      { id: 'bf_lily',     baseVoice: 'bf_lily',     defaultPitch: 1.0, name: 'Lily',     gender: 'female', category: 'female', accent: 'UK', lang: 'en-GB', grade: 'D',  style: 'British Classic' },
 
       // Male Voices (US & UK — Ordered by official Kokoro-82M naturalness grade)
-      { id: 'am_michael',  name: 'Michael',  gender: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', badge: '🎙️', style: 'Natural Warm Narrator' },
-      { id: 'am_fenrir',   name: 'Fenrir',   gender: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', badge: '🔥', style: 'Deep Authoritative' },
-      { id: 'am_puck',     name: 'Puck',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', badge: '✨', style: 'Dynamic & Expressive' },
-      { id: 'bm_george',   name: 'George',   gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  badge: '🇬🇧', style: 'British Warm Scholar' },
-      { id: 'bm_fable',    name: 'Fable',    gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  badge: '🇬🇧', style: 'British Storyteller' },
-      { id: 'bm_lewis',    name: 'Lewis',    gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'D+', badge: '🇬🇧', style: 'British Deep Baritone' },
-      { id: 'am_echo',     name: 'Echo',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '🎧', style: 'Smooth Studio Voice' },
-      { id: 'am_eric',     name: 'Eric',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '💬', style: 'Crisp & Direct' },
-      { id: 'am_liam',     name: 'Liam',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '🌿', style: 'Friendly Clear' },
-      { id: 'am_onyx',     name: 'Onyx',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  badge: '🖤', style: 'Rich Low Resonance' },
-      { id: 'bm_daniel',   name: 'Daniel',   gender: 'male',   accent: 'UK', lang: 'en-GB', grade: 'D',  badge: '🇬🇧', style: 'British Classic' },
-      { id: 'am_adam',     name: 'Adam',     gender: 'male',   accent: 'US', lang: 'en-US', grade: 'F+', badge: '📢', style: 'Direct Standard' }
+      { id: 'am_michael',  baseVoice: 'am_michael',  defaultPitch: 1.0, name: 'Michael',  gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Natural Warm Narrator' },
+      { id: 'am_fenrir',   baseVoice: 'am_fenrir',   defaultPitch: 1.0, name: 'Fenrir',   gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Deep Authoritative' },
+      { id: 'am_puck',     baseVoice: 'am_puck',     defaultPitch: 1.0, name: 'Puck',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Dynamic & Expressive' },
+      { id: 'bm_george',   baseVoice: 'bm_george',   defaultPitch: 1.0, name: 'George',   gender: 'male',   category: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  style: 'British Warm Scholar' },
+      { id: 'bm_fable',    baseVoice: 'bm_fable',    defaultPitch: 1.0, name: 'Fable',    gender: 'male',   category: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  style: 'British Storyteller' },
+      { id: 'bm_lewis',    baseVoice: 'bm_lewis',    defaultPitch: 1.0, name: 'Lewis',    gender: 'male',   category: 'male',   accent: 'UK', lang: 'en-GB', grade: 'D+', style: 'British Deep Baritone' },
+      { id: 'am_echo',     baseVoice: 'am_echo',     defaultPitch: 1.0, name: 'Echo',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  style: 'Smooth Studio Voice' },
+      { id: 'am_eric',     baseVoice: 'am_eric',     defaultPitch: 1.0, name: 'Eric',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  style: 'Crisp & Direct' },
+      { id: 'am_liam',     baseVoice: 'am_liam',     defaultPitch: 1.0, name: 'Liam',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  style: 'Friendly Clear' },
+      { id: 'am_onyx',     baseVoice: 'am_onyx',     defaultPitch: 1.0, name: 'Onyx',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'D',  style: 'Rich Low Resonance' },
+      { id: 'bm_daniel',   baseVoice: 'bm_daniel',   defaultPitch: 1.0, name: 'Daniel',   gender: 'male',   category: 'male',   accent: 'UK', lang: 'en-GB', grade: 'D',  style: 'British Classic' },
+      { id: 'am_adam',     baseVoice: 'am_adam',     defaultPitch: 1.0, name: 'Adam',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'F+', style: 'Direct Standard' }
     ];
+
+    // Encode Float32 PCM waveform to a clean 16-bit WAV Blob at an exact target sample rate.
+    // Shifting sample rate (e.g., 24000 * 1.24 = 29760 Hz) while compensating Kokoro speed
+    // raises BOTH pitch and vocal-tract formants together for a genuinely small, cute voice!
+    function encodePcmToWavBlob(float32Samples, sampleRate) {
+      const sr = Math.max(8000, Math.min(96000, Math.round(sampleRate || 24000)));
+      const numSamples = float32Samples.length;
+      const buffer = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(buffer);
+
+      const writeStr = (offset, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      };
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);       // PCM chunk size
+      view.setUint16(20, 1, true);        // PCM format
+      view.setUint16(22, 1, true);        // Mono
+      view.setUint32(24, sr, true);       // Target sample rate (scales pitch + formants!)
+      view.setUint32(28, sr * 2, true);   // Byte rate
+      view.setUint16(32, 2, true);        // Block align
+      view.setUint16(34, 16, true);       // Bits per sample
+      writeStr(36, 'data');
+      view.setUint32(40, numSamples * 2, true);
+
+      let offset = 44;
+      for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, float32Samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // Generate Kokoro-82M audio with natural vocal-tract pitch/cute sculpting + speed compensation
+    async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0) {
+      const pitch = Math.max(0.75, Math.min(1.42, Number(userPitch) || voiceMeta.defaultPitch || 1.0));
+      const baseId = voiceMeta.baseVoice || voiceMeta.id || 'af_heart';
+      // Compensate Kokoro's internal generation speed so final playback speed stays natural!
+      const compensatedSpeed = Math.max(0.65, Math.min(1.5, (Number(userRate) || 1.0) / pitch));
+      const rawAudio = await tts.generate(text, { voice: baseId, speed: compensatedSpeed });
+
+      if (Math.abs(pitch - 1.0) < 0.02) {
+        return rawAudio.toBlob();
+      }
+      const nativeSr = rawAudio.sampling_rate || 24000;
+      const targetSr = Math.round(nativeSr * pitch);
+      return encodePcmToWavBlob(rawAudio.audio, targetSr);
+    }
 
     let localVoiceModels = [];
     let activeVoiceGenderFilter = 'all'; // 'all' | 'male' | 'female'
@@ -8250,68 +8312,54 @@
 
       if (quantWrap) quantWrap.classList.toggle('hidden', !isKokoro);
       if (pitchWrap) {
-        pitchWrap.style.opacity = isKokoro ? '0.55' : '1';
+        pitchWrap.style.opacity = '1';
       }
       if (searchInput) {
         searchInput.placeholder = isKokoro
-          ? 'Search Kokoro-82M voices (e.g. Heart, Bella, Michael, Fenrir, British)...'
+          ? 'Search voices (e.g. Mimi, Yuki, Hana, Heart, Michael, British)...'
           : 'Search device voices (e.g. David, Zira, Samantha, Google)...';
       }
 
-      // Quantization button active styles
-      const q8Btn = document.getElementById('kokoroQuantQ8');
-      const q4Btn = document.getElementById('kokoroQuantQ4');
-      if (q8Btn && q4Btn) {
-        const isQ8 = (settings.kokoroQuant || 'q8') === 'q8';
-        q8Btn.className = isQ8
-          ? 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] cursor-pointer'
-          : 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer';
-        q4Btn.className = !isQ8
-          ? 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] cursor-pointer'
-          : 'px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer';
-      }
-
       if (isKokoro) {
+        const cuteCount = KOKORO_VOICE_CATALOG.filter(v => v.category === 'cute').length;
         const maleCount = KOKORO_VOICE_CATALOG.filter(v => v.gender === 'male').length;
-        const femaleCount = KOKORO_VOICE_CATALOG.filter(v => v.gender === 'female').length;
+        const femaleCount = KOKORO_VOICE_CATALOG.filter(v => v.category === 'female').length;
 
         if (kokoroEngineState === 'ready' && kokoroTTSInstance) {
           if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
-          if (countEl) countEl.textContent = `Kokoro-82M Ready · ${maleCount} 👨 Male, ${femaleCount} 👩 Female`;
-          if (subEl) subEl.textContent = `100% On-Device (${(kokoroLoadedQuant || 'q8').toUpperCase()} Neural WASM) · Cached offline · Zero server`;
-          if (preloadBtn) {
-            preloadBtn.classList.add('hidden');
-          }
+          if (countEl) countEl.textContent = `Kokoro-82M Ready · ${cuteCount} Cute, ${femaleCount} Female, ${maleCount} Male`;
+          if (subEl) subEl.textContent = 'On-Device Neural WASM · Cached offline · Zero server';
+          if (preloadBtn) preloadBtn.classList.add('hidden');
           if (progressWrap) progressWrap.classList.add('hidden');
         } else if (kokoroEngineState === 'loading') {
           if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0';
-          if (countEl) countEl.textContent = `Loading Kokoro-82M Neural Weights...`;
-          if (subEl) subEl.textContent = kokoroLoadStatusText || 'Downloading ONNX model to browser cache (one-time)...';
+          if (countEl) countEl.textContent = 'Loading Kokoro-82M Weights...';
+          if (subEl) subEl.textContent = kokoroLoadStatusText || 'Caching model on device (one-time)...';
           if (preloadBtn) preloadBtn.classList.add('hidden');
           if (progressWrap) progressWrap.classList.remove('hidden');
           if (progressBar) progressBar.style.width = `${Math.max(4, Math.min(100, kokoroLoadProgressPct))}%`;
           if (progressPct) progressPct.textContent = `${Math.round(kokoroLoadProgressPct)}%`;
-          if (progressLabel) progressLabel.textContent = kokoroLoadStatusText || 'Preparing Kokoro-82M ONNX runtime...';
+          if (progressLabel) progressLabel.textContent = kokoroLoadStatusText || 'Preparing Kokoro-82M runtime...';
         } else if (kokoroEngineState === 'error') {
           if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
-          if (countEl) countEl.textContent = `Kokoro-82M Load Interrupted (${maleCount} 👨, ${femaleCount} 👩)`;
-          if (subEl) subEl.textContent = kokoroLoadStatusText || 'Check internet for initial cache, or switch to Device Native.';
+          if (countEl) countEl.textContent = `Kokoro-82M Load Interrupted`;
+          if (subEl) subEl.textContent = kokoroLoadStatusText || 'Check connection for first cache, or switch to Device Native.';
           if (preloadBtn) {
             preloadBtn.classList.remove('hidden');
-            preloadBtn.textContent = '↻ Retry Load';
+            preloadBtn.textContent = 'Retry Load';
           }
           if (progressWrap) progressWrap.classList.add('hidden');
         } else {
           if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500/75 animate-pulse shrink-0';
-          if (countEl) countEl.textContent = `Kokoro-82M Neural · ${maleCount} 👨 Male, ${femaleCount} 👩 Female`;
+          if (countEl) countEl.textContent = `Kokoro-82M · ${cuteCount} Cute, ${femaleCount} Female, ${maleCount} Male`;
           if (subEl) {
             subEl.textContent = kokoroIsCachedLocally
-              ? 'Cached on your device · Instant offline startup · Zero server'
-              : 'Runs on phone & PC with zero server · Auto-caches on first play';
+              ? 'Cached on your device · Fast offline startup · Zero server'
+              : 'Runs on phone & PC with zero server · Auto-caches once';
           }
           if (preloadBtn) {
             preloadBtn.classList.remove('hidden');
-            preloadBtn.textContent = kokoroIsCachedLocally ? '⚡ Warm Up' : '⬇ Load Model';
+            preloadBtn.textContent = kokoroIsCachedLocally ? 'Warm Up' : 'Load Model';
           }
           if (progressWrap) progressWrap.classList.add('hidden');
         }
@@ -8320,8 +8368,8 @@
         const maleCount = voices.filter(v => classifyVoiceGender(v) === 'male').length;
         const femaleCount = voices.filter(v => classifyVoiceGender(v) === 'female').length;
         if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
-        if (countEl) countEl.textContent = `${voices.length} device voices detected (${maleCount} 👨 Male, ${femaleCount} 👩 Female)`;
-        if (subEl) subEl.textContent = 'Instant browser Web Speech API · Zero download · Works offline';
+        if (countEl) countEl.textContent = `${voices.length} device voices (${femaleCount} Female, ${maleCount} Male)`;
+        if (subEl) subEl.textContent = 'Instant browser Web Speech API · Zero download · Offline';
         if (preloadBtn) preloadBtn.classList.add('hidden');
         if (progressWrap) progressWrap.classList.add('hidden');
       }
@@ -8807,8 +8855,7 @@
       const pitchDisp = document.getElementById('voicePitchDisplay');
       if (pitchSlider && pitchDisp) {
         pitchSlider.value = settings.pitch || 1.0;
-        const p = Number(settings.pitch || 1.0);
-        pitchDisp.textContent = p < 0.9 ? `Deep (${p.toFixed(2)})` : p > 1.1 ? `High (${p.toFixed(2)})` : `Standard (${p.toFixed(2)})`;
+        pitchDisp.textContent = formatVoicePitchLabel(Number(settings.pitch || 1.0));
       }
 
       const karaokeToggle = document.getElementById('voiceKaraokeToggle');
@@ -8819,19 +8866,27 @@
       setVoiceGenderFilter(settings.genderFilter || 'all', false);
     }
 
+    function formatVoicePitchLabel(p) {
+      if (p < 0.92) return `Deep (${p.toFixed(2)})`;
+      if (p <= 1.06) return `Natural (${p.toFixed(2)})`;
+      if (p <= 1.18) return `Soft (${p.toFixed(2)})`;
+      if (p <= 1.27) return `Cute (${p.toFixed(2)})`;
+      return `Tiny (${p.toFixed(2)})`;
+    }
+
     function setVoiceGenderFilter(filter, render = true) {
       activeVoiceGenderFilter = filter;
       const settings = getVoiceSettings();
       settings.genderFilter = filter;
       persistState();
 
-      ['all', 'male', 'female'].forEach(f => {
+      ['all', 'cute', 'female', 'male'].forEach(f => {
         const btn = document.getElementById(`voiceFilter${f.charAt(0).toUpperCase() + f.slice(1)}`);
         if (btn) {
           if (f === filter) {
-            btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs';
+            btn.className = 'py-1.5 px-2 rounded font-mono text-[11px] transition-colors cursor-pointer text-center font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs';
           } else {
-            btn.className = 'py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
+            btn.className = 'py-1.5 px-2 rounded font-mono text-[11px] transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
           }
         }
       });
@@ -8867,7 +8922,7 @@
       settings.pitch = pitch;
       const pitchDisp = document.getElementById('voicePitchDisplay');
       if (pitchDisp) {
-        pitchDisp.textContent = pitch < 0.9 ? `Deep (${pitch.toFixed(2)})` : pitch > 1.1 ? `High (${pitch.toFixed(2)})` : `Standard (${pitch.toFixed(2)})`;
+        pitchDisp.textContent = formatVoicePitchLabel(pitch);
       }
       persistState();
     }
@@ -8914,11 +8969,20 @@
       const settings = getVoiceSettings();
       settings.engine = 'kokoro';
       settings.kokoroVoiceId = voice.id;
+      // Automatically apply the voice's tuned cute/natural tone pitch and sync slider
+      const targetPitch = voice.defaultPitch || 1.0;
+      settings.pitch = targetPitch;
+      const pitchSlider = document.getElementById('voicePitchSlider');
+      const pitchDisp = document.getElementById('voicePitchDisplay');
+      if (pitchSlider) pitchSlider.value = targetPitch;
+      if (pitchDisp) pitchDisp.textContent = formatVoicePitchLabel(targetPitch);
+
       persistState();
       renderVoiceCardsList();
       updateVoiceStudioHUDLabels();
       if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
-      showToast(`Selected Kokoro-82M: ${voice.name} (${voice.gender === 'male' ? '👨 Male' : '👩 Female'} · ${voice.accent})`);
+      const tag = voice.category === 'cute' ? 'Cute' : (voice.gender === 'male' ? 'Male' : 'Female');
+      showToast(`Selected ${voice.name} (${tag} · ${voice.accent})`);
       // Audition immediately if explicitly requested or if Kokoro is already warm in memory
       if (autoAudition || (kokoroEngineState === 'ready' && kokoroTTSInstance)) {
         testKokoroVoice(voice.id);
@@ -8950,7 +9014,9 @@
         const selected = getSelectedKokoroVoice();
         let filtered = KOKORO_VOICE_CATALOG;
 
-        if (activeVoiceGenderFilter === 'male') {
+        if (activeVoiceGenderFilter === 'cute') {
+          filtered = filtered.filter(v => v.category === 'cute');
+        } else if (activeVoiceGenderFilter === 'male') {
           filtered = filtered.filter(v => v.gender === 'male');
         } else if (activeVoiceGenderFilter === 'female') {
           filtered = filtered.filter(v => v.gender === 'female');
@@ -8962,18 +9028,19 @@
             v.id.toLowerCase().includes(voiceSearchFilter) ||
             v.style.toLowerCase().includes(voiceSearchFilter) ||
             v.accent.toLowerCase().includes(voiceSearchFilter) ||
+            v.category.toLowerCase().includes(voiceSearchFilter) ||
             v.gender.toLowerCase().includes(voiceSearchFilter)
           );
         }
 
         const badgeCount = document.getElementById('voiceFilterCountBadge');
-        if (badgeCount) badgeCount.textContent = `${filtered.length} Kokoro-82M voices`;
+        if (badgeCount) badgeCount.textContent = `${filtered.length} voices`;
 
         if (filtered.length === 0) {
           container.innerHTML = `
             <div class="py-6 text-center text-[var(--text-tertiary)] font-mono text-[11px] space-y-1">
               <div>No matching Kokoro-82M voices found.</div>
-              <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Show All Kokoro-82M Voices</button>
+              <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Show All Voices</button>
             </div>
           `;
           return;
@@ -8981,38 +9048,40 @@
 
         container.innerHTML = filtered.map(v => {
           const isSelected = selected && selected.id === v.id;
+          const isCute = v.category === 'cute';
           const isMale = v.gender === 'male';
-          const genderBadge = isMale
-            ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/12 text-blue-500 font-mono text-[9px] font-semibold">👨 MALE</span>'
-            : '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/12 text-rose-500 font-mono text-[9px] font-semibold">👩 FEMALE</span>';
+          const roleBadge = isCute
+            ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold">CUTE</span>'
+            : isMale
+              ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/12 text-blue-500 font-mono text-[9px] font-semibold">MALE</span>'
+              : '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/12 text-rose-500 font-mono text-[9px] font-semibold">FEMALE</span>';
+
+          const initial = (v.name || 'V').charAt(0).toUpperCase();
 
           return `
             <div onclick="selectKokoroVoice('${escapeHtml(v.id)}', false)"
                  data-kokoro-voice="${escapeHtml(v.id)}"
                  class="group p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 ${isSelected ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] shadow-xs' : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'}">
               <div class="flex items-center gap-2.5 min-w-0">
-                <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]'}">
-                  ${isSelected ? '✓' : (isMale ? '👨' : '👩')}
+                <span class="w-7 h-7 rounded-full flex items-center justify-center font-serif text-xs font-semibold shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]'}">
+                  ${isSelected ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : escapeHtml(initial)}
                 </span>
                 <div class="min-w-0">
                   <div class="flex items-center gap-1.5">
                     <span class="font-serif font-semibold text-xs text-[var(--text-primary)] truncate">${escapeHtml(v.name)}</span>
-                    <span class="text-[11px]">${v.badge}</span>
                     <span class="px-1 py-0.2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9px] text-[var(--text-tertiary)]">${escapeHtml(v.accent)}</span>
                   </div>
                   <div class="flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-tertiary)] truncate">
                     <span>${escapeHtml(v.style)}</span>
-                    <span>·</span>
-                    <span class="opacity-75">${escapeHtml(v.id)}</span>
                   </div>
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
-                ${genderBadge}
+                ${roleBadge}
                 <button onclick="event.stopPropagation(); selectKokoroVoice('${escapeHtml(v.id)}', true)"
-                        title="Audition ${escapeHtml(v.name)} (Kokoro-82M)"
+                        title="Audition ${escapeHtml(v.name)}"
                         class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer">
-                  ▶ Test
+                  Test
                 </button>
               </div>
             </div>
@@ -9028,7 +9097,7 @@
       let filtered = voices;
       if (activeVoiceGenderFilter === 'male') {
         filtered = filtered.filter(v => classifyVoiceGender(v) === 'male');
-      } else if (activeVoiceGenderFilter === 'female') {
+      } else if (activeVoiceGenderFilter === 'female' || activeVoiceGenderFilter === 'cute') {
         filtered = filtered.filter(v => classifyVoiceGender(v) === 'female');
       }
 
@@ -9046,7 +9115,7 @@
         container.innerHTML = `
           <div class="py-6 text-center text-[var(--text-tertiary)] font-mono text-[11px] space-y-1">
             <div>No matching device voice models found.</div>
-            <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Reset filter to All Voices</button>
+            <button onclick="setVoiceGenderFilter('all')" class="text-[var(--accent-vermilion)] underline cursor-pointer">Show All Voices</button>
           </div>
         `;
         return;
@@ -9055,16 +9124,17 @@
       container.innerHTML = filtered.map(v => {
         const isSelected = selected && (selected.voiceURI === v.voiceURI || selected.name === v.name);
         const gender = classifyVoiceGender(v);
-        const genderBadge = gender === 'male' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-500 font-mono text-[9px] font-semibold">👨 MALE</span>' :
-                            gender === 'female' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/10 text-rose-500 font-mono text-[9px] font-semibold">👩 FEMALE</span>' :
+        const genderBadge = gender === 'male' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-500 font-mono text-[9px] font-semibold">MALE</span>' :
+                            gender === 'female' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/10 text-rose-500 font-mono text-[9px] font-semibold">FEMALE</span>' :
                             '<span class="px-1.5 py-0.5 rounded-[2px] bg-slate-500/10 text-slate-500 font-mono text-[9px]">SYSTEM</span>';
+        const initial = (v.name || 'V').trim().charAt(0).toUpperCase();
 
         return `
           <div onclick="selectVoiceModel('${escapeHtml(v.voiceURI)}')"
                class="group p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${isSelected ? 'bg-[var(--accent-vermilion-tint)] border-[var(--accent-vermilion)] shadow-xs' : 'bg-[var(--bg-canvas)] border-[var(--border-hairline)] hover:border-[var(--border-strong)]'}">
             <div class="flex items-center gap-2.5 min-w-0">
-              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]'}">
-                ${isSelected ? '✓' : gender === 'male' ? '👨' : gender === 'female' ? '👩' : '🎙️'}
+              <span class="w-6 h-6 rounded-full flex items-center justify-center font-serif text-xs font-semibold shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]'}">
+                ${isSelected ? '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : escapeHtml(initial)}
               </span>
               <div class="min-w-0">
                 <div class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[220px] sm:max-w-[320px]">
@@ -9082,7 +9152,7 @@
               <button onclick="event.stopPropagation(); testDeviceVoice(loadDetectedVoiceModels().find(x => x.voiceURI === '${escapeHtml(v.voiceURI)}'))"
                       title="Audition Device Voice"
                       class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
-                ▶ Test
+                Test
               </button>
             </div>
           </div>
@@ -9103,15 +9173,17 @@
 
       const customInput = document.getElementById('voiceCustomTestInput');
       const customRaw = customInput ? customInput.value.trim() : '';
-      const rawSample = customRaw || (voiceMeta.gender === 'male'
-        ? `Hello, I am ${voiceMeta.name}, running natively on Kokoro 82M right inside PK Note. Your notes are read clearly, naturally, and privately with zero server required.`
-        : `Hi there, I'm ${voiceMeta.name}, powered by Kokoro 82M directly on your device. Every note and idea sounds clear, expressive, and completely natural.`);
+      const rawSample = customRaw || (voiceMeta.category === 'cute'
+        ? `Hi Kon! I'm ${voiceMeta.name}, ready to read all your notes softly and naturally right on your device.`
+        : voiceMeta.gender === 'male'
+          ? `Hello, I am ${voiceMeta.name}, running natively on Kokoro 82M right inside PK Note. Your notes are read clearly and naturally with zero server.`
+          : `Hi there, I'm ${voiceMeta.name}, powered by Kokoro 82M directly on your device. Every note sounds clear and natural.`);
       const sampleText = ensureTerminalPunctuation(normalizeTextForNaturalSpeech(rawSample));
 
       showToast(
         kokoroEngineState === 'ready'
-          ? `Synthesizing ${voiceMeta.name} (Kokoro-82M)...`
-          : `Loading Kokoro-82M to audition ${voiceMeta.name}...`,
+          ? `Synthesizing ${voiceMeta.name}...`
+          : `Loading Kokoro-82M to test ${voiceMeta.name}...`,
         'ochre'
       );
 
@@ -9119,13 +9191,9 @@
         const tts = await ensureKokoroEngineLoaded();
         if (sessionId !== speechPlaybackSessionId) return;
 
-        const rawAudio = await tts.generate(sampleText, {
-          voice: voiceMeta.id,
-          speed: settings.rate || 1.0
-        });
+        const blob = await generateKokoroWavBlob(tts, sampleText, voiceMeta, settings.rate || 1.0, settings.pitch || voiceMeta.defaultPitch || 1.0);
         if (sessionId !== speechPlaybackSessionId) return;
 
-        const blob = rawAudio.toBlob();
         const url = URL.createObjectURL(blob);
         if (kokoroActiveObjectUrl) {
           URL.revokeObjectURL(kokoroActiveObjectUrl);
@@ -9141,10 +9209,10 @@
         };
         audio.src = url;
         await audio.play();
-        showToast(`Auditioning Kokoro-82M: ${voiceMeta.name} (${voiceMeta.accent})`);
+        showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
       } catch (err) {
         console.warn('Kokoro audition error:', err);
-        showToast('Kokoro-82M audition failed — check connection for first-time download or use Device Native.', 'ochre');
+        showToast('Kokoro-82M audition failed — check connection for first cache or use Device Native.', 'ochre');
       }
     }
 
@@ -9160,7 +9228,7 @@
       const customInput = document.getElementById('voiceCustomTestInput');
       const customRaw = customInput ? customInput.value.trim() : '';
       const text = normalizeTextForNaturalSpeech(
-        customRaw || "PK Note device voice ready. Instant on-device speech synthesis with zero server dependencies."
+        customRaw || "Hi Kon, PK Note device voice is ready. Instant on-device speech with zero server."
       );
       const utterance = new SpeechSynthesisUtterance(text);
       if (voice) utterance.voice = voice;
@@ -9194,7 +9262,7 @@
       }
       if (settings.engine === 'kokoro') {
         const kv = getSelectedKokoroVoice();
-        label.textContent = `Kokoro-82M · ${kv.name} (${kv.gender === 'male' ? '👨' : '👩'})`;
+        label.textContent = `Kokoro-82M · ${kv.name}`;
       } else {
         const selected = getSelectedVoiceModel();
         if (selected) {
@@ -9256,15 +9324,15 @@
       if (!item) return Promise.resolve(null);
 
       const settings = getVoiceSettings();
-      const voiceId = settings.kokoroVoiceId || 'af_heart';
+      const voiceMeta = getSelectedKokoroVoice();
       const speed = settings.rate || 1.0;
+      const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
 
       const promise = (async () => {
         const tts = await ensureKokoroEngineLoaded();
         if (sessionId !== speechPlaybackSessionId) return null;
-        const rawAudio = await tts.generate(item.text, { voice: voiceId, speed });
+        const blob = await generateKokoroWavBlob(tts, item.text, voiceMeta, speed, pitch);
         if (sessionId !== speechPlaybackSessionId) return null;
-        const blob = rawAudio.toBlob();
         const url = URL.createObjectURL(blob);
         return { url };
       })();
@@ -13911,7 +13979,8 @@
         const settings = getVoiceSettings();
         if (settings.engine === 'kokoro') {
           const kv = getSelectedKokoroVoice();
-          voiceBadge.textContent = `${kv.name} (${kv.gender === 'male' ? '👨' : '👩'}) · Kokoro-82M`;
+          const role = kv.category === 'cute' ? 'Cute' : (kv.gender === 'male' ? 'Male' : 'Female');
+          voiceBadge.textContent = `${kv.name} · ${role}`;
         } else {
           const dv = getSelectedVoiceModel();
           voiceBadge.textContent = dv ? dv.name.slice(0, 18) : 'Device Native';
@@ -13919,7 +13988,7 @@
       }
       const readLabel = document.getElementById('mobileSheetReadBtnLabel');
       if (readLabel) {
-        readLabel.textContent = isSpeechAudioActive ? '⏹ Stop Reading' : '▶ Read Note Aloud';
+        readLabel.textContent = isSpeechAudioActive ? 'Stop Reading' : 'Read Note Aloud';
       }
       const sheet = document.getElementById('mobileMoreSheetBackdrop');
       if (sheet) {
@@ -14299,8 +14368,8 @@
       <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         [[
       </button>
-      <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
-        🔊
+      <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       </button>
       <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer shrink-0" title="Undo (↶)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -14386,15 +14455,15 @@
         </button>
 
         <button onclick="closeMobileQuickMenu(); toggleReadingNoteAloud()" class="p-3 rounded bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 hover:border-[var(--accent-vermilion)] flex flex-col items-start gap-1 transition-colors text-left">
-          <span class="text-base leading-none">🔊</span>
+          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
           <span class="font-medium text-xs text-[var(--accent-vermilion)]">Read Aloud</span>
           <span class="text-[10px] text-[var(--text-tertiary)]">Listen with Kokoro-82M</span>
         </button>
 
         <button onclick="closeMobileQuickMenu(); openVoiceModelModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <span class="text-base leading-none">🎙️</span>
+          <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <span class="font-medium text-xs text-[var(--text-primary)]">Voice Studio</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Male & Female voices</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Cute, Female & Male voices</span>
         </button>
       </div>
     </div>
@@ -14475,12 +14544,12 @@
 
       <!-- 1-Tap Instant Device Voice Switch (Shown while Kokoro-82M is downloading so you never have to wait) -->
       <button onclick="switchToInstantDevicePlayback()" id="pkAudioHudInstantBtn" title="Play instantly with Device Native voice (no wait)" class="hidden shrink-0 px-2 py-0.5 rounded-full bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[9px] font-semibold transition-colors cursor-pointer">
-        ⚡ Instant
+        Instant
       </button>
 
       <!-- Quick Voice Switcher Pill -->
-      <button onclick="openVoiceModelModal()" title="Switch Voice Model" class="shrink-0 px-2 py-0.5 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 transition-colors cursor-pointer">
-        <span>🎙️</span>
+      <button onclick="openVoiceModelModal()" title="Switch Voice Model" class="shrink-0 px-2 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 transition-colors cursor-pointer">
+        <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
         <span class="hidden sm:inline">Voice</span>
       </button>
 
@@ -14775,7 +14844,7 @@
               <span>🖐 Move / Pan</span>
             </button>
             <button onclick="setGraphToolMode('connect')" id="expGraphToolConnectBtn" class="px-2.5 py-1 rounded-[2px] font-mono text-xs flex items-center gap-1.5 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
-              <span>🔗 Mouse Link</span>
+              <span>Mouse Link</span>
             </button>
           </div>
         </div>
@@ -14920,14 +14989,16 @@
         <div class="p-2.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Kokoro-82M Read Out Loud</span>
-            <span id="mobileSheetVoiceBadge" class="font-mono text-[10px] text-[var(--accent-vermilion)] truncate max-w-[165px]">Heart (👩) · Kokoro-82M</span>
+            <span id="mobileSheetVoiceBadge" class="font-mono text-[10px] text-[var(--accent-vermilion)] truncate max-w-[165px]">Heart · Female</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <button onclick="closeMobileMoreSheet(); toggleReadingNoteAloud()" class="py-2.5 px-3 rounded-lg bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium flex items-center justify-center gap-1.5 transition-opacity cursor-pointer shadow-xs">
-              <span id="mobileSheetReadBtnLabel">▶ Read Note Aloud</span>
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              <span id="mobileSheetReadBtnLabel">Read Note Aloud</span>
             </button>
             <button onclick="closeMobileMoreSheet(); openVoiceModelModal()" class="py-2.5 px-3 rounded-lg bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-primary)] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-              <span>🎙️ Switch Voice</span>
+              <svg class="w-3.5 h-3.5 shrink-0 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              <span>Switch Voice</span>
             </button>
           </div>
         </div>
@@ -14948,12 +15019,12 @@
           </button>
         </div>
 
-        <!-- 3. Compact 2-Column Computer Power Tools Grid -->
+        <!-- 3. Compact 2-Column Computer Power Tools Grid (Clean Minimalist SVG Icons) -->
         <div class="space-y-1.5">
           <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold px-0.5">Desktop &amp; Document Tools</div>
           <div class="grid grid-cols-2 gap-2">
             <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">🎨</span>
+              <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Themes &amp; Cover</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Colors &amp; banners</div>
@@ -14961,7 +15032,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); openTypographyModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">🔤</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Typography</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">13 fonts &amp; size</div>
@@ -14969,7 +15040,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); toggleZenMode()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">🧘</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Zen Focus</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Distraction-free</div>
@@ -14977,7 +15048,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); toggleTheme()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">🌗</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 8l4-4"/><path d="M12 13l6-6"/><path d="M12 18l5-5"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Light / Dark</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Switch theme mode</div>
@@ -14985,7 +15056,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); duplicateNoteById(state.activeNoteId)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">📄</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Duplicate Note</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Clone current doc</div>
@@ -14993,7 +15064,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); copyNoteWikiLink(state.activeNoteId)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">🔗</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Copy [[Link]]</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Wiki-link to note</div>
@@ -15001,7 +15072,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); exportCurrentNoteMarkdown()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">📥</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Export .md</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Download Markdown</div>
@@ -15009,7 +15080,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); exportVaultBackupJSON()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">💾</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Backup Vault</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Save all JSON data</div>
@@ -15017,7 +15088,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); toggleSoundSetting()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">🎹</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Key Sounds</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Tactile audio clicks</div>
@@ -15025,7 +15096,7 @@
             </button>
 
             <button onclick="closeMobileMoreSheet(); openUserGuideModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
-              <span class="text-base shrink-0">📖</span>
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Handbook</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Tips &amp; shortcuts</div>
@@ -15036,7 +15107,8 @@
 
         <!-- 4. Delete Note (Guarded Red Action) -->
         <button onclick="closeMobileMoreSheet(); deleteActiveNote()" class="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-red-500/8 hover:bg-red-500/15 border border-red-500/25 text-red-500 font-medium transition-colors cursor-pointer">
-          <span>🗑️ Delete Current Document</span>
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          <span>Delete Current Document</span>
         </button>
 
       </div>
@@ -15045,17 +15117,19 @@
   </div>
 
 
-  <!-- Voice Model Switcher Studio Modal (Kokoro-82M Neural ONNX + On-Device Fallback, Zero Server) -->
+  <!-- Voice Model Switcher Studio Modal (Kokoro-82M Neural ONNX + On-Device Fallback, Clean Editorial UI) -->
   <div id="voiceModelModalBackdrop" onclick="closeVoiceModelModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[980] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
       
       <!-- Modal Header -->
       <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2.5 min-w-0">
-          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center text-sm shrink-0">🎙️</span>
+          <span class="w-8 h-8 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </span>
           <div class="min-w-0">
-            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Kokoro-82M Voice Synthesis Studio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate" id="voiceModelSubtitle">100% On-Device Neural TTS · Phone & PC · Zero Server</div>
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Kokoro-82M Voice Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate" id="voiceModelSubtitle">On-Device Neural TTS · Phone &amp; PC · Zero Server</div>
           </div>
         </div>
         <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">✕</button>
@@ -15067,10 +15141,10 @@
         <!-- Dual-Engine Selector Tabs -->
         <div class="flex items-center gap-1.5 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
           <button id="voiceEngineTabKokoro" onclick="setVoiceEngine('kokoro')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--accent-vermilion)] text-white shadow-xs">
-            <span>⚡ Kokoro-82M Neural</span>
+            <span>Kokoro-82M Neural</span>
           </button>
           <button id="voiceEngineTabDevice" onclick="setVoiceEngine('device')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-            <span>📱 Device Native</span>
+            <span>Device Native</span>
           </button>
         </div>
 
@@ -15080,16 +15154,16 @@
             <div class="min-w-0 flex-1">
               <div class="font-medium text-[var(--text-primary)] flex items-center gap-1.5">
                 <span id="voiceStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                <span id="detectedVoicesCount" class="truncate">Kokoro-82M Neural · 12 👨 Male, 15 👩 Female</span>
+                <span id="detectedVoicesCount" class="truncate">Kokoro-82M · 6 Cute, 15 Female, 12 Male</span>
               </div>
-              <div id="voiceEngineBannerSub" class="font-mono text-[10px] text-[var(--text-tertiary)] mt-0.5">Runs on phone & PC with zero server · Auto-caches on first play</div>
+              <div id="voiceEngineBannerSub" class="font-mono text-[10px] text-[var(--text-tertiary)] mt-0.5">Runs on phone &amp; PC with zero server · Auto-caches once</div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               <button id="kokoroPreloadBtn" onclick="preloadKokoroModelFromUI()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] font-mono text-[10px] transition-colors cursor-pointer">
-                ⬇ Load Model
+                Load Model
               </button>
               <button onclick="testSelectedVoice()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[10px] font-medium transition-colors flex items-center gap-1 cursor-pointer">
-                <span>▶ Test Voice</span>
+                <span>Test Voice</span>
               </button>
             </div>
           </div>
@@ -15098,7 +15172,7 @@
           <div id="kokoroQuantToggleWrap" class="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[var(--border-hairline)]">
             <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Kokoro-82M q8 (~88 MB once, then offline)</span>
             <button onclick="setVoiceEngine('device')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] cursor-pointer transition-colors">
-              ⚡ Need instant (0 MB)? Use Device Voice
+              Need instant (0 MB)? Use Device Voice
             </button>
           </div>
 
@@ -15114,21 +15188,24 @@
           </div>
         </div>
 
-        <!-- Gender Filter Segmented Control -->
+        <!-- Voice Category Filter (All / Cute / Female / Male — Clean, Zero Emoji) -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Voice Gender</label>
+            <label class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Voice Style &amp; Gender</label>
             <span id="voiceFilterCountBadge" class="font-mono text-[10px] text-[var(--accent-vermilion)]"></span>
           </div>
-          <div class="grid grid-cols-3 gap-1 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
-            <button id="voiceFilterAll" onclick="setVoiceGenderFilter('all')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)]">
-              All Voices
+          <div class="grid grid-cols-4 gap-1 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
+            <button id="voiceFilterAll" onclick="setVoiceGenderFilter('all')" class="py-1.5 px-2 rounded font-mono text-[11px] transition-colors cursor-pointer text-center font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)]">
+              All
             </button>
-            <button id="voiceFilterMale" onclick="setVoiceGenderFilter('male')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-              👨 Male Voices
+            <button id="voiceFilterCute" onclick="setVoiceGenderFilter('cute')" class="py-1.5 px-2 rounded font-mono text-[11px] transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              Cute
             </button>
-            <button id="voiceFilterFemale" onclick="setVoiceGenderFilter('female')" class="py-1.5 px-2 rounded font-mono text-xs transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-              👩 Female Voices
+            <button id="voiceFilterFemale" onclick="setVoiceGenderFilter('female')" class="py-1.5 px-2 rounded font-mono text-[11px] transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              Female
+            </button>
+            <button id="voiceFilterMale" onclick="setVoiceGenderFilter('male')" class="py-1.5 px-2 rounded font-mono text-[11px] transition-colors cursor-pointer text-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              Male
             </button>
           </div>
         </div>
@@ -15138,7 +15215,7 @@
           <input type="text"
                  id="voiceSearchInput"
                  oninput="handleVoiceSearchInput(this.value)"
-                 placeholder="Search Kokoro-82M voices (e.g. Heart, Bella, Michael, Fenrir, British)..."
+                 placeholder="Search voices (e.g. Mimi, Yuki, Hana, Heart, Michael, British)..."
                  class="w-full pl-8 pr-3 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
           <svg class="w-3.5 h-3.5 text-[var(--text-tertiary)] absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
         </div>
@@ -15151,34 +15228,36 @@
           </div>
         </div>
 
-        <!-- Acoustic & Cadence Tuning (Speed & Pitch) -->
+        <!-- Acoustic & Tone Sculpting (Speed & Cute/Small Tone Pitch — Works on Kokoro-82M & Device!) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[var(--border-hairline)]">
           <!-- Reading Speed -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Natural Speed</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Reading Speed</span>
               <span id="voiceRateDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">1.00x</span>
             </div>
             <input type="range" id="voiceRateSlider" min="0.75" max="1.6" step="0.05" value="1.0" oninput="handleVoiceRateChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
             <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
               <button onclick="setVoiceRatePreset(0.85)" class="hover:underline cursor-pointer">0.85x</button>
-              <button onclick="setVoiceRatePreset(1.0)" class="hover:underline cursor-pointer">Normal (1.0x)</button>
+              <button onclick="setVoiceRatePreset(1.0)" class="hover:underline cursor-pointer">1.0x</button>
               <button onclick="setVoiceRatePreset(1.15)" class="hover:underline cursor-pointer">1.15x</button>
               <button onclick="setVoiceRatePreset(1.3)" class="hover:underline cursor-pointer">1.3x</button>
             </div>
           </div>
 
-          <!-- Pitch Resonance (Device Native) -->
-          <div id="voicePitchControlWrap" class="space-y-1.5 transition-opacity">
+          <!-- Tone / Cute Pitch Scale (Active on Kokoro-82M & Device!) -->
+          <div id="voicePitchControlWrap" class="space-y-1.5">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Pitch (Device Mode)</span>
-              <span id="voicePitchDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">Standard (1.00)</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Tone / Cute Scale</span>
+              <span id="voicePitchDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">Natural (1.00)</span>
             </div>
-            <input type="range" id="voicePitchSlider" min="0.6" max="1.4" step="0.05" value="1.0" oninput="handleVoicePitchChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
+            <input type="range" id="voicePitchSlider" min="0.8" max="1.38" step="0.02" value="1.0" oninput="handleVoicePitchChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
             <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
-              <button onclick="setVoicePitchPreset(0.85)" class="hover:underline cursor-pointer">Deep (0.85)</button>
-              <button onclick="setVoicePitchPreset(1.0)" class="hover:underline cursor-pointer">Default (1.0)</button>
-              <button onclick="setVoicePitchPreset(1.15)" class="hover:underline cursor-pointer">High (1.15)</button>
+              <button onclick="setVoicePitchPreset(0.88)" class="hover:underline cursor-pointer">Deep</button>
+              <button onclick="setVoicePitchPreset(1.0)" class="hover:underline cursor-pointer">Natural</button>
+              <button onclick="setVoicePitchPreset(1.15)" class="hover:underline cursor-pointer">Soft</button>
+              <button onclick="setVoicePitchPreset(1.24)" class="hover:underline cursor-pointer">Cute</button>
+              <button onclick="setVoicePitchPreset(1.32)" class="hover:underline cursor-pointer text-[var(--accent-vermilion)] font-semibold">Tiny</button>
             </div>
           </div>
         </div>
@@ -15189,11 +15268,11 @@
           <div class="flex items-center gap-1.5">
             <input type="text"
                    id="voiceCustomTestInput"
-                   placeholder="Type anything to test (e.g. Hello KON, read this note naturally!)"
+                   placeholder="Type anything to test (e.g. Hi KON, read this note softly!)"
                    onkeydown="if (event.key === 'Enter') testSelectedVoice()"
                    class="flex-1 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
             <button onclick="testSelectedVoice()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-[var(--text-primary)] hover:text-white font-mono text-[10px] transition-colors cursor-pointer shrink-0">
-              ▶ Speak
+              Speak
             </button>
           </div>
         </div>
@@ -15201,7 +15280,7 @@
         <!-- Live Karaoke Highlighting Toggle -->
         <label class="flex items-center gap-2 pt-1 cursor-pointer select-none">
           <input type="checkbox" id="voiceKaraokeToggle" checked onchange="handleVoiceKaraokeToggle(this.checked)" class="accent-[var(--accent-vermilion)] rounded" />
-          <span class="text-xs text-[var(--text-secondary)]">Highlight active block & auto-scroll document while reading</span>
+          <span class="text-xs text-[var(--text-secondary)]">Highlight active block &amp; auto-scroll document while reading</span>
         </label>
 
       </div>
@@ -15209,10 +15288,12 @@
       <!-- Modal Footer -->
       <div class="px-5 py-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0 font-mono text-xs">
         <button onclick="testSelectedVoice()" class="px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1.5">
-          <span>🔊 Audition</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span>Audition</span>
         </button>
         <button onclick="closeVoiceModelModal(); startReadingActiveNoteAloud()" class="px-4 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium transition-opacity cursor-pointer flex items-center gap-1.5">
-          <span>▶ Listen to Active Note</span>
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          <span>Listen to Active Note</span>
         </button>
       </div>
 

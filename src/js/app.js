@@ -6220,7 +6220,8 @@ function encodePcmToWavBlob(float32Samples, sampleRate, applyWarmthFilter = true
   const buf = new Float32Array(numSamples);
   let mean = 0;
   for (let i = 0; i < numSamples; i++) {
-    const v = float32Samples[start + i];
+    const rawV = float32Samples[start + i];
+    const v = Number.isFinite(rawV) ? rawV : 0;
     buf[i] = v;
     mean += v;
   }
@@ -6298,7 +6299,8 @@ function masterKokoroPcm(float32Samples, sampleRate = 24000, applyWarmthFilter =
   const buf = new Float32Array(numSamples);
   let mean = 0;
   for (let i = 0; i < numSamples; i++) {
-    const v = float32Samples[start + i];
+    const rawV = float32Samples[start + i];
+    const v = Number.isFinite(rawV) ? rawV : 0;
     buf[i] = v;
     mean += v;
   }
@@ -6352,7 +6354,7 @@ async function generateKokoroAudioData(tts, text, voiceMeta, userRate = 1.0, use
   if (rawAudio && rawAudio.cancelled) return { cancelled: true };
 
   const nativeSr = rawAudio.sampling_rate || 24000;
-  const isQuantized = quant === 'q8';
+  const isQuantized = (rawAudio.quant ? rawAudio.quant === 'q8' : quant === 'q8') && tts.device !== 'webgpu';
   const pcm = masterKokoroPcm(rawAudio.audio, nativeSr, isQuantized);
 
   if (kokoroSentencePcmCache.size >= 18) {
@@ -7022,7 +7024,7 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
                 speed: opts.speed || 1.0
               });
               if (res && res.cancelled) return { cancelled: true };
-              return { audio: new Float32Array(res.audio), sampling_rate: res.sampleRate || 24000 };
+              return { audio: new Float32Array(res.audio), sampling_rate: res.sampleRate || 24000, quant: res.quant || targetQuant };
             }
           };
 

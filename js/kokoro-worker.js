@@ -1,8 +1,7 @@
-// PK Note — Fast Off-Main-Thread Kokoro-82M Neural Voice Web Worker
-// Features:
-//   - Auto WebGPU (fp16) hardware acceleration on desktop GPUs (10-20x faster) with automatic WASM q8 fallback
-//   - Instant queue cancellation so stale/stopped jobs are skipped in 0 ms
-//   - Zero-copy Float32Array PCM transfer back to main thread (skips WAV encode/decode round-trip)
+// PK Note — Fast, Crystal-Clear Off-Main-Thread Kokoro-82M Neural Voice Web Worker
+// IMPORTANT: Kokoro's iSTFTNet vocoder requires dtype="fp32" on WebGPU (fp16 on WebGPU causes garbled/weird audio!).
+//   - Desktop GPU (WebGPU): device="webgpu", dtype="fp32" -> studio-pure audio at 10-20x GPU speed!
+//   - Mobile / CPU (WASM):  device="wasm",   dtype="q8"   -> 88 MB fast crash-safe clean audio!
 
 const KOKORO_MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 const KOKORO_ESM_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
@@ -15,12 +14,11 @@ let loadedQuant = 'q8';
 let loadPromise = null;
 let minValidSessionId = 0;
 
-async function detectWebGpuF16() {
+async function detectWebGpuAvailable() {
   if (typeof navigator === 'undefined' || !navigator.gpu) return false;
   try {
     const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) return false;
-    return !!(adapter.features && adapter.features.has('shader-f16'));
+    return !!adapter;
   } catch (_) {
     return false;
   }
@@ -35,9 +33,11 @@ async function importKokoroModule() {
 }
 
 async function ensureLoaded(dtype, isLiteMobile = false) {
-  const preferWebGpu = !isLiteMobile && (await detectWebGpuF16());
-  const targetDevice = preferWebGpu ? 'webgpu' : 'wasm';
-  const targetQuant = preferWebGpu ? 'fp16' : (dtype === 'fp16' ? 'fp16' : 'q8');
+  // Desktop with WebGPU -> ALWAYS use fp32 (never fp16 on WebGPU, which corrupts iSTFTNet vocoder audio!)
+  // Phones / non-WebGPU -> fast clean q8 on WASM (88 MB)
+  const useWebGpu = !isLiteMobile && (await detectWebGpuAvailable());
+  const targetDevice = useWebGpu ? 'webgpu' : 'wasm';
+  const targetQuant = useWebGpu ? 'fp32' : (dtype === 'fp16' && !isLiteMobile ? 'fp16' : 'q8');
   const key = `${targetDevice}:${targetQuant}`;
 
   if (ttsInstance && loadedKey === key) return ttsInstance;
@@ -73,14 +73,13 @@ async function ensureLoaded(dtype, isLiteMobile = false) {
       if (targetDevice === 'webgpu') {
         try {
           loadedDevice = 'webgpu';
-          loadedQuant = 'fp16';
+          loadedQuant = 'fp32';
           tts = await KokoroTTS.from_pretrained(KOKORO_MODEL_ID, {
-            dtype: 'fp16',
+            dtype: 'fp32',
             device: 'webgpu',
             progress_callback: makeProgressCb()
           });
         } catch (_) {
-          // Seamless fallback to fast WASM q8 if WebGPU driver rejects ONNX shader
           tts = null;
         }
       }
@@ -117,7 +116,6 @@ self.onmessage = (event) => {
   const msg = event.data || {};
   const { id, type } = msg;
 
-  // Instant queue cancellation — never waste 10s synthesizing a cancelled sentence!
   if (type === 'cancel') {
     if (typeof msg.sessionId === 'number' && msg.sessionId > minValidSessionId) {
       minValidSessionId = msg.sessionId;
@@ -139,7 +137,6 @@ self.onmessage = (event) => {
         await ensureLoaded(msg.dtype, !!msg.isLiteMobile);
         self.postMessage({ type: 'reply', id, ok: true, quant: loadedQuant, device: loadedDevice });
       } else if (type === 'generate') {
-        // Drop obsolete queued job immediately before touching ONNX!
         if (typeof msg.sessionId === 'number' && msg.sessionId < minValidSessionId) {
           self.postMessage({ type: 'reply', id, ok: true, cancelled: true });
           return;
@@ -156,7 +153,7 @@ self.onmessage = (event) => {
         const sr = rawAudio.sampling_rate || 24000;
         const pcm = new Float32Array(rawAudio.audio);
         self.postMessage(
-          { type: 'reply', id, ok: true, audio: pcm.buffer, sampleRate: sr, device: loadedDevice },
+          { type: 'reply', id, ok: true, audio: pcm.buffer, sampleRate: sr, device: loadedDevice, quant: loadedQuant },
           [pcm.buffer]
         );
       }

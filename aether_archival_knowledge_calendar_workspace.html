@@ -1757,15 +1757,15 @@
         <!-- Primary Calendar Grid Container (Month / Week / Day / Year rendered dynamically) -->
         <div id="calendarGridContainer" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden"></div>
 
-        <!-- Right Contextual Day Ledger & Daily Log Bridge (Desktop lg+ or Mobile Selected Day Drawer) -->
-        <aside id="calendarAgendaSidebar" class="flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-y-auto w-72 shrink-0 panel-transition">
+        <!-- Right Contextual Day Ledger & Daily Log Bridge (Desktop lg+ or Mobile Overlay Drawer) -->
+        <aside id="calendarAgendaSidebar" class="hidden lg:flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-y-auto w-72 shrink-0 panel-transition">
           <div id="calendarAgendaContent" class="p-3.5 space-y-4"></div>
         </aside>
 
       </div>
 
-      <!-- Calendar Tactical Bottom HUD Bar -->
-      <div id="calendarBottomHud" class="border-t border-[var(--border-hairline)] bg-[var(--bg-panel)]/80 backdrop-blur-xs px-3.5 py-1.5 flex items-center justify-between text-[11px] font-mono text-[var(--text-tertiary)] shrink-0 select-none">
+      <!-- Calendar Tactical Bottom HUD Bar (Desktop Keyboard Legend) -->
+      <div id="calendarBottomHud" class="hidden md:flex border-t border-[var(--border-hairline)] bg-[var(--bg-panel)]/80 backdrop-blur-xs px-3.5 py-1.5 items-center justify-between text-[11px] font-mono text-[var(--text-tertiary)] shrink-0 select-none">
         <div class="flex items-center gap-3 overflow-x-auto py-0.5">
           <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">M</kbd> Month</span>
           <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">W</kbd> Week</span>
@@ -3341,7 +3341,8 @@
         const isExpanded = state.expandedFolders[folder] !== false;
         return `
           <div class="space-y-0.5">
-            <div class="flex items-center justify-between px-1.5 py-1 rounded-[3px] hover:bg-[var(--bg-hover)] text-xs text-[var(--text-secondary)] group cursor-pointer"
+            <div data-folder-drop="${escapeHtml(folder)}"
+                 class="flex items-center justify-between px-1.5 py-1 rounded-[3px] hover:bg-[var(--bg-hover)] text-xs text-[var(--text-secondary)] group cursor-pointer transition-colors"
                  onclick="toggleFolder('${escapeHtml(folder).replace(/'/g, "\\'")}')">
               <div class="flex items-center gap-1.5 min-w-0">
                 <svg class="w-3 h-3 text-[var(--text-tertiary)] transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -4916,7 +4917,7 @@
 
       const tagsContainer = document.getElementById('tagsContainer');
       tagsContainer.innerHTML = (note.tags || []).map(tag => `
-        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] font-mono text-[11px] bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)] group">
+        <span data-tag-pill="${escapeHtml(tag)}" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] font-mono text-[11px] bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)] group select-none" style="touch-action: pan-x;">
           <span class="text-[var(--accent-vermilion)]">#</span>${escapeHtml(tag)}
           <button onclick="removeTag('${escapeHtml(tag)}')" class="ml-0.5 text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] opacity-60 group-hover:opacity-100">×</button>
         </span>
@@ -6909,7 +6910,7 @@
 
           if (slicedCount > 0) {
             playMechanicalClick(1.25);
-            showToast(`✂️ Sliced & unlinked ${slicedCount} connection(s)!`);
+            showToast(`Sliced & unlinked ${slicedCount} connection(s)`);
           }
           isCuttingGesture = false;
           cutStart = null;
@@ -10649,7 +10650,8 @@
     }
 
     function toggleCalendarAgendaSidebar() {
-      state.calendarAgendaOpen = state.calendarAgendaOpen === false ? true : false;
+      const currentlyOpen = state.calendarAgendaOpen === undefined ? (window.innerWidth >= 1024) : (state.calendarAgendaOpen !== false);
+      state.calendarAgendaOpen = !currentlyOpen;
       applyCalendarAgendaSidebarState();
       persistState();
     }
@@ -10657,14 +10659,20 @@
     function applyCalendarAgendaSidebarState() {
       const sidebar = document.getElementById('calendarAgendaSidebar');
       const btn = document.getElementById('calToggleAgendaBtn');
-      const isOpen = state.calendarAgendaOpen !== false;
+      const isCompact = window.innerWidth < 1024;
+      const isOpen = state.calendarAgendaOpen === undefined ? !isCompact : (state.calendarAgendaOpen !== false);
       if (sidebar) {
         if (isOpen) {
-          sidebar.classList.remove('hidden');
+          sidebar.classList.remove('hidden', 'lg:flex');
           sidebar.classList.add('flex');
+          if (isCompact) {
+            sidebar.classList.add('fixed', 'right-0', 'top-[52px]', 'bottom-[56px]', 'z-40', 'shadow-2xl', 'max-w-[85vw]');
+          } else {
+            sidebar.classList.remove('fixed', 'right-0', 'top-[52px]', 'bottom-[56px]', 'z-40', 'shadow-2xl', 'max-w-[85vw]');
+          }
         } else {
           sidebar.classList.add('hidden');
-          sidebar.classList.remove('flex');
+          sidebar.classList.remove('flex', 'lg:flex', 'fixed', 'right-0', 'top-[52px]', 'bottom-[56px]', 'z-40', 'shadow-2xl', 'max-w-[85vw]');
         }
       }
       if (btn) {
@@ -17560,23 +17568,7 @@
           return;
         }
 
-        // 3. Swipe Right on a Todo Block Row -> Toggle Done/Undone
-        if (dx > 68 && g.todoRow) {
-          const rowId = g.todoRow.getAttribute('data-row-id');
-          const note = getActiveNote();
-          if (note && !note.locked && rowId) {
-            const blk = note.blocks.find(b => b.id === rowId);
-            if (blk && blk.type === 'todo') {
-              if (typeof takeSnapshot === 'function') takeSnapshot('swipe-todo');
-              blk.checked = !blk.checked;
-              note.updatedAt = TODAY_KEY;
-              renderBlocks(note);
-              persistState();
-              pkHaptic(12);
-              showToast(blk.checked ? 'Marked task complete' : 'Reopened task');
-            }
-          }
-        }
+        // (Todo & paragraph horizontal sliding is handled smoothly by Section 20D live spring-physics!)
       }, { passive: true });
     })();
 
@@ -17602,6 +17594,562 @@
     } else {
       initFingerControlEngine();
     }
+  </script>
+
+  <!-- Live Floating Slide Action Indicator (Appears while sliding a block left/right with your finger) -->
+  <div id="pkBlockSlideBadge" class="hidden fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md transition-colors"></div>
+
+  <script>
+    // =========================================================================
+    // 20. MAGNETIC FINGER-PHYSICS & FULL-APP DRAG/DROP SUITE
+    //     Touch Ripples · Sidebar Note Drag-Drop · Calendar Event Finger Drag ·
+    //     Live Spring Block Slide · Header Flick Note Switch · Tag Flick
+    // =========================================================================
+
+    // --- 20A. MINIMALIST SWISS VERMILION MICRO-RING TOUCH RIPPLE ---
+    function pkSpawnTouchRipple(x, y, color = 'var(--accent-vermilion)') {
+      try {
+        const ring = document.createElement('div');
+        ring.style.cssText = `
+          position: fixed;
+          left: ${x}px;
+          top: ${y}px;
+          width: 14px;
+          height: 14px;
+          margin-left: -7px;
+          margin-top: -7px;
+          border-radius: 9999px;
+          border: 1.5px solid ${color};
+          pointer-events: none;
+          z-index: 9999;
+          opacity: 0.9;
+          transform: scale(0.6);
+          transition: transform 0.36s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.36s ease-out;
+        `;
+        document.body.appendChild(ring);
+        requestAnimationFrame(() => {
+          ring.style.transform = 'scale(3.6)';
+          ring.style.opacity = '0';
+        });
+        setTimeout(() => ring.remove(), 380);
+      } catch (e) {}
+    }
+
+    // --- 20B. FINGER DRAG & DROP NOTES IN SIDEBAR (REORDER & MOVE ACROSS FOLDERS!) ---
+    (function initSidebarNoteFingerDragDrop() {
+      let noteDrag = null;
+      let holdTimer = null;
+
+      function clearSidebarDropHighlights() {
+        document.querySelectorAll('.pk-folder-drop-hot').forEach(el => {
+          el.classList.remove('pk-folder-drop-hot');
+          el.style.outline = '';
+          el.style.backgroundColor = '';
+        });
+        const line = document.getElementById('pkBlockDropLine');
+        if (line) line.classList.add('hidden');
+      }
+
+      function activateNoteDrag(x, y) {
+        if (!noteDrag || noteDrag.active) return;
+        noteDrag.active = true;
+        pkHaptic(14);
+        pkSpawnTouchRipple(x, y);
+
+        const ghost = document.createElement('div');
+        ghost.className = 'fixed pointer-events-none z-[990] px-3 py-2 rounded-lg bg-[var(--bg-panel)]/95 border border-[var(--accent-vermilion)] shadow-2xl font-serif text-xs font-medium text-[var(--text-primary)] truncate max-w-[230px] backdrop-blur-md';
+        ghost.textContent = noteDrag.title || 'Moving note...';
+        ghost.style.left = `${Math.max(8, x - 90)}px`;
+        ghost.style.top = `${Math.max(8, y - 22)}px`;
+        document.body.appendChild(ghost);
+        noteDrag.ghost = ghost;
+        noteDrag.btn.style.opacity = '0.35';
+      }
+
+      document.addEventListener('pointerdown', (e) => {
+        if (e.button === 2) return;
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
+        const btn = targetEl ? targetEl.closest('.sidebar-note-btn[data-note-id]') : null;
+        if (!btn) return;
+
+        const noteId = btn.getAttribute('data-note-id');
+        const note = state.notes.find(n => n.id === noteId);
+        if (!note) return;
+
+        noteDrag = {
+          pointerId: e.pointerId,
+          noteId,
+          title: note.title || 'Untitled',
+          btn,
+          startX: e.clientX,
+          startY: e.clientY,
+          active: false,
+          ghost: null,
+          targetFolder: null,
+          targetNoteId: null,
+          insertBefore: true
+        };
+
+        // Long-press 260ms lifts the note cleanly for finger drag-and-drop without blocking normal taps/scrolls
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          if (noteDrag) activateNoteDrag(noteDrag.startX, noteDrag.startY);
+        }, 260);
+      }, { passive: true });
+
+      document.addEventListener('pointermove', (e) => {
+        if (!noteDrag || e.pointerId !== noteDrag.pointerId) return;
+        const dx = e.clientX - noteDrag.startX;
+        const dy = e.clientY - noteDrag.startY;
+
+        if (!noteDrag.active) {
+          if (Math.hypot(dx, dy) > 10) {
+            if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+            // Cancel if user is just scrolling the sidebar vertically before long-press
+            noteDrag = null;
+          }
+          return;
+        }
+
+        if (e.cancelable) e.preventDefault();
+        if (noteDrag.ghost) {
+          noteDrag.ghost.style.left = `${Math.max(8, Math.min(window.innerWidth - 180, e.clientX - 80))}px`;
+          noteDrag.ghost.style.top = `${Math.max(8, Math.min(window.innerHeight - 44, e.clientY - 22))}px`;
+        }
+
+        clearSidebarDropHighlights();
+        noteDrag.targetFolder = null;
+        noteDrag.targetNoteId = null;
+
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        if (!under) return;
+
+        const folderEl = under.closest('[data-folder-drop]');
+        if (folderEl) {
+          noteDrag.targetFolder = folderEl.getAttribute('data-folder-drop');
+          folderEl.classList.add('pk-folder-drop-hot');
+          folderEl.style.outline = '1.5px solid var(--accent-vermilion)';
+          folderEl.style.backgroundColor = 'var(--accent-vermilion-tint)';
+          return;
+        }
+
+        const otherNoteBtn = under.closest('.sidebar-note-btn[data-note-id]');
+        if (otherNoteBtn && otherNoteBtn.getAttribute('data-note-id') !== noteDrag.noteId) {
+          const r = otherNoteBtn.getBoundingClientRect();
+          noteDrag.targetNoteId = otherNoteBtn.getAttribute('data-note-id');
+          noteDrag.insertBefore = e.clientY < (r.top + r.height / 2);
+          const line = document.getElementById('pkBlockDropLine');
+          if (line) {
+            line.style.left = `${r.left}px`;
+            line.style.width = `${r.width}px`;
+            line.style.top = `${noteDrag.insertBefore ? r.top - 1 : r.bottom - 1}px`;
+            line.classList.remove('hidden');
+          }
+        }
+      }, { passive: false });
+
+      function finishSidebarNoteDrag(e) {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        if (!noteDrag || (e && e.pointerId !== noteDrag.pointerId)) return;
+
+        const st = noteDrag;
+        noteDrag = null;
+        if (st.ghost) st.ghost.remove();
+        if (st.btn) st.btn.style.opacity = '';
+        clearSidebarDropHighlights();
+
+        if (!st.active) return;
+
+        // Prevent the trailing click from re-selecting/closing sidebar accidentally
+        const suppressClick = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+        window.addEventListener('click', suppressClick, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener('click', suppressClick, { capture: true }), 80);
+
+        const movingNote = state.notes.find(n => n.id === st.noteId);
+        if (!movingNote) return;
+
+        if (st.targetFolder) {
+          movingNote.folder = st.targetFolder;
+          state.expandedFolders[st.targetFolder] = true;
+          renderSidebar();
+          if (state.activeNoteId === movingNote.id) renderActiveNote();
+          persistState();
+          pkHaptic(16);
+          if (e) pkSpawnTouchRipple(e.clientX, e.clientY);
+          showToast(`Moved "${movingNote.title}" to ${st.targetFolder}`);
+          return;
+        }
+
+        if (st.targetNoteId) {
+          const fromIdx = state.notes.findIndex(n => n.id === st.noteId);
+          const targetNote = state.notes.find(n => n.id === st.targetNoteId);
+          if (fromIdx >= 0 && targetNote) {
+            movingNote.folder = targetNote.folder || 'General';
+            state.notes.splice(fromIdx, 1);
+            let toIdx = state.notes.findIndex(n => n.id === st.targetNoteId);
+            if (!st.insertBefore) toIdx++;
+            state.notes.splice(toIdx, 0, movingNote);
+            renderSidebar();
+            persistState();
+            pkHaptic(14);
+            if (e) pkSpawnTouchRipple(e.clientX, e.clientY);
+            showToast(`Reordered "${movingNote.title}"`);
+          }
+        }
+      }
+
+      document.addEventListener('pointerup', finishSidebarNoteDrag);
+      document.addEventListener('pointercancel', finishSidebarNoteDrag);
+      document.addEventListener('touchmove', (e) => {
+        if (noteDrag && noteDrag.active && e.cancelable) e.preventDefault();
+      }, { passive: false });
+      document.addEventListener('contextmenu', (e) => {
+        if (noteDrag && noteDrag.active) e.preventDefault();
+      });
+    })();
+
+    // --- 20C. FINGER DRAG & DROP CALENDAR EVENTS ON MONTH GRID ---
+    (function initCalendarEventFingerDragDrop() {
+      let calDrag = null;
+      let holdTimer = null;
+
+      function clearCalHighlights() {
+        document.querySelectorAll('.pk-cal-drop-hot').forEach(el => {
+          el.classList.remove('pk-cal-drop-hot');
+          el.style.outline = '';
+          el.style.outlineOffset = '';
+        });
+      }
+
+      document.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') return; // Mouse already has native HTML5 drag on calendar
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
+        const evtEl = targetEl ? targetEl.closest('[data-event-id]') : null;
+        if (!evtEl) return;
+
+        const eventId = evtEl.getAttribute('data-event-id');
+        const evt = (state.events || []).find(item => item.id === eventId);
+        if (!evt) return;
+
+        calDrag = {
+          pointerId: e.pointerId,
+          eventId,
+          title: evt.title || 'Event',
+          el: evtEl,
+          startX: e.clientX,
+          startY: e.clientY,
+          active: false,
+          ghost: null,
+          targetDateKey: null
+        };
+
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          if (!calDrag) return;
+          calDrag.active = true;
+          pkHaptic(16);
+          pkSpawnTouchRipple(calDrag.startX, calDrag.startY);
+
+          const ghost = document.createElement('div');
+          ghost.className = 'fixed pointer-events-none z-[990] px-2.5 py-1.5 rounded-md bg-[var(--accent-vermilion)] text-white shadow-2xl font-mono text-[10px] font-semibold truncate max-w-[180px]';
+          ghost.textContent = calDrag.title;
+          ghost.style.left = `${calDrag.startX - 50}px`;
+          ghost.style.top = `${calDrag.startY - 26}px`;
+          document.body.appendChild(ghost);
+          calDrag.ghost = ghost;
+          calDrag.el.style.opacity = '0.35';
+        }, 240);
+      }, { passive: true });
+
+      document.addEventListener('pointermove', (e) => {
+        if (!calDrag || e.pointerId !== calDrag.pointerId) return;
+        if (!calDrag.active) {
+          if (Math.hypot(e.clientX - calDrag.startX, e.clientY - calDrag.startY) > 10) {
+            if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+            calDrag = null;
+          }
+          return;
+        }
+        if (e.cancelable) e.preventDefault();
+        if (calDrag.ghost) {
+          calDrag.ghost.style.left = `${e.clientX - 50}px`;
+          calDrag.ghost.style.top = `${e.clientY - 28}px`;
+        }
+        clearCalHighlights();
+        calDrag.targetDateKey = null;
+
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = under ? under.closest('[data-date-key]') : null;
+        if (cell) {
+          calDrag.targetDateKey = cell.getAttribute('data-date-key');
+          cell.classList.add('pk-cal-drop-hot');
+          cell.style.outline = '2px solid var(--accent-vermilion)';
+          cell.style.outlineOffset = '-2px';
+        }
+      }, { passive: false });
+
+      function finishCalDrag(e) {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        if (!calDrag || (e && e.pointerId !== calDrag.pointerId)) return;
+        const st = calDrag;
+        calDrag = null;
+        if (st.ghost) st.ghost.remove();
+        if (st.el) st.el.style.opacity = '';
+        clearCalHighlights();
+
+        if (!st.active) return;
+
+        // Prevent trailing click from opening event preview right after dragging
+        const suppressClick = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+        window.addEventListener('click', suppressClick, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener('click', suppressClick, { capture: true }), 80);
+
+        if (!st.targetDateKey) return;
+
+        const evt = state.events.find(item => item.id === st.eventId);
+        if (!evt) return;
+        const norm = normalizeEventRange(evt);
+        const deltaDays = diffDaysDateKeys(norm.startDateKey, st.targetDateKey);
+        if (deltaDays === 0) return;
+
+        if (evt.all_day) {
+          evt.start_datetime = addDaysToDateKey(norm.startDateKey, deltaDays);
+          if (evt.end_datetime) evt.end_datetime = addDaysToDateKey(norm.endDateKey, deltaDays);
+        } else {
+          const newStart = new Date(norm.start.getFullYear(), norm.start.getMonth(), norm.start.getDate() + deltaDays, norm.start.getHours(), norm.start.getMinutes(), 0, 0);
+          evt.start_datetime = newStart.toISOString();
+          if (evt.end_datetime) {
+            const dur = norm.end.getTime() - norm.start.getTime();
+            evt.end_datetime = new Date(newStart.getTime() + dur).toISOString();
+          }
+        }
+        state.calendarSelectedDate = st.targetDateKey;
+        renderAll();
+        persistState();
+        pkHaptic(16);
+        if (e) pkSpawnTouchRipple(e.clientX, e.clientY);
+        showToast(`Rescheduled "${evt.title}" to ${st.targetDateKey}`);
+      }
+
+      document.addEventListener('pointerup', finishCalDrag);
+      document.addEventListener('pointercancel', finishCalDrag);
+      document.addEventListener('touchmove', (e) => {
+        if (calDrag && calDrag.active && e.cancelable) e.preventDefault();
+      }, { passive: false });
+      document.addEventListener('contextmenu', (e) => {
+        if (calDrag && calDrag.active) e.preventDefault();
+      });
+    })();
+
+    // --- 20D. LIVE SPRING-PHYSICS FINGER SLIDING ON ANY BLOCK ROW ---
+    //     Slide Right -> Complete/Reopen Todo (or Convert to Todo!)
+    //     Slide Left  -> Duplicate (-65px) or Delete (-125px, Undo supported!)
+    (function initLiveSpringBlockSliding() {
+      let slide = null;
+      const badge = document.getElementById('pkBlockSlideBadge');
+
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
+        if (!targetEl || targetEl.closest('[data-drag-handle], input, button, canvas')) return;
+        const row = targetEl.closest('#blocksContainer .block-row');
+        if (!row) return;
+        const note = getActiveNote();
+        if (!note || note.locked) return;
+
+        const t = e.touches[0];
+        // Ignore screen-edge swipes reserved for Left/Right Sidebars
+        if (t.clientX < 32 || t.clientX > window.innerWidth - 32) return;
+
+        const rowId = row.getAttribute('data-row-id');
+        const blk = note.blocks.find(b => b.id === rowId);
+        if (!blk) return;
+
+        slide = {
+          row,
+          blockId: rowId,
+          blockType: blk.type,
+          checked: !!blk.checked,
+          startX: t.clientX,
+          startY: t.clientY,
+          dx: 0,
+          lockedHoriz: false,
+          aborted: false
+        };
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!slide || slide.aborted || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - slide.startX;
+        const dy = t.clientY - slide.startY;
+
+        if (!slide.lockedHoriz) {
+          if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
+            slide.aborted = true;
+            return;
+          }
+          if (Math.abs(dx) < 18) return;
+          slide.lockedHoriz = true;
+        }
+
+        // Rubber-band damped offset so the block glides physically under your finger!
+        const clamped = Math.max(-150, Math.min(110, dx * 0.72));
+        slide.dx = dx;
+        slide.row.style.transition = 'none';
+        slide.row.style.transform = `translateX(${clamped}px)`;
+
+        if (badge) {
+          const r = slide.row.getBoundingClientRect();
+          badge.style.top = `${Math.max(54, r.top + r.height / 2 - 12)}px`;
+          if (dx > 62) {
+            badge.textContent = slide.blockType === 'todo' ? (slide.checked ? 'Reopen' : 'Complete') : 'Make Todo';
+            badge.style.left = '14px';
+            badge.style.right = 'auto';
+            badge.className = 'fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md bg-emerald-600 text-white';
+          } else if (dx < -120) {
+            badge.textContent = 'Delete';
+            badge.style.left = 'auto';
+            badge.style.right = '14px';
+            badge.className = 'fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md bg-red-600 text-white';
+          } else if (dx < -62) {
+            badge.textContent = 'Duplicate';
+            badge.style.left = 'auto';
+            badge.style.right = '14px';
+            badge.className = 'fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md bg-[var(--accent-vermilion)] text-white';
+          } else {
+            badge.classList.add('hidden');
+          }
+        }
+      }, { passive: true });
+
+      const endSlide = (e) => {
+        if (!slide) return;
+        const st = slide;
+        slide = null;
+        if (badge) badge.classList.add('hidden');
+
+        if (!st.lockedHoriz || st.aborted) return;
+
+        // Smooth spring-back animation
+        st.row.style.transition = 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)';
+        st.row.style.transform = 'translateX(0)';
+        setTimeout(() => { st.row.style.transition = ''; st.row.style.transform = ''; }, 250);
+
+        const note = getActiveNote();
+        if (!note || note.locked) return;
+        const blk = note.blocks.find(b => b.id === st.blockId);
+        if (!blk) return;
+
+        const touchPt = e && e.changedTouches && e.changedTouches[0];
+        if (st.dx > 62) {
+          if (typeof takeSnapshot === 'function') takeSnapshot('slide-right-block');
+          if (blk.type === 'todo') {
+            blk.checked = !blk.checked;
+            showToast(blk.checked ? 'Marked task complete' : 'Reopened task');
+          } else {
+            blk.type = 'todo';
+            blk.checked = false;
+            showToast('Converted block to Todo');
+          }
+          note.updatedAt = TODAY_KEY;
+          renderBlocks(note);
+          persistState();
+          pkHaptic(12);
+          if (touchPt) pkSpawnTouchRipple(touchPt.clientX, touchPt.clientY, '#10B981');
+        } else if (st.dx < -120) {
+          deleteBlock(st.blockId);
+          pkHaptic(16);
+          if (touchPt) pkSpawnTouchRipple(touchPt.clientX, touchPt.clientY, '#EF4444');
+        } else if (st.dx < -62) {
+          if (typeof duplicateBlock === 'function') duplicateBlock(st.blockId);
+          pkHaptic(10);
+          if (touchPt) pkSpawnTouchRipple(touchPt.clientX, touchPt.clientY);
+        }
+      };
+
+      document.addEventListener('touchend', endSlide, { passive: true });
+      document.addEventListener('touchcancel', endSlide, { passive: true });
+    })();
+
+    // --- 20E. 1-THUMB HEADER FLICK TO FLIP BETWEEN NOTES ---
+    (function initHeaderNoteFlick() {
+      const header = document.getElementById('topHeaderBar');
+      if (!header) return;
+      let startX = 0, startY = 0, tracking = false;
+
+      header.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1 || state.appMode !== 'workspace') return;
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
+        if (targetEl && targetEl.closest('button')) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        tracking = true;
+      }, { passive: true });
+
+      header.addEventListener('touchend', (e) => {
+        if (!tracking || e.changedTouches.length === 0) return;
+        tracking = false;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) < 55 || Math.abs(dy) > 40 || state.notes.length < 2) return;
+
+        const curIdx = state.notes.findIndex(n => n.id === state.activeNoteId);
+        if (curIdx < 0) return;
+        const nextIdx = (curIdx + (dx < 0 ? 1 : -1) + state.notes.length) % state.notes.length;
+        selectNote(state.notes[nextIdx].id);
+        pkHaptic(10);
+        pkSpawnTouchRipple(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        showToast(`Switched to "${state.notes[nextIdx].title || 'Untitled'}"`);
+      }, { passive: true });
+    })();
+
+    // --- 20F. FLICK TAG PILLS UP/DOWN TO POP THEM OFF CLEANLY ---
+    (function initTagPillFlick() {
+      let tagDrag = null;
+
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
+        const pill = targetEl ? targetEl.closest('[data-tag-pill]') : null;
+        if (!pill || targetEl.closest('button')) return;
+        tagDrag = {
+          pill,
+          tag: pill.getAttribute('data-tag-pill'),
+          startY: e.touches[0].clientY,
+          dy: 0
+        };
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!tagDrag || e.touches.length !== 1) return;
+        const dy = e.touches[0].clientY - tagDrag.startY;
+        if (Math.abs(dy) < 10) return;
+        tagDrag.dy = dy;
+        tagDrag.pill.style.transition = 'none';
+        tagDrag.pill.style.transform = `translateY(${dy}px) scale(${Math.max(0.7, 1 - Math.abs(dy) / 140)})`;
+        tagDrag.pill.style.opacity = `${Math.max(0.2, 1 - Math.abs(dy) / 70)}`;
+      }, { passive: true });
+
+      const endTag = (e) => {
+        if (!tagDrag) return;
+        const st = tagDrag;
+        tagDrag = null;
+        if (Math.abs(st.dy) > 42 && typeof removeTag === 'function') {
+          removeTag(st.tag);
+          pkHaptic(10);
+          const pt = e.changedTouches && e.changedTouches[0];
+          if (pt) pkSpawnTouchRipple(pt.clientX, pt.clientY);
+          showToast(`Removed #${st.tag}`);
+        } else {
+          st.pill.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
+          st.pill.style.transform = '';
+          st.pill.style.opacity = '';
+        }
+      };
+      document.addEventListener('touchend', endTag, { passive: true });
+      document.addEventListener('touchcancel', endTag, { passive: true });
+    })();
   </script>
 
 </body>

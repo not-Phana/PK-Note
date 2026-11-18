@@ -1301,6 +1301,12 @@
             </svg>
           </button>
 
+          <!-- Read-Only Locked Indicator Pill (Only shown when active note is locked) -->
+          <button onclick="toggleNoteLock()" id="headerNoteLockBadge" title="Note is locked (read-only). Tap to unlock." class="hidden items-center gap-1 px-1.5 py-0.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold cursor-pointer">
+            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="hidden sm:inline">LOCKED</span>
+          </button>
+
           <!-- 1-Tap Read Aloud Button (Always visible on Phone & Desktop!) -->
           <button onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Note Aloud (Kokoro-82M Voice)" class="p-1.5 sm:px-2 sm:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
@@ -1318,6 +1324,12 @@
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
             <span class="hidden xl:inline">VOICE</span>
+          </button>
+
+          <!-- Pomodoro Focus Timer Button (Desktop) -->
+          <button onclick="openFocusTimerModal()" id="desktopFocusTimerBtn" title="Pomodoro Focus Timer" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
+            <span id="desktopFocusTimerLabel" class="hidden xl:inline">TIMER</span>
           </button>
 
           <!-- Mobile Undo Button (Always accessible on phone header) -->
@@ -2943,6 +2955,9 @@
       }
       if (typeof updateMobileUndoButtons === 'function') {
         updateMobileUndoButtons();
+      }
+      if (typeof applyNoteLockVisuals === 'function') {
+        applyNoteLockVisuals(getActiveNote());
       }
     }
 
@@ -4847,6 +4862,7 @@
       const container = document.getElementById('blocksContainer');
       container.innerHTML = note.blocks.map((block, index) => renderSingleBlockHTML(block, index)).join('');
       renderDocKnowledgeRadar(note);
+      if (typeof applyNoteLockVisuals === 'function') applyNoteLockVisuals(note);
     }
 
     function renderSingleBlockHTML(block) {
@@ -5565,6 +5581,9 @@
       }
       if (typeof updateMobileUndoButtons === 'function') {
         updateMobileUndoButtons();
+      }
+      if (typeof applyNoteLockVisuals === 'function') {
+        applyNoteLockVisuals(getActiveNote());
       }
     }
 
@@ -7322,9 +7341,15 @@
         { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'sparkles', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
         { kind: 'action', label: 'Toggle Magnetic Cursor Spotlight', hint: 'Luminous ambient spotlight following cursor', glyph: 'sun', shortcut: 'Spotlight', run: () => toggleCursorSpotlight() },
         { kind: 'action', label: 'Toggle Mechanical Typing Audio', hint: 'Tactile switch audio feedback while typing', glyph: 'terminal', shortcut: 'Typing', run: () => toggleMechanicalTyping() },
-        { kind: 'action', label: 'Voice Synthesis Studio: Kokoro-82M Male/Female Voices', hint: 'Switch Kokoro-82M neural male & female voices, speed & engine', glyph: 'sliders', shortcut: 'Voice', run: () => openVoiceModelModal() },
+        { kind: 'action', label: 'Voice Synthesis Studio: Kokoro-82M Voices', hint: 'Switch Cute, Female & Male Kokoro-82M voices, speed & tone', glyph: 'sliders', shortcut: 'Voice', run: () => openVoiceModelModal() },
         { kind: 'action', label: 'Read Document Aloud (Kokoro-82M Voice)', hint: 'Natural neural audiobook speech from active note or selection', glyph: 'volume', shortcut: 'Voice', run: () => toggleReadingNoteAloud() },
         { kind: 'action', label: 'Stop Voice Reading', hint: 'Halt active speech synthesizer audio reader', glyph: 'volume', shortcut: 'Stop', run: () => stopReadingAloud() },
+        { kind: 'action', label: 'Voice Dictation: Talk to Write Notes', hint: 'Speak naturally on phone or PC to transcribe text into your note', glyph: 'volume', shortcut: 'Mic', run: () => toggleVoiceDictation() },
+        { kind: 'action', label: 'Find & Replace in Active Note', hint: 'Search text across all blocks with match navigation & replace all', glyph: 'search', shortcut: 'Ctrl+H', run: () => openFindReplaceBar() },
+        { kind: 'action', label: 'Note Templates Gallery', hint: 'Create or insert structured Meeting, Journal, Study, Project & Book templates', glyph: 'document', shortcut: 'Tpl', run: () => openTemplatesModal() },
+        { kind: 'action', label: 'Pomodoro Focus Timer', hint: '25m / 50m study & deep work timer with chime & session tracker', glyph: 'clock', shortcut: 'Timer', run: () => openFocusTimerModal() },
+        { kind: 'action', label: 'Import Markdown File (.md / .txt)', hint: 'Import external Markdown notes with headings, todos & code blocks', glyph: 'document', shortcut: 'Import', run: () => triggerMarkdownImport() },
+        { kind: 'action', label: 'Toggle Read-Only Note Lock', hint: 'Protect active document from accidental edits while reading', glyph: 'alert', shortcut: 'Lock', run: () => toggleNoteLock() },
         { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
         { kind: 'action', label: 'Calendar: Export to iCalendar (.ics)', hint: 'Download RFC 5545 standard .ics file for Apple/Google/Outlook', glyph: 'calendar', shortcut: 'E', run: () => exportCalendarToICS() },
         { kind: 'action', label: 'Calendar: Year Matrix View', hint: '12-month activity heatmap overview', glyph: 'calendar', shortcut: 'Y', run: () => setCalendarView('year') },
@@ -14239,6 +14264,27 @@
         </div>
         <span class="font-mono text-[9px] text-[var(--text-tertiary)]">THEME</span>
       </button>
+      <button onclick="openFindReplaceBar(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
+          <span>Find &amp; Replace</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">CTRL+H</span>
+      </button>
+      <button onclick="openTemplatesModal(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Note Templates</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">GALLERY</span>
+      </button>
+      <button onclick="toggleNoteLock(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Lock / Unlock Note</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--text-tertiary)]">READ-ONLY</span>
+      </button>
       <div class="my-1 border-t border-[var(--border-hairline)]"></div>
       <button onclick="exportCurrentNoteMarkdown(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
         <div class="flex items-center gap-2">
@@ -14246,6 +14292,13 @@
           <span>Export Markdown (.md)</span>
         </div>
         <span class="font-mono text-[9px] text-[var(--text-tertiary)]">MD</span>
+      </button>
+      <button onclick="triggerMarkdownImport(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors cursor-pointer">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+          <span>Import Markdown (.md)</span>
+        </div>
+        <span class="font-mono text-[9px] text-[var(--accent-vermilion)]">NEW</span>
       </button>
 
       <button onclick="printCurrentNote(); closeNoteActionsMenu();" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] text-left transition-colors">
@@ -14371,6 +14424,9 @@
       <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       </button>
+      <button type="button" onmousedown="event.preventDefault(); toggleVoiceDictation()" id="mobileDictateBtn" title="Voice Dictation (Talk to Write)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      </button>
       <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer shrink-0" title="Undo (↶)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
@@ -14464,6 +14520,18 @@
           <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <span class="font-medium text-xs text-[var(--text-primary)]">Voice Studio</span>
           <span class="text-[10px] text-[var(--text-tertiary)]">Cute, Female & Male voices</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); openTemplatesModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <svg class="w-5 h-5 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span class="font-medium text-xs text-[var(--text-primary)]">Templates</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Meeting, study & journal</span>
+        </button>
+
+        <button onclick="closeMobileQuickMenu(); toggleVoiceDictation()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
+          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <span class="font-medium text-xs text-[var(--text-primary)]">Voice Dictate</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">Speak to write notes</span>
         </button>
       </div>
     </div>
@@ -15021,8 +15089,56 @@
 
         <!-- 3. Compact 2-Column Computer Power Tools Grid (Clean Minimalist SVG Icons) -->
         <div class="space-y-1.5">
-          <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold px-0.5">Desktop &amp; Document Tools</div>
+          <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold px-0.5">Desktop &amp; Productivity Tools</div>
           <div class="grid grid-cols-2 gap-2">
+            <button onclick="closeMobileMoreSheet(); toggleVoiceDictation()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Voice Dictate</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Talk to write note</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openFindReplaceBar()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Find &amp; Replace</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Search inside note</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openTemplatesModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-ochre)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Templates</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">6 ready layouts</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); openFocusTimerModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Focus Timer</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">25m / 50m Pomodoro</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); toggleNoteLock()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate" id="mobileSheetLockLabel">Lock Note</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Read-only guard</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); triggerMarkdownImport()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Import .md</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Load Markdown file</div>
+              </div>
+            </button>
+
             <button onclick="closeMobileMoreSheet(); openCustomizerModal('banner')" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
               <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               <div class="min-w-0">
@@ -15084,6 +15200,22 @@
               <div class="min-w-0">
                 <div class="font-medium text-[var(--text-primary)] truncate">Backup Vault</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Save all JSON data</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); triggerVaultRestoreFile()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-ochre)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Restore Vault</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Import JSON backup</div>
+              </div>
+            </button>
+
+            <button onclick="closeMobileMoreSheet(); printCurrentNote()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--text-primary)] truncate">Print / PDF</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Save clean PDF</div>
               </div>
             </button>
 
@@ -15299,6 +15431,856 @@
 
     </div>
   </div>
+
+  <!-- Hidden Markdown File Importer (.md / .txt) -->
+  <input type="file" id="pkMarkdownImportInput" accept=".md,.markdown,.txt,text/markdown,text/plain" class="hidden" onchange="handleMarkdownFileImport(event)" />
+
+  <!-- 1. Floating Find & Replace Bar (Ctrl+H / Cmd+Shift+F & Phone Command Deck) -->
+  <div id="pkFindReplaceBar" class="hidden fixed top-14 inset-x-0 mx-auto w-[94vw] max-w-md z-[910] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl p-3 space-y-2 select-none backdrop-blur-xl">
+    <div class="flex items-center gap-1.5">
+      <div class="relative flex-1">
+        <input type="text" id="pkFindInput" oninput="runNoteFind()" onkeydown="if(event.key==='Enter'){event.preventDefault();jumpNoteFindMatch(event.shiftKey?-1:1);} if(event.key==='Escape'){closeFindReplaceBar();}" placeholder="Find in note..." class="w-full pl-2.5 pr-14 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
+        <span id="pkFindMatchCount" class="absolute right-2 top-1.5 font-mono text-[10px] text-[var(--text-tertiary)]">0 / 0</span>
+      </div>
+      <button onclick="toggleFindCaseSensitive()" id="pkFindCaseBtn" title="Match Case" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Aa</button>
+      <button onclick="jumpNoteFindMatch(-1)" title="Previous Match" class="p-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <button onclick="jumpNoteFindMatch(1)" title="Next Match" class="p-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button onclick="closeFindReplaceBar()" title="Close" class="p-1.5 rounded-[3px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <input type="text" id="pkReplaceInput" onkeydown="if(event.key==='Enter'){event.preventDefault();replaceCurrentFindMatch();} if(event.key==='Escape'){closeFindReplaceBar();}" placeholder="Replace with..." class="flex-1 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
+      <button onclick="replaceCurrentFindMatch()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-primary)] cursor-pointer shrink-0">Replace</button>
+      <button onclick="replaceAllFindMatches()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 font-mono text-[10px] text-white font-medium cursor-pointer shrink-0">All</button>
+    </div>
+  </div>
+
+  <!-- 2. Floating Voice-to-Text Dictation HUD (Perfectly Centered on Phone & Desktop) -->
+  <div id="pkDictationHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[915] flex items-center gap-2.5 px-3.5 py-2 rounded-full popover-surface border border-[var(--accent-vermilion)] shadow-2xl select-none backdrop-blur-xl">
+    <span class="w-2.5 h-2.5 rounded-full bg-[var(--accent-vermilion)] animate-ping shrink-0"></span>
+    <div class="flex flex-col min-w-0 max-w-[180px] sm:max-w-[280px]">
+      <span class="font-mono text-[9px] uppercase tracking-wider text-[var(--accent-vermilion)] font-semibold">Listening · Voice Dictation</span>
+      <span id="pkDictationPreview" class="font-serif text-xs text-[var(--text-primary)] truncate">Speak naturally to write...</span>
+    </div>
+    <button onclick="stopVoiceDictation()" class="px-2.5 py-1 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-medium hover:opacity-90 cursor-pointer shrink-0">Stop</button>
+  </div>
+
+  <!-- 3. Floating Pomodoro Focus Timer Pill (Visible when timer is running/active) -->
+  <div id="pkFocusTimerHUD" class="hidden fixed top-14 right-3 sm:right-5 z-[890] flex items-center gap-2 px-3 py-1.5 rounded-full popover-surface border border-[var(--border-strong)] shadow-xl select-none backdrop-blur-xl">
+    <span id="pkFocusTimerDot" class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)] animate-pulse shrink-0"></span>
+    <button onclick="openFocusTimerModal()" class="font-mono text-xs font-semibold text-[var(--text-primary)] tabular-nums cursor-pointer" id="pkFocusTimerHudClock">25:00</button>
+    <button onclick="toggleFocusTimerPause()" id="pkFocusTimerHudToggle" title="Pause / Resume" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+      <svg id="pkTimerHudPauseIcon" class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      <svg id="pkTimerHudPlayIcon" class="hidden w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+    </button>
+    <button onclick="hideFocusTimerHUD()" title="Dismiss Timer" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- 4. Smart Note Templates Gallery Modal -->
+  <div id="templatesModalBackdrop" onclick="closeTemplatesModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[982] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-lg max-h-[86vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
+      <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
+        <div>
+          <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Note Templates Gallery</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Start a structured note or insert into your current document</div>
+        </div>
+        <button onclick="closeTemplatesModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-2.5 text-xs" id="templatesGalleryList"></div>
+    </div>
+  </div>
+
+  <!-- 5. Pomodoro Focus Timer Modal -->
+  <div id="focusTimerModalBackdrop" onclick="closeFocusTimerModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[982] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
+      <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between">
+        <div>
+          <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Focus Timer</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]" id="focusTimerSessionsBadge">Completed sessions today: 0</div>
+        </div>
+        <button onclick="closeFocusTimerModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+      <div class="p-5 space-y-4 text-center">
+        <div class="grid grid-cols-4 gap-1 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)] font-mono text-[10px]">
+          <button onclick="setFocusTimerPreset(25, 'Focus')" id="timerPreset25" class="py-1.5 rounded bg-[var(--bg-panel)] text-[var(--text-primary)] font-semibold border border-[var(--border-strong)] cursor-pointer">25m</button>
+          <button onclick="setFocusTimerPreset(50, 'Deep Work')" id="timerPreset50" class="py-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer">50m</button>
+          <button onclick="setFocusTimerPreset(5, 'Short Break')" id="timerPreset5" class="py-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer">5m</button>
+          <button onclick="setFocusTimerPreset(15, 'Long Break')" id="timerPreset15" class="py-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer">15m</button>
+        </div>
+        <div class="py-3">
+          <div id="focusTimerModeLabel" class="font-mono text-[10px] uppercase tracking-widest text-[var(--accent-vermilion)] font-semibold mb-1">Focus Session</div>
+          <div id="focusTimerMainClock" class="font-mono text-5xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">25:00</div>
+        </div>
+        <div class="flex items-center justify-center gap-2 font-mono text-xs">
+          <button onclick="toggleFocusTimerPause()" id="focusTimerStartBtn" class="flex-1 py-2.5 px-4 rounded-lg bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium cursor-pointer transition-opacity">Start Focus</button>
+          <button onclick="resetFocusTimer()" class="py-2.5 px-4 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer transition-colors">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 18. POWER PRODUCTIVITY SUITE (100% Client-Side, Zero Server, Zero Emoji)
+    //     Dictation · Find & Replace · Templates · Focus Timer · MD Import · Lock
+    // =========================================================================
+
+    // --- 18A. VOICE-TO-TEXT DICTATION (Browser SpeechRecognition API) ---
+    let pkDictationRecognition = null;
+    let isDictationActive = false;
+
+    function toggleVoiceDictation() {
+      if (isDictationActive) {
+        stopVoiceDictation();
+        return;
+      }
+      const note = getActiveNote();
+      if (note && note.locked) {
+        showToast('Unlock note before dictating', 'ochre');
+        return;
+      }
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        showToast('Voice dictation is not supported in this browser (try Chrome, Edge, or Safari)', 'ochre');
+        return;
+      }
+
+      if (typeof stopReadingAloud === 'function') stopReadingAloud();
+
+      try {
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = navigator.language || 'en-US';
+
+        const hud = document.getElementById('pkDictationHUD');
+        const preview = document.getElementById('pkDictationPreview');
+        const mobileBtn = document.getElementById('mobileDictateBtn');
+
+        rec.onstart = () => {
+          isDictationActive = true;
+          if (hud) hud.classList.remove('hidden');
+          if (preview) preview.textContent = 'Listening... speak naturally';
+          if (mobileBtn) mobileBtn.classList.add('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
+          showToast('Voice dictation started — speak to write');
+        };
+
+        rec.onresult = (event) => {
+          let interim = '';
+          let finalText = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalText += transcript;
+            } else {
+              interim += transcript;
+            }
+          }
+          if (preview) {
+            preview.textContent = (interim || finalText || 'Listening...').trim();
+          }
+          if (finalText && finalText.trim()) {
+            insertDictatedTextIntoNote(finalText.trim());
+          }
+        };
+
+        rec.onerror = (err) => {
+          if (err.error === 'not-allowed') {
+            showToast('Microphone permission denied', 'ochre');
+          } else if (err.error !== 'no-speech' && err.error !== 'aborted') {
+            showToast('Dictation error: ' + err.error, 'ochre');
+          }
+          stopVoiceDictation();
+        };
+
+        rec.onend = () => {
+          if (isDictationActive) {
+            // Auto-restart continuous dictation on mobile Safari/Chrome pauses
+            try { rec.start(); } catch (e) { stopVoiceDictation(); }
+          }
+        };
+
+        pkDictationRecognition = rec;
+        rec.start();
+      } catch (err) {
+        showToast('Could not start microphone dictation', 'ochre');
+        stopVoiceDictation();
+      }
+    }
+
+    function insertDictatedTextIntoNote(spokenText) {
+      const note = getActiveNote();
+      if (!note || note.locked) return;
+      if (typeof takeSnapshot === 'function') takeSnapshot('voice-dictation');
+
+      // Format cleanly with sentence capitalization & ending period if none present
+      let clean = spokenText.charAt(0).toUpperCase() + spokenText.slice(1);
+      if (!/[.!?]$/.test(clean)) clean += '.';
+
+      let targetBlock = null;
+      if (typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
+        targetBlock = note.blocks.find(b => b.id === activeEditingBlockId);
+      }
+      if (targetBlock && targetBlock.type !== 'divider') {
+        targetBlock.content = targetBlock.content && targetBlock.content.trim()
+          ? `${targetBlock.content.trim()} ${clean}`
+          : clean;
+      } else {
+        const last = note.blocks[note.blocks.length - 1];
+        if (last && last.type === 'paragraph' && (!last.content || !last.content.trim())) {
+          last.content = clean;
+          targetBlock = last;
+        } else {
+          targetBlock = { id: generateId('b'), type: 'paragraph', content: clean };
+          note.blocks.push(targetBlock);
+        }
+      }
+
+      note.updatedAt = TODAY_KEY;
+      renderBlocks(note);
+      if (typeof updateWordCount === 'function') updateWordCount(note);
+      persistState();
+    }
+
+    function stopVoiceDictation() {
+      isDictationActive = false;
+      if (pkDictationRecognition) {
+        try {
+          pkDictationRecognition.onend = null;
+          pkDictationRecognition.stop();
+        } catch (e) {}
+        pkDictationRecognition = null;
+      }
+      const hud = document.getElementById('pkDictationHUD');
+      if (hud) hud.classList.add('hidden');
+      const mobileBtn = document.getElementById('mobileDictateBtn');
+      if (mobileBtn) mobileBtn.classList.remove('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
+    }
+
+    // --- 18B. FIND & REPLACE INSIDE ACTIVE NOTE (Ctrl+H / Cmd+Shift+F) ---
+    let pkFindCaseSensitive = false;
+    let pkFindMatches = []; // [{ blockId, index }]
+    let pkFindActiveIdx = -1;
+
+    function openFindReplaceBar() {
+      const bar = document.getElementById('pkFindReplaceBar');
+      if (!bar) return;
+      bar.classList.remove('hidden');
+      const input = document.getElementById('pkFindInput');
+      if (input) {
+        const sel = window.getSelection ? window.getSelection().toString().trim() : '';
+        if (sel && sel.length < 60 && !sel.includes('\n')) input.value = sel;
+        input.focus();
+        input.select();
+      }
+      runNoteFind();
+    }
+
+    function closeFindReplaceBar() {
+      const bar = document.getElementById('pkFindReplaceBar');
+      if (bar) bar.classList.add('hidden');
+      clearFindHighlights();
+      pkFindMatches = [];
+      pkFindActiveIdx = -1;
+    }
+
+    function clearFindHighlights() {
+      document.querySelectorAll('.pk-find-match-block').forEach(el => {
+        el.classList.remove('pk-find-match-block');
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+      });
+    }
+
+    function toggleFindCaseSensitive() {
+      pkFindCaseSensitive = !pkFindCaseSensitive;
+      const btn = document.getElementById('pkFindCaseBtn');
+      if (btn) {
+        btn.className = pkFindCaseSensitive
+          ? 'px-2 py-1.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)] font-mono text-[10px] text-[var(--accent-vermilion)] font-semibold cursor-pointer'
+          : 'px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      }
+      runNoteFind();
+    }
+
+    function escapeRegexStr(s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function runNoteFind() {
+      clearFindHighlights();
+      const note = getActiveNote();
+      const query = document.getElementById('pkFindInput')?.value || '';
+      const countEl = document.getElementById('pkFindMatchCount');
+      pkFindMatches = [];
+      pkFindActiveIdx = -1;
+
+      if (!note || !query) {
+        if (countEl) countEl.textContent = '0 / 0';
+        return;
+      }
+
+      const flags = pkFindCaseSensitive ? 'g' : 'gi';
+      const rx = new RegExp(escapeRegexStr(query), flags);
+
+      (note.blocks || []).forEach(b => {
+        const text = b.content || '';
+        let m;
+        rx.lastIndex = 0;
+        while ((m = rx.exec(text)) !== null) {
+          pkFindMatches.push({ blockId: b.id, start: m.index, len: m[0].length });
+          if (m[0].length === 0) break;
+        }
+      });
+
+      if (pkFindMatches.length > 0) {
+        pkFindActiveIdx = 0;
+        highlightActiveFindMatch();
+      }
+      if (countEl) {
+        countEl.textContent = pkFindMatches.length > 0 ? `${pkFindActiveIdx + 1} / ${pkFindMatches.length}` : '0 / 0';
+      }
+    }
+
+    function highlightActiveFindMatch() {
+      clearFindHighlights();
+      if (pkFindActiveIdx < 0 || pkFindActiveIdx >= pkFindMatches.length) return;
+      const match = pkFindMatches[pkFindActiveIdx];
+      const el = document.querySelector(`[data-block-id="${match.blockId}"]`);
+      if (el) {
+        el.classList.add('pk-find-match-block');
+        el.style.outline = '1.5px solid var(--accent-vermilion)';
+        el.style.outlineOffset = '3px';
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      const countEl = document.getElementById('pkFindMatchCount');
+      if (countEl) countEl.textContent = `${pkFindActiveIdx + 1} / ${pkFindMatches.length}`;
+    }
+
+    function jumpNoteFindMatch(delta) {
+      if (pkFindMatches.length === 0) return;
+      pkFindActiveIdx = (pkFindActiveIdx + delta + pkFindMatches.length) % pkFindMatches.length;
+      highlightActiveFindMatch();
+    }
+
+    function replaceCurrentFindMatch() {
+      const note = getActiveNote();
+      if (!note || note.locked) {
+        if (note && note.locked) showToast('Note is locked (read-only)', 'ochre');
+        return;
+      }
+      if (pkFindActiveIdx < 0 || pkFindActiveIdx >= pkFindMatches.length) return;
+      const replacement = document.getElementById('pkReplaceInput')?.value ?? '';
+      const match = pkFindMatches[pkFindActiveIdx];
+      const block = note.blocks.find(b => b.id === match.blockId);
+      if (!block) return;
+
+      if (typeof takeSnapshot === 'function') takeSnapshot('find-replace-one');
+      block.content = block.content.slice(0, match.start) + replacement + block.content.slice(match.start + match.len);
+      note.updatedAt = TODAY_KEY;
+      renderBlocks(note);
+      persistState();
+      runNoteFind();
+      showToast('Replaced 1 match');
+    }
+
+    function replaceAllFindMatches() {
+      const note = getActiveNote();
+      if (!note || note.locked) {
+        if (note && note.locked) showToast('Note is locked (read-only)', 'ochre');
+        return;
+      }
+      const query = document.getElementById('pkFindInput')?.value || '';
+      const replacement = document.getElementById('pkReplaceInput')?.value ?? '';
+      if (!query || pkFindMatches.length === 0) {
+        showToast('No matches to replace', 'ochre');
+        return;
+      }
+
+      const count = pkFindMatches.length;
+      if (typeof takeSnapshot === 'function') takeSnapshot('find-replace-all');
+      const flags = pkFindCaseSensitive ? 'g' : 'gi';
+      const rx = new RegExp(escapeRegexStr(query), flags);
+
+      (note.blocks || []).forEach(b => {
+        if (b.content) b.content = b.content.replace(rx, () => replacement);
+      });
+
+      note.updatedAt = TODAY_KEY;
+      renderBlocks(note);
+      if (typeof updateWordCount === 'function') updateWordCount(note);
+      persistState();
+      runNoteFind();
+      showToast(`Replaced ${count} matches (Undo available)`);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        openFindReplaceBar();
+      }
+    });
+
+    // --- 18C. SMART NOTE TEMPLATES GALLERY ---
+    const NOTE_TEMPLATES = [
+      {
+        id: 'tpl_meeting',
+        title: 'Meeting Notes',
+        category: 'Work',
+        desc: 'Attendees, agenda, discussion points & action items',
+        tags: ['meeting', 'work'],
+        blocks: [
+          { type: 'h2', content: 'Meeting Details' },
+          { type: 'bullet', content: 'Date: ' + new Date().toLocaleDateString() },
+          { type: 'bullet', content: 'Attendees: ' },
+          { type: 'h2', content: 'Agenda & Key Points' },
+          { type: 'paragraph', content: 'Summarize core decisions and context discussed.' },
+          { type: 'h2', content: 'Action Items' },
+          { type: 'todo', content: 'Follow up on key deliverables', checked: false },
+          { type: 'todo', content: 'Share summary notes with team', checked: false }
+        ]
+      },
+      {
+        id: 'tpl_journal',
+        title: 'Daily Journal & Reflection',
+        category: 'Personal',
+        desc: 'Top 3 priorities, thoughts & end-of-day review',
+        tags: ['journal', 'daily'],
+        blocks: [
+          { type: 'h2', content: 'Top 3 Priorities Today' },
+          { type: 'todo', content: 'Priority 1: ', checked: false },
+          { type: 'todo', content: 'Priority 2: ', checked: false },
+          { type: 'todo', content: 'Priority 3: ', checked: false },
+          { type: 'h2', content: 'Notes & Observations' },
+          { type: 'paragraph', content: 'Capture ideas, conversations, and insights from the day.' },
+          { type: 'h2', content: 'Evening Review' },
+          { type: 'quote', content: 'What went well today, and what can improve tomorrow?' }
+        ]
+      },
+      {
+        id: 'tpl_study',
+        title: 'Study & Lecture Notes',
+        category: 'Learning',
+        desc: 'Core concepts, key terms, summary & review questions',
+        tags: ['study', 'notes'],
+        blocks: [
+          { type: 'h2', content: 'Core Concept' },
+          { type: 'paragraph', content: 'Explain the main topic in your own words.' },
+          { type: 'h2', content: 'Key Terms & Definitions' },
+          { type: 'bullet', content: 'Term 1 — Definition and example' },
+          { type: 'bullet', content: 'Term 2 — Definition and example' },
+          { type: 'h2', content: 'Review Questions' },
+          { type: 'todo', content: 'Test recall on main concepts without looking', checked: false }
+        ]
+      },
+      {
+        id: 'tpl_project',
+        title: 'Project Plan & Milestones',
+        category: 'Planning',
+        desc: 'Objective, scope, milestone checklist & open risks',
+        tags: ['project', 'plan'],
+        blocks: [
+          { type: 'h2', content: 'Objective' },
+          { type: 'paragraph', content: 'Define what success looks like for this project.' },
+          { type: 'h2', content: 'Milestones' },
+          { type: 'todo', content: 'Phase 1: Research & architecture', checked: false },
+          { type: 'todo', content: 'Phase 2: Core implementation', checked: false },
+          { type: 'todo', content: 'Phase 3: Testing & launch', checked: false },
+          { type: 'h2', content: 'Open Risks & Questions' },
+          { type: 'bullet', content: 'Potential blockers or dependencies to watch' }
+        ]
+      },
+      {
+        id: 'tpl_book',
+        title: 'Book / Article Summary',
+        category: 'Reading',
+        desc: 'Source metadata, core thesis, takeaways & quotes',
+        tags: ['reading', 'summary'],
+        blocks: [
+          { type: 'h2', content: 'Source & Author' },
+          { type: 'bullet', content: 'Author: ' },
+          { type: 'bullet', content: 'Core Thesis: ' },
+          { type: 'h2', content: 'Key Takeaways' },
+          { type: 'bullet', content: 'Takeaway 1: ' },
+          { type: 'bullet', content: 'Takeaway 2: ' },
+          { type: 'h2', content: 'Notable Passage' },
+          { type: 'quote', content: 'Record a memorable quote or argument here.' }
+        ]
+      },
+      {
+        id: 'tpl_checklist',
+        title: 'Quick Checklist',
+        category: 'Tasks',
+        desc: 'Clean grouped action list ready to check off',
+        tags: ['tasks', 'checklist'],
+        blocks: [
+          { type: 'h2', content: 'Must Do' },
+          { type: 'todo', content: 'First task', checked: false },
+          { type: 'todo', content: 'Second task', checked: false },
+          { type: 'h2', content: 'Later' },
+          { type: 'todo', content: 'Optional task', checked: false }
+        ]
+      }
+    ];
+
+    function openTemplatesModal() {
+      const list = document.getElementById('templatesGalleryList');
+      if (list) {
+        list.innerHTML = NOTE_TEMPLATES.map(t => `
+          <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-serif font-semibold text-xs text-[var(--text-primary)]">${escapeHtml(t.title)}</div>
+                <div class="font-mono text-[10px] text-[var(--text-tertiary)] mt-0.5">${escapeHtml(t.desc)}</div>
+              </div>
+              <span class="px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9px] text-[var(--text-tertiary)] uppercase shrink-0">${escapeHtml(t.category)}</span>
+            </div>
+            <div class="flex items-center gap-1.5 pt-1 font-mono text-[10px]">
+              <button onclick="applyNoteTemplate('${t.id}', 'new')" class="flex-1 py-1.5 px-2.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-medium cursor-pointer transition-opacity">New Note</button>
+              <button onclick="applyNoteTemplate('${t.id}', 'append')" class="flex-1 py-1.5 px-2.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer transition-colors">Insert in Current</button>
+            </div>
+          </div>
+        `).join('');
+      }
+      const backdrop = document.getElementById('templatesModalBackdrop');
+      if (backdrop) {
+        backdrop.classList.remove('hidden');
+        playWhooshSound();
+      }
+    }
+
+    function closeTemplatesModal() {
+      const backdrop = document.getElementById('templatesModalBackdrop');
+      if (backdrop) backdrop.classList.add('hidden');
+    }
+
+    function applyNoteTemplate(templateId, mode = 'new') {
+      const tpl = NOTE_TEMPLATES.find(t => t.id === templateId);
+      if (!tpl) return;
+
+      const freshBlocks = tpl.blocks.map(b => ({
+        id: generateId('b'),
+        type: b.type,
+        content: b.content,
+        ...(b.type === 'todo' ? { checked: !!b.checked } : {})
+      }));
+
+      if (mode === 'append') {
+        const note = getActiveNote();
+        if (!note) return;
+        if (note.locked) {
+          showToast('Unlock note before inserting a template', 'ochre');
+          return;
+        }
+        if (typeof takeSnapshot === 'function') takeSnapshot('insert-template');
+        note.blocks.push(...freshBlocks);
+        note.updatedAt = TODAY_KEY;
+        renderBlocks(note);
+        if (typeof updateWordCount === 'function') updateWordCount(note);
+        persistState();
+        closeTemplatesModal();
+        showToast(`Inserted "${tpl.title}" template`);
+        return;
+      }
+
+      const nextNum = String(state.notes.length + 1).padStart(2, '0');
+      const folder = (getActiveNote() && getActiveNote().folder) || 'General';
+      const newNote = {
+        id: generateId('note'),
+        code: `DOC-${nextNum}`,
+        title: tpl.title,
+        glyph: 'document',
+        folder,
+        favorite: false,
+        tags: [...tpl.tags],
+        updatedAt: TODAY_KEY,
+        blocks: freshBlocks
+      };
+      state.notes.unshift(newNote);
+      state.expandedFolders[folder] = true;
+      closeTemplatesModal();
+      selectNote(newNote.id);
+      showToast(`Created "${tpl.title}" from template`);
+    }
+
+    // --- 18D. POMODORO FOCUS TIMER (25m / 50m / 5m / 15m) ---
+    let pkFocusTimerSecondsLeft = 25 * 60;
+    let pkFocusTimerDurationSecs = 25 * 60;
+    let pkFocusTimerMode = 'Focus';
+    let pkFocusTimerRunning = false;
+    let pkFocusTimerInterval = null;
+    let pkFocusSessionsDone = 0;
+
+    function formatTimerMMSS(secs) {
+      const s = Math.max(0, Math.floor(secs));
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    }
+
+    function syncFocusTimerUI() {
+      const formatted = formatTimerMMSS(pkFocusTimerSecondsLeft);
+      const mainClock = document.getElementById('focusTimerMainClock');
+      const hudClock = document.getElementById('pkFocusTimerHudClock');
+      const desktopLabel = document.getElementById('desktopFocusTimerLabel');
+      const startBtn = document.getElementById('focusTimerStartBtn');
+      const modeEl = document.getElementById('focusTimerModeLabel');
+      const sessionsEl = document.getElementById('focusTimerSessionsBadge');
+      const pauseIcon = document.getElementById('pkTimerHudPauseIcon');
+      const playIcon = document.getElementById('pkTimerHudPlayIcon');
+      const dot = document.getElementById('pkFocusTimerDot');
+
+      if (mainClock) mainClock.textContent = formatted;
+      if (hudClock) hudClock.textContent = formatted;
+      if (desktopLabel) desktopLabel.textContent = pkFocusTimerRunning ? formatted : 'TIMER';
+      if (startBtn) startBtn.textContent = pkFocusTimerRunning ? 'Pause' : (pkFocusTimerSecondsLeft < pkFocusTimerDurationSecs ? 'Resume' : 'Start Focus');
+      if (modeEl) modeEl.textContent = `${pkFocusTimerMode} Session`;
+      if (sessionsEl) sessionsEl.textContent = `Completed sessions today: ${pkFocusSessionsDone}`;
+      if (pauseIcon) pauseIcon.classList.toggle('hidden', !pkFocusTimerRunning);
+      if (playIcon) playIcon.classList.toggle('hidden', pkFocusTimerRunning);
+      if (dot) dot.className = pkFocusTimerRunning ? 'w-2 h-2 rounded-full bg-[var(--accent-vermilion)] animate-pulse shrink-0' : 'w-2 h-2 rounded-full bg-[var(--text-tertiary)] shrink-0';
+    }
+
+    function openFocusTimerModal() {
+      syncFocusTimerUI();
+      const backdrop = document.getElementById('focusTimerModalBackdrop');
+      if (backdrop) {
+        backdrop.classList.remove('hidden');
+        playWhooshSound();
+      }
+    }
+
+    function closeFocusTimerModal() {
+      const backdrop = document.getElementById('focusTimerModalBackdrop');
+      if (backdrop) backdrop.classList.add('hidden');
+    }
+
+    function setFocusTimerPreset(mins, label) {
+      if (pkFocusTimerInterval) {
+        clearInterval(pkFocusTimerInterval);
+        pkFocusTimerInterval = null;
+      }
+      pkFocusTimerRunning = false;
+      pkFocusTimerDurationSecs = mins * 60;
+      pkFocusTimerSecondsLeft = mins * 60;
+      pkFocusTimerMode = label;
+
+      [25, 50, 5, 15].forEach(p => {
+        const b = document.getElementById(`timerPreset${p}`);
+        if (!b) return;
+        b.className = p === mins
+          ? 'py-1.5 rounded bg-[var(--bg-panel)] text-[var(--text-primary)] font-semibold border border-[var(--border-strong)] cursor-pointer'
+          : 'py-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer';
+      });
+      syncFocusTimerUI();
+    }
+
+    function toggleFocusTimerPause() {
+      const hud = document.getElementById('pkFocusTimerHUD');
+      if (pkFocusTimerRunning) {
+        pkFocusTimerRunning = false;
+        if (pkFocusTimerInterval) {
+          clearInterval(pkFocusTimerInterval);
+          pkFocusTimerInterval = null;
+        }
+        syncFocusTimerUI();
+        return;
+      }
+
+      if (pkFocusTimerSecondsLeft <= 0) {
+        pkFocusTimerSecondsLeft = pkFocusTimerDurationSecs;
+      }
+      pkFocusTimerRunning = true;
+      if (hud) hud.classList.remove('hidden');
+      syncFocusTimerUI();
+
+      pkFocusTimerInterval = setInterval(() => {
+        pkFocusTimerSecondsLeft--;
+        syncFocusTimerUI();
+        if (pkFocusTimerSecondsLeft <= 0) {
+          clearInterval(pkFocusTimerInterval);
+          pkFocusTimerInterval = null;
+          pkFocusTimerRunning = false;
+          if (pkFocusTimerMode === 'Focus' || pkFocusTimerMode === 'Deep Work') {
+            pkFocusSessionsDone++;
+          }
+          syncFocusTimerUI();
+          if (typeof playChimeSound === 'function') playChimeSound();
+          showToast(`${pkFocusTimerMode} session complete!`);
+        }
+      }, 1000);
+    }
+
+    function resetFocusTimer() {
+      if (pkFocusTimerInterval) {
+        clearInterval(pkFocusTimerInterval);
+        pkFocusTimerInterval = null;
+      }
+      pkFocusTimerRunning = false;
+      pkFocusTimerSecondsLeft = pkFocusTimerDurationSecs;
+      syncFocusTimerUI();
+    }
+
+    function hideFocusTimerHUD() {
+      resetFocusTimer();
+      const hud = document.getElementById('pkFocusTimerHUD');
+      if (hud) hud.classList.add('hidden');
+    }
+
+    // --- 18E. IMPORT MARKDOWN (.md / .txt) FILE ---
+    function triggerMarkdownImport() {
+      const input = document.getElementById('pkMarkdownImportInput');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    function parseMarkdownToBlocks(mdText) {
+      const lines = String(mdText || '').replace(/\r\n/g, '\n').split('\n');
+      let title = '';
+      let tags = ['imported'];
+      let i = 0;
+
+      // Parse optional YAML frontmatter
+      if (lines[0] && lines[0].trim() === '---') {
+        i = 1;
+        while (i < lines.length && lines[i].trim() !== '---') {
+          const line = lines[i];
+          const tMatch = line.match(/^title:\s*["']?(.+?)["']?\s*$/i);
+          if (tMatch) title = tMatch[1].trim();
+          const tagMatch = line.match(/^tags:\s*\[(.+)\]/i);
+          if (tagMatch) {
+            tags = tagMatch[1].split(',').map(s => s.replace(/["'\s]/g, '')).filter(Boolean);
+          }
+          i++;
+        }
+        if (i < lines.length && lines[i].trim() === '---') i++;
+      }
+
+      const blocks = [];
+      let inCode = false;
+      let codeLines = [];
+
+      for (; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim().startsWith('```')) {
+          if (inCode) {
+            blocks.push({ id: generateId('b'), type: 'code', content: codeLines.join('\n') });
+            codeLines = [];
+            inCode = false;
+          } else {
+            inCode = true;
+          }
+          continue;
+        }
+        if (inCode) {
+          codeLines.push(line);
+          continue;
+        }
+
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        if (/^---+$|^\*\*\*+$/.test(trimmed)) {
+          blocks.push({ id: generateId('b'), type: 'divider', content: '' });
+        } else if (/^#\s+/.test(trimmed)) {
+          const hText = trimmed.replace(/^#\s+/, '').trim();
+          if (!title) title = hText;
+          else blocks.push({ id: generateId('b'), type: 'h1', content: hText });
+        } else if (/^##\s+/.test(trimmed)) {
+          blocks.push({ id: generateId('b'), type: 'h2', content: trimmed.replace(/^##\s+/, '').trim() });
+        } else if (/^###\s+/.test(trimmed)) {
+          blocks.push({ id: generateId('b'), type: 'h3', content: trimmed.replace(/^###\s+/, '').trim() });
+        } else if (/^[-*+]\s+\[([ xX])\]\s*/.test(trimmed)) {
+          const m = trimmed.match(/^[-*+]\s+\[([ xX])\]\s*(.*)$/);
+          blocks.push({ id: generateId('b'), type: 'todo', content: m[2].trim(), checked: m[1].toLowerCase() === 'x' });
+        } else if (/^[-*+]\s+/.test(trimmed)) {
+          blocks.push({ id: generateId('b'), type: 'bullet', content: trimmed.replace(/^[-*+]\s+/, '').trim() });
+        } else if (/^>\s?/.test(trimmed)) {
+          blocks.push({ id: generateId('b'), type: 'quote', content: trimmed.replace(/^>\s?/, '').trim() });
+        } else {
+          blocks.push({ id: generateId('b'), type: 'paragraph', content: trimmed });
+        }
+      }
+
+      if (inCode && codeLines.length > 0) {
+        blocks.push({ id: generateId('b'), type: 'code', content: codeLines.join('\n') });
+      }
+      if (blocks.length === 0) {
+        blocks.push({ id: generateId('b'), type: 'paragraph', content: '' });
+      }
+
+      return { title, tags, blocks };
+    }
+
+    function handleMarkdownFileImport(event) {
+      const file = event && event.target && event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result || '';
+        const parsed = parseMarkdownToBlocks(text);
+        const fallbackTitle = file.name.replace(/\.(md|markdown|txt)$/i, '');
+        const nextNum = String(state.notes.length + 1).padStart(2, '0');
+        const folder = (getActiveNote() && getActiveNote().folder) || 'General';
+        const newNote = {
+          id: generateId('note'),
+          code: `DOC-${nextNum}`,
+          title: parsed.title || fallbackTitle || 'Imported Note',
+          glyph: 'document',
+          folder,
+          favorite: false,
+          tags: parsed.tags.length > 0 ? parsed.tags : ['imported'],
+          updatedAt: TODAY_KEY,
+          blocks: parsed.blocks
+        };
+        state.notes.unshift(newNote);
+        state.expandedFolders[folder] = true;
+        selectNote(newNote.id);
+        showToast(`Imported "${newNote.title}" (${parsed.blocks.length} blocks)`);
+      };
+      reader.readAsText(file);
+    }
+
+    // --- 18F. READ-ONLY NOTE LOCK (Prevents accidental edits on phone) ---
+    function applyNoteLockVisuals(note) {
+      const locked = !!(note && note.locked);
+      const badge = document.getElementById('headerNoteLockBadge');
+      if (badge) {
+        badge.classList.toggle('hidden', !locked);
+        badge.classList.toggle('inline-flex', locked);
+      }
+      const mobileLockLabel = document.getElementById('mobileSheetLockLabel');
+      if (mobileLockLabel) {
+        mobileLockLabel.textContent = locked ? 'Unlock Note' : 'Lock Note';
+      }
+      const titleEl = document.getElementById('docTitleInput');
+      if (titleEl) {
+        titleEl.setAttribute('contenteditable', locked ? 'false' : 'true');
+      }
+      document.querySelectorAll('#blocksContainer [data-block-id]').forEach(el => {
+        el.setAttribute('contenteditable', locked ? 'false' : 'true');
+      });
+    }
+
+    function toggleNoteLock() {
+      const note = getActiveNote();
+      if (!note) return;
+      note.locked = !note.locked;
+      applyNoteLockVisuals(note);
+      persistState();
+      if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
+      showToast(note.locked ? 'Note locked (read-only mode)' : 'Note unlocked for editing');
+    }
+  </script>
 
 </body>
 </html>

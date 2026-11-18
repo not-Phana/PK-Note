@@ -4606,19 +4606,19 @@ function setGraphToolMode(mode) {
   moveBtns.forEach(b => {
     if (!b) return;
     b.className = isMove
-      ? 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold shadow-xs cursor-pointer'
-      : 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      ? 'px-2 sm:px-2.5 py-1 sm:py-0.5 rounded-[2px] font-mono text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold shadow-xs cursor-pointer whitespace-nowrap shrink-0'
+      : 'px-2 sm:px-2.5 py-1 sm:py-0.5 rounded-[2px] font-mono text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer whitespace-nowrap shrink-0';
   });
 
   linkBtns.forEach(b => {
     if (!b) return;
     b.className = !isMove
-      ? 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all bg-[var(--accent-vermilion)] text-white font-semibold shadow-xs cursor-pointer'
-      : 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] flex items-center gap-1 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      ? 'px-2 sm:px-2.5 py-1 sm:py-0.5 rounded-[2px] font-mono text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all bg-[var(--accent-vermilion)] text-white font-semibold shadow-xs cursor-pointer whitespace-nowrap shrink-0'
+      : 'px-2 sm:px-2.5 py-1 sm:py-0.5 rounded-[2px] font-mono text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer whitespace-nowrap shrink-0';
   });
 
   if (mode === 'connect') {
-    showToast('Link Mode: Drag or click between notes to create [[links]]');
+    showToast('Link Mode: Drag or tap between notes to create [[links]]');
   }
 }
 
@@ -4758,7 +4758,7 @@ function renderLinkNotePickerResults(query) {
         </div>
         <div class="shrink-0 flex items-center gap-1.5">
           ${isLinked ? `
-            <span class="font-mono text-[10px] text-emerald-500 font-semibold px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10">✓ Linked</span>
+            <span class="font-mono text-[10px] text-emerald-500 font-semibold px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 flex items-center gap-1"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Linked</span>
             <button onclick="disconnectNotes('${sourceNote.id}', '${n.id}'); renderLinkNotePickerResults('${escapeHtml(q)}');" title="Unlink" class="px-1.5 py-0.5 rounded-[2px] hover:bg-red-500/15 text-red-500 font-mono text-[10px] cursor-pointer">Unlink</button>
           ` : `
             <button onclick="connectNotes('${sourceNote.id}', '${n.id}', false); closeLinkNotePicker();" class="px-2.5 py-1 rounded-[2px] bg-[var(--accent-vermilion)] hover:bg-[var(--accent-vermilion-hover)] text-white font-mono text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1">
@@ -5429,7 +5429,7 @@ function drawGraphOnCanvas(canvas, isExpanded = false) {
       ctx.fill();
     }
 
-    // If edge is hovered, render scissors unlink badge at midpoint
+    // If edge is hovered, render unlink badge at midpoint
     if (isHovered) {
       const midX = (s.x + t.x) / 2;
       const midY = (s.y + t.y) / 2;
@@ -5437,11 +5437,11 @@ function drawGraphOnCanvas(canvas, isExpanded = false) {
       ctx.beginPath();
       ctx.arc(midX, midY, 7 / graphZoom, 0, Math.PI * 2);
       ctx.fill();
-      ctx.font = `bold ${9 / graphZoom}px sans-serif`;
+      ctx.font = `bold ${9 / graphZoom}px "JetBrains Mono", monospace, sans-serif`;
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('✂', midX, midY);
+      ctx.fillText('✕', midX, midY);
     }
   });
 
@@ -5784,11 +5784,11 @@ function renderCommandPaletteResults(query) {
   const q = query.toLowerCase().trim();
 
   const allActions = [
-    { kind: 'action', label: 'Graph: Switch to Mouse Link Mode', hint: 'Connect notes with mouse by dragging or clicking', glyph: 'graph', shortcut: 'Link', run: () => { setGraphToolMode('connect'); openRightInspector('graph'); } },
+    { kind: 'action', label: 'Graph: Switch to Link Mode', hint: 'Connect notes by dragging or tapping', glyph: 'graph', shortcut: 'Link', run: () => { setGraphToolMode('connect'); openRightInspector('graph'); } },
     { kind: 'action', label: 'Graph: Switch to Move / Pan Mode', hint: 'Reposition graph vertices and pan canvas', glyph: 'graph', shortcut: 'Move', run: () => { setGraphToolMode('move'); openRightInspector('graph'); } },
     { kind: 'action', label: 'Graph: Expand Fullscreen Graph Studio', hint: 'Spacious fullscreen topology canvas with search & zoom', glyph: 'grid', shortcut: 'Studio', run: () => openExpandedGraphModal() },
     { kind: 'action', label: 'Graph: Fit & Center View', hint: 'Reset zoom and center all nodes', glyph: 'compass', shortcut: 'Fit', run: () => fitGraphView() },
-    { kind: 'action', label: 'Graph: Connect Document (Link Picker)', hint: 'Insert wikilink to another note by mouse', glyph: 'link', shortcut: 'Connect', run: () => openLinkNotePicker() },
+    { kind: 'action', label: 'Graph: Connect Document (Link Picker)', hint: 'Insert wikilink to another note', glyph: 'link', shortcut: 'Connect', run: () => openLinkNotePicker() },
     { kind: 'action', label: 'Toggle Zen Focus Mode', hint: 'Distraction-free writing sanctuary with block focus', glyph: 'alert', shortcut: '⌘D', run: () => toggleZenMode() },
     { kind: 'action', label: 'Toggle Tactile Haptic Audio', hint: 'Mechanical switch & chime micro-feedback', glyph: 'sliders', shortcut: 'Audio', run: () => toggleSoundSetting() },
     { kind: 'action', label: 'Toggle Dynamic Ambient Aura', hint: 'Breathing atmospheric hero glow lighting', glyph: 'sliders', shortcut: 'Aura', run: () => toggleAmbientAura() },
@@ -9808,7 +9808,7 @@ document.addEventListener('contextmenu', e => {
 
       menuItems.push(
         { label: 'Open Document', icon: 'document', action: () => selectNote(hitNode.id) },
-        { label: 'Start Mouse Link Wire', shortcut: 'Drag', icon: 'link', action: () => startConnectionFromNode(hitNode) },
+        { label: 'Start Link Wire', shortcut: 'Drag', icon: 'link', action: () => startConnectionFromNode(hitNode) },
         { label: 'Connect to Note...', icon: 'link', hasSubmenu: true, submenu: connectSubmenu },
         unlinkSubmenu.length > 0 ? { label: 'Unlink from...', icon: 'minus', danger: true, hasSubmenu: true, submenu: unlinkSubmenu } : null,
         { type: 'divider' },
@@ -9820,7 +9820,7 @@ document.addEventListener('contextmenu', e => {
       headerText = 'TOPOLOGY CONNECTION';
       badgeIcon = 'link';
       menuItems.push(
-        { label: `Unlink: Remove [[${hitEdge.target.title}]]`, shortcut: '✂️', icon: 'minus', danger: true, action: () => disconnectNotes(hitEdge.source.id, hitEdge.target.id) },
+        { label: `Unlink: Remove [[${hitEdge.target.title}]]`, shortcut: 'Del', icon: 'minus', danger: true, action: () => disconnectNotes(hitEdge.source.id, hitEdge.target.id) },
         { label: 'Make Bidirectional Link (⇄)', icon: 'link', action: () => connectNotes(hitEdge.target.id, hitEdge.source.id, true) },
         { type: 'divider' },
         { label: `Open "${hitEdge.source.title}"`, icon: 'document', action: () => selectNote(hitEdge.source.id) },

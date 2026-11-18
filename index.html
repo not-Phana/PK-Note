@@ -2831,8 +2831,8 @@
           </div>
           <!-- Local Server 1-Tap Presets -->
           <div id="pkAiLocalPresetsRow" class="hidden flex flex-wrap items-center gap-1 font-mono text-[9.5px]">
-            <button type="button" onclick="applyLocalServerPreset('ollama')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Ollama :11434</button>
             <button type="button" onclick="applyLocalServerPreset('lmstudio')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">LM Studio :1234</button>
+            <button type="button" onclick="applyLocalServerPreset('ollama')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Ollama :11434</button>
             <button type="button" onclick="applyLocalServerPreset('llamacpp')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">llama.cpp :8080</button>
             <button type="button" onclick="applyLocalServerPreset('jan')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Jan :1337</button>
           </div>
@@ -2840,7 +2840,7 @@
                  id="pkAiBaseUrlInput"
                  autocomplete="off"
                  spellcheck="false"
-                 placeholder="http://localhost:11434/v1"
+                 placeholder="http://localhost:1234/v1"
                  class="w-full px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
           <!-- NVIDIA CORS Note + 1-Click Self-Hosted Worker Snippet -->
           <div id="pkAiNvidiaCorsHint" class="hidden px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed space-y-1.5">
@@ -2849,7 +2849,7 @@
           </div>
           <!-- Local CORS Hint -->
           <div id="pkAiLocalCorsHint" class="hidden px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed">
-            Ollama: start with <code class="text-[var(--text-primary)]">OLLAMA_ORIGINS=*</code>. LM Studio: turn on <code class="text-[var(--text-primary)]">Enable CORS</code> in Developer server settings.
+            LM Studio: run <code class="text-[var(--text-primary)]">lms server start --cors</code> (or enable CORS in Developer tab). Ollama: <code class="text-[var(--text-primary)]">OLLAMA_ORIGINS=* ollama serve</code>.
           </div>
         </div>
 

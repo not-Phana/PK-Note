@@ -54,28 +54,37 @@ const PK_AI_PROVIDERS = {
     id: 'local',
     name: 'Local Model',
     shortName: 'Local',
-    defaultBaseUrl: 'http://localhost:11434/v1',
-    defaultModel: 'llama3.2',
+    defaultBaseUrl: 'http://localhost:1234/v1',
+    defaultModel: 'google/gemma-4-e4b',
     requiresKey: false,
-    keyPlaceholder: 'Optional — leave blank for Ollama / LM Studio',
+    keyPlaceholder: 'Optional — leave blank for LM Studio / Ollama',
     keyLabel: 'Local Token / Key (Optional)',
     keyUrl: '',
     keyLinkText: '',
     models: [
-      { id: 'llama3.2', label: 'llama3.2 (Ollama Default)' },
-      { id: 'qwen2.5:7b', label: 'qwen2.5:7b (Qwen 2.5 7B)' },
-      { id: 'gemma3:4b', label: 'gemma3:4b (Gemma 3 4B)' },
-      { id: 'deepseek-r1:8b', label: 'deepseek-r1:8b (DeepSeek R1 8B)' },
-      { id: 'mistral', label: 'mistral (Mistral 7B)' }
+      { id: 'google/gemma-4-e4b', label: 'google/gemma-4-e4b (LM Studio · 7.5B)' },
+      { id: 'qwen/qwen3.5-9b', label: 'qwen/qwen3.5-9b (LM Studio · 9B)' },
+      { id: 'google/gemma-4-12b', label: 'google/gemma-4-12b (LM Studio · 12B)' },
+      { id: 'google/gemma-4-e2b', label: 'google/gemma-4-e2b (LM Studio · 4.6B Fast)' },
+      { id: 'nvidia/nemotron-3-nano-4b', label: 'nvidia/nemotron-3-nano-4b (LM Studio · 4B Fast)' },
+      { id: 'gemma-3-270m-it', label: 'gemma-3-270m-it (LM Studio · 270M Instant)' },
+      { id: 'prism-ml/bonsai-27b', label: 'prism-ml/bonsai-27b (LM Studio · 27B)' },
+      { id: 'liquid/lfm2-24b-a2b', label: 'liquid/lfm2-24b-a2b (LM Studio · 24B MoE)' },
+      { id: 'gemma-4-12b-it-qat', label: 'gemma-4-12b-it-qat (LM Studio · 12B QAT)' },
+      { id: 'gemma-4-12b-it-qat-deepseek-distill', label: 'gemma-4-12b-it-qat-deepseek-distill (LM Studio · 12B)' },
+      { id: 'gemma-4-12b-coder-fable5-composer2.5-v1', label: 'gemma-4-12b-coder-fable5-composer2.5-v1 (LM Studio · Coder)' },
+      { id: 'gemma-4-e4b-uncensored-hauhaucs-aggressive', label: 'gemma-4-e4b-uncensored-hauhaucs-aggressive (LM Studio)' },
+      { id: 'gemma-4-e2b-uncensored-hauhaucs-aggressive', label: 'gemma-4-e2b-uncensored-hauhaucs-aggressive (LM Studio)' },
+      { id: 'kimi-k3.1-pro:cloud', label: 'kimi-k3.1-pro:cloud (Ollama · :11434)' }
     ]
   }
 };
 
 const PK_LOCAL_SERVER_PRESETS = {
-  ollama: { label: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
-  lmstudio: { label: 'LM Studio', baseUrl: 'http://localhost:1234/v1' },
-  llamacpp: { label: 'llama.cpp', baseUrl: 'http://localhost:8080/v1' },
-  jan: { label: 'Jan', baseUrl: 'http://localhost:1337/v1' }
+  lmstudio: { label: 'LM Studio', baseUrl: 'http://localhost:1234/v1', defaultModel: 'google/gemma-4-e4b' },
+  ollama: { label: 'Ollama', baseUrl: 'http://localhost:11434/v1', defaultModel: 'kimi-k3.1-pro:cloud' },
+  llamacpp: { label: 'llama.cpp', baseUrl: 'http://localhost:8080/v1', defaultModel: 'google/gemma-4-e4b' },
+  jan: { label: 'Jan', baseUrl: 'http://localhost:1337/v1', defaultModel: 'google/gemma-4-e4b' }
 };
 
 const PK_NVIDIA_WORKER_SNIPPET = `export default {
@@ -152,6 +161,12 @@ function loadAiConfig() {
         };
       });
       def.provider = provider;
+      // Upgrade untouched v2.3.0 generic local default (llama3.2) to user's installed LM Studio library
+      if (def.local.baseUrl === 'http://localhost:11434/v1' && def.local.model === 'llama3.2' && def.local.discoveredModels.length === 0) {
+        def.local.baseUrl = PK_AI_PROVIDERS.local.defaultBaseUrl;
+        def.local.model = PK_AI_PROVIDERS.local.defaultModel;
+        saveAiConfig(def);
+      }
       return def;
     }
     // Migrate legacy Groq v1 key seamlessly
@@ -429,10 +444,15 @@ function applyLocalServerPreset(presetId) {
   const cfg = loadAiConfig();
   cfg.provider = 'local';
   cfg.local.baseUrl = preset.baseUrl;
+  if (presetId === 'ollama' && cfg.local.model !== 'kimi-k3.1-pro:cloud') {
+    cfg.local.model = preset.defaultModel;
+  } else if (presetId === 'lmstudio' && cfg.local.model === 'kimi-k3.1-pro:cloud') {
+    cfg.local.model = preset.defaultModel;
+  }
   saveAiConfig(cfg);
   syncGroqHeaderAndSettingsUI();
   if (typeof showToast === 'function') {
-    showToast(`${preset.label} URL set (${preset.baseUrl}) — tap Scan local models`);
+    showToast(`${preset.label} set (${preset.baseUrl}) — tap Scan local models`);
   }
 }
 
@@ -610,7 +630,7 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
       if (isHttpsPage && /^http:\/\//i.test(baseUrl || '') && !isLocalhost) {
         return `Browser blocked HTTP LAN request (${baseUrl}) from HTTPS page (Mixed Content). Use an HTTPS tunnel/reverse-proxy or open PK Note locally via PK Note.bat.`;
       }
-      return `Cannot connect to local server at ${baseUrl}. Make sure it is running and CORS is enabled (Ollama: OLLAMA_ORIGINS=* ollama serve · LM Studio: turn on Enable CORS).`;
+      return `Cannot connect to local server at ${baseUrl}. Make sure it is running with CORS enabled (LM Studio: lms server start --cors · Ollama: OLLAMA_ORIGINS=* ollama serve).`;
     }
     return `Cannot reach ${spec.name}. Check your internet connection or browser ad-blocker.`;
   }

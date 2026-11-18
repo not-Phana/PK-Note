@@ -2912,50 +2912,69 @@
         </div>
       </div>
 
-      <!-- Collapsible AI Memory Vault Panel (Dexie IndexedDB + Orama Hybrid BM25/Vector Search) -->
-      <div id="pkAiMemoryPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[60vh] overflow-y-auto select-text">
+      <!-- Collapsible AI Memory & Cross-Chat Archive Panel (Dexie IndexedDB + Orama Hybrid Search) -->
+      <div id="pkAiMemoryPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[62vh] overflow-y-auto select-text">
         <div class="flex items-center justify-between gap-2">
-          <div>
-            <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-primary)] font-semibold">AI Long-Term Memory</div>
-            <div class="font-mono text-[9px] text-[var(--text-tertiary)]">Dexie IndexedDB · Orama Hybrid Recall · Saved on this device</div>
+          <div class="flex items-center gap-1 font-mono text-[10px]">
+            <button type="button" id="pkAiMemTabFacts" onclick="setAiMemoryTab('memories')" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Memories</button>
+            <button type="button" id="pkAiMemTabChats" onclick="setAiMemoryTab('chats')" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Chats</button>
           </div>
-          <button type="button" id="pkAiAutoMemoryToggle" onclick="toggleAiAutoMemory()" class="px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer shrink-0">Auto: ON</button>
+          <div class="flex items-center gap-1">
+            <button type="button" id="pkAiCrossChatToggle" onclick="toggleAiCrossChat()" title="Recall relevant moments from your past chats automatically" class="px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer shrink-0">Cross-Chat: ON</button>
+            <button type="button" id="pkAiAutoMemoryToggle" onclick="toggleAiAutoMemory()" title="Automatically remember key facts and preferences" class="px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer shrink-0">Auto: ON</button>
+          </div>
         </div>
 
-        <!-- Quick Add Memory Row -->
-        <div class="flex items-center gap-1.5">
-          <select id="pkAiMemoryCategory" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] shrink-0">
-            <option value="fact">Fact</option>
-            <option value="profile">Profile</option>
-            <option value="preference">Pref</option>
-            <option value="project">Project</option>
-          </select>
+        <!-- TAB 1: Long-Term Memories View -->
+        <div id="pkAiMemoriesView" class="space-y-2">
+          <div class="flex items-center gap-1.5">
+            <select id="pkAiMemoryCategory" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] shrink-0">
+              <option value="fact">Fact</option>
+              <option value="profile">Profile</option>
+              <option value="preference">Pref</option>
+              <option value="project">Project</option>
+            </select>
+            <input type="text"
+                   id="pkAiMemoryAddInput"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addManualAiMemory();}"
+                   placeholder="Add a memory (name, preference, goal)..."
+                   class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-sans text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="addManualAiMemory()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-semibold cursor-pointer shrink-0">Add</button>
+          </div>
+
           <input type="text"
-                 id="pkAiMemoryAddInput"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addManualAiMemory();}"
-                 placeholder="e.g. I prefer short casual replies..."
-                 class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-sans text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
-          <button type="button" onclick="addManualAiMemory()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-semibold cursor-pointer shrink-0">Add</button>
+                 id="pkAiMemorySearchInput"
+                 oninput="renderAiMemoryPanel()"
+                 placeholder="Search memories (Orama hybrid)..."
+                 class="w-full select-text px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10.5px] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+
+          <div id="pkAiMemoryList" class="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
+            <!-- Rendered by renderAiMemoryPanel() -->
+          </div>
         </div>
 
-        <!-- Live Orama Hybrid Search Box -->
-        <input type="text"
-               id="pkAiMemorySearchInput"
-               oninput="renderAiMemoryPanel()"
-               placeholder="Search memories (keyword + semantic hybrid)..."
-               class="w-full select-text px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10.5px] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+        <!-- TAB 2: Multi-Chat History & Cross-Chat Search View -->
+        <div id="pkAiChatsView" class="hidden space-y-2">
+          <div class="flex items-center gap-1.5">
+            <input type="text"
+                   id="pkAiChatsSearchInput"
+                   oninput="renderAiMemoryPanel()"
+                   placeholder="Search across ALL chats (Orama hybrid)..."
+                   class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10.5px] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="startFreshAiChatFromPanel()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-semibold cursor-pointer shrink-0">+ New</button>
+          </div>
 
-        <!-- Saved Memories List -->
-        <div id="pkAiMemoryList" class="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
-          <!-- Rendered by renderAiMemoryPanel() -->
+          <div id="pkAiChatsList" class="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+            <!-- Rendered by renderAiMemoryPanel() -->
+          </div>
         </div>
 
         <!-- Memory Vault Footer -->
         <div class="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-hairline)] font-mono text-[9.5px]">
-          <span id="pkAiMemoryCountMeta" class="text-[var(--text-tertiary)]">0 saved</span>
+          <span id="pkAiMemoryCountMeta" class="text-[var(--text-tertiary)]">0 memories · 0 chats</span>
           <div class="flex items-center gap-2">
             <button type="button" onclick="exportAiMemories()" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Export JSON</button>
-            <button type="button" onclick="clearAllAiMemoriesUI()" class="text-[var(--text-tertiary)] hover:text-rose-500 cursor-pointer">Clear All</button>
+            <button type="button" onclick="clearAllAiMemoriesUI()" class="text-[var(--text-tertiary)] hover:text-rose-500 cursor-pointer">Clear Memories</button>
           </div>
         </div>
       </div>

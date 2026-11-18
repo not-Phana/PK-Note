@@ -608,6 +608,8 @@ function toggleGroqSettingsPanel() {
   panel.classList.toggle('hidden');
 }
 
+let pkAiMemoryTab = 'memories'; // 'memories' | 'chats'
+
 async function toggleAiMemoryPanel() {
   const memPanel = document.getElementById('pkAiMemoryPanel');
   const settingsPanel = document.getElementById('pkGroqSettingsPanel');
@@ -620,61 +622,158 @@ async function toggleAiMemoryPanel() {
   }
 }
 
+function setAiMemoryTab(tab) {
+  pkAiMemoryTab = tab === 'chats' ? 'chats' : 'memories';
+  renderAiMemoryPanel();
+}
+
+function toggleAiCrossChat() {
+  if (!window.PKMemory) return;
+  const cur = window.PKMemory.getSettings();
+  const next = window.PKMemory.saveSettings({ crossChat: !cur.crossChat });
+  renderAiMemoryPanel();
+  if (typeof showToast === 'function') {
+    showToast(next.crossChat ? 'Cross-Chat recall ON — AI remembers across all chats' : 'Cross-Chat recall OFF', next.crossChat ? undefined : 'ochre');
+  }
+}
+
+async function openSavedAiChat(threadId) {
+  if (!window.PKMemory || !threadId) return;
+  abortGroqStream();
+  pkGroqHistory = await window.PKMemory.openThread(threadId);
+  const memPanel = document.getElementById('pkAiMemoryPanel');
+  if (memPanel) memPanel.classList.add('hidden');
+  renderGroqMessages();
+  if (typeof showToast === 'function') showToast('Opened saved chat');
+}
+
+async function deleteSavedAiChat(threadId) {
+  if (!window.PKMemory || !threadId) return;
+  const wasActive = window.PKMemory.getActiveThreadId() === threadId;
+  await window.PKMemory.deleteThread(threadId);
+  if (wasActive) {
+    pkGroqHistory = [];
+    renderGroqMessages();
+  }
+  await renderAiMemoryPanel();
+  if (typeof showToast === 'function') showToast('Deleted chat thread', 'ochre');
+}
+
+async function startFreshAiChatFromPanel() {
+  await clearGroqConversation();
+  const memPanel = document.getElementById('pkAiMemoryPanel');
+  if (memPanel) memPanel.classList.add('hidden');
+}
+
 async function renderAiMemoryPanel() {
   const listEl = document.getElementById('pkAiMemoryList');
+  const chatsListEl = document.getElementById('pkAiChatsList');
+  const memView = document.getElementById('pkAiMemoriesView');
+  const chatsView = document.getElementById('pkAiChatsView');
+  const tabFacts = document.getElementById('pkAiMemTabFacts');
+  const tabChats = document.getElementById('pkAiMemTabChats');
   const metaEl = document.getElementById('pkAiMemoryCountMeta');
   const autoBtn = document.getElementById('pkAiAutoMemoryToggle');
+  const crossBtn = document.getElementById('pkAiCrossChatToggle');
   const searchEl = document.getElementById('pkAiMemorySearchInput');
+  const chatsSearchEl = document.getElementById('pkAiChatsSearchInput');
   if (!window.PKMemory) return;
 
   const settings = window.PKMemory.getSettings();
+  const onCls = 'px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer shrink-0';
+  const offCls = 'px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] cursor-pointer shrink-0';
   if (autoBtn) {
     autoBtn.textContent = settings.autoSave ? 'Auto: ON' : 'Auto: OFF';
-    autoBtn.className = settings.autoSave
-      ? 'px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer shrink-0'
-      : 'px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] cursor-pointer shrink-0';
+    autoBtn.className = settings.autoSave ? onCls : offCls;
+  }
+  if (crossBtn) {
+    crossBtn.textContent = settings.crossChat ? 'Cross-Chat: ON' : 'Cross-Chat: OFF';
+    crossBtn.className = settings.crossChat ? onCls : offCls;
   }
 
-  const query = searchEl ? searchEl.value.trim() : '';
-  const items = await window.PKMemory.list(query);
-  const totalCount = window.PKMemory.getCount();
+  const activeTabCls = 'px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer';
+  const idleTabCls = 'px-2.5 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer';
+  const memCount = window.PKMemory.getCount();
+  const chatCount = window.PKMemory.getThreadCount ? window.PKMemory.getThreadCount() : 0;
+
+  if (tabFacts) {
+    tabFacts.className = pkAiMemoryTab === 'memories' ? activeTabCls : idleTabCls;
+    tabFacts.textContent = memCount > 0 ? `Memories (${memCount})` : 'Memories';
+  }
+  if (tabChats) {
+    tabChats.className = pkAiMemoryTab === 'chats' ? activeTabCls : idleTabCls;
+    tabChats.textContent = chatCount > 0 ? `Chats (${chatCount})` : 'Chats';
+  }
+  if (memView) memView.classList.toggle('hidden', pkAiMemoryTab !== 'memories');
+  if (chatsView) chatsView.classList.toggle('hidden', pkAiMemoryTab !== 'chats');
+
   updateAiMemoryBadge();
-  if (metaEl) {
-    metaEl.textContent = query
-      ? `${items.length} match(es) of ${totalCount} saved`
-      : `${totalCount} saved in IndexedDB`;
-  }
-  if (!listEl) return;
+  if (metaEl) metaEl.textContent = `${memCount} memories · ${chatCount} chats`;
 
-  if (items.length === 0) {
-    listEl.innerHTML = `<div class="py-3 text-center font-mono text-[10px] text-[var(--text-tertiary)]">${
-      query
-        ? 'No memories matched that search.'
-        : 'No memories yet. Tell the AI "remember that..." or add one above.'
-    }</div>`;
-    return;
-  }
-
-  listEl.innerHTML = items.map(m => {
-    const pinCls = m.pinned
-      ? 'px-1.5 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[9px] font-semibold cursor-pointer'
-      : 'px-1.5 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[9px] cursor-pointer';
-    return `
-      <div class="px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-start justify-between gap-2">
-        <div class="min-w-0 flex-1 space-y-1">
-          <div class="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
-            <span class="px-1.5 py-0.2 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)]">${escapeHtml(m.category || 'fact')}</span>
-            ${m.pinned ? '<span class="text-[var(--text-primary)] font-semibold">Pinned</span>' : ''}
+  if (pkAiMemoryTab === 'memories') {
+    const query = searchEl ? searchEl.value.trim() : '';
+    const items = await window.PKMemory.list(query);
+    if (!listEl) return;
+    if (items.length === 0) {
+      listEl.innerHTML = `<div class="py-3 text-center font-mono text-[10px] text-[var(--text-tertiary)]">${
+        query
+          ? 'No memories matched that search.'
+          : 'No saved facts yet. Tell the AI "remember that..." or add one above.'
+      }</div>`;
+      return;
+    }
+    listEl.innerHTML = items.map(m => {
+      const pinCls = m.pinned
+        ? 'px-1.5 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[9px] font-semibold cursor-pointer'
+        : 'px-1.5 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[9px] cursor-pointer';
+      return `
+        <div class="px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-start justify-between gap-2">
+          <div class="min-w-0 flex-1 space-y-1">
+            <div class="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span class="px-1.5 py-0.2 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)]">${escapeHtml(m.category || 'fact')}</span>
+              ${m.pinned ? '<span class="text-[var(--text-primary)] font-semibold">Pinned</span>' : ''}
+            </div>
+            <div class="text-[11.5px] text-[var(--text-primary)] leading-snug break-words">${escapeHtml(m.text)}</div>
           </div>
-          <div class="text-[11.5px] text-[var(--text-primary)] leading-snug break-words">${escapeHtml(m.text)}</div>
+          <div class="flex items-center gap-1 shrink-0 pt-0.5">
+            <button type="button" onclick="togglePinAiMemory('${escapeHtml(m.id)}')" class="${pinCls}">${m.pinned ? 'Pinned' : 'Pin'}</button>
+            <button type="button" onclick="deleteAiMemory('${escapeHtml(m.id)}')" title="Forget" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer">✕</button>
+          </div>
         </div>
-        <div class="flex items-center gap-1 shrink-0 pt-0.5">
-          <button type="button" onclick="togglePinAiMemory('${escapeHtml(m.id)}')" class="${pinCls}">${m.pinned ? 'Pinned' : 'Pin'}</button>
-          <button type="button" onclick="deleteAiMemory('${escapeHtml(m.id)}')" title="Forget" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer">✕</button>
+      `;
+    }).join('');
+  } else {
+    const query = chatsSearchEl ? chatsSearchEl.value.trim() : '';
+    const threads = await window.PKMemory.listThreads(query);
+    if (!chatsListEl) return;
+    if (threads.length === 0) {
+      chatsListEl.innerHTML = `<div class="py-3 text-center font-mono text-[10px] text-[var(--text-tertiary)]">${
+        query
+          ? 'No past chats matched that search.'
+          : 'No saved chats yet. Every chat is archived automatically so AI remembers across chats.'
+      }</div>`;
+      return;
+    }
+    chatsListEl.innerHTML = threads.map(t => {
+      const dateStr = new Date(t.updatedAt || Date.now()).toISOString().slice(0, 10);
+      const borderCls = t.isActive
+        ? 'border-[var(--accent-vermilion)]/60 bg-[var(--accent-vermilion-tint)]/40'
+        : 'border-[var(--border-hairline)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)]';
+      return `
+        <div class="px-2.5 py-2 rounded-[4px] border ${borderCls} flex items-start justify-between gap-2">
+          <button type="button" onclick="openSavedAiChat('${escapeHtml(t.id)}')" class="min-w-0 flex-1 text-left space-y-0.5 cursor-pointer">
+            <div class="flex items-center gap-1.5">
+              <span class="font-sans text-[11.5px] font-semibold text-[var(--text-primary)] truncate">${escapeHtml(t.title || 'Chat')}</span>
+              ${t.isActive ? '<span class="font-mono text-[8.5px] uppercase text-[var(--accent-vermilion)] font-semibold shrink-0">Active</span>' : ''}
+            </div>
+            <div class="font-mono text-[9px] text-[var(--text-tertiary)]">${t.messageCount || 0} msgs · ${dateStr}</div>
+            ${t.matchSnippet ? `<div class="text-[10.5px] text-[var(--text-secondary)] line-clamp-2 leading-snug pt-0.5">${escapeHtml(t.matchSnippet)}</div>` : ''}
+          </button>
+          <button type="button" onclick="deleteSavedAiChat('${escapeHtml(t.id)}')" title="Delete chat" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer shrink-0">✕</button>
         </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
 }
 
 function toggleAiAutoMemory() {
@@ -1162,14 +1261,15 @@ async function testGroqConnection() {
   }
 }
 
-function clearGroqConversation() {
+async function clearGroqConversation() {
   abortGroqStream();
   pkGroqHistory = [];
-  if (window.PKMemory && typeof window.PKMemory.clearChatHistory === 'function') {
-    window.PKMemory.clearChatHistory();
+  if (window.PKMemory && typeof window.PKMemory.startNewThread === 'function') {
+    await window.PKMemory.startNewThread();
   }
+  updateAiMemoryBadge();
   renderGroqMessages();
-  if (typeof showToast === 'function') showToast('Started new chat (memories kept)');
+  if (typeof showToast === 'function') showToast('Started new chat (past chats & memories kept)');
 }
 
 // ============================================================================
@@ -1187,7 +1287,7 @@ function pkCleanBlockText(raw) {
     .trim();
 }
 
-function buildGroqSystemPrompt(recalledMemories = []) {
+function buildGroqSystemPrompt(recalledCtx = null) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const autoMemOn = !window.PKMemory || window.PKMemory.getSettings().autoSave;
   const parts = [
@@ -1204,11 +1304,39 @@ function buildGroqSystemPrompt(recalledMemories = []) {
     );
   }
 
-  if (Array.isArray(recalledMemories) && recalledMemories.length > 0) {
-    const memLines = recalledMemories
+  // Accept either new recallContext object or legacy array of memories
+  const ctx = Array.isArray(recalledCtx)
+    ? { memories: recalledCtx, openingTopic: '', earlierInThisChat: [], acrossChats: [], recentThreads: [] }
+    : (recalledCtx || { memories: [], openingTopic: '', earlierInThisChat: [], acrossChats: [], recentThreads: [] });
+
+  if (ctx.memories && ctx.memories.length > 0) {
+    const memLines = ctx.memories
       .map(m => `- [${m.category || 'fact'}] ${m.text}`)
       .join('\n');
     parts.push(`\nWHAT YOU REMEMBER ABOUT THE USER (use naturally without awkwardly announcing it):\n${memLines}`);
+  }
+
+  if (ctx.openingTopic || (ctx.earlierInThisChat && ctx.earlierInThisChat.length > 0)) {
+    const earlierLines = [];
+    if (ctx.openingTopic) earlierLines.push(`- Chat started with: "${ctx.openingTopic}"`);
+    (ctx.earlierInThisChat || []).forEach(ch => {
+      earlierLines.push(`- Earlier turn: ${ch.text}`);
+    });
+    parts.push(`\nEARLIER IN THIS SAME CHAT (beyond the recent messages below):\n${earlierLines.join('\n')}`);
+  }
+
+  if (ctx.acrossChats && ctx.acrossChats.length > 0) {
+    const crossLines = ctx.acrossChats
+      .map(ch => `- [${ch.date} · "${ch.threadTitle}"] ${ch.text}`)
+      .join('\n');
+    parts.push(`\nRELEVANT MOMENTS FROM PAST CHATS (you have memory across chats — use these naturally when relevant):\n${crossLines}`);
+  }
+
+  if (ctx.recentThreads && ctx.recentThreads.length > 0) {
+    const threadLines = ctx.recentThreads
+      .map(t => `- [${t.date}] "${t.title}" (${t.messageCount} msgs)${t.summary ? ': ' + t.summary : ''}`)
+      .join('\n');
+    parts.push(`\nOTHER RECENT CHATS WITH THIS USER:\n${threadLines}`);
   }
 
   const activeNote = typeof getActiveNote === 'function' ? getActiveNote() : null;
@@ -1548,12 +1676,17 @@ function renderGroqMessages() {
     const bubbleBorder = m.isError ? 'border-rose-500/40 bg-rose-500/5' : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)]';
     const placeholderStatus = m.streaming ? (m.isReasoning ? 'Reasoning...' : 'Thinking...') : '';
 
+    const recalledNote = !m.streaming && !m.isError && m.recalledMeta
+      ? `<div class="mt-1.5 font-mono text-[9px] text-[var(--text-tertiary)]">${escapeHtml(m.recalledMeta)}</div>`
+      : '';
+
     return `
       <div class="flex justify-start">
         <div class="max-w-[94%] w-full px-3 py-2.5 rounded-xl rounded-bl-[3px] border ${bubbleBorder} text-[var(--text-primary)]">
           <div id="pkGroqMsgBody_${idx}" class="text-xs leading-relaxed whitespace-pre-wrap break-words font-sans">${escapeHtml(display || placeholderStatus)}</div>
           ${memoryBadges}
           ${eventCards}
+          ${recalledNote}
           ${actionsBar}
         </div>
       </div>
@@ -1670,21 +1803,36 @@ async function sendGroqPrompt(overrideText) {
   setGroqStreamingButtons(true);
   pkGroqAbortController = new AbortController();
 
-  // Recall relevant long-term memories via Orama Hybrid BM25 + Vector Search
-  let recalledMemories = [];
-  if (window.PKMemory && typeof window.PKMemory.recall === 'function') {
-    try { recalledMemories = await window.PKMemory.recall(userText, { limit: 8 }); } catch (_) {}
+  // Clean history of this full chat (excluding prior failed error bubbles)
+  const cleanFullChat = pkGroqHistory
+    .slice(0, -1)
+    .filter(m => !m.isError && m.content);
+
+  // Recall long-term memories + earlier turns in THIS chat + relevant moments ACROSS ALL PAST CHATS via Orama Hybrid Search
+  const RECENT_WINDOW = 16;
+  let recalledCtx = { memories: [], openingTopic: '', earlierInThisChat: [], acrossChats: [], recentThreads: [] };
+  if (window.PKMemory && typeof window.PKMemory.recallContext === 'function') {
+    try {
+      recalledCtx = await window.PKMemory.recallContext(userText, cleanFullChat, { recentWindow: RECENT_WINDOW });
+    } catch (_) {}
   }
 
-  // Keep last 10 clean turns (excluding prior failed error bubbles)
-  const recentTurns = pkGroqHistory
-    .slice(0, -1)
-    .filter(m => !m.isError && m.content)
-    .slice(-10)
+  // Build subtle recall metadata tag if memory/cross-chat was used
+  const metaParts = [];
+  if (recalledCtx.memories.length > 0) metaParts.push(`${recalledCtx.memories.length} mem`);
+  if (recalledCtx.earlierInThisChat.length > 0) metaParts.push(`${recalledCtx.earlierInThisChat.length} earlier turn`);
+  if (recalledCtx.acrossChats.length > 0) metaParts.push(`${recalledCtx.acrossChats.length} past chat`);
+  if (metaParts.length > 0) {
+    pkGroqHistory[assistantIdx].recalledMeta = `Recalled: ${metaParts.join(' · ')}`;
+  }
+
+  // Send recent 16 messages verbatim + whole-chat & cross-chat Orama recall in system prompt
+  const recentTurns = cleanFullChat
+    .slice(-RECENT_WINDOW)
     .map(m => ({ role: m.role, content: stripSpecialBlocksForDisplay(m.content, false) || m.content }));
 
   const messages = [
-    { role: 'system', content: buildGroqSystemPrompt(recalledMemories) },
+    { role: 'system', content: buildGroqSystemPrompt(recalledCtx) },
     ...recentTurns
   ];
 
@@ -1872,7 +2020,8 @@ async function sendGroqPrompt(overrideText) {
     }
     pkGroqHistory[assistantIdx].savedMemories = savedMemList;
     if (window.PKMemory && typeof window.PKMemory.saveChatHistory === 'function') {
-      window.PKMemory.saveChatHistory(pkGroqHistory);
+      await window.PKMemory.saveChatHistory(pkGroqHistory);
+      updateAiMemoryBadge();
     }
     renderGroqMessages();
   } catch (err) {

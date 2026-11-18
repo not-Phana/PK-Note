@@ -1645,11 +1645,11 @@
         <!-- Block-Based Document Canvas -->
         <div id="blocksContainer" class="space-y-1"></div>
 
-        <!-- Connected Knowledge Radar (Direct In-Document 2-Way Link Network) -->
-        <div id="docKnowledgeRadar" class="mt-8 pt-5 border-t border-[var(--border-hairline)] space-y-3 select-none"></div>
+        <!-- Minimal Linked Notes Strip (Hidden when 0 links — zero clutter!) -->
+        <div id="docKnowledgeRadar" class="hidden mt-6 pt-4 border-t border-[var(--border-hairline)] select-none"></div>
 
-        <!-- Bottom Tap-to-Write & Quick Dictate Bar (Effortless Phone Writing!) -->
-        <div class="mt-4 flex items-center gap-2 sm:hidden select-none">
+        <!-- Bottom Tap-to-Write & Quick Dictate Bar (Effortless Phone Writing — Hidden when note is locked) -->
+        <div id="mobileBottomWriteBar" class="mt-4 flex items-center gap-2 sm:hidden select-none">
           <button type="button" onclick="appendBlockAtEnd()" class="flex-1 py-2.5 px-3 rounded-lg bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-xs flex items-center justify-center gap-1.5 cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Tap to write</span>
@@ -1660,8 +1660,8 @@
           </button>
         </div>
 
-        <!-- Bottom Click-to-Append Zone -->
-        <div onclick="appendBlockAtEnd()" class="h-32 cursor-text flex items-start pt-4 group">
+        <!-- Bottom Click-to-Append Zone (Hidden when note is locked) -->
+        <div id="desktopAppendZone" onclick="appendBlockAtEnd()" class="h-32 cursor-text flex items-start pt-4 group">
           <span class="hidden sm:inline font-mono text-[11px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
             Click to append block · Type <span class="text-[var(--text-secondary)]">/</span> for block types or <span class="text-[var(--accent-vermilion)]">[[</span> to reference a note
           </span>
@@ -2864,90 +2864,36 @@
       if (!radarEl || !note) return;
 
       const allLinks = computeVaultConnections();
-      const outgoingIds = new Set();
-      const incomingIds = new Set();
-
+      const linkedIds = new Set();
       allLinks.forEach(l => {
-        if (l.source === note.id) outgoingIds.add(l.target);
-        if (l.target === note.id) incomingIds.add(l.source);
+        if (l.source === note.id) linkedIds.add(l.target);
+        if (l.target === note.id) linkedIds.add(l.source);
       });
 
-      const outgoingNotes = state.notes.filter(n => outgoingIds.has(n.id));
-      const incomingNotes = state.notes.filter(n => incomingIds.has(n.id));
-      const totalCount = outgoingNotes.length + incomingNotes.length;
-
-      let html = `
-        <div class="p-3.5 rounded-lg bg-[var(--bg-panel)]/80 border border-[var(--border-hairline)] space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
-              <span class="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Connected Knowledge Radar</span>
-              <span class="font-mono text-[10px] text-[var(--text-tertiary)]">(${totalCount} links)</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button onclick="openLinkNotePicker('${note.id}')" title="Link another document by mouse" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[10px] transition-colors flex items-center gap-1 cursor-pointer">
-                <span>+ Link Note</span>
-              </button>
-              <button onclick="openRightInspector('graph')" title="View in Topology Graph" class="px-2 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] border border-[var(--border-hairline)] transition-colors cursor-pointer">
-                Graph →
-              </button>
-            </div>
-          </div>
-      `;
-
-      if (totalCount === 0) {
-        html += `
-          <div class="py-2 text-center space-y-1">
-            <div class="font-mono text-[11px] text-[var(--text-tertiary)]">No linked documents yet.</div>
-            <div class="text-[11px] text-[var(--text-secondary)]">Type <span class="font-mono text-[var(--accent-vermilion)] font-medium">[[</span> anywhere in text or click <button onclick="openLinkNotePicker('${note.id}')" class="underline text-[var(--accent-vermilion)] font-semibold cursor-pointer">+ Link Note</button> to connect concepts with your mouse.</div>
-          </div>
-        `;
-      } else {
-        html += `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">`;
-        
-        // Outgoing References (Notes referenced in this document)
-        html += `
-          <div class="space-y-1.5">
-            <div class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] flex items-center gap-1">
-              <span>Outgoing References</span>
-              <span>(${outgoingNotes.length})</span>
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              ${outgoingNotes.length > 0 ? outgoingNotes.map(n => `
-                <div class="group/pill inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-xs text-[var(--text-primary)] transition-colors">
-                  <span class="text-[var(--accent-ochre)] text-[10px]">${getGlyphSVG(n.glyph)}</span>
-                  <button onclick="selectNote('${n.id}')" class="hover:underline font-serif text-[12px] truncate max-w-[140px] cursor-pointer">${escapeHtml(n.title)}</button>
-                  <button onclick="disconnectNotes('${note.id}', '${n.id}')" title="Unlink" class="opacity-0 group-hover/pill:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">✕</button>
-                </div>
-              `).join('') : '<span class="font-mono text-[10px] text-[var(--text-tertiary)]">None referenced in prose</span>'}
-            </div>
-          </div>
-        `;
-
-        // Incoming References (Notes linking to this document)
-        html += `
-          <div class="space-y-1.5">
-            <div class="font-mono text-[10px] uppercase text-[var(--text-tertiary)] flex items-center gap-1">
-              <span>Incoming References</span>
-              <span>(${incomingNotes.length})</span>
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              ${incomingNotes.length > 0 ? incomingNotes.map(n => `
-                <div class="group/pill inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--accent-ochre)] text-xs text-[var(--text-primary)] transition-colors">
-                  <span class="text-[var(--accent-ochre)] text-[10px]">${getGlyphSVG(n.glyph)}</span>
-                  <button onclick="selectNote('${n.id}')" class="hover:underline font-serif text-[12px] truncate max-w-[140px] cursor-pointer">${escapeHtml(n.title)}</button>
-                  <button onclick="disconnectNotes('${n.id}', '${note.id}')" title="Unlink" class="opacity-0 group-hover/pill:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">✕</button>
-                </div>
-              `).join('') : '<span class="font-mono text-[10px] text-[var(--text-tertiary)]">No incoming references</span>'}
-            </div>
-          </div>
-        `;
-
-        html += `</div>`;
+      const linkedNotes = state.notes.filter(n => linkedIds.has(n.id));
+      // Zero clutter: completely hide when there are no linked notes!
+      if (linkedNotes.length === 0) {
+        radarEl.innerHTML = '';
+        radarEl.classList.add('hidden');
+        return;
       }
 
-      html += `</div>`;
-      radarEl.innerHTML = html;
+      radarEl.classList.remove('hidden');
+      const isLocked = !!note.locked;
+      radarEl.innerHTML = `
+        <div class="flex items-center flex-wrap gap-1.5">
+          <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mr-1">Linked (${linkedNotes.length})</span>
+          ${linkedNotes.map(n => `
+            <div class="group/pill inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-xs text-[var(--text-primary)] transition-colors">
+              <button onclick="selectNote('${n.id}')" class="hover:underline font-serif text-[12px] truncate max-w-[160px] cursor-pointer">${escapeHtml(n.title)}</button>
+              ${!isLocked ? `<button onclick="disconnectNotes('${note.id}', '${n.id}'); disconnectNotes('${n.id}', '${note.id}')" title="Unlink" class="opacity-60 hover:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">✕</button>` : ''}
+            </div>
+          `).join('')}
+          <button onclick="openRightInspector('graph')" class="ml-auto px-2 py-0.5 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[10px] transition-colors cursor-pointer">
+            Graph
+          </button>
+        </div>
+      `;
     }
     function renderRichBlockHTML(rawText) {
       if (!rawText) return '';
@@ -5212,10 +5158,21 @@
       }
     }
 
+    function guardActiveNoteEditable(quiet = false) {
+      const note = getActiveNote();
+      if (!note) return null;
+      if (note.locked) {
+        if (!quiet) showToast('Note is locked — unlock to edit', 'ochre');
+        return null;
+      }
+      return note;
+    }
+
     function handleBlockInput(e, blockId) {
+      const note = guardActiveNoteEditable(true);
+      if (!note) return;
       recordTypingChange();
       const el = e.currentTarget;
-      const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (!block) return;
 
@@ -5276,6 +5233,14 @@
     }
 
     function handleBlockKeydown(e, blockId) {
+      const lockedCheck = getActiveNote();
+      if (lockedCheck && lockedCheck.locked) {
+        if (!e.ctrlKey && !e.metaKey && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Escape', 'Tab'].includes(e.key)) {
+          e.preventDefault();
+          showToast('Note is locked — unlock to edit', 'ochre');
+        }
+        return;
+      }
       // Check Autocorrect Backspace Undo before anything else
       if (e.key === 'Backspace') {
         if (checkAutocorrectUndoOnBackspace(e, blockId)) {
@@ -5374,8 +5339,9 @@
     }
 
     function insertBlockAfter(blockId) {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       takeSnapshot('insertBlockAfter');
-      const note = getActiveNote();
       const idx = note.blocks.findIndex(b => b.id === blockId);
       const newBlock = { id: generateId('b'), type: 'paragraph', content: '' };
       note.blocks.splice(idx + 1, 0, newBlock);
@@ -5385,7 +5351,8 @@
     }
 
     function appendBlockAtEnd() {
-      const note = getActiveNote();
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       const last = note.blocks[note.blocks.length - 1];
       if (last && last.type === 'paragraph' && !last.content) {
         focusBlock(last.id, true);
@@ -5400,8 +5367,9 @@
     }
 
     function deleteBlock(blockId) {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       takeSnapshot('deleteBlock');
-      const note = getActiveNote();
       if (note.blocks.length <= 1) {
         note.blocks[0].content = '';
         note.blocks[0].type = 'paragraph';
@@ -5414,8 +5382,9 @@
     }
 
     function toggleTodoBlock(blockId) {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       takeSnapshot('toggleTodoBlock');
-      const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (block) {
         block.checked = !block.checked;
@@ -5450,6 +5419,11 @@
     }
 
     function handleBlockDragStart(e, blockId) {
+      const note = getActiveNote();
+      if (note && note.locked) {
+        e.preventDefault();
+        return;
+      }
       draggedBlockId = blockId;
       e.dataTransfer.effectAllowed = 'move';
     }
@@ -5473,7 +5447,8 @@
       row.classList.remove('drag-over-top', 'drag-over-bottom');
 
       if (!draggedBlockId || draggedBlockId === targetBlockId) return;
-      const note = getActiveNote();
+      const note = guardActiveNoteEditable();
+      if (!note) { draggedBlockId = null; return; }
       const fromIdx = note.blocks.findIndex(b => b.id === draggedBlockId);
       if (fromIdx === -1) return;
       const [moved] = note.blocks.splice(fromIdx, 1);
@@ -5553,7 +5528,8 @@
 
     function applySlashCommand(newType) {
       if (!activeSlashBlockId) return;
-      const note = getActiveNote();
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       const block = note.blocks.find(b => b.id === activeSlashBlockId);
       if (block) {
         block.content = (block.content || '').replace(/(?:^|\s)\/[a-zA-Z0-9]*$/, '').trim();
@@ -5796,11 +5772,12 @@
     }
 
     function deleteActiveNote() {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       if (state.notes.length <= 1) {
         showToast('Cannot delete the final document in vault', 'ochre');
         return;
       }
-      const note = getActiveNote();
       lastDeletedNote = JSON.parse(JSON.stringify(note));
       const deletedTitle = note.title;
       state.notes = state.notes.filter(n => n.id !== note.id);
@@ -5833,7 +5810,8 @@
     }
 
     function updateNoteFolder(newFolder) {
-      const note = getActiveNote();
+      const note = guardActiveNoteEditable();
+      if (!note) { renderActiveDocument(); return; }
       note.folder = newFolder;
       state.expandedFolders[newFolder] = true;
       renderSidebar();
@@ -5844,9 +5822,10 @@
     function handleTagKeydown(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
+        const note = guardActiveNoteEditable();
+        if (!note) return;
         const val = e.currentTarget.value.trim().replace(/^#/, '').toLowerCase();
         if (!val) return;
-        const note = getActiveNote();
         note.tags = note.tags || [];
         if (!note.tags.includes(val)) {
           note.tags.push(val);
@@ -5859,7 +5838,8 @@
     }
 
     function removeTag(tag) {
-      const note = getActiveNote();
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       note.tags = (note.tags || []).filter(t => t !== tag);
       renderSidebar();
       renderActiveDocument();
@@ -10853,8 +10833,9 @@
     }
 
     function convertBlockType(blockId, targetType) {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       takeSnapshot('convertBlockType');
-      const note = getActiveNote();
       const block = note.blocks.find(b => b.id === blockId);
       if (block) {
         block.type = targetType;
@@ -10866,8 +10847,9 @@
     }
 
     function insertBlockBefore(blockId) {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       takeSnapshot('insertBlockBefore');
-      const note = getActiveNote();
       const idx = note.blocks.findIndex(b => b.id === blockId);
       if (idx !== -1) {
         const newBlock = { id: generateId('b'), type: 'paragraph', content: '' };
@@ -10879,7 +10861,8 @@
     }
 
     function duplicateBlock(blockId) {
-      const note = getActiveNote();
+      const note = guardActiveNoteEditable();
+      if (!note) return;
       const idx = note.blocks.findIndex(b => b.id === blockId);
       if (idx !== -1) {
         const orig = note.blocks[idx];
@@ -17514,7 +17497,7 @@
       reader.readAsText(file);
     }
 
-    // --- 18F. READ-ONLY NOTE LOCK (Prevents accidental edits on phone) ---
+    // --- 18F. READ-ONLY NOTE LOCK (Complete UI & Mutation Lockdown) ---
     function applyNoteLockVisuals(note) {
       const locked = !!(note && note.locked);
       const badge = document.getElementById('headerNoteLockBadge');
@@ -17530,15 +17513,43 @@
       if (titleEl) {
         titleEl.setAttribute('contenteditable', locked ? 'false' : 'true');
       }
+      // Lock every block editable surface + hide empty placeholder prompts + hide gutter "+" and 6-dot drag handles!
       document.querySelectorAll('#blocksContainer [data-block-id]').forEach(el => {
         el.setAttribute('contenteditable', locked ? 'false' : 'true');
+        if (locked) {
+          if (el.hasAttribute('data-placeholder')) {
+            el.setAttribute('data-saved-placeholder', el.getAttribute('data-placeholder'));
+            el.removeAttribute('data-placeholder');
+          }
+        } else if (el.hasAttribute('data-saved-placeholder')) {
+          el.setAttribute('data-placeholder', el.getAttribute('data-saved-placeholder'));
+          el.removeAttribute('data-saved-placeholder');
+        }
       });
+      document.querySelectorAll('#blocksContainer .block-row').forEach(row => {
+        row.setAttribute('draggable', locked ? 'false' : 'true');
+        const gutter = row.firstElementChild;
+        if (gutter && gutter.querySelector('[data-drag-handle]')) {
+          gutter.classList.toggle('hidden', locked);
+        }
+      });
+      // Hide bottom write bars, tag inputs, tag delete buttons, and disable folder select while locked
+      const newTagInput = document.getElementById('newTagInput');
+      if (newTagInput) newTagInput.classList.toggle('hidden', locked);
+      document.querySelectorAll('#tagsContainer button').forEach(b => b.classList.toggle('hidden', locked));
+      const folderSel = document.getElementById('docFolderSelect');
+      if (folderSel) folderSel.disabled = locked;
+      const mobWriteBar = document.getElementById('mobileBottomWriteBar');
+      if (mobWriteBar) mobWriteBar.classList.toggle('hidden', locked);
+      const deskAppendZone = document.getElementById('desktopAppendZone');
+      if (deskAppendZone) deskAppendZone.classList.toggle('hidden', locked);
     }
 
     function toggleNoteLock() {
       const note = getActiveNote();
       if (!note) return;
       note.locked = !note.locked;
+      renderDocKnowledgeRadar(note);
       applyNoteLockVisuals(note);
       persistState();
       if (typeof playMechanicalClick === 'function') playMechanicalClick(0.95);
@@ -18651,6 +18662,8 @@
 
       document.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
+        const note = getActiveNote();
+        if (note && note.locked) return;
         const targetEl = e.target && e.target.nodeType === 1 ? e.target : e.target?.parentElement;
         const pill = targetEl ? targetEl.closest('[data-tag-pill]') : null;
         if (!pill || targetEl.closest('button')) return;

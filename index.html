@@ -764,6 +764,25 @@
       transition: transform 0.24s var(--ease-spring), opacity 0.2s ease;
     }
 
+    /* Mobile Ergonomics: Prevent iOS Safari input auto-zoom (<16px) & improve tap targets */
+    @media (max-width: 767px) {
+      #blocksContainer [contenteditable="true"],
+      #pkFindInput, #pkReplaceInput, #voiceSearchInput, #voiceCustomTestInput, #newTagInput {
+        font-size: 16px !important;
+      }
+      #blocksContainer input[type="checkbox"] {
+        width: 19px;
+        height: 19px;
+      }
+      #mobileActionRibbon {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      #mobileActionRibbon::-webkit-scrollbar {
+        display: none;
+      }
+    }
+
 
     /* =========================================================================
        EDITORIAL PRINT & PDF EXPORT STYLESHEET
@@ -1438,6 +1457,34 @@
          =================================================================== -->
     <div id="documentScrollArea" class="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth select-text relative isolate">
 
+      <!-- Sticky Mobile 1-Tap Labeled Tool Ribbon (Dictate, Listen, Voices, Block, Find — Always Visible on Phone!) -->
+      <div id="mobileActionRibbon" class="md:hidden sticky top-0 z-20 px-3 py-2 bg-[var(--bg-canvas)]/92 backdrop-blur-md border-b border-[var(--border-hairline)] flex items-center gap-1.5 overflow-x-auto select-none">
+        <button type="button" onclick="toggleVoiceDictation()" id="mobileRibbonDictateBtn" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold shadow-xs active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <span>Dictate</span>
+        </button>
+
+        <button type="button" onclick="toggleReadingNoteAloud()" id="mobileRibbonListenBtn" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span id="mobileRibbonListenLabel">Listen</span>
+        </button>
+
+        <button type="button" onclick="openVoiceModelModal()" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+          <span>Voices</span>
+        </button>
+
+        <button type="button" onclick="openMobileSlashMenu()" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Block</span>
+        </button>
+
+        <button type="button" onclick="openFindReplaceBar()" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
+          <span>Find</span>
+        </button>
+      </div>
+
       <!-- Dynamic Ambient Aura Glow (Atmospheric Cyber-Archival Lighting) -->
       <div id="ambientAuraGlow" class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] max-w-[140vw] h-[360px] rounded-full blur-[90px] opacity-25 dark:opacity-20 animate-aura transition-all duration-700 select-none z-0" style="background: radial-gradient(circle, var(--accent-vermilion) 0%, transparent 70%);"></div>
       
@@ -1508,8 +1555,14 @@
           </h1>
         </div>
 
-        <!-- Archival Metadata Properties Ledger -->
-        <div class="mb-5 sm:mb-8 py-2 sm:py-3 border-y border-[var(--border-hairline)] space-y-1.5 sm:space-y-2 text-xs">
+        <!-- Mobile Compact Metadata Summary Toggle (Saves ~115px of phone height; tap to edit folder & tags) -->
+        <button type="button" onclick="toggleMobileMetaLedger()" id="mobileMetaToggleBtn" class="sm:hidden w-full mb-4 py-1.5 px-2.5 rounded-lg bg-[var(--bg-panel)]/70 border border-[var(--border-hairline)] flex items-center justify-between font-mono text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
+          <span class="truncate" id="mobileMetaSummaryText">General · 1 min read · Details</span>
+          <svg id="mobileMetaChevron" class="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0 transition-transform" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <!-- Archival Metadata Properties Ledger (Always visible on tablet/desktop; toggled on phone) -->
+        <div id="archivalMetadataLedger" class="hidden sm:block mb-5 sm:mb-8 py-2 sm:py-3 border-y border-[var(--border-hairline)] space-y-1.5 sm:space-y-2 text-xs">
           <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5">
             <!-- Folder Property (Custom Swiss Popover Dropdown) -->
             <div class="flex items-center gap-2 relative" id="folderDropdownContainer">
@@ -1595,9 +1648,21 @@
         <!-- Connected Knowledge Radar (Direct In-Document 2-Way Link Network) -->
         <div id="docKnowledgeRadar" class="mt-8 pt-5 border-t border-[var(--border-hairline)] space-y-3 select-none"></div>
 
+        <!-- Bottom Tap-to-Write & Quick Dictate Bar (Effortless Phone Writing!) -->
+        <div class="mt-4 flex items-center gap-2 sm:hidden select-none">
+          <button type="button" onclick="appendBlockAtEnd()" class="flex-1 py-2.5 px-3 rounded-lg bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Tap to write</span>
+          </button>
+          <button type="button" onclick="toggleVoiceDictation()" class="py-2.5 px-3.5 rounded-lg bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-[var(--accent-vermilion)] font-mono text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+            <span>Dictate</span>
+          </button>
+        </div>
+
         <!-- Bottom Click-to-Append Zone -->
-        <div onclick="appendBlockAtEnd()" class="h-28 cursor-text flex items-start pt-4 group">
-          <span class="font-mono text-[11px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
+        <div onclick="appendBlockAtEnd()" class="h-32 cursor-text flex items-start pt-4 group">
+          <span class="hidden sm:inline font-mono text-[11px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
             Click to append block · Type <span class="text-[var(--text-secondary)]">/</span> for block types or <span class="text-[var(--accent-vermilion)]">[[</span> to reference a note
           </span>
         </div>
@@ -4860,14 +4925,28 @@
       renderBlocks(note);
     }
 
+    function toggleMobileMetaLedger() {
+      const ledger = document.getElementById('archivalMetadataLedger');
+      const chev = document.getElementById('mobileMetaChevron');
+      if (!ledger) return;
+      const isHidden = ledger.classList.contains('hidden');
+      ledger.classList.toggle('hidden', !isHidden);
+      if (chev) chev.style.transform = isHidden ? 'rotate(180deg)' : '';
+    }
+
     function updateWordCount(note) {
       const fullText = [note.title, ...note.blocks.map(b => b.content || '')].join(' ').trim();
       const words = fullText ? fullText.split(/\s+/).length : 0;
       document.getElementById('docWordCount').textContent = words;
+      const mins = Math.max(1, Math.ceil(words / 220));
       const readEl = document.getElementById('docReadingTimeMeta');
       if (readEl) {
-        const mins = Math.max(1, Math.ceil(words / 220));
         readEl.textContent = `${mins} min read`;
+      }
+      const mobSummary = document.getElementById('mobileMetaSummaryText');
+      if (mobSummary && note) {
+        const tagCount = Array.isArray(note.tags) ? note.tags.length : 0;
+        mobSummary.textContent = `${note.folder || 'General'} · ${mins} min read · ${tagCount} ${tagCount === 1 ? 'tag' : 'tags'}`;
       }
     }
 
@@ -9567,16 +9646,26 @@
     function updateHeaderReadAloudState() {
       const btn = document.getElementById('headerReadAloudBtn');
       const label = document.getElementById('headerReadAloudLabel');
-      if (!btn) return;
-      if (isSpeechAudioActive) {
-        btn.className = 'w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] transition-colors flex items-center justify-center gap-1 cursor-pointer animate-pulse';
-        btn.title = 'Stop Reading Aloud';
-        if (label) label.textContent = 'STOP';
-      } else {
-        btn.className = 'w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer';
-        btn.title = 'Read Note Aloud (Kokoro-82M Voice)';
-        if (label) label.textContent = 'LISTEN';
+      const mobBtn = document.getElementById('mobileRibbonListenBtn');
+      const mobLabel = document.getElementById('mobileRibbonListenLabel');
+
+      if (btn) {
+        if (isSpeechAudioActive) {
+          btn.className = 'w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] transition-colors flex items-center justify-center gap-1 cursor-pointer animate-pulse';
+          btn.title = 'Stop Reading Aloud';
+          if (label) label.textContent = 'STOP';
+        } else {
+          btn.className = 'w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer';
+          btn.title = 'Read Note Aloud (Kokoro-82M Voice)';
+          if (label) label.textContent = 'LISTEN';
+        }
       }
+      if (mobBtn) {
+        mobBtn.className = isSpeechAudioActive
+          ? 'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-mono text-[11px] font-semibold active:scale-95 transition-all cursor-pointer'
+          : 'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer';
+      }
+      if (mobLabel) mobLabel.textContent = isSpeechAudioActive ? 'Stop' : 'Listen';
     }
 
     function toggleReadingNoteAloud() {
@@ -12490,18 +12579,23 @@
       }
     });
 
-    // Viewport resize handling (iOS / Android soft keyboard resize)
+    // Viewport resize & scroll handling (Pins mobile accessory bar cleanly above iOS/Android soft keyboard!)
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
+      const syncKeyboardBar = () => {
         const bar = document.getElementById('mobileKeyboardAccessoryBar');
-        if (bar && !bar.classList.contains('pointer-events-none')) {
-          // Adjust position if keyboard resizes
+        if (!bar) return;
+        const vv = window.visualViewport;
+        const keyboardOffset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+        bar.style.bottom = `${keyboardOffset}px`;
+        if (!bar.classList.contains('pointer-events-none')) {
           const activeEl = document.querySelector(`[data-block-id="${activeEditingBlockId}"]`);
           if (activeEl) {
             activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         }
-      });
+      };
+      window.visualViewport.addEventListener('resize', syncKeyboardBar);
+      window.visualViewport.addEventListener('scroll', syncKeyboardBar);
     }
 
 
@@ -14401,56 +14495,48 @@
   <div id="mobileKeyboardAccessoryBar"
        class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] px-2 py-1.5 flex items-center justify-between gap-1 shadow-lg select-none translate-y-full opacity-0 pointer-events-none transition-all">
     <div class="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
-      <button type="button" onmousedown="event.preventDefault(); openMobileSlashMenu()" title="Insert Any Block (/)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/40 font-mono font-bold text-xs text-[var(--accent-vermilion)] hover:text-white min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); toggleVoiceDictation()" id="mobileDictateBtn" title="Voice Dictation (Whisper or Talk)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] text-white min-w-[36px] min-h-[36px] flex items-center justify-center gap-1 font-mono text-[10px] font-semibold shrink-0 cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        <span>Mic</span>
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0" title="Undo">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 0 1 5 5v2"></path><polyline points="7 6 3 10 7 14"></polyline></svg>
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0" title="Redo">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 0 0-5 5v2"></path><polyline points="17 6 21 10 17 14"></polyline></svg>
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); openMobileSlashMenu()" title="Insert Any Block (/)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono font-bold text-xs text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         /
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('bold')" title="Bold (Ctrl+B)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0" title="Todo block">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('bold')" title="Bold" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         B
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('italic')" title="Italic (Ctrl+I)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('italic')" title="Italic" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         I
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('code')" title="Inline Code" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
-        &lt;/&gt;
-      </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h1')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h1')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-bold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         H1
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h2')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-semibold text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('h2')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif font-semibold text-xs text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         H2
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('bullet')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-sm text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         •
       </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('todo')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0" title="Todo block">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-          <polyline points="9 11 12 14 22 4"></polyline>
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-        </svg>
-      </button>
-      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileBlockFormat('quote')" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif italic text-sm text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         "
       </button>
-      <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); applyMobileInlineFormat('code')" title="Inline Code" class="px-2 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-primary)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
+        &lt;/&gt;
+      </button>
+      <button type="button" onmousedown="event.preventDefault(); insertMobileWikiLink()" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         [[
       </button>
-      <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
+      <button type="button" onmousedown="event.preventDefault(); mobileReadSelectionOrNote()" title="Read Selection or Note Aloud" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-      </button>
-      <button type="button" onmousedown="event.preventDefault(); toggleVoiceDictation()" id="mobileDictateBtn" title="Voice Dictation (Talk to Write)" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] min-w-[34px] min-h-[34px] flex items-center justify-center shrink-0">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-      </button>
-      <button type="button" onmousedown="event.preventDefault(); performUndo()" id="mobileUndoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer shrink-0" title="Undo (↶)">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-          <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
-          <polyline points="7 6 3 10 7 14"></polyline>
-        </svg>
-      </button>
-      <button type="button" onmousedown="event.preventDefault(); performRedo()" id="mobileRedoBtn" class="px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] min-w-[34px] min-h-[34px] flex items-center justify-center cursor-pointer shrink-0" title="Redo (↷)">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-          <path d="M21 10H11a5 5 0 0 0-5 5v2"></path>
-          <polyline points="17 6 21 10 17 14"></polyline>
-        </svg>
       </button>
     </div>
     <button type="button" onmousedown="event.preventDefault(); dismissMobileKeyboard()" class="shrink-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] min-h-[34px] flex items-center gap-1 font-mono">

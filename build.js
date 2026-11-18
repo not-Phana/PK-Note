@@ -48,7 +48,8 @@ const jsFiles = [
   ['src/js/boot.js', 'js/boot.min.js'],
   ['src/js/wasm-bridge.js', 'js/wasm-bridge.min.js'],
   ['src/js/app.js', 'js/app.min.js'],
-  ['src/js/special-craft.js', 'js/special-craft.min.js']
+  ['src/js/special-craft.js', 'js/special-craft.min.js'],
+  ['src/js/groq-assistant.js', 'js/groq-assistant.min.js']
 ];
 for (const [src, dst] of jsFiles) {
   const raw = fs.readFileSync(path.join(ROOT, src), 'utf8');

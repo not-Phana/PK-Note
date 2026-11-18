@@ -7,3 +7,7 @@ Thumbs.db
 .idea/
 *.swp
 *.bak
+
+# Local Build Dependencies & Rust Intermediate Artifacts
+node_modules/
+rust-engine/target/

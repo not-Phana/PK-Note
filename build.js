@@ -89,3 +89,16 @@ if (styleTags > 0 || inlineScripts > 0) {
 fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(ROOT, 'pk_note_workspace.html'));
 fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(ROOT, 'aether_archival_knowledge_calendar_workspace.html'));
 console.log('5. Pure HTML verified & synced -> index.html (' + kb(html.length) + ', 0 <style>, 0 inline <script>)');
+
+// 6. Stamp version.json for automatic live-refresh on GitHub Pages (https://not-phana.github.io/PK-Note/)
+const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+const swVerMatch = swSrc.match(/const\s+CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
+const appVersion = swVerMatch ? swVerMatch[1] : 'pk-note-latest';
+const buildId = `${appVersion}-${Date.now().toString(36)}`;
+const versionPayload = {
+  version: appVersion,
+  buildId,
+  builtAt: new Date().toISOString()
+};
+fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify(versionPayload, null, 2) + '\n', 'utf8');
+console.log('6. Live update manifest stamped -> version.json (' + buildId + ')');

@@ -1,5 +1,5 @@
 // PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
-const CACHE_NAME = 'pk-note-v2.6.0';
+const CACHE_NAME = 'pk-note-v2.6.1';
 
 const PRECACHE_ASSETS = [
   './',
@@ -65,6 +65,12 @@ self.addEventListener('fetch', event => {
   // so streaming download progress & Transformers.js browser CacheStorage work natively without duplication
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // 0. Never cache version.json — always fetch fresh from network for live auto-refresh detection!
+  if (url.pathname.endsWith('/version.json') || url.pathname === '/version.json') {
+    event.respondWith(fetch(req, { cache: 'no-store' }));
+    return;
+  }
 
   // 1. HTML, JS, CSS & WASM Core App Files: Network-First with cache-busting (Guarantees phone gets latest fixes on first refresh!)
   const isCoreAppAsset = req.mode === 'navigate'

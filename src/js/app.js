@@ -6236,25 +6236,132 @@ window.addEventListener('load', () => {
     if (!document.hidden) ensureGraphLoopRunning();
   });
 
-  // Register Progressive Web App Service Worker with instant auto-update check
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => {
-        reg.update();
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                showToast('Update available · Reloading latest version...', 'vermilion');
-                setTimeout(() => window.location.reload(), 1200);
-              }
-            });
-          }
-        });
-      })
-      .catch(() => {});
-  }
+  // Live Auto-Update Engine for GitHub Pages & PWA (zero-data-loss automatic refresh when new changes deploy!)
+  (function initPKLiveAutoUpdater() {
+    if (location.protocol === 'file:') return;
+    let swReg = null;
+    let currentBuildId = null;
+    let reloadScheduled = false;
+    let pendingNewVersion = null;
+    let retryTimer = null;
+
+    const canReloadSafelyNow = () => {
+      if (typeof pkGroqIsStreaming !== 'undefined' && pkGroqIsStreaming) return false;
+      if (typeof isSpeechAudioActive !== 'undefined' && isSpeechAudioActive) return false;
+      if (typeof isVoiceDictating !== 'undefined' && isVoiceDictating) return false;
+      return true;
+    };
+
+    const triggerSafeAutoReload = (reasonLabel = 'latest update') => {
+      if (reloadScheduled) return;
+      // Reload-loop guard: never auto-reload twice within 12 seconds
+      try {
+        const lastReload = Number(sessionStorage.getItem('pk_last_auto_reload_ts') || '0');
+        if (Date.now() - lastReload < 12000) return;
+      } catch (_) {}
+
+      if (!canReloadSafelyNow()) {
+        pendingNewVersion = reasonLabel;
+        if (!retryTimer) {
+          retryTimer = setInterval(() => {
+            if (canReloadSafelyNow()) {
+              clearInterval(retryTimer);
+              retryTimer = null;
+              triggerSafeAutoReload(pendingNewVersion || 'latest update');
+            }
+          }, 2500);
+        }
+        return;
+      }
+
+      reloadScheduled = true;
+      if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
+      // Save every unsaved edit immediately before refreshing!
+      try {
+        pendingStateDirty = true;
+        flushPersistStateNow();
+      } catch (_) {}
+      try { sessionStorage.setItem('pk_last_auto_reload_ts', String(Date.now())); } catch (_) {}
+
+      if (typeof showToast === 'function') {
+        showToast(`New update live (${reasonLabel}) · Refreshing...`, 'vermilion');
+      }
+      const doReload = () => {
+        if ('caches' in window) {
+          caches.keys().then(keys =>
+            Promise.all(keys.filter(k => k.startsWith('pk-note-')).map(k => caches.delete(k)))
+          ).catch(() => {}).finally(() => window.location.reload());
+        } else {
+          window.location.reload();
+        }
+      };
+      setTimeout(doReload, 900);
+    };
+
+    const checkLiveVersionManifest = async (isInitialBoot = false) => {
+      if (!navigator.onLine) return;
+      if (!isInitialBoot && document.visibilityState === 'hidden') return;
+      try {
+        const res = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.buildId) return;
+        if (!currentBuildId) {
+          currentBuildId = data.buildId;
+          return;
+        }
+        if (data.buildId !== currentBuildId) {
+          if (swReg) swReg.update().catch(() => {});
+          triggerSafeAutoReload(data.version || 'latest');
+        }
+      } catch (_) {}
+    };
+
+    if ('serviceWorker' in navigator) {
+      let hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController) {
+          triggerSafeAutoReload('new version');
+        }
+        hadController = true;
+      });
+
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+        .then(reg => {
+          swReg = reg;
+          reg.update().catch(() => {});
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  triggerSafeAutoReload('new version');
+                }
+              });
+            }
+          });
+        })
+        .catch(() => {});
+    }
+
+    // Record initial loaded buildId, then poll every 25s + on tab focus/resume/reconnect!
+    checkLiveVersionManifest(true);
+    setInterval(() => {
+      checkLiveVersionManifest(false);
+      if (swReg && document.visibilityState === 'visible' && navigator.onLine) {
+        swReg.update().catch(() => {});
+      }
+    }, 25000);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkLiveVersionManifest(false);
+        if (swReg) swReg.update().catch(() => {});
+      }
+    });
+    window.addEventListener('focus', () => checkLiveVersionManifest(false));
+    window.addEventListener('online', () => checkLiveVersionManifest(false));
+  })();
 });
   
 

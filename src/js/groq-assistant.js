@@ -644,12 +644,69 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
   if (/\b429\b/.test(rawMsg)) {
     return `${spec.shortName} rate limit reached. Wait a moment or switch model/provider.`;
   }
+  if (/no models? loaded/i.test(rawMsg)) {
+    return `Local server is connected, but no model is loaded yet. Load "${model}" in LM Studio (or run: lms load ${model}) and tap Retry.`;
+  }
   return rawMsg;
 }
 
 // ============================================================================
-// LIVE MODEL DISCOVERY (GROQ / NVIDIA / OLLAMA + LM STUDIO LOCAL SCAN)
+// LIVE MODEL DISCOVERY + AUTO-PORT FALLBACK (LM STUDIO / OLLAMA / LLAMA.CPP)
 // ============================================================================
+const PK_LOCAL_AUTO_PORTS = [
+  'http://localhost:1234/v1',
+  'http://localhost:1235/v1',
+  'http://localhost:11434/v1',
+  'http://localhost:8080/v1',
+  'http://localhost:1337/v1'
+];
+
+function isNonChatModelId(id) {
+  return /embed|phonon|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety/i.test(String(id || ''));
+}
+
+async function probeLocalBaseUrl(baseUrl, apiKey) {
+  const endpoints = buildProviderEndpoints('local', baseUrl);
+  const headers = {};
+  if (apiKey && apiKey.trim()) headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 1800);
+  try {
+    const res = await fetch(endpoints.modelsUrl, { method: 'GET', headers, signal: ctrl.signal });
+    if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
+      const ids = list
+        .map(item => (typeof item === 'string' ? item : (item && (item.id || item.name || item.model)) || ''))
+        .filter(id => id && !isNonChatModelId(id));
+      return { ok: true, baseUrl: endpoints.baseUrl, models: [...new Set(ids)] };
+    }
+  } catch (_) {
+    // Try Ollama native /api/tags as fallback on this port
+    if (endpoints.ollamaTagsUrl) {
+      try {
+        const tRes = await fetch(endpoints.ollamaTagsUrl, { method: 'GET', signal: ctrl.signal });
+        if (tRes.ok) {
+          const json = await tRes.json().catch(() => ({}));
+          const ids = (json.models || []).map(m => m && (m.name || m.model)).filter(id => id && !isNonChatModelId(id));
+          return { ok: true, baseUrl: endpoints.baseUrl, models: [...new Set(ids)] };
+        }
+      } catch (_) {}
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+  return { ok: false, baseUrl: endpoints.baseUrl, models: [] };
+}
+
+async function autoDetectRunningLocalServer(currentBaseUrl, apiKey) {
+  const normCurrent = buildProviderEndpoints('local', currentBaseUrl).baseUrl;
+  const candidates = [normCurrent, ...PK_LOCAL_AUTO_PORTS.filter(u => u !== normCurrent)];
+  const results = await Promise.all(candidates.map(u => probeLocalBaseUrl(u, apiKey)));
+  const hit = results.find(r => r.ok);
+  return hit || null;
+}
+
 async function discoverModelsForProvider(pid, baseUrl, apiKey) {
   const endpoints = buildProviderEndpoints(pid, baseUrl);
   const headers = {};
@@ -663,10 +720,8 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
       const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
       const ids = list
         .map(item => (typeof item === 'string' ? item : (item && (item.id || item.name || item.model)) || ''))
-        .filter(Boolean)
-        // Filter out non-chat embedding/whisper/tts/guard models on cloud endpoints
-        .filter(id => pid === 'local' || !/embed|whisper|tts|playai|clip|synthetic-video|guard|safety/i.test(id));
-      if (ids.length > 0) return [...new Set(ids)].sort();
+        .filter(id => id && !isNonChatModelId(id));
+      if (ids.length > 0) return [...new Set(ids)];
     }
   } catch (err) {
     // Fall through to Ollama native tags if Local; otherwise rethrow
@@ -680,7 +735,7 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
       const json = await res.json();
       const ids = (json.models || [])
         .map(m => m && (m.name || m.model))
-        .filter(Boolean);
+        .filter(id => id && !isNonChatModelId(id));
       if (ids.length > 0) return [...new Set(ids)];
     }
   }
@@ -702,21 +757,38 @@ async function fetchAiProviderModels() {
   if (fetchBtn) fetchBtn.textContent = spec.id === 'local' ? 'Scanning...' : 'Fetching...';
 
   try {
-    const models = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey);
+    let models = [];
+    let switchedUrl = '';
+    if (spec.id === 'local') {
+      try {
+        models = await discoverModelsForProvider('local', data.baseUrl, data.apiKey);
+      } catch (_) {
+        // Configured port unreachable -> auto-probe LM Studio (:1234/:1235), Ollama (:11434), llama.cpp (:8080), Jan (:1337)
+        const detected = await autoDetectRunningLocalServer(data.baseUrl, data.apiKey);
+        if (!detected) throw new TypeError('Failed to fetch');
+        cfg.local.baseUrl = detected.baseUrl;
+        switchedUrl = detected.baseUrl;
+        models = detected.models;
+      }
+    } else {
+      models = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey);
+    }
+
     if (models.length === 0) {
       throw new Error(spec.id === 'local'
-        ? 'Server reachable, but no local models found. Load a model in Ollama or LM Studio first.'
+        ? 'Local server is running, but no chat models are loaded yet. Load a model in LM Studio or pull one in Ollama.'
         : 'No chat models returned by endpoint.');
     }
     cfg[spec.id].discoveredModels = models;
-    // If current model isn't in discovered local models, auto-select the first installed one
     if (spec.id === 'local' && !models.includes(cfg.local.model)) {
       cfg.local.model = models[0];
     }
     saveAiConfig(cfg);
     syncGroqHeaderAndSettingsUI();
     if (typeof showToast === 'function') {
-      showToast(`Found ${models.length} ${spec.shortName} model(s)`);
+      showToast(switchedUrl
+        ? `Auto-connected ${switchedUrl} · Found ${models.length} model(s)`
+        : `Found ${models.length} ${spec.shortName} model(s)`);
     }
   } catch (err) {
     const friendly = formatAiConnectionError(err, spec.id, data.baseUrl, data.model);
@@ -741,15 +813,16 @@ async function testGroqConnection() {
   if (typeof showToast === 'function') showToast(`Testing ${spec.name}...`);
 
   try {
-    // For Local Model: auto-discover installed models first if none scanned yet
+    // For Local Model: auto-detect running port (:1234/:1235/:11434/:8080/:1337) if configured port is closed!
     if (spec.id === 'local') {
-      try {
-        const found = await discoverModelsForProvider('local', data.baseUrl, data.apiKey);
-        if (found.length > 0) {
-          data.discoveredModels = found;
-          if (!found.includes(data.model)) data.model = found[0];
+      const detected = await autoDetectRunningLocalServer(data.baseUrl, data.apiKey);
+      if (detected) {
+        data.baseUrl = detected.baseUrl;
+        if (detected.models.length > 0) {
+          data.discoveredModels = detected.models;
+          if (!detected.models.includes(data.model)) data.model = detected.models[0];
         }
-      } catch (_) {}
+      }
     }
 
     const endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
@@ -784,7 +857,6 @@ async function testGroqConnection() {
     if (typeof showToast === 'function') {
       showToast(friendly.slice(0, 120), 'ochre');
     }
-    // Also surface detailed troubleshooting message in chat viewport if conversation is empty or user is testing
     pkGroqHistory.push({
       role: 'assistant',
       content: `${spec.name} connection check failed:\n${friendly}`,
@@ -1285,19 +1357,47 @@ async function sendGroqPrompt(overrideText) {
   };
 
   try {
-    const endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
-    const res = await fetch(endpoints.chatUrl, {
+    let endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
+    let activeModel = data.model || spec.defaultModel;
+    const doChatFetch = (chatUrl, modelId) => fetch(chatUrl, {
       method: 'POST',
       headers: buildAuthHeaders(data.apiKey),
       signal: pkGroqAbortController.signal,
       body: JSON.stringify({
-        model: data.model || spec.defaultModel,
+        model: modelId,
         messages,
         stream: true,
         temperature: 0.55,
         max_tokens: 2048
       })
     });
+
+    let res;
+    try {
+      res = await doChatFetch(endpoints.chatUrl, activeModel);
+    } catch (firstErr) {
+      if (spec.id === 'local' && !(firstErr && firstErr.name === 'AbortError')) {
+        const detected = await autoDetectRunningLocalServer(data.baseUrl, data.apiKey);
+        if (detected) {
+          data.baseUrl = detected.baseUrl;
+          if (detected.models.length > 0) {
+            data.discoveredModels = detected.models;
+            if (!detected.models.includes(activeModel)) {
+              activeModel = detected.models[0];
+              data.model = activeModel;
+            }
+          }
+          saveAiConfig(cfg);
+          syncGroqHeaderAndSettingsUI();
+          endpoints = buildProviderEndpoints('local', data.baseUrl);
+          res = await doChatFetch(endpoints.chatUrl, activeModel);
+        } else {
+          throw firstErr;
+        }
+      } else {
+        throw firstErr;
+      }
+    }
 
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({}));

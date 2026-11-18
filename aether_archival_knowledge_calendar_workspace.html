@@ -1326,6 +1326,15 @@
             <span class="hidden xl:inline">VOICE</span>
           </button>
 
+          <!-- Whisper Studio Dictation Button (Desktop) -->
+          <button onclick="toggleVoiceDictation()" id="desktopDictateBtn" title="Whisper Voice Dictation (Talk or Whisper to Write)" class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><circle cx="19" cy="5" r="2" fill="currentColor" stroke="none"/>
+            </svg>
+            <span class="hidden xl:inline">DICTATE</span>
+          </button>
+
           <!-- Pomodoro Focus Timer Button (Desktop) -->
           <button onclick="openFocusTimerModal()" id="desktopFocusTimerBtn" title="Pomodoro Focus Timer" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
@@ -15460,14 +15469,66 @@
     </div>
   </div>
 
-  <!-- 2. Floating Voice-to-Text Dictation HUD (Perfectly Centered on Phone & Desktop) -->
-  <div id="pkDictationHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[915] flex items-center gap-2.5 px-3.5 py-2 rounded-full popover-surface border border-[var(--accent-vermilion)] shadow-2xl select-none backdrop-blur-xl">
-    <span class="w-2.5 h-2.5 rounded-full bg-[var(--accent-vermilion)] animate-ping shrink-0"></span>
-    <div class="flex flex-col min-w-0 max-w-[180px] sm:max-w-[280px]">
-      <span class="font-mono text-[9px] uppercase tracking-wider text-[var(--accent-vermilion)] font-semibold">Listening · Voice Dictation</span>
-      <span id="pkDictationPreview" class="font-serif text-xs text-[var(--text-primary)] truncate">Speak naturally to write...</span>
+  <!-- 2. Studio Whisper-Sensitive Voice Dictation Capsule (Centered, Draggable, Live 60fps Acoustic Waveform) -->
+  <div id="pkDictationHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-[92vw] max-w-[390px] z-[915] flex flex-col rounded-2xl popover-surface border border-[var(--accent-vermilion)]/70 shadow-2xl select-none backdrop-blur-xl overflow-hidden transition-shadow duration-150">
+    <!-- Top Luminous Accent Line -->
+    <div id="pkDictationGlowBar" class="h-[2px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-80"></div>
+
+    <div class="px-3.5 pt-2.5 pb-3 space-y-2.5">
+      <!-- Top Studio Header: Status Dot + Mode Switcher + Whisper Gain Pill -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="relative flex h-2.5 w-2.5 shrink-0">
+            <span id="pkDictationPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent-vermilion)] opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--accent-vermilion)]"></span>
+          </span>
+          <span id="pkDictationStatusBadge" class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-primary)] font-semibold truncate">WHISPER AI · LISTENING</span>
+        </div>
+
+        <div class="flex items-center gap-1 shrink-0">
+          <!-- Sensitivity Boost Cycle Pill (Normal -> Whisper +15dB -> Ultra +22dB) -->
+          <button type="button" onclick="cycleDictationWhisperGain()" id="pkDictationGainPill" title="Cycle Microphone Whisper Boost" class="px-2 py-0.5 rounded-full bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold cursor-pointer transition-colors">
+            WHISPER +15dB
+          </button>
+
+          <!-- Mode Toggle: Whisper AI vs Live -->
+          <div class="flex items-center bg-[var(--bg-canvas)] rounded-full p-0.5 border border-[var(--border-hairline)] font-mono text-[9px]">
+            <button type="button" onclick="setDictationEngine('whisper')" id="pkDictModeWhisper" class="px-2 py-0.5 rounded-full bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer transition-colors">Whisper</button>
+            <button type="button" onclick="setDictationEngine('live')" id="pkDictModeLive" class="px-2 py-0.5 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">Live</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Centerpiece: Real-Time 60fps Symmetrical Acoustic Waveform Canvas -->
+      <div class="relative rounded-xl bg-[var(--bg-canvas)]/85 border border-[var(--border-hairline)] px-2.5 py-2 overflow-hidden">
+        <canvas id="pkDictationWaveCanvas" class="block w-full h-11"></canvas>
+        <div class="flex items-center justify-between mt-1 font-mono text-[9px] text-[var(--text-tertiary)]">
+          <span id="pkDictationSignalLabel" class="truncate">Mic pre-amp active · Whisper ready</span>
+          <span id="pkDictationTimer" class="tabular-nums text-[var(--accent-vermilion)] font-medium shrink-0">00:00</span>
+        </div>
+      </div>
+
+      <!-- Live Transcript Preview & Action Controls -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="min-w-0 flex-1">
+          <div id="pkDictationPreview" class="font-serif text-xs text-[var(--text-primary)] truncate">Whisper or speak naturally...</div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+          <button type="button" onclick="transcribeCurrentWhisperBuffer(false)" id="pkDictationInsertBtn" class="px-2.5 py-1.5 rounded-lg bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold cursor-pointer transition-opacity">
+            Insert
+          </button>
+          <button type="button" onclick="stopVoiceDictation(true)" class="px-2.5 py-1.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-primary)] cursor-pointer transition-colors">
+            Done
+          </button>
+        </div>
+      </div>
     </div>
-    <button onclick="stopVoiceDictation()" class="px-2.5 py-1 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-medium hover:opacity-90 cursor-pointer shrink-0">Stop</button>
+
+    <!-- Bottom Whisper AI Model Download / Transcription Progress Strip -->
+    <div id="pkDictationProgressTrack" class="hidden w-full h-[3px] bg-[var(--bg-canvas)]">
+      <div id="pkDictationProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-150" style="width: 10%"></div>
+    </div>
   </div>
 
   <!-- 3. Floating Pomodoro Focus Timer Pill (Visible when timer is running/active) -->
@@ -15532,60 +15593,479 @@
     //     Dictation · Find & Replace · Templates · Focus Timer · MD Import · Lock
     // =========================================================================
 
-    // --- 18A. VOICE-TO-TEXT DICTATION (Browser SpeechRecognition API) ---
+    // --- 18A. STUDIO WHISPER-SENSITIVE VOICE-TO-TEXT DICTATION ENGINE ---
+    //     Dual Mode: (1) On-Device Whisper AI + Web Audio Pre-Amp (hears whispers!)
+    //                (2) Instant Live Streaming (Browser SpeechRecognition + Visualizer)
+    const WHISPER_STT_ESM_URL = 'https://esm.sh/@huggingface/transformers@3.5.1';
+    const WHISPER_STT_MODEL_ID = 'onnx-community/whisper-tiny.en';
+
+    const DICTATION_GAIN_LEVELS = [
+      { id: 'whisper', gain: 4.5, label: 'WHISPER +15dB', desc: 'Whisper pre-amp boosted (+15dB)' },
+      { id: 'ultra',   gain: 8.0, label: 'ULTRA +22dB',   desc: 'Ultra-quiet whisper sensitivity (+22dB)' },
+      { id: 'normal',  gain: 1.2, label: 'NORMAL',        desc: 'Standard studio sensitivity' }
+    ];
+
+    let pkDictationMode = 'whisper'; // 'whisper' (hears whispers!) | 'live' (instant streaming)
+    let pkDictationGainIdx = 0;      // Defaults to WHISPER +15dB!
     let pkDictationRecognition = null;
     let isDictationActive = false;
+    let isDictationTranscribing = false;
+
+    // Web Audio Pre-Amp & Acoustic Waveform State
+    let pkDictAudioCtx = null;
+    let pkDictMediaStream = null;
+    let pkDictGainNode = null;
+    let pkDictAnalyser = null;
+    let pkDictProcessor = null;
+    let pkDictWaveAnimId = null;
+    let pkDictTimerInterval = null;
+    let pkDictStartedAt = 0;
+    let pkDictRecordedChunks = []; // Float32Array chunks at pkDictAudioCtx.sampleRate
+    let pkDictRecordedSamples = 0;
+
+    // On-Device Whisper AI Pipeline Singleton (39MB q8, cached offline once)
+    let pkWhisperPipeline = null;
+    let pkWhisperLoadPromise = null;
+
+    function updateDictationHUDModeUI() {
+      const btnW = document.getElementById('pkDictModeWhisper');
+      const btnL = document.getElementById('pkDictModeLive');
+      const insertBtn = document.getElementById('pkDictationInsertBtn');
+      const gainPill = document.getElementById('pkDictationGainPill');
+      const statusBadge = document.getElementById('pkDictationStatusBadge');
+      const gainCfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0];
+
+      if (btnW && btnL) {
+        if (pkDictationMode === 'whisper') {
+          btnW.className = 'px-2 py-0.5 rounded-full bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer transition-colors';
+          btnL.className = 'px-2 py-0.5 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors';
+        } else {
+          btnW.className = 'px-2 py-0.5 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors';
+          btnL.className = 'px-2 py-0.5 rounded-full bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer transition-colors';
+        }
+      }
+      if (insertBtn) insertBtn.classList.toggle('hidden', pkDictationMode !== 'whisper');
+      if (gainPill) gainPill.textContent = gainCfg.label;
+      if (statusBadge && !isDictationTranscribing) {
+        statusBadge.textContent = pkDictationMode === 'whisper' ? 'WHISPER AI · LISTENING' : 'LIVE · LISTENING';
+      }
+    }
+
+    function setDictationEngine(mode) {
+      if (pkDictationMode === mode) return;
+      pkDictationMode = mode;
+      updateDictationHUDModeUI();
+      if (isDictationActive) {
+        stopVoiceDictation(false);
+        setTimeout(() => startVoiceDictation(), 80);
+      } else {
+        showToast(mode === 'whisper' ? 'Switched to Whisper AI (hears soft whispers)' : 'Switched to Live Streaming dictation');
+      }
+    }
+
+    function cycleDictationWhisperGain() {
+      pkDictationGainIdx = (pkDictationGainIdx + 1) % DICTATION_GAIN_LEVELS.length;
+      const cfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx];
+      if (pkDictGainNode && pkDictAudioCtx) {
+        pkDictGainNode.gain.setTargetAtTime(cfg.gain, pkDictAudioCtx.currentTime, 0.04);
+      }
+      updateDictationHUDModeUI();
+      const sigEl = document.getElementById('pkDictationSignalLabel');
+      if (sigEl) sigEl.textContent = cfg.desc;
+      if (typeof pkHaptic === 'function') pkHaptic(8);
+      showToast(`Mic sensitivity: ${cfg.label}`);
+    }
+
+    function setDictationProgress(visible, pct = 0, statusText = null) {
+      const track = document.getElementById('pkDictationProgressTrack');
+      const bar = document.getElementById('pkDictationProgressBar');
+      const statusBadge = document.getElementById('pkDictationStatusBadge');
+      if (track) track.classList.toggle('hidden', !visible);
+      if (bar) bar.style.width = `${Math.max(5, Math.min(100, pct))}%`;
+      if (statusText && statusBadge) statusBadge.textContent = statusText;
+    }
+
+    async function ensureWhisperSTTPipeline() {
+      if (pkWhisperPipeline) return pkWhisperPipeline;
+      if (pkWhisperLoadPromise) return pkWhisperLoadPromise;
+
+      setDictationProgress(true, 8, 'LOADING WHISPER AI (39MB ONCE)...');
+      let lastTs = 0;
+
+      pkWhisperLoadPromise = (async () => {
+        try {
+          const { pipeline } = await import(WHISPER_STT_ESM_URL);
+          const asr = await pipeline('automatic-speech-recognition', WHISPER_STT_MODEL_ID, {
+            dtype: 'q8',
+            device: 'wasm',
+            progress_callback: (info) => {
+              if (!info) return;
+              const now = performance.now();
+              if (info.status === 'progress' && (now - lastTs > 120)) {
+                lastTs = now;
+                const pct = typeof info.progress === 'number' ? info.progress : 20;
+                setDictationProgress(true, Math.max(10, Math.min(98, pct)), `CACHING WHISPER AI (${Math.round(pct)}%)...`);
+              } else if (info.status === 'ready') {
+                setDictationProgress(false, 100);
+              }
+            }
+          });
+          pkWhisperPipeline = asr;
+          setDictationProgress(false, 100);
+          return asr;
+        } catch (err) {
+          pkWhisperLoadPromise = null;
+          setDictationProgress(false, 0);
+          throw err;
+        }
+      })();
+
+      return pkWhisperLoadPromise;
+    }
+
+    // Resample recorded Float32 PCM cleanly to 16,000 Hz + apply Whisper Soft RMS/Peak Boost
+    function buildWhisperNormalized16kPCM(chunks, sourceSampleRate) {
+      let totalLen = 0;
+      for (const c of chunks) totalLen += c.length;
+      if (totalLen === 0) return new Float32Array(0);
+
+      const merged = new Float32Array(totalLen);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+
+      // Linear downsample to 16 kHz required by Whisper
+      const targetRate = 16000;
+      const ratio = sourceSampleRate / targetRate;
+      const outLen = Math.max(1, Math.floor(merged.length / ratio));
+      const resampled = new Float32Array(outLen);
+      for (let i = 0; i < outLen; i++) {
+        const srcIdx = i * ratio;
+        const idx0 = Math.floor(srcIdx);
+        const idx1 = Math.min(merged.length - 1, idx0 + 1);
+        const frac = srcIdx - idx0;
+        resampled[i] = merged[idx0] * (1 - frac) + merged[idx1] * frac;
+      }
+
+      // Peak + Soft Tanh Whisper Normalization: lifts tiny whispers cleanly to -3dBFS without harsh clipping
+      let peak = 0;
+      let sumSq = 0;
+      for (let i = 0; i < resampled.length; i++) {
+        const a = Math.abs(resampled[i]);
+        if (a > peak) peak = a;
+        sumSq += resampled[i] * resampled[i];
+      }
+      const rms = Math.sqrt(sumSq / resampled.length);
+
+      // Only amplify if there is actual microphone signal (avoid amplifying pure digital zero)
+      if (peak > 0.0005) {
+        const targetPeak = 0.78;
+        const boost = Math.min(18.0, rms < 0.04 ? (0.14 / Math.max(0.004, rms)) : (targetPeak / peak));
+        for (let i = 0; i < resampled.length; i++) {
+          resampled[i] = Math.tanh(resampled[i] * boost) * 0.92;
+        }
+      }
+      return resampled;
+    }
+
+    async function startMicVisualizerAndPreAmp(recordPCM = true) {
+      stopMicVisualizerAndPreAmp();
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+
+      // Critical for whispering: disable aggressive noiseSuppression & echoCancellation which erase whispers!
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
+      pkDictMediaStream = stream;
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') await ctx.resume();
+      pkDictAudioCtx = ctx;
+
+      const source = ctx.createMediaStreamSource(stream);
+
+      // 1. High-pass filter (85 Hz) cuts rumble & breath thumps
+      const highPass = ctx.createBiquadFilter();
+      highPass.type = 'highpass';
+      highPass.frequency.value = 85;
+
+      // 2. Vocal Presence EQ (+6 dB at 2.8 kHz) — makes soft whisper consonants crisp & intelligible!
+      const presence = ctx.createBiquadFilter();
+      presence.type = 'peaking';
+      presence.frequency.value = 2800;
+      presence.Q.value = 1.2;
+      presence.gain.value = 6.0;
+
+      // 3. Whisper Pre-Amp Gain (+15dB / +22dB)
+      const gain = ctx.createGain();
+      const gainCfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0];
+      gain.gain.value = gainCfg.gain;
+      pkDictGainNode = gain;
+
+      // 4. Soft Dynamics Compressor (lifts quiet whispers while preventing loud peaks from clipping)
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -26;
+      comp.knee.value = 18;
+      comp.ratio.value = 6;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.14;
+
+      // 5. Real-Time Spectrum Analyser for the 60fps Studio Waveform
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.72;
+      pkDictAnalyser = analyser;
+
+      source.connect(highPass);
+      highPass.connect(presence);
+      presence.connect(gain);
+      gain.connect(comp);
+      comp.connect(analyser);
+
+      // 6. Optional boosted PCM recorder for Whisper AI mode
+      pkDictRecordedChunks = [];
+      pkDictRecordedSamples = 0;
+      if (recordPCM && typeof ctx.createScriptProcessor === 'function') {
+        const proc = ctx.createScriptProcessor(4096, 1, 1);
+        const silentSink = ctx.createGain();
+        silentSink.gain.value = 0;
+        proc.onaudioprocess = (ev) => {
+          if (!isDictationActive || pkDictationMode !== 'whisper') return;
+          const ch = ev.inputBuffer.getChannelData(0);
+          // Cap rolling clip around ~45 seconds to keep phone RAM ultra-lean
+          if (pkDictRecordedSamples < ctx.sampleRate * 45) {
+            pkDictRecordedChunks.push(new Float32Array(ch));
+            pkDictRecordedSamples += ch.length;
+          }
+        };
+        comp.connect(proc);
+        proc.connect(silentSink);
+        silentSink.connect(ctx.destination);
+        pkDictProcessor = proc;
+      }
+
+      startDictationWaveformLoop();
+      return true;
+    }
+
+    function stopMicVisualizerAndPreAmp() {
+      if (pkDictWaveAnimId) {
+        cancelAnimationFrame(pkDictWaveAnimId);
+        pkDictWaveAnimId = null;
+      }
+      if (pkDictProcessor) {
+        try { pkDictProcessor.disconnect(); } catch (e) {}
+        pkDictProcessor = null;
+      }
+      if (pkDictMediaStream) {
+        pkDictMediaStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+        pkDictMediaStream = null;
+      }
+      if (pkDictAudioCtx) {
+        try { pkDictAudioCtx.close(); } catch (e) {}
+        pkDictAudioCtx = null;
+      }
+      pkDictGainNode = null;
+      pkDictAnalyser = null;
+    }
+
+    function startDictationWaveformLoop() {
+      const canvas = document.getElementById('pkDictationWaveCanvas');
+      const hud = document.getElementById('pkDictationHUD');
+      const sigLabel = document.getElementById('pkDictationSignalLabel');
+      if (!canvas || !pkDictAnalyser) return;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dataArr = new Uint8Array(pkDictAnalyser.frequencyBinCount);
+      const barCount = 34;
+
+      const draw = () => {
+        if (!isDictationActive || !pkDictAnalyser) return;
+        pkDictWaveAnimId = requestAnimationFrame(draw);
+
+        const cssW = canvas.clientWidth || 320;
+        const cssH = canvas.clientHeight || 44;
+        if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
+          canvas.width = Math.round(cssW * dpr);
+          canvas.height = Math.round(cssH * dpr);
+        }
+
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cssW, cssH);
+
+        pkDictAnalyser.getByteFrequencyData(dataArr);
+
+        // Compute average energy with logarithmic whisper-sensitive lift so soft whispers visibly glow!
+        let sum = 0;
+        for (let i = 1; i < Math.min(38, dataArr.length); i++) sum += dataArr[i];
+        const avgNorm = sum / (37 * 255);
+        const visualEnergy = Math.min(1, Math.pow(avgNorm * 2.2, 0.58));
+
+        // Dynamic luminous studio aura reacting smoothly to whisper/voice amplitude
+        if (hud) {
+          const glowAlpha = (0.14 + visualEnergy * 0.36).toFixed(2);
+          hud.style.boxShadow = `0 18px 45px rgba(0,0,0,0.38), 0 0 ${Math.round(14 + visualEnergy * 24)}px rgba(200, 70, 43, ${glowAlpha})`;
+        }
+        if (sigLabel && !isDictationTranscribing) {
+          if (visualEnergy > 0.22) sigLabel.textContent = 'Voice signal clear';
+          else if (visualEnergy > 0.06) sigLabel.textContent = 'Soft whisper detected';
+          else sigLabel.textContent = (DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0]).desc;
+        }
+
+        // Draw crisp symmetrical studio frequency bars centered vertically
+        const gap = 3;
+        const barW = Math.max(2.5, (cssW - gap * (barCount - 1)) / barCount);
+        const midY = cssH / 2;
+        const halfBars = Math.floor(barCount / 2);
+
+        const grad = ctx.createLinearGradient(0, 0, cssW, 0);
+        grad.addColorStop(0, 'rgba(200, 70, 43, 0.45)');
+        grad.addColorStop(0.5, 'rgba(217, 83, 56, 0.98)');
+        grad.addColorStop(1, 'rgba(200, 70, 43, 0.45)');
+        ctx.fillStyle = grad;
+
+        for (let i = 0; i < barCount; i++) {
+          const distFromCenter = Math.abs(i - halfBars);
+          const binIdx = Math.min(dataArr.length - 1, 1 + Math.floor(distFromCenter * 1.4));
+          const raw = dataArr[binIdx] / 255;
+          // Logarithmic curve amplifies faint whisper frequencies beautifully
+          const boosted = Math.pow(raw, 0.56);
+          const envelope = 1 - (distFromCenter / (halfBars + 3)) * 0.42;
+          const barH = Math.max(3, Math.min(cssH - 4, boosted * envelope * (cssH - 4)));
+          const x = i * (barW + gap);
+          const y = midY - barH / 2;
+
+          ctx.beginPath();
+          ctx.roundRect(x, y, barW, barH, barW / 2);
+          ctx.fill();
+        }
+      };
+
+      draw();
+    }
+
+    function formatSpokenDictationText(rawText) {
+      if (!rawText) return '';
+      let text = String(rawText)
+        // Strip Whisper silence/noise artifacts
+        .replace(/\[(?:BLANK_AUDIO|SILENCE|NOISE|MUSIC|INAUDIBLE)\]/gi, ' ')
+        .replace(/\((?:silence|inaudible|whispering|music|background noise)\)/gi, ' ')
+        // Spoken punctuation commands
+        .replace(/\b(?:new paragraph|next paragraph|new line)\b/gi, '\n')
+        .replace(/\s+\b(?:period|full stop)\b/gi, '.')
+        .replace(/\s+\bcomma\b/gi, ',')
+        .replace(/\s+\bquestion mark\b/gi, '?')
+        .replace(/\s+\b(?:exclamation mark|exclamation point)\b/gi, '!')
+        .replace(/\s+\bcolon\b/gi, ':')
+        .replace(/[ \t]+([.,?!:])/g, '$1')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+      return text;
+    }
 
     function toggleVoiceDictation() {
       if (isDictationActive) {
-        stopVoiceDictation();
-        return;
+        stopVoiceDictation(true);
+      } else {
+        startVoiceDictation();
       }
+    }
+
+    async function startVoiceDictation() {
       const note = getActiveNote();
       if (note && note.locked) {
         showToast('Unlock note before dictating', 'ochre');
         return;
       }
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) {
-        showToast('Voice dictation is not supported in this browser (try Chrome, Edge, or Safari)', 'ochre');
+      if (typeof stopReadingAloud === 'function') stopReadingAloud();
+
+      const hud = document.getElementById('pkDictationHUD');
+      const preview = document.getElementById('pkDictationPreview');
+      const timerEl = document.getElementById('pkDictationTimer');
+      const mobileBtn = document.getElementById('mobileDictateBtn');
+      const desktopBtn = document.getElementById('desktopDictateBtn');
+
+      isDictationActive = true;
+      isDictationTranscribing = false;
+      pkDictStartedAt = Date.now();
+      if (hud) hud.classList.remove('hidden');
+      if (timerEl) timerEl.textContent = '00:00';
+      if (mobileBtn) mobileBtn.classList.add('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
+      if (desktopBtn) desktopBtn.classList.add('text-[var(--accent-vermilion)]', 'bg-[var(--accent-vermilion-tint)]');
+      updateDictationHUDModeUI();
+
+      // Start elapsed clock
+      if (pkDictTimerInterval) clearInterval(pkDictTimerInterval);
+      pkDictTimerInterval = setInterval(() => {
+        if (!isDictationActive) return;
+        const secs = Math.floor((Date.now() - pkDictStartedAt) / 1000);
+        if (timerEl) timerEl.textContent = formatTimerMMSS(secs);
+      }, 500);
+
+      if (pkDictationMode === 'whisper') {
+        if (preview) preview.textContent = 'Whisper or speak softly — tap Insert when done...';
+        try {
+          const ok = await startMicVisualizerAndPreAmp(true);
+          if (!ok) throw new Error('Microphone API unavailable');
+          // Quietly warm up Whisper AI model in the background while user whispers!
+          ensureWhisperSTTPipeline().catch(() => {});
+          if (typeof pkHaptic === 'function') pkHaptic(10);
+          showToast('Whisper AI listening (+15dB boost) — tap Insert to transcribe');
+        } catch (err) {
+          showToast('Microphone access needed — switching to Live mode', 'ochre');
+          pkDictationMode = 'live';
+          updateDictationHUDModeUI();
+          startLiveSpeechRecognition();
+        }
         return;
       }
 
-      if (typeof stopReadingAloud === 'function') stopReadingAloud();
+      // Live Streaming Mode (Browser SpeechRecognition + Simultaneous Mic Visualizer)
+      startMicVisualizerAndPreAmp(false).catch(() => {});
+      startLiveSpeechRecognition();
+    }
+
+    function startLiveSpeechRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const preview = document.getElementById('pkDictationPreview');
+      if (!SR) {
+        showToast('Live speech recognition not supported here — use Whisper AI mode', 'ochre');
+        pkDictationMode = 'whisper';
+        updateDictationHUDModeUI();
+        return;
+      }
 
       try {
         const rec = new SR();
         rec.continuous = true;
         rec.interimResults = true;
+        rec.maxAlternatives = 3;
         rec.lang = navigator.language || 'en-US';
 
-        const hud = document.getElementById('pkDictationHUD');
-        const preview = document.getElementById('pkDictationPreview');
-        const mobileBtn = document.getElementById('mobileDictateBtn');
-
         rec.onstart = () => {
-          isDictationActive = true;
-          if (hud) hud.classList.remove('hidden');
-          if (preview) preview.textContent = 'Listening... speak naturally';
-          if (mobileBtn) mobileBtn.classList.add('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
-          showToast('Voice dictation started — speak to write');
+          if (preview) preview.textContent = 'Listening live... speak naturally';
         };
 
         rec.onresult = (event) => {
           let interim = '';
           let finalText = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              finalText += transcript;
-            } else {
-              interim += transcript;
-            }
+            const res = event.results[i];
+            // Pick best non-empty alternative
+            const best = (res[0] && res[0].transcript) ? res[0].transcript : '';
+            if (res.isFinal) finalText += best;
+            else interim += best;
           }
-          if (preview) {
-            preview.textContent = (interim || finalText || 'Listening...').trim();
-          }
+          if (preview) preview.textContent = (interim || finalText || 'Listening live...').trim();
           if (finalText && finalText.trim()) {
             insertDictatedTextIntoNote(finalText.trim());
           }
@@ -15594,54 +16074,114 @@
         rec.onerror = (err) => {
           if (err.error === 'not-allowed') {
             showToast('Microphone permission denied', 'ochre');
+            stopVoiceDictation(false);
           } else if (err.error !== 'no-speech' && err.error !== 'aborted') {
-            showToast('Dictation error: ' + err.error, 'ochre');
+            showToast('Live dictation: ' + err.error, 'ochre');
           }
-          stopVoiceDictation();
         };
 
         rec.onend = () => {
-          if (isDictationActive) {
-            // Auto-restart continuous dictation on mobile Safari/Chrome pauses
-            try { rec.start(); } catch (e) { stopVoiceDictation(); }
+          if (isDictationActive && pkDictationMode === 'live') {
+            try { rec.start(); } catch (e) {}
           }
         };
 
         pkDictationRecognition = rec;
         rec.start();
       } catch (err) {
-        showToast('Could not start microphone dictation', 'ochre');
-        stopVoiceDictation();
+        showToast('Could not start Live dictation', 'ochre');
+        stopVoiceDictation(false);
+      }
+    }
+
+    async function transcribeCurrentWhisperBuffer(closeAfter = false) {
+      if (isDictationTranscribing) return;
+      const chunks = pkDictRecordedChunks.slice();
+      const sr = pkDictAudioCtx ? pkDictAudioCtx.sampleRate : 48000;
+      pkDictRecordedChunks = [];
+      pkDictRecordedSamples = 0;
+      pkDictStartedAt = Date.now();
+
+      if (chunks.length === 0) {
+        if (closeAfter) cleanupVoiceDictationUI();
+        else showToast('Speak or whisper first, then tap Insert', 'ochre');
+        return;
+      }
+
+      isDictationTranscribing = true;
+      const preview = document.getElementById('pkDictationPreview');
+      const statusBadge = document.getElementById('pkDictationStatusBadge');
+      if (preview) preview.textContent = 'Amplifying whisper & transcribing on-device...';
+      if (statusBadge) statusBadge.textContent = 'WHISPER AI · TRANSCRIBING...';
+
+      try {
+        const pcm16k = buildWhisperNormalized16kPCM(chunks, sr);
+        const asr = await ensureWhisperSTTPipeline();
+        setDictationProgress(true, 85, 'TRANSCRIBING WHISPER...');
+        const output = await asr(pcm16k, { chunk_length_s: 30, stride_length_s: 5 });
+        const rawText = (output && output.text) ? output.text.trim() : '';
+        const cleaned = formatSpokenDictationText(rawText);
+
+        setDictationProgress(false, 100);
+        isDictationTranscribing = false;
+
+        if (cleaned) {
+          insertDictatedTextIntoNote(cleaned);
+          if (preview) preview.textContent = cleaned;
+          if (typeof pkHaptic === 'function') pkHaptic(12);
+          showToast('Transcribed whisper into note');
+        } else {
+          if (preview) preview.textContent = 'No speech detected — try ULTRA +22dB boost';
+          showToast('No words detected — tap WHISPER +15dB for ULTRA +22dB boost', 'ochre');
+        }
+      } catch (err) {
+        console.warn('Whisper AI transcription error:', err);
+        setDictationProgress(false, 0);
+        isDictationTranscribing = false;
+        showToast('Whisper AI needs internet once to cache (39MB), or switch to Live mode', 'ochre');
+      }
+
+      if (closeAfter) {
+        cleanupVoiceDictationUI();
+      } else {
+        updateDictationHUDModeUI();
       }
     }
 
     function insertDictatedTextIntoNote(spokenText) {
       const note = getActiveNote();
       if (!note || note.locked) return;
+      const formatted = formatSpokenDictationText(spokenText);
+      if (!formatted) return;
+
       if (typeof takeSnapshot === 'function') takeSnapshot('voice-dictation');
 
-      // Format cleanly with sentence capitalization & ending period if none present
-      let clean = spokenText.charAt(0).toUpperCase() + spokenText.slice(1);
-      if (!/[.!?]$/.test(clean)) clean += '.';
+      const paragraphs = formatted.split('\n').map(p => p.trim()).filter(Boolean);
+      paragraphs.forEach((para, idx) => {
+        let clean = para.charAt(0).toUpperCase() + para.slice(1);
+        if (!/[.!?]$/.test(clean)) clean += '.';
 
-      let targetBlock = null;
-      if (typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
-        targetBlock = note.blocks.find(b => b.id === activeEditingBlockId);
-      }
-      if (targetBlock && targetBlock.type !== 'divider') {
-        targetBlock.content = targetBlock.content && targetBlock.content.trim()
-          ? `${targetBlock.content.trim()} ${clean}`
-          : clean;
-      } else {
-        const last = note.blocks[note.blocks.length - 1];
-        if (last && last.type === 'paragraph' && (!last.content || !last.content.trim())) {
-          last.content = clean;
-          targetBlock = last;
+        if (idx === 0) {
+          let targetBlock = null;
+          if (typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
+            targetBlock = note.blocks.find(b => b.id === activeEditingBlockId);
+          }
+          if (targetBlock && targetBlock.type !== 'divider') {
+            targetBlock.content = targetBlock.content && targetBlock.content.trim()
+              ? `${targetBlock.content.trim()} ${clean}`
+              : clean;
+          } else {
+            const last = note.blocks[note.blocks.length - 1];
+            if (last && last.type === 'paragraph' && (!last.content || !last.content.trim())) {
+              last.content = clean;
+            } else {
+              note.blocks.push({ id: generateId('b'), type: 'paragraph', content: clean });
+            }
+          }
         } else {
-          targetBlock = { id: generateId('b'), type: 'paragraph', content: clean };
-          note.blocks.push(targetBlock);
+          note.blocks.push({ id: generateId('b'), type: 'paragraph', content: clean });
         }
-      }
+      });
 
       note.updatedAt = TODAY_KEY;
       renderBlocks(note);
@@ -15649,8 +16189,13 @@
       persistState();
     }
 
-    function stopVoiceDictation() {
+    function cleanupVoiceDictationUI() {
       isDictationActive = false;
+      isDictationTranscribing = false;
+      if (pkDictTimerInterval) {
+        clearInterval(pkDictTimerInterval);
+        pkDictTimerInterval = null;
+      }
       if (pkDictationRecognition) {
         try {
           pkDictationRecognition.onend = null;
@@ -15658,10 +16203,26 @@
         } catch (e) {}
         pkDictationRecognition = null;
       }
+      stopMicVisualizerAndPreAmp();
+      setDictationProgress(false, 0);
+
       const hud = document.getElementById('pkDictationHUD');
-      if (hud) hud.classList.add('hidden');
+      if (hud) {
+        hud.classList.add('hidden');
+        hud.style.boxShadow = '';
+      }
       const mobileBtn = document.getElementById('mobileDictateBtn');
       if (mobileBtn) mobileBtn.classList.remove('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
+      const desktopBtn = document.getElementById('desktopDictateBtn');
+      if (desktopBtn) desktopBtn.classList.remove('text-[var(--accent-vermilion)]', 'bg-[var(--accent-vermilion-tint)]');
+    }
+
+    function stopVoiceDictation(flushWhisper = false) {
+      if (flushWhisper && pkDictationMode === 'whisper' && pkDictRecordedSamples > 4000 && !isDictationTranscribing) {
+        transcribeCurrentWhisperBuffer(true);
+        return;
+      }
+      cleanupVoiceDictationUI();
     }
 
     // --- 18B. FIND & REPLACE INSIDE ACTIVE NOTE (Ctrl+H / Cmd+Shift+F) ---

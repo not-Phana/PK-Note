@@ -10836,29 +10836,80 @@ function handleBlockFocus(e, blockId) {
   }
 }
 
+const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'range', 'button', 'submit', 'reset', 'file', 'color', 'hidden', 'image']);
+let mobileBaseViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+let isMobileVirtualKeyboardOpen = false;
+let mobileNavRestoreTimer = null;
+
+function isTypingElement(el) {
+  if (!el || el === document.body || el === document.documentElement) return false;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  if (tag === 'TEXTAREA') return !el.readOnly && !el.disabled;
+  if (tag === 'INPUT') {
+    const type = (el.type || 'text').toLowerCase();
+    return !NON_TEXT_INPUT_TYPES.has(type) && !el.readOnly && !el.disabled;
+  }
+  return false;
+}
+
+function setMobileBottomNavHidden(hidden) {
+  const nav = document.getElementById('mobileBottomNav');
+  if (!nav) return;
+  if (hidden) {
+    nav.classList.add('pk-nav-hidden', 'translate-y-full');
+    nav.style.display = 'none';
+  } else {
+    nav.classList.remove('pk-nav-hidden', 'translate-y-full');
+    nav.style.display = '';
+  }
+}
+
+function syncMobileBottomNavVisibility() {
+  const typing = isTypingElement(document.activeElement) || isMobileVirtualKeyboardOpen;
+  setMobileBottomNavHidden(typing);
+}
+
 function showMobileAccessoryBar() {
   const bar = document.getElementById('mobileKeyboardAccessoryBar');
-  const nav = document.getElementById('mobileBottomNav');
   if (bar) {
     bar.classList.remove('translate-y-full', 'opacity-0', 'pointer-events-none');
     bar.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
   }
-  if (nav) {
-    nav.classList.add('translate-y-full');
-  }
+  setMobileBottomNavHidden(true);
 }
 
 function hideMobileAccessoryBar() {
   const bar = document.getElementById('mobileKeyboardAccessoryBar');
-  const nav = document.getElementById('mobileBottomNav');
   if (bar) {
     bar.classList.add('translate-y-full', 'opacity-0', 'pointer-events-none');
     bar.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
   }
-  if (nav) {
-    nav.classList.remove('translate-y-full');
-  }
+  syncMobileBottomNavVisibility();
 }
+
+// Hide mobile bottom nav immediately whenever user focuses ANY editable block, title, or text input
+document.addEventListener('focusin', (e) => {
+  if (window.innerWidth >= 768) return;
+  if (isTypingElement(e.target)) {
+    clearTimeout(mobileNavRestoreTimer);
+    setMobileBottomNavHidden(true);
+  }
+}, true);
+
+// Restore mobile bottom nav cleanly once focus leaves all text inputs (debounced so switching blocks never flickers)
+document.addEventListener('focusout', () => {
+  if (window.innerWidth >= 768) return;
+  clearTimeout(mobileNavRestoreTimer);
+  mobileNavRestoreTimer = setTimeout(() => {
+    if (!isTypingElement(document.activeElement)) {
+      isMobileVirtualKeyboardOpen = false;
+      hideMobileAccessoryBar();
+    } else {
+      syncMobileBottomNavVisibility();
+    }
+  }, 120);
+}, true);
 
 function applyMobileBlockFormat(type) {
   const note = guardActiveNoteEditable();
@@ -10941,19 +10992,26 @@ function dismissMobileKeyboard() {
 // Dismiss accessory bar when clicking outside editor on mobile
 document.addEventListener('click', (e) => {
   if (window.innerWidth >= 768) return;
-  const isEditable = e.target.closest('[contenteditable="true"]');
+  const isEditable = e.target.closest('[contenteditable="true"], input, textarea');
   const isAccessory = e.target.closest('#mobileKeyboardAccessoryBar');
   if (!isEditable && !isAccessory) {
     hideMobileAccessoryBar();
   }
 });
 
-// Viewport resize & scroll handling (Pins mobile accessory bar cleanly above iOS/Android soft keyboard!)
+// Viewport resize & scroll handling (Pins mobile accessory bar above soft keyboard & keeps bottom nav hidden while typing!)
 if (window.visualViewport) {
   const syncKeyboardBar = () => {
+    const vv = window.visualViewport;
+    if (vv.height > mobileBaseViewportHeight) {
+      mobileBaseViewportHeight = vv.height;
+    }
+    const heightDrop = mobileBaseViewportHeight - vv.height;
+    isMobileVirtualKeyboardOpen = window.innerWidth < 768 && heightDrop > 130;
+    syncMobileBottomNavVisibility();
+
     const bar = document.getElementById('mobileKeyboardAccessoryBar');
     if (!bar) return;
-    const vv = window.visualViewport;
     const keyboardOffset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
     bar.style.bottom = `${keyboardOffset}px`;
     if (!bar.classList.contains('pointer-events-none')) {
@@ -10965,6 +11023,13 @@ if (window.visualViewport) {
   };
   window.visualViewport.addEventListener('resize', syncKeyboardBar);
   window.visualViewport.addEventListener('scroll', syncKeyboardBar);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      mobileBaseViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      isMobileVirtualKeyboardOpen = false;
+      syncMobileBottomNavVisibility();
+    }, 300);
+  });
 }
 
 

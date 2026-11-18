@@ -906,6 +906,11 @@ body.zen-active .block-row:focus-within {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Guarantee mobile bottom nav stays 100% hidden while typing (cannot be overridden by Tailwind .flex) */
+#mobileBottomNav.pk-nav-hidden {
+  display: none !important;
+}
+
 /* 2019-Phone / Low-RAM GPU Performance Engine (Zero Blur VRAM Overhead, 60fps Scroll, Anti-Crash) */
 html.pk-lite-gpu #ambientAuraGlow,
 html.pk-lite-gpu #pkCursorSpotlight {

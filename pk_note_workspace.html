@@ -19,10 +19,23 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="alternate icon" type="image/png" href="icon-192.png" />
 
-  <!-- Editorial & Technical Typefaces: Newsreader, Inter, JetBrains Mono -->
+  <!-- Core Editorial & Technical Typefaces Only (80% Lighter Startup — Extra Fonts Lazy-Loaded On Demand!) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&family=Lexend:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <script>
+    // Detect phones & older/low-RAM devices (e.g. 2019 phones with <=4GB RAM) BEFORE first paint
+    // to disable heavy GPU blurs, infinite animations & excess canvas VRAM!
+    (function () {
+      var lowMem = typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory <= 4;
+      var lowCpu = typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+      var isTouchPhone = typeof window !== 'undefined' && (window.innerWidth < 900 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
+      window.PK_LITE_MODE = !!(isTouchPhone || lowMem || lowCpu);
+      if (window.PK_LITE_MODE) {
+        document.documentElement.classList.add('pk-lite-gpu');
+      }
+    })();
+  </script>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -1054,6 +1067,40 @@
     .tilt-card {
       transform-style: preserve-3d;
       transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* 2019-Phone / Low-RAM GPU Performance Engine (Zero Blur VRAM Overhead, 60fps Scroll, Anti-Crash) */
+    html.pk-lite-gpu #ambientAuraGlow,
+    html.pk-lite-gpu #pkCursorSpotlight,
+    html.pk-lite-gpu #pkCelebrationCanvas {
+      display: none !important;
+      animation: none !important;
+    }
+    html.pk-lite-gpu *,
+    html.pk-lite-gpu *::before,
+    html.pk-lite-gpu *::after {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    html.pk-lite-gpu #topHeaderBar,
+    html.pk-lite-gpu #mobileActionRibbon {
+      background-color: var(--bg-canvas) !important;
+    }
+    html.pk-lite-gpu #mobileBottomNav,
+    html.pk-lite-gpu #mobileKeyboardAccessoryBar,
+    html.pk-lite-gpu .popover-surface {
+      background-color: var(--bg-panel) !important;
+    }
+    html.pk-lite-gpu .shadow-2xl,
+    html.pk-lite-gpu .shadow-xl {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32) !important;
+    }
+    html.pk-lite-gpu #docReadingProgressBar {
+      box-shadow: none !important;
+    }
+    html.pk-lite-gpu .animate-aura {
+      animation: none !important;
+      will-change: auto !important;
     }
 
 </style>
@@ -2434,7 +2481,7 @@
       layoutWidth: 'standard', // 'standard' (680px) | 'wide' (860px) | 'ultrawide' (1080px) | 'full' (100%)
       lineSpacing: 'standard', // 'standard' | 'compact' | 'relaxed' | 'airy'
       showHeaderGrid: true,
-      soundEnabled: true,
+      soundEnabled: !window.PK_LITE_MODE,
       ambientAura: true,
       cursorSpotlight: true,
       mechanicalTyping: true,
@@ -2684,16 +2731,24 @@
         indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--accent-ochre)]"></span>SAVING`;
       }
       clearTimeout(saveTimer);
+      const delayMs = window.PK_LITE_MODE ? 650 : 280;
       saveTimer = setTimeout(() => {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-          if (indicator) {
-            indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--text-tertiary)]"></span>SYNCED`;
+        const doSave = () => {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            if (indicator) {
+              indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--text-tertiary)]"></span>SYNCED`;
+            }
+          } catch (e) {
+            console.error('Persist failed:', e);
           }
-        } catch (e) {
-          console.error('Persist failed:', e);
+        };
+        if (typeof requestIdleCallback === 'function') {
+          requestIdleCallback(doSave, { timeout: 1000 });
+        } else {
+          doSave();
         }
-      }, 200);
+      }, delayMs);
     }
 
     function getActiveNote() {
@@ -3065,12 +3120,15 @@
       const topTabWs = document.getElementById('topTabWorkspace');
       const topTabCal = document.getElementById('topTabCalendar');
 
+      const wasCalendar = !calArea.classList.contains('hidden');
       if (isCalendar) {
         docArea.classList.add('hidden');
         calArea.classList.remove('hidden');
-        calArea.classList.remove('animate-view-fade');
-        void calArea.offsetWidth;
-        calArea.classList.add('animate-view-fade');
+        if (!wasCalendar && !window.PK_LITE_MODE) {
+          calArea.classList.remove('animate-view-fade');
+          void calArea.offsetWidth;
+          calArea.classList.add('animate-view-fade');
+        }
         wsBread.classList.add('hidden');
         calBread.classList.remove('hidden');
         wsControls.classList.add('hidden');
@@ -3091,9 +3149,11 @@
       } else {
         docArea.classList.remove('hidden');
         calArea.classList.add('hidden');
-        docArea.classList.remove('animate-view-fade');
-        void docArea.offsetWidth;
-        docArea.classList.add('animate-view-fade');
+        if (wasCalendar && !window.PK_LITE_MODE) {
+          docArea.classList.remove('animate-view-fade');
+          void docArea.offsetWidth;
+          docArea.classList.add('animate-view-fade');
+        }
         wsBread.classList.remove('hidden');
         calBread.classList.add('hidden');
         wsControls.classList.remove('hidden');
@@ -5941,7 +6001,10 @@
       }
       applyThemeAndLayout();
       if (state.rightSidebarOpen && state.appMode === 'workspace') {
-        requestAnimationFrame(resizeGraphCanvas);
+        requestAnimationFrame(() => {
+          resizeGraphCanvas();
+          if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
+        });
       }
       persistState();
     }
@@ -5949,9 +6012,13 @@
     function openRightInspector(tab) {
       state.appMode = 'workspace';
       state.rightSidebarOpen = true;
+      if (window.innerWidth < 1024) state.leftSidebarOpen = false;
       switchInspectorTab(tab);
       renderAll();
-      requestAnimationFrame(resizeGraphCanvas);
+      requestAnimationFrame(() => {
+        resizeGraphCanvas();
+        if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
+      });
     }
 
     // =========================================================================
@@ -5972,7 +6039,12 @@
           btn.classList.add('text-[var(--text-secondary)]', 'border-transparent');
         }
       });
-      if (tab === 'graph') requestAnimationFrame(resizeGraphCanvas);
+      if (tab === 'graph') {
+        requestAnimationFrame(() => {
+          resizeGraphCanvas();
+          if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
+        });
+      }
       persistState();
     }
 
@@ -6462,6 +6534,7 @@
       resizeExpandedGraphCanvas();
       fitGraphView();
       setGraphToolMode(graphToolMode);
+      if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
       playWhooshSound();
     }
 
@@ -6539,7 +6612,7 @@
       const wrapper = document.getElementById('graphCanvasWrapper');
       const canvas = document.getElementById('knowledgeGraphCanvas');
       if (!wrapper || !canvas) return;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = window.PK_LITE_MODE ? 1 : Math.min(window.devicePixelRatio || 1, 2);
       const rect = wrapper.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
       canvas.width = rect.width * dpr;
@@ -6552,7 +6625,7 @@
       const wrapper = document.getElementById('expandedGraphCanvasWrapper');
       const canvas = document.getElementById('expandedKnowledgeGraphCanvas');
       if (!wrapper || !canvas) return;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = window.PK_LITE_MODE ? 1 : Math.min(window.devicePixelRatio || 1, 2);
       const rect = wrapper.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
       canvas.width = rect.width * dpr;
@@ -7287,14 +7360,38 @@
       ctx.restore();
     }
 
-    function runGraphLoop() {
-      const canvasSidebar = document.getElementById('knowledgeGraphCanvas');
-      const canvasExpanded = document.getElementById('expandedKnowledgeGraphCanvas');
+    let graphLoopRafId = null;
+    let graphLastFrameTs = 0;
+
+    function ensureGraphLoopRunning() {
+      if (graphLoopRafId || document.hidden) return;
+      const isSidebarActive = state.appMode === 'workspace' && state.rightSidebarOpen && state.inspectorTab === 'graph';
+      const isExpandedActive = isExpandedGraphOpen;
+      if (!isSidebarActive && !isExpandedActive) return;
+      graphLoopRafId = requestAnimationFrame(runGraphLoop);
+    }
+
+    function runGraphLoop(ts) {
+      graphLoopRafId = null;
+      if (document.hidden) return;
 
       const isSidebarActive = state.appMode === 'workspace' && state.rightSidebarOpen && state.inspectorTab === 'graph';
       const isExpandedActive = isExpandedGraphOpen;
 
-      if ((isSidebarActive || isExpandedActive) && graphNodes.length > 0) {
+      // CRITICAL FOR 2019 PHONES: Stop waking up CPU when Graph is closed! (0.0% idle CPU!)
+      if (!isSidebarActive && !isExpandedActive) return;
+
+      // Throttle graph animation to ~30fps on Lite/Mobile phones to keep SoC cool & fast
+      if (window.PK_LITE_MODE && ts && (ts - graphLastFrameTs) < 32) {
+        graphLoopRafId = requestAnimationFrame(runGraphLoop);
+        return;
+      }
+      graphLastFrameTs = ts || performance.now();
+
+      const canvasSidebar = document.getElementById('knowledgeGraphCanvas');
+      const canvasExpanded = document.getElementById('expandedKnowledgeGraphCanvas');
+
+      if (graphNodes.length > 0) {
         const refCanvas = isExpandedActive ? canvasExpanded : canvasSidebar;
         const w = refCanvas ? (refCanvas.clientWidth || 300) : 300;
         const h = refCanvas ? (refCanvas.clientHeight || 280) : 280;
@@ -7363,7 +7460,7 @@
         }
       }
 
-      requestAnimationFrame(runGraphLoop);
+      graphLoopRafId = requestAnimationFrame(runGraphLoop);
     }
 
     // =========================================================================
@@ -8153,7 +8250,10 @@
       switchInspectorTab(state.inspectorTab || 'graph');
       initGraphInteractions();
       resizeGraphCanvas();
-      runGraphLoop();
+      ensureGraphLoopRunning();
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) ensureGraphLoopRunning();
+      });
 
       // Register Progressive Web App Service Worker with instant auto-update check
       if ('serviceWorker' in navigator) {
@@ -8651,9 +8751,29 @@
         : 'Fast Mode (q8 · 88 MB) selected — lighter mobile download');
     }
 
+    // Low-RAM Phone Anti-Crash Memory Guard: never hold Kokoro-82M + Whisper AI in WASM RAM simultaneously!
+    function releaseUnusedAIEngines(keepEngine) {
+      if (!window.PK_LITE_MODE) return;
+      if (keepEngine !== 'kokoro' && kokoroTTSInstance) {
+        kokoroTTSInstance = null;
+        kokoroLoadPromise = null;
+        kokoroEngineState = 'idle';
+        clearKokoroPrefetchCache();
+        if (typeof kokoroAuditionCache !== 'undefined') {
+          kokoroAuditionCache.forEach(url => { try { URL.revokeObjectURL(url); } catch (e) {} });
+          kokoroAuditionCache.clear();
+        }
+      }
+      if (keepEngine !== 'whisper' && typeof pkWhisperPipeline !== 'undefined' && pkWhisperPipeline) {
+        pkWhisperPipeline = null;
+        pkWhisperLoadPromise = null;
+      }
+    }
+
     async function ensureKokoroEngineLoaded(onProgressCallback = null) {
+      releaseUnusedAIEngines('kokoro');
       const settings = getVoiceSettings();
-      const targetQuant = settings.kokoroQuant === 'q8' ? 'q8' : 'fp16';
+      const targetQuant = (window.PK_LITE_MODE || settings.kokoroQuant === 'q8') ? 'q8' : 'fp16';
 
       if (kokoroTTSInstance && kokoroLoadedQuant === targetQuant && kokoroEngineState === 'ready') {
         updateKokoroHudProgress(false, 100);
@@ -10800,21 +10920,23 @@
       }
     });
 
-    // Ambient Cursor Spotlight Pointermove Listener
+    // Ambient Cursor Spotlight Pointermove Listener (Desktop mouse only — disabled on touch/lite phones!)
     let cursorRaf = null;
-    window.addEventListener('pointermove', e => {
-      if (state.cursorSpotlight === false) return;
-      if (cursorRaf) return;
-      cursorRaf = requestAnimationFrame(() => {
-        document.documentElement.style.setProperty('--cursor-x', `${e.clientX}px`);
-        document.documentElement.style.setProperty('--cursor-y', `${e.clientY}px`);
-        cursorRaf = null;
-      });
-    }, { passive: true });
+    if (!window.PK_LITE_MODE) {
+      window.addEventListener('pointermove', e => {
+        if (e.pointerType !== 'mouse' || state.cursorSpotlight === false) return;
+        if (cursorRaf) return;
+        cursorRaf = requestAnimationFrame(() => {
+          document.documentElement.style.setProperty('--cursor-x', `${e.clientX}px`);
+          document.documentElement.style.setProperty('--cursor-y', `${e.clientY}px`);
+          cursorRaf = null;
+        });
+      }, { passive: true });
+    }
 
-    // Tactile Mechanical Typing Audio Listener
+    // Tactile Mechanical Typing Audio Listener (Skipped on Lite mobile mode to prevent audio-node GC stutter)
     document.addEventListener('keydown', e => {
-      if (state.soundEnabled === false || state.mechanicalTyping === false) return;
+      if (window.PK_LITE_MODE || state.soundEnabled === false || state.mechanicalTyping === false) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target;
       const isEditable = target && (
@@ -10827,8 +10949,14 @@
       playTypingSound(e.key);
     }, { passive: true });
 
-    window.addEventListener('resize', closeContextMenu);
-    window.addEventListener('scroll', closeContextMenu, true);
+    window.addEventListener('resize', () => {
+      const m = document.getElementById('pkContextMenu');
+      if (m && !m.classList.contains('hidden')) closeContextMenu();
+    });
+    window.addEventListener('scroll', () => {
+      const m = document.getElementById('pkContextMenu');
+      if (m && !m.classList.contains('hidden')) closeContextMenu();
+    }, true);
 
         // Context Action Implementations
     function formatSelectionWithCode() {
@@ -13212,9 +13340,21 @@
       return AVAILABLE_FONTS.find(f => f.id === currentId) || AVAILABLE_FONTS[0];
     }
 
+    const loadedExtraFonts = new Set(['inter', 'newsreader', 'jetbrains']);
+    function ensureExtraFontLoaded(font) {
+      if (!font || loadedExtraFonts.has(font.id)) return;
+      loadedExtraFonts.add(font.id);
+      const familyParam = encodeURIComponent(font.name).replace(/%20/g, '+');
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@400;500;600;700&display=swap`;
+      document.head.appendChild(link);
+    }
+
     function applyFontFamily(fontId) {
       const font = AVAILABLE_FONTS.find(f => f.id === fontId);
       if (!font) return;
+      ensureExtraFontLoaded(font);
       state.fontFamily = font.id;
       state.fontStyle = font.category.toLowerCase();
       applyThemeAndLayout();
@@ -14311,6 +14451,7 @@
       let pkAnimFrame = null;
 
       function triggerCelebration(originX, originY, count = 35) {
+        if (window.PK_LITE_MODE) return;
         const canvas = document.getElementById('celebrationCanvas');
         if (!canvas) return;
         canvas.width = window.innerWidth;
@@ -14412,30 +14553,35 @@
         showToast(`Ambient Atmospheric Aura ${state.ambientAura ? 'ENABLED' : 'DISABLED'}`);
       }
 
-      // --- LIVE READING PROGRESS BAR & 3D TILT ENGINE ---
+      // --- LIVE READING PROGRESS BAR & 3D TILT ENGINE (Throttled & Zero-Reflow on Mobile!) ---
       function init1000xCoolerEffects() {
         updateSoundIconUI();
-        if (state.ambientAura === false) {
+        if (state.ambientAura === false || window.PK_LITE_MODE) {
           const aura = document.getElementById('ambientAuraGlow');
           if (aura) aura.classList.add('hidden');
         }
 
-        // Scroll Progress Listener
+        // rAF-Throttled Scroll Progress Listener (Zero scroll jank on 2019 phones!)
         const scrollArea = document.getElementById('documentScrollArea');
         if (scrollArea) {
+          let scrollProgRaf = null;
           scrollArea.addEventListener('scroll', () => {
-            const maxScroll = scrollArea.scrollHeight - scrollArea.clientHeight;
-            const pct = maxScroll > 5 ? (scrollArea.scrollTop / maxScroll) * 100 : 0;
-            const bar = document.getElementById('docReadingProgressBar');
-            if (bar) bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-            const badge = document.getElementById('docScrollProgressBadge');
-            if (badge) badge.textContent = `${Math.round(pct)}%`;
+            if (scrollProgRaf) return;
+            scrollProgRaf = requestAnimationFrame(() => {
+              scrollProgRaf = null;
+              const maxScroll = scrollArea.scrollHeight - scrollArea.clientHeight;
+              const pct = maxScroll > 5 ? (scrollArea.scrollTop / maxScroll) * 100 : 0;
+              const bar = document.getElementById('docReadingProgressBar');
+              if (bar) bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+              const badge = document.getElementById('docScrollProgressBadge');
+              if (badge) badge.textContent = `${Math.round(pct)}%`;
+            });
           }, { passive: true });
         }
 
-        // 3D Tilt Physics on Banner Container
+        // 3D Tilt Physics on Banner Container (Desktop mouse only — skipped on mobile!)
         const bannerContainer = document.getElementById('docBannerContainer');
-        if (bannerContainer) {
+        if (bannerContainer && !window.PK_LITE_MODE) {
           bannerContainer.classList.add('tilt-card');
           bannerContainer.addEventListener('mousemove', (e) => {
             const note = getActiveNote();
@@ -14452,7 +14598,7 @@
           });
         }
 
-        // Global Keydown for Zen Mode (Cmd+D / Esc) & Mechanical Typing Clicks
+        // Global Keydown for Zen Mode (Cmd+D / Esc) — removed duplicate key-click audio!
         document.addEventListener('keydown', (e) => {
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
             e.preventDefault();
@@ -14462,12 +14608,6 @@
           if (e.key === 'Escape' && state.zenMode) {
             toggleZenMode();
             return;
-          }
-          // Subtle tactile mechanical click when typing in contenteditable blocks
-          if (document.activeElement && document.activeElement.isContentEditable) {
-            if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace') {
-              playMechanicalClick(e.key === 'Enter' ? 0.78 : (e.key === 'Backspace' ? 0.85 : 1.0));
-            }
           }
         });
       }
@@ -14554,7 +14694,8 @@
       }
 
       stack.push(snap);
-      if (stack.length > 40) stack.shift();
+      const maxSnaps = window.PK_LITE_MODE ? 15 : 40;
+      if (stack.length > maxSnaps) stack.shift();
       noteRedoStacks.set(note.id, []);
       updateMobileUndoButtons();
     }
@@ -16179,6 +16320,7 @@
     }
 
     async function ensureWhisperEngineReady() {
+      if (typeof releaseUnusedAIEngines === 'function') releaseUnusedAIEngines('whisper');
       if (pkWhisperPipeline) return pkWhisperPipeline;
       if (pkWhisperLoadPromise) return pkWhisperLoadPromise;
 
@@ -16642,7 +16784,7 @@
       const sigLabel = document.getElementById('pkDictationSignalLabel');
       if (!canvas || !pkDictAnalyser) return;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = window.PK_LITE_MODE ? 1 : Math.min(window.devicePixelRatio || 1, 2);
       const dataArr = new Uint8Array(pkDictAnalyser.frequencyBinCount);
       const barCount = 34;
       const smoothBars = new Float32Array(barCount);

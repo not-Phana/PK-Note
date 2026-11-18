@@ -1,5 +1,5 @@
 // PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
-const CACHE_NAME = 'pk-note-v1.3.7';
+const CACHE_NAME = 'pk-note-v1.3.8';
 
 const PRECACHE_ASSETS = [
   './',
@@ -54,10 +54,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // 1. Navigation / HTML Document Requests: Network-First (Guarantees freshest version on refresh)
+  // 1. Navigation / HTML Document Requests: Network-First with cache-busting (Guarantees freshest version on every refresh!)
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then(networkResponse => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();

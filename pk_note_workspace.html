@@ -8421,10 +8421,12 @@
 
     function getVoiceSettings() {
       if (!state.voiceSettings) {
+        const isCompactPhone = typeof window !== 'undefined' && window.innerWidth < 1024;
         state.voiceSettings = {
-          engine: 'kokoro',          // 'kokoro' | 'device'
+          engine: 'device',          // 'device' (Instant Natural · 0 MB · No Download!) | 'kokoro' (Optional Offline AI)
+          voiceDefaultMigratedV2: true,
           kokoroVoiceId: 'af_heart', // Flagship Grade-A natural Kokoro-82M voice
-          kokoroQuant: 'fp16',       // 'fp16' (~156MB Studio HD, zero metallic buzz) | 'q8' (~88MB Fast)
+          kokoroQuant: isCompactPhone ? 'q8' : 'fp16', // q8 on phones (low RAM, crash-safe) | fp16 Studio HD on desktop
           voiceURI: '',
           voiceName: '',
           rate: 1.0,
@@ -8433,8 +8435,14 @@
           autoScroll: true
         };
       }
-      // Backfill new Kokoro properties & migrate any legacy 'q4' (which is 291MB on HF!) to fastest 'q8' (88MB)
-      if (!state.voiceSettings.engine) state.voiceSettings.engine = 'kokoro';
+      // One-time migration so users aren't forced to download 156 MB unless they opt into Offline Kokoro AI
+      if (!state.voiceSettings.voiceDefaultMigratedV2) {
+        state.voiceSettings.voiceDefaultMigratedV2 = true;
+        if (!kokoroIsCachedLocally) {
+          state.voiceSettings.engine = 'device';
+        }
+      }
+      if (!state.voiceSettings.engine) state.voiceSettings.engine = 'device';
       if (!state.voiceSettings.kokoroVoiceId || !KOKORO_VOICE_CATALOG.some(v => v.id === state.voiceSettings.kokoroVoiceId)) {
         state.voiceSettings.kokoroVoiceId = 'af_heart';
       }
@@ -8480,7 +8488,7 @@
           tabDevice.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
         } else {
           tabKokoro.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
-          tabDevice.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs';
+          tabDevice.className = 'flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--accent-vermilion)] text-white shadow-xs';
         }
       }
 
@@ -8563,11 +8571,16 @@
         }
       } else {
         const voices = loadDetectedVoiceModels();
+        const neuralCount = voices.filter(v => scoreNaturalDeviceVoice(v) >= 90).length;
         const maleCount = voices.filter(v => classifyVoiceGender(v) === 'male').length;
         const femaleCount = voices.filter(v => classifyVoiceGender(v) === 'female').length;
         if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
-        if (countEl) countEl.textContent = `${voices.length} device voices (${femaleCount} Female, ${maleCount} Male)`;
-        if (subEl) subEl.textContent = 'Instant browser Web Speech API · Zero download · Offline';
+        if (countEl) {
+          countEl.textContent = neuralCount > 0
+            ? `Instant Natural · ${neuralCount} Neural HD (${voices.length} total)`
+            : `Instant Voices · ${femaleCount} Female, ${maleCount} Male (0 MB)`;
+        }
+        if (subEl) subEl.textContent = 'Zero download · Plays instantly · Best natural voices ranked first';
         if (preloadBtn) preloadBtn.classList.add('hidden');
         if (progressWrap) progressWrap.classList.add('hidden');
       }
@@ -8987,31 +9000,68 @@
       if (name.includes('male') && !name.includes('female')) return 'male';
 
       const femaleKeywords = [
-        'zira', 'jenny', 'aria', 'samantha', 'karen', 'susan', 'hazel',
-        'victoria', 'catherine', 'alice', 'elena', 'eva', 'fiona', 'moira',
-        'veena', 'tessa', 'serena', 'anna', 'kathy', 'princess', 'vicki',
-        'kate', 'sarah', 'linda', 'clara', 'stephanie', 'lucia', 'laura',
-        'helena', 'marie', 'camille', 'amira', 'julie', 'en-us-x-tpd'
+        'zira', 'jenny', 'aria', 'ava', 'emma', 'sonia', 'libby', 'maisie', 'michelle', 'ana',
+        'samantha', 'zoe', 'nicky', 'karen', 'susan', 'hazel', 'victoria', 'catherine', 'alice',
+        'elena', 'eva', 'fiona', 'moira', 'veena', 'tessa', 'serena', 'anna', 'kathy', 'princess',
+        'vicki', 'kate', 'sarah', 'linda', 'clara', 'stephanie', 'lucia', 'laura', 'helena',
+        'marie', 'camille', 'amira', 'julie', 'en-us-x-tpd', 'en-gb-x-gba', 'en-gb-x-gbc'
       ];
       if (femaleKeywords.some(k => name.includes(k))) return 'female';
 
       const maleKeywords = [
-        'david', 'mark', 'george', 'daniel', 'arthur', 'oliver', 'guy',
-        'stefan', 'thomas', 'paul', 'aaron', 'alex', 'fred', 'ralph',
-        'bruce', 'junior', 'albert', 'tom', 'james', 'john', 'robert',
-        'william', 'richard', 'charles', 'bernard', 'damien', 'jorge',
-        'alva', 'diego', 'en-us-x-sfg', 'en-us-x-iol'
+        'david', 'mark', 'george', 'daniel', 'arthur', 'oliver', 'guy', 'andrew', 'brian',
+        'christopher', 'eric', 'steffan', 'ryan', 'roger', 'stefan', 'thomas', 'paul', 'aaron',
+        'alex', 'fred', 'ralph', 'bruce', 'junior', 'albert', 'tom', 'james', 'john', 'robert',
+        'william', 'richard', 'charles', 'bernard', 'damien', 'jorge', 'alva', 'diego',
+        'en-us-x-sfg', 'en-us-x-iol', 'en-gb-x-gbb', 'en-gb-x-gbd'
       ];
       if (maleKeywords.some(k => name.includes(k))) return 'male';
 
       return 'neutral';
     }
 
+    // Rank built-in zero-download voices so ultra-natural Neural/Premium/Enhanced/Google voices ALWAYS come first
+    // and old robotic legacy voices (eSpeak, David Desktop, Compact, novelty voices) sink to the bottom!
+    function scoreNaturalDeviceVoice(voice) {
+      if (!voice) return -999;
+      const name = (voice.name || '').toLowerCase();
+      const lang = (voice.lang || '').toLowerCase();
+      let score = 0;
+
+      // Prefer user's primary English locale first
+      if (lang === 'en-us' || lang === 'en_us') score += 28;
+      else if (lang === 'en-gb' || lang === 'en_gb') score += 24;
+      else if (lang.startsWith('en')) score += 16;
+
+      // Top-tier Neural / Natural / Premium / Enhanced voices (zero download, genuinely human!)
+      if (name.includes('natural')) score += 130;
+      if (name.includes('neural')) score += 125;
+      if (name.includes('multilingual')) score += 20;
+      if (name.includes('online')) score += 15;
+      if (name.includes('premium') || name.includes('enhanced') || name.includes('siri')) score += 115;
+      if (name.includes('wavenet') || name.includes('studio')) score += 105;
+      if (name.includes('google us english') || name.includes('google uk english')) score += 92;
+      else if (name.includes('google')) score += 70;
+
+      // Favorite ultra-natural flagship voices on Edge / Apple / Android
+      if (/\b(ava|aria|jenny|emma|sonia|samantha|zoe|nicky|guy|andrew|brian)\b/.test(name)) score += 22;
+
+      // Strongly penalize old robotic/novelty voices so they are NEVER auto-picked!
+      if (/(espeak|compact|eloquence|albert|bahh|bells|boing|bubbles|cellos|fred|good news|jester|organ|ralph|superstar|trinoids|wobble|zarvox|bad news|hysterical|pipe organ|whisper)/.test(name)) {
+        score -= 120;
+      }
+      if ((name.includes('david') || name.includes('zira') || name.includes('mark')) && !name.includes('natural') && !name.includes('neural')) {
+        score -= 45;
+      }
+      return score;
+    }
+
     function loadDetectedVoiceModels() {
       if (!('speechSynthesis' in window)) return [];
       let voices = window.speechSynthesis.getVoices();
       if (voices && voices.length > 0) {
-        localVoiceModels = voices;
+        // Sort automatically by naturalness score (highest-quality Neural/Natural human voices at the top!)
+        localVoiceModels = voices.slice().sort((a, b) => scoreNaturalDeviceVoice(b) - scoreNaturalDeviceVoice(a));
       }
       return localVoiceModels;
     }
@@ -9041,17 +9091,16 @@
         const found = voices.find(v => v.name === settings.voiceName);
         if (found) return found;
       }
+      // Voices are already sorted by scoreNaturalDeviceVoice() — pick the #1 highest-rated natural human voice!
       if (settings.genderFilter === 'male') {
         const male = voices.find(v => classifyVoiceGender(v) === 'male' && v.lang && v.lang.startsWith('en'));
         if (male) return male;
-      } else if (settings.genderFilter === 'female') {
+      } else if (settings.genderFilter === 'female' || settings.genderFilter === 'cute') {
         const female = voices.find(v => classifyVoiceGender(v) === 'female' && v.lang && v.lang.startsWith('en'));
         if (female) return female;
       }
 
-      return voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.default)) ||
-             voices.find(v => v.lang && v.lang.startsWith('en')) ||
-             voices[0];
+      return voices.find(v => v.lang && v.lang.startsWith('en')) || voices[0];
     }
 
     // =========================================================================
@@ -9357,6 +9406,12 @@
       container.innerHTML = filtered.map(v => {
         const isSelected = selected && (selected.voiceURI === v.voiceURI || selected.name === v.name);
         const gender = classifyVoiceGender(v);
+        const natScore = scoreNaturalDeviceVoice(v);
+        const qualityTag = natScore >= 110
+          ? '<span class="px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-500 font-mono text-[9px] font-semibold">NEURAL</span>'
+          : natScore >= 85
+            ? '<span class="px-1 py-0.2 rounded bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold">HD</span>'
+            : '';
         const genderBadge = gender === 'male' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-500 font-mono text-[9px] font-semibold">MALE</span>' :
                             gender === 'female' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/10 text-rose-500 font-mono text-[9px] font-semibold">FEMALE</span>' :
                             '<span class="px-1.5 py-0.5 rounded-[2px] bg-slate-500/10 text-slate-500 font-mono text-[9px]">SYSTEM</span>';
@@ -9370,13 +9425,14 @@
                 ${isSelected ? '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : escapeHtml(initial)}
               </span>
               <div class="min-w-0">
-                <div class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[220px] sm:max-w-[320px]">
-                  ${escapeHtml(v.name)}
+                <div class="flex items-center gap-1.5">
+                  <span class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[180px] sm:max-w-[270px]">${escapeHtml(v.name)}</span>
+                  ${qualityTag}
                 </div>
                 <div class="flex items-center gap-2 font-mono text-[10px] text-[var(--text-tertiary)]">
                   <span>${escapeHtml(v.lang)}</span>
                   <span>·</span>
-                  <span>${v.localService ? 'Offline On-Device' : 'System Neural'}</span>
+                  <span>0 MB · Instant</span>
                 </div>
               </div>
             </div>
@@ -9461,16 +9517,23 @@
       const customInput = document.getElementById('voiceCustomTestInput');
       const customRaw = customInput ? customInput.value.trim() : '';
       const text = normalizeTextForNaturalSpeech(
-        customRaw || "Hi Kon, PK Note device voice is ready. Instant on-device speech with zero server."
+        customRaw || "Hi Kon, PK Note instant natural voice is ready with zero download."
       );
       const utterance = new SpeechSynthesisUtterance(text);
       if (voice) utterance.voice = voice;
-      utterance.rate = settings.rate || 1.0;
-      utterance.pitch = settings.pitch || 1.0;
+      utterance.rate = Math.max(0.75, Math.min(1.5, settings.rate || 1.0));
+      utterance.pitch = Math.max(0.90, Math.min(1.14, settings.pitch || 1.0));
+      currentActiveUtterance = utterance;
 
-      window.speechSynthesis.speak(utterance);
+      // 45ms delay after cancel() prevents Chrome/Edge from silently dropping the first utterance!
+      setTimeout(() => {
+        try {
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {}
+      }, 45);
       if (typeof playMechanicalClick === 'function') playMechanicalClick(0.9);
-      showToast(`Auditioning: ${voice ? voice.name.slice(0, 24) : 'Default'}`);
+      showToast(`Auditioning: ${voice ? voice.name.slice(0, 26) : 'Instant Natural'}`);
     }
 
     function testSelectedVoice(targetVoice = null) {
@@ -9692,7 +9755,8 @@
         return;
       }
 
-      const item = speechSentenceQueue[currentSpeechQueueIndex];
+      const idx = currentSpeechQueueIndex;
+      const item = speechSentenceQueue[idx];
       const settings = getVoiceSettings();
       const voice = getSelectedVoiceModel();
 
@@ -9700,28 +9764,47 @@
         highlightVoiceBlock(item.blockId);
       }
 
+      const shortName = voice && voice.name
+        ? voice.name.replace(/Microsoft\s+|Online\s*\(Natural\)\s*-\s*English.*/gi, '').trim().slice(0, 18) || voice.name.slice(0, 18)
+        : 'Natural';
+      updateVoiceStudioHUDLabels(`${shortName} (${idx + 1}/${speechSentenceQueue.length})`);
+
+      // Guard against Chrome's 15-second utterance freeze by ensuring clean sub-200 char flow
       const utterance = new SpeechSynthesisUtterance(item.text);
       if (voice) utterance.voice = voice;
-      utterance.rate = settings.rate || 1.0;
-      utterance.pitch = settings.pitch || 1.0;
+      utterance.rate = Math.max(0.75, Math.min(1.5, settings.rate || 1.0));
+      utterance.pitch = Math.max(0.90, Math.min(1.14, settings.pitch || 1.0));
 
-      utterance.onend = () => {
-        if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
-          currentSpeechQueueIndex++;
-          playNextDeviceSpeechSentence(sessionId);
-        }
+      let finished = false;
+      const advance = (delayMs = 130) => {
+        if (finished) return;
+        finished = true;
+        if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive || isSpeechAudioPaused) return;
+        kokoroPauseTimer = setTimeout(() => {
+          if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
+            currentSpeechQueueIndex++;
+            playNextDeviceSpeechSentence(sessionId);
+          }
+        }, delayMs);
       };
 
+      utterance.onend = () => advance(item.isHeading ? 300 : 120);
       utterance.onerror = (err) => {
-        console.warn('Utterance speech end/error:', err);
-        if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
-          currentSpeechQueueIndex++;
-          playNextDeviceSpeechSentence(sessionId);
-        }
+        const code = err && err.error ? err.error : '';
+        // Never race forward on user cancel/interrupt!
+        if (code === 'canceled' || code === 'interrupted') return;
+        console.warn('Instant voice utterance error:', code);
+        advance(160);
       };
 
       currentActiveUtterance = utterance;
-      window.speechSynthesis.speak(utterance);
+      try {
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.warn('speechSynthesis speak error:', e);
+        stopReadingAloud();
+      }
     }
 
     function playNextSpeechSentence() {
@@ -15497,8 +15580,8 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           </span>
           <div class="min-w-0">
-            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Kokoro-82M Voice Studio</div>
-            <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate" id="voiceModelSubtitle">On-Device Neural TTS · Phone &amp; PC · Zero Server</div>
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Voice Studio</div>
+            <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate" id="voiceModelSubtitle">Instant 0 MB Natural Voices · Optional Offline AI</div>
           </div>
         </div>
         <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">✕</button>
@@ -15507,13 +15590,13 @@
       <!-- Filters & Voice Selector Body -->
       <div class="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
 
-        <!-- Dual-Engine Selector Tabs -->
+        <!-- Dual-Engine Selector Tabs (Instant 0 MB First!) -->
         <div class="flex items-center gap-1.5 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
-          <button id="voiceEngineTabKokoro" onclick="setVoiceEngine('kokoro')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--accent-vermilion)] text-white shadow-xs">
-            <span>Kokoro-82M Neural</span>
+          <button id="voiceEngineTabDevice" onclick="setVoiceEngine('device')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold bg-[var(--accent-vermilion)] text-white shadow-xs">
+            <span>Instant Natural (0 MB)</span>
           </button>
-          <button id="voiceEngineTabDevice" onclick="setVoiceEngine('device')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-            <span>Device Native</span>
+          <button id="voiceEngineTabKokoro" onclick="setVoiceEngine('kokoro')" class="flex-1 py-2 px-2.5 rounded-md font-mono text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <span>Offline AI (Kokoro)</span>
           </button>
         </div>
 
@@ -15538,18 +15621,23 @@
           </div>
 
           <!-- Studio HD (fp16) vs Fast (q8) Quality Selector -->
-          <div id="kokoroQuantToggleWrap" class="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[var(--border-hairline)]">
-            <div class="flex items-center gap-1.5">
-              <button id="kokoroQuantFp16Btn" onclick="setKokoroQuant('fp16')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion)] text-white cursor-pointer">
-                Studio HD (fp16 · Natural)
-              </button>
-              <button id="kokoroQuantQ8Btn" onclick="setKokoroQuant('q8')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer">
-                Fast (q8 · 88 MB)
+          <div id="kokoroQuantToggleWrap" class="space-y-1.5 pt-2 border-t border-[var(--border-hairline)]">
+            <div class="font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed">
+              Note: Kokoro downloads 1 shared AI engine once (not all voices — each voice is &lt;0.5 MB and loaded only when you tap it). Use <span class="text-[var(--text-primary)] font-medium">Instant Natural (0 MB)</span> above for zero download.
+            </div>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-1.5">
+                <button id="kokoroQuantFp16Btn" onclick="setKokoroQuant('fp16')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion)] text-white cursor-pointer">
+                  Studio HD (fp16 · 156 MB)
+                </button>
+                <button id="kokoroQuantQ8Btn" onclick="setKokoroQuant('q8')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer">
+                  Fast (q8 · 88 MB)
+                </button>
+              </div>
+              <button onclick="setVoiceEngine('device')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] cursor-pointer transition-colors">
+                Back to 0 MB Instant
               </button>
             </div>
-            <button onclick="setVoiceEngine('device')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] cursor-pointer transition-colors">
-              Instant Device Voice
-            </button>
           </div>
 
           <!-- Real-Time ONNX Weight Download & Init Progress Bar -->

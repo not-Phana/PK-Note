@@ -2512,62 +2512,68 @@
     </div>
   </div>
 
-  <!-- 2. Remade Real-Time On-Device Voice-to-Text Studio Capsule (Zero-Server, Whisper-Sensitive, Live Streaming) -->
-  <div id="pkDictationHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-[92vw] max-w-[400px] z-[915] flex flex-col rounded-2xl popover-surface border border-[var(--accent-vermilion)]/75 shadow-2xl select-none backdrop-blur-xl overflow-hidden transition-shadow duration-150">
-    <!-- Top Luminous Accent Line -->
-    <div id="pkDictationGlowBar" class="h-[2px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-85"></div>
+  <!-- 2. Real-Time Zero-Lag Voice Dictation Capsule (Instant Word-by-Word Streaming + Off-Thread Offline AI Fallback) -->
+  <div id="pkDictationHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-[94vw] max-w-[430px] z-[996] flex flex-col rounded-xl bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/65 shadow-2xl select-none overflow-hidden">
+    <div class="h-[2px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-90"></div>
 
     <div class="px-3.5 pt-2.5 pb-3 space-y-2.5">
-      <!-- Studio Header: Live Status + Whisper Sensitivity Pill + Timer -->
+      <!-- Compact Studio Header -->
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2 min-w-0">
-          <span class="relative flex h-2.5 w-2.5 shrink-0">
+          <span class="relative flex h-2 w-2 shrink-0">
             <span id="pkDictationPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent-vermilion)] opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--accent-vermilion)]"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent-vermilion)]"></span>
           </span>
-          <span id="pkDictationStatusBadge" class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-primary)] font-semibold truncate">LIVE STREAM</span>
+          <span id="pkDictationStatusBadge" class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-primary)] font-semibold truncate">LIVE</span>
+          <div id="pkDictationBars" class="pk-dict-bars shrink-0" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
         </div>
 
         <div class="flex items-center gap-1.5 shrink-0">
-          <button type="button" onclick="cycleDictationWhisperGain()" id="pkDictationGainPill" title="Tap to boost microphone sensitivity for whispers" class="px-2 py-0.5 rounded-full bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/55 text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold cursor-pointer transition-colors">
-            Whisper +15dB
+          <button type="button" onclick="toggleDictationEngineMode()" id="pkDictationEngineBtn" title="Switch between Instant Live Speech and Offline AI Worker" class="px-2 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-[9.5px] font-medium cursor-pointer">
+            Instant
           </button>
-          <span id="pkDictationTimer" class="font-mono text-[10px] tabular-nums text-[var(--text-secondary)] font-medium">00:00</span>
+          <select id="pkDictationLangSelect" onchange="setDictationLanguage(this.value)" title="Dictation language" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-[9.5px] cursor-pointer focus:outline-none focus:border-[var(--accent-vermilion)]">
+            <option value="en-US">EN</option>
+            <option value="km-KH">KM</option>
+            <option value="zh-CN">ZH</option>
+            <option value="ja-JP">JA</option>
+            <option value="ko-KR">KO</option>
+            <option value="th-TH">TH</option>
+            <option value="vi-VN">VI</option>
+            <option value="es-ES">ES</option>
+            <option value="fr-FR">FR</option>
+            <option value="de-DE">DE</option>
+          </select>
+          <span id="pkDictationTimer" class="font-mono text-[10px] tabular-nums text-[var(--text-tertiary)] font-medium">00:00</span>
         </div>
       </div>
 
-      <!-- Real-Time 60fps Symmetrical Acoustic Waveform -->
-      <div class="relative rounded-xl bg-[var(--bg-canvas)]/90 border border-[var(--border-hairline)] px-2.5 py-1.5 overflow-hidden">
-        <canvas id="pkDictationWaveCanvas" class="block w-full h-8"></canvas>
-        <div class="flex items-center justify-between gap-2 mt-1 font-mono text-[9px] text-[var(--text-tertiary)]">
-          <span id="pkDictationSignalLabel" class="truncate">Listening — speak or whisper naturally</span>
-          <span id="pkDictationEngineTag" class="shrink-0 text-[var(--text-tertiary)]/80">On-Device AI</span>
-        </div>
+      <!-- Real-Time Word-by-Word Live Transcript Display -->
+      <div id="pkDictationPreview" class="w-full min-h-[64px] max-h-[120px] overflow-y-auto px-3 py-2 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-sans text-[13.5px] leading-relaxed text-[var(--text-primary)] select-text">
+        <span class="text-[var(--text-tertiary)] italic">Start talking — your words appear live right here and in your note...</span>
       </div>
 
-      <!-- Real-Time Live Streaming Transcript Box (Updates word-by-word as you talk!) -->
-      <div id="pkDictationPreview" class="w-full min-h-[42px] max-h-[82px] overflow-y-auto px-2.5 py-1.5 rounded-xl bg-[var(--bg-canvas)]/80 border border-[var(--border-hairline)] font-serif text-[13px] leading-snug text-[var(--text-primary)] select-text">
-        <span class="text-[var(--text-tertiary)] italic">Start speaking or whispering — words stream live here and directly into your note...</span>
-      </div>
-
-      <!-- Clean Studio Footer Controls -->
+      <!-- Clean Footer Controls -->
       <div class="flex items-center justify-between gap-2 font-mono text-[10px]">
-        <div class="flex items-center gap-1.5">
-          <button type="button" onclick="dictationInsertNewParagraph()" title="Start a new paragraph in your note" class="px-2.5 py-1.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <button type="button" onclick="dictationInsertNewParagraph()" title="Start a new paragraph in your note" class="px-2.5 py-1.5 rounded-md bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer shrink-0">
             New Line
           </button>
-          <button type="button" onclick="clearCurrentDictationDraft()" title="Clear current phrase" class="px-2.5 py-1.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+          <button type="button" onclick="clearCurrentDictationDraft()" title="Clear current phrase" class="px-2.5 py-1.5 rounded-md bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer shrink-0">
             Clear
           </button>
+          <span id="pkDictationSignalLabel" class="hidden sm:inline truncate text-[9.5px] text-[var(--text-tertiary)] pl-1">Real-time streaming</span>
         </div>
 
-        <button type="button" onclick="stopVoiceDictation(true)" class="px-3.5 py-1.5 rounded-lg bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold cursor-pointer transition-opacity">
+        <button type="button" onclick="stopVoiceDictation(true)" class="px-3.5 py-1.5 rounded-md bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold cursor-pointer shrink-0">
           Stop
         </button>
       </div>
     </div>
 
-    <!-- First-Time Offline AI Model Progress Strip -->
+    <!-- Optional Offline AI Model Progress Strip -->
     <div id="pkDictationProgressTrack" class="hidden w-full h-[3px] bg-[var(--bg-canvas)]">
       <div id="pkDictationProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-150" style="width: 10%"></div>
     </div>

@@ -1131,5 +1131,40 @@ html.pk-lite-gpu .animate-ping {
   }
 }
 
+/* =========================================================================
+   REAL-TIME VOICE DICTATION — ZERO-LAG PURE-GPU 5-BAR SPEAK METER
+   ========================================================================= */
+.pk-dict-bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 14px;
+}
+.pk-dict-bars span {
+  display: block;
+  width: 2.5px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-vermilion);
+  opacity: 0.45;
+  transform: scaleY(0.28);
+  transform-origin: center;
+  transition: transform 0.14s ease, opacity 0.14s ease;
+}
+.pk-dict-bars.is-speaking span {
+  opacity: 1;
+  animation: pkDictBarPulse 0.62s ease-in-out infinite alternate;
+}
+.pk-dict-bars.is-speaking span:nth-child(1) { animation-delay: 0.00s; animation-duration: 0.56s; }
+.pk-dict-bars.is-speaking span:nth-child(2) { animation-delay: 0.12s; animation-duration: 0.44s; }
+.pk-dict-bars.is-speaking span:nth-child(3) { animation-delay: 0.04s; animation-duration: 0.38s; }
+.pk-dict-bars.is-speaking span:nth-child(4) { animation-delay: 0.16s; animation-duration: 0.48s; }
+.pk-dict-bars.is-speaking span:nth-child(5) { animation-delay: 0.08s; animation-duration: 0.58s; }
+
+@keyframes pkDictBarPulse {
+  0%   { transform: scaleY(0.26); }
+  100% { transform: scaleY(1.0); }
+}
+
 
 

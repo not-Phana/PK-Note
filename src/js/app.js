@@ -7231,9 +7231,8 @@ function releaseUnusedAIEngines(keepEngine) {
       kokoroAuditionCache.clear();
     }
   }
-  if (keepEngine !== 'whisper' && typeof pkWhisperPipeline !== 'undefined' && pkWhisperPipeline) {
-    pkWhisperPipeline = null;
-    pkWhisperLoadPromise = null;
+  if (keepEngine !== 'whisper' && typeof terminateWhisperWorker === 'function') {
+    terminateWhisperWorker();
   }
 }
 
@@ -13850,74 +13849,88 @@ function updateMobileUndoButtons() {
 //     Dictation · Find & Replace · Templates · Focus Timer · MD Import · Lock
 // =========================================================================
 
-// --- 18A. REMADE REAL-TIME ON-DEVICE VOICE-TO-TEXT STREAMING ENGINE ---
-//     100% Client-Side · Zero Server · Zero "network" Error Loops · Works Offline & Hears Whispers
-//     Streams live words directly into your note & HUD as you talk via background Web Worker + Whisper AI
-const WHISPER_STT_ESM_URL = 'https://esm.sh/@huggingface/transformers@3.5.1';
-const WHISPER_STT_MODEL_ID = 'onnx-community/whisper-tiny.en';
+// --- 18A. ZERO-LAG REAL-TIME VOICE DICTATION ENGINE ---
+//     Primary: Native Browser Streaming SpeechRecognition (instant word-by-word, ~50ms latency, 0% CPU lag)
+//     Fallback: Off-Main-Thread Whisper Web Worker (js/whisper-worker.js, zero UI freeze, works offline)
+const PK_DICT_MODE_KEY = 'pk_note_dictation_mode_v2';
+const PK_DICT_LANG_KEY = 'pk_note_dictation_lang_v2';
 
-const DICTATION_GAIN_LEVELS = [
-  { id: 'whisper', gain: 4.5, maxBoost: 48, label: 'Whisper +15dB', desc: 'Whisper pre-amp (+15dB)' },
-  { id: 'ultra',   gain: 8.5, maxBoost: 90, label: 'Ultra +22dB',   desc: 'Ultra-quiet whisper (+22dB)' },
-  { id: 'normal',  gain: 1.4, maxBoost: 18, label: 'Normal 1.0x',   desc: 'Standard studio mic' }
-];
+function hasNativeSpeechRecognition() {
+  return !!(typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition));
+}
 
-let pkDictationGainIdx = 0;        // Defaults to Whisper +15dB
+function getPreferredDictationMode() {
+  try {
+    const saved = localStorage.getItem(PK_DICT_MODE_KEY);
+    if (saved === 'offline') return 'offline';
+    if (saved === 'live' && hasNativeSpeechRecognition()) return 'live';
+  } catch (_) {}
+  return hasNativeSpeechRecognition() ? 'live' : 'offline';
+}
+
+function getPreferredDictationLang() {
+  try {
+    return localStorage.getItem(PK_DICT_LANG_KEY) || 'en-US';
+  } catch (_) {
+    return 'en-US';
+  }
+}
+
+let pkDictationMode = getPreferredDictationMode(); // 'live' | 'offline'
+let pkDictationLang = getPreferredDictationLang();
 let isDictationActive = false;
-let isDictationBusy = false;       // True while Whisper Worker/pipeline is running an inference pass
+let isDictationBusy = false;
 let pkDictClosing = false;
+let pkDictSessionId = 0;
+let pkDictStartedAt = 0;
+let pkDictTimerInterval = null;
+let pkDictSpeakDecayTimer = null;
 
-// Web Audio Capture & 60fps Acoustic Waveform State
+// Instant Native SpeechRecognition State
+let pkSpeechRec = null;
+let pkSpeechRecRestartTimer = null;
+let pkLastFinalChunk = '';
+let pkLastFinalTs = 0;
+let pkNativeNetworkErrors = 0;
+
+// Off-Main-Thread Whisper Web Worker State (Offline Fallback — zero UI lag)
+let pkWhisperWorker = null;
+let pkWhisperWorkerReady = false;
+let pkWhisperJobId = 0;
+let pkWhisperPendingResolve = null;
 let pkDictAudioCtx = null;
 let pkDictMediaStream = null;
-let pkDictGainNode = null;
-let pkDictAnalyser = null;
-let pkDictCaptureNode = null;      // AudioWorkletNode (primary) or ScriptProcessorNode (fallback)
-let pkDictWaveAnimId = null;
-let pkDictTimerInterval = null;
+let pkDictCaptureNode = null;
 let pkDictStreamInterval = null;
-let pkDictStartedAt = 0;
 let pkDictSampleRate = 48000;
-
-// Rolling Real-Time Utterance Buffer + Adaptive Noise-Floor VAD
 let pkStreamChunks = [];
 let pkStreamSamples = 0;
 let pkLastTranscribedSamples = 0;
 let pkSpeechHeard = false;
 let pkSpeechStartTs = 0;
 let pkLastSpeechTs = 0;
-let pkNoiseFloor = 0.04;
 let pkRawMicPeakRecent = 0;
 
-// Real-Time Live Note Binding State (words stream directly into this block!)
+// Live Note Binding State (O(1) direct DOM updates while speaking — zero renderBlocks thrash!)
 let pkLiveNoteId = null;
 let pkLiveBlockId = null;
 let pkLiveBlockBaseText = '';
 let pkSessionCommittedText = '';
 let pkCurrentDraftText = '';
 
-// On-Device Whisper AI Pipeline Singleton (~39 MB q8 WASM, cached offline once in browser CacheStorage)
-let pkWhisperPipeline = null;
-let pkWhisperLoadPromise = null;
-
-function updateDictationGainUI() {
-  const cfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0];
-  const pill = document.getElementById('pkDictationGainPill');
-  if (pill) pill.textContent = cfg.label;
-}
-
-function cycleDictationWhisperGain() {
-  pkDictationGainIdx = (pkDictationGainIdx + 1) % DICTATION_GAIN_LEVELS.length;
-  const cfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx];
-  if (pkDictGainNode && pkDictAudioCtx) {
-    pkDictGainNode.gain.setTargetAtTime(cfg.gain, pkDictAudioCtx.currentTime, 0.04);
+function setDictationSpeakingVisual(speaking) {
+  const bars = document.getElementById('pkDictationBars');
+  if (bars) bars.classList.toggle('is-speaking', !!speaking);
+  if (pkDictSpeakDecayTimer) {
+    clearTimeout(pkDictSpeakDecayTimer);
+    pkDictSpeakDecayTimer = null;
   }
-  pkNoiseFloor = 0.04;
-  updateDictationGainUI();
-  const sigEl = document.getElementById('pkDictationSignalLabel');
-  if (sigEl) sigEl.textContent = cfg.desc;
-  if (typeof pkHaptic === 'function') pkHaptic(8);
-  showToast(`Mic sensitivity: ${cfg.label}`);
+  if (speaking) {
+    pkDictSpeakDecayTimer = setTimeout(() => {
+      const b = document.getElementById('pkDictationBars');
+      if (b) b.classList.remove('is-speaking');
+    }, 480);
+  }
 }
 
 function setDictationProgress(visible, pct = 0, statusText = null) {
@@ -13929,6 +13942,68 @@ function setDictationProgress(visible, pct = 0, statusText = null) {
   if (statusText && statusBadge) statusBadge.textContent = statusText;
 }
 
+function updateDictationHeaderUI() {
+  const engBtn = document.getElementById('pkDictationEngineBtn');
+  const langSel = document.getElementById('pkDictationLangSelect');
+  const badge = document.getElementById('pkDictationStatusBadge');
+  const sig = document.getElementById('pkDictationSignalLabel');
+
+  if (engBtn) {
+    engBtn.textContent = pkDictationMode === 'live' ? 'Instant' : 'Offline AI';
+    engBtn.title = pkDictationMode === 'live'
+      ? 'Instant real-time browser speech (click to switch to Offline AI Worker)'
+      : 'Offline Whisper AI Worker (click to switch to Instant real-time speech)';
+  }
+  if (langSel) {
+    langSel.value = pkDictationLang;
+    langSel.classList.toggle('hidden', pkDictationMode !== 'live');
+  }
+  if (badge && isDictationActive) {
+    badge.textContent = pkDictationMode === 'live' ? 'LIVE' : (pkWhisperWorkerReady ? 'OFFLINE AI' : 'LOADING AI');
+  }
+  if (sig) {
+    sig.textContent = pkDictationMode === 'live'
+      ? 'Real-time streaming'
+      : (pkWhisperWorkerReady ? 'Offline Worker ready' : 'Loading offline AI...');
+  }
+}
+
+function setDictationLanguage(lang) {
+  pkDictationLang = lang || 'en-US';
+  try { localStorage.setItem(PK_DICT_LANG_KEY, pkDictationLang); } catch (_) {}
+  if (isDictationActive && pkDictationMode === 'live') {
+    stopNativeLiveSpeech();
+    startNativeLiveSpeech();
+  }
+  showToast(`Dictation language: ${pkDictationLang}`);
+}
+
+async function toggleDictationEngineMode() {
+  const nextMode = pkDictationMode === 'live' ? 'offline' : 'live';
+  if (nextMode === 'live' && !hasNativeSpeechRecognition()) {
+    showToast('This browser only supports Offline AI dictation', 'ochre');
+    return;
+  }
+  pkDictationMode = nextMode;
+  try { localStorage.setItem(PK_DICT_MODE_KEY, pkDictationMode); } catch (_) {}
+  updateDictationHeaderUI();
+  if (isDictationActive) {
+    // Commit any live draft cleanly before hot-switching engine
+    if (pkCurrentDraftText.trim()) {
+      applyLiveDictationToNote(pkCurrentDraftText.trim(), true);
+    }
+    stopNativeLiveSpeech();
+    stopOfflineMicCapture();
+    if (pkDictationMode === 'live') {
+      startNativeLiveSpeech();
+      showToast('Switched to Instant real-time speech');
+    } else {
+      await startOfflineWhisperDictation();
+      showToast('Switched to Offline AI Worker');
+    }
+  }
+}
+
 function renderDictationLivePreview() {
   const preview = document.getElementById('pkDictationPreview');
   if (!preview) return;
@@ -13936,10 +14011,10 @@ function renderDictationLivePreview() {
   const draft = pkCurrentDraftText.trim();
 
   if (!committed && !draft) {
-    if (!pkWhisperPipeline) {
-      preview.innerHTML = '<span class="text-[var(--text-tertiary)] italic">Loading offline speech AI (cached once ~39 MB) — go ahead and speak or whisper now...</span>';
+    if (pkDictationMode === 'offline' && !pkWhisperWorkerReady) {
+      preview.innerHTML = '<span class="text-[var(--text-tertiary)] italic">Loading offline AI in background (zero lag) — you can start talking...</span>';
     } else {
-      preview.innerHTML = '<span class="text-[var(--text-tertiary)] italic">Start speaking or whispering — words stream live here and directly into your note...</span>';
+      preview.innerHTML = '<span class="text-[var(--text-tertiary)] italic">Start talking — your words appear live right here and in your note...</span>';
     }
     return;
   }
@@ -13947,136 +14022,18 @@ function renderDictationLivePreview() {
   const committedHtml = committed ? `<span class="text-[var(--text-primary)]">${escapeHtml(committed)}</span>` : '';
   const sep = committed && draft ? ' ' : '';
   const draftHtml = draft
-    ? `<span class="text-[var(--accent-vermilion)] italic">${escapeHtml(draft)}</span><span class="inline-block w-[2px] h-[13px] ml-0.5 align-middle bg-[var(--accent-vermilion)] animate-pulse"></span>`
-    : '<span class="inline-block w-[2px] h-[13px] ml-1 align-middle bg-[var(--accent-vermilion)]/60 animate-pulse"></span>';
+    ? `<span class="text-[var(--accent-vermilion)]">${escapeHtml(draft)}</span><span class="inline-block w-[2px] h-[14px] ml-0.5 align-middle bg-[var(--accent-vermilion)] animate-pulse"></span>`
+    : '<span class="inline-block w-[2px] h-[14px] ml-1 align-middle bg-[var(--accent-vermilion)]/65 animate-pulse"></span>';
 
   preview.innerHTML = committedHtml + sep + draftHtml;
   preview.scrollTop = preview.scrollHeight;
 }
 
-async function ensureWhisperEngineReady() {
-  if (typeof releaseUnusedAIEngines === 'function') releaseUnusedAIEngines('whisper');
-  if (pkWhisperPipeline) return pkWhisperPipeline;
-  if (pkWhisperLoadPromise) return pkWhisperLoadPromise;
-
-  setDictationProgress(true, 10, 'LOADING AI...');
-  const sigEl = document.getElementById('pkDictationSignalLabel');
-  if (sigEl) sigEl.textContent = 'Caching offline AI once (~39 MB) — keep speaking...';
-  let lastTs = 0;
-
-  pkWhisperLoadPromise = (async () => {
-    try {
-      const mod = await import(WHISPER_STT_ESM_URL);
-      if (mod && mod.env) {
-        mod.env.allowLocalModels = false;
-        mod.env.useBrowserCache = true;
-      }
-      const asr = await mod.pipeline('automatic-speech-recognition', WHISPER_STT_MODEL_ID, {
-        dtype: 'q8',
-        device: 'wasm',
-        progress_callback: (info) => {
-          if (!info) return;
-          const now = performance.now();
-          if (info.status === 'progress' && (now - lastTs > 140)) {
-            lastTs = now;
-            const pct = Math.max(10, Math.min(98, Math.round(typeof info.progress === 'number' ? info.progress : 25)));
-            setDictationProgress(true, pct, `LOADING ${pct}%`);
-            const s = document.getElementById('pkDictationSignalLabel');
-            if (s && isDictationActive) s.textContent = `Caching offline AI once (${pct}%) — keep speaking`;
-          }
-        }
-      });
-      pkWhisperPipeline = asr;
-      setDictationProgress(false, 100, isDictationActive ? 'LIVE STREAM' : 'READY');
-      const s = document.getElementById('pkDictationSignalLabel');
-      if (s && isDictationActive) s.textContent = 'AI ready · speak or whisper — words appear live';
-      const tag = document.getElementById('pkDictationEngineTag');
-      if (tag) tag.textContent = 'Offline AI · Ready';
-      renderDictationLivePreview();
-      // Immediately stream any speech recorded while the model was loading!
-      if (isDictationActive && pkStreamSamples > Math.floor(pkDictSampleRate * 0.45)) {
-        runLiveTranscriptionPass(false);
-      }
-      return asr;
-    } catch (err) {
-      pkWhisperLoadPromise = null;
-      setDictationProgress(false, 0);
-      throw err;
-    }
-  })();
-  return pkWhisperLoadPromise;
-}
-
-async function transcribeFloat32WithWhisper(pcm16k) {
-  const asr = await ensureWhisperEngineReady();
-  if (!asr) throw new Error('Speech AI unavailable');
-  const out = await asr(pcm16k, { chunk_length_s: 30, stride_length_s: 5 });
-  return (out && out.text) ? out.text : '';
-}
-
-// Resample clean Float32 PCM to 16 kHz + Linear Whisper Peak Lift (zero harsh clipping, hears -40dB whispers!)
-function buildWhisperNormalized16kPCM(chunks, sourceSampleRate) {
-  let totalLen = 0;
-  for (const c of chunks) totalLen += c.length;
-  if (totalLen === 0) return { pcm: new Float32Array(0), peak: 0 };
-
-  const merged = new Float32Array(totalLen);
-  let offset = 0;
-  for (const c of chunks) {
-    merged.set(c, offset);
-    offset += c.length;
-  }
-
-  const cfgGain = DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0];
-  if (window.PKWasm && window.PKWasm.ready) {
-    const wasmRes = window.PKWasm.resampleAndNormalizePcm(merged, sourceSampleRate, cfgGain.maxBoost || 48);
-    if (wasmRes) return wasmRes;
-  }
-
-  const targetRate = 16000;
-  const ratio = sourceSampleRate / targetRate;
-  const outLen = Math.max(1, Math.floor(merged.length / ratio));
-  const resampled = new Float32Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    const srcIdx = i * ratio;
-    const idx0 = Math.floor(srcIdx);
-    const idx1 = Math.min(merged.length - 1, idx0 + 1);
-    const frac = srcIdx - idx0;
-    resampled[i] = merged[idx0] * (1 - frac) + merged[idx1] * frac;
-  }
-
-  // Remove DC offset so quiet phone mics normalize accurately
-  let mean = 0;
-  for (let i = 0; i < resampled.length; i++) mean += resampled[i];
-  mean /= resampled.length;
-
-  let peak = 0;
-  for (let i = 0; i < resampled.length; i++) {
-    resampled[i] -= mean;
-    const a = Math.abs(resampled[i]);
-    if (a > peak) peak = a;
-  }
-
-  if (peak > 0.00016) {
-    const cfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0];
-    const scale = Math.min(cfg.maxBoost || 48, 0.85 / peak);
-    for (let i = 0; i < resampled.length; i++) {
-      const v = resampled[i] * scale;
-      resampled[i] = v > 0.94 ? 0.94 + Math.tanh((v - 0.94) * 2) * 0.05
-                   : v < -0.94 ? -0.94 + Math.tanh((v + 0.94) * 2) * 0.05
-                   : v;
-    }
-  }
-  return { pcm: resampled, peak };
-}
-
 function formatSpokenDictationText(rawText) {
   if (!rawText) return '';
   let text = String(rawText)
-    // Strip Whisper non-speech bracket/parenthesis hallucinations
     .replace(/\[(?:BLANK_AUDIO|SILENCE|NOISE|MUSIC|INAUDIBLE|APPLAUSE|LAUGHTER|BELL|BEEP)[^\]]*\]/gi, ' ')
     .replace(/\((?:silence|inaudible|whispering|music|background noise|applause|laughter|sighs|clears throat|static|clicking|footsteps)[^)]*\)/gi, ' ')
-    // Spoken punctuation commands
     .replace(/\b(?:new paragraph|next paragraph|new line)\b/gi, '\n')
     .replace(/\s+\b(?:period|full stop)\b/gi, '.')
     .replace(/\s+\bcomma\b/gi, ',')
@@ -14087,17 +14044,15 @@ function formatSpokenDictationText(rawText) {
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
   if (/^[.,!?\-_\s]+$/.test(text)) return '';
-  // Filter well-known Whisper silence hallucinations on pure room noise
-  if (/^(?:you\.?|thank you\.?|thanks for watching\.?|bye\.?|okay\.?|hmm\.?|uh\.?|um\.?)$/i.test(text) && pkRawMicPeakRecent < 0.0005) {
+  if (pkDictationMode === 'offline' && /^(?:you\.?|thank you\.?|thanks for watching\.?|bye\.?|okay\.?|hmm\.?|uh\.?|um\.?)$/i.test(text) && pkRawMicPeakRecent < 0.0006) {
     return '';
   }
   return text;
 }
 
-// Bind / Prepare the Live Note Block so text streams directly into the note in real time!
 function prepareLiveDictationBlock(forceNewParagraph = false) {
   const note = getActiveNote();
-  if (!note || note.locked) return null;
+  if (!note || note.locked || note.encryptedPayload) return null;
   pkLiveNoteId = note.id;
 
   let targetBlock = null;
@@ -14106,7 +14061,7 @@ function prepareLiveDictationBlock(forceNewParagraph = false) {
   }
   if (!forceNewParagraph && !targetBlock && typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
     const activeBlk = note.blocks.find(b => b.id === activeEditingBlockId);
-    if (activeBlk && activeBlk.type !== 'divider') targetBlock = activeBlk;
+    if (activeBlk && !['divider', 'sketch', 'table'].includes(activeBlk.type)) targetBlock = activeBlk;
   }
   if (!forceNewParagraph && !targetBlock) {
     const last = note.blocks[note.blocks.length - 1];
@@ -14140,14 +14095,48 @@ function highlightLiveDictationBlock(blockId, active) {
     row.style.borderLeft = '2px solid var(--accent-vermilion)';
     row.style.paddingLeft = '8px';
     row.style.backgroundColor = 'var(--accent-vermilion-tint)';
-    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
-// Write real-time partial OR committed text straight into the active note block!
+// O(1) instant DOM patch — updates ONLY the single active block element in microseconds (zero full-page re-render!)
+function patchLiveBlockTextDirect(blockId, text) {
+  const el = document.querySelector(`[data-block-id="${blockId}"]`);
+  if (el && el.textContent !== text) {
+    el.textContent = text;
+    return true;
+  }
+  return false;
+}
+
+// Fast real-time interim updater (called on every word as you talk — zero lag!)
+function updateLiveInterimWords(rawInterim) {
+  const note = getActiveNote();
+  if (!note || note.locked || note.encryptedPayload) return;
+
+  const trimmed = String(rawInterim || '').replace(/\s+/g, ' ').trim();
+  pkCurrentDraftText = trimmed;
+
+  if (!pkLiveBlockId || pkLiveNoteId !== note.id) {
+    prepareLiveDictationBlock(false);
+  }
+  const blk = note.blocks.find(b => b.id === pkLiveBlockId);
+  if (blk) {
+    const combined = trimmed
+      ? (pkLiveBlockBaseText ? `${pkLiveBlockBaseText} ${trimmed}` : trimmed)
+      : pkLiveBlockBaseText;
+    blk.content = combined;
+    if (!patchLiveBlockTextDirect(blk.id, combined)) {
+      renderBlocks(note);
+      if (isDictationActive) highlightLiveDictationBlock(pkLiveBlockId, true);
+    }
+  }
+  renderDictationLivePreview();
+}
+
+// Commit finalized spoken phrase into the note + persist cleanly
 function applyLiveDictationToNote(spokenText, isFinalCommit = false) {
   const note = getActiveNote();
-  if (!note || note.locked) return;
+  if (!note || note.locked || note.encryptedPayload) return;
   const cleaned = formatSpokenDictationText(spokenText);
   if (!cleaned) return;
 
@@ -14163,202 +14152,333 @@ function applyLiveDictationToNote(spokenText, isFinalCommit = false) {
   const paragraphs = cleaned.split('\n').map(p => p.trim()).filter(Boolean);
   if (paragraphs.length === 0) return;
 
-  const formatSentence = (str, punctuate) => {
-    let s = str.charAt(0).toUpperCase() + str.slice(1);
-    if (punctuate && !/[.!?]$/.test(s)) s += '.';
-    return s;
+  const formatSentence = (str, capitalize) => {
+    if (!str) return '';
+    if (!capitalize) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
-  const firstPart = formatSentence(paragraphs[0], isFinalCommit);
+  const shouldCapFirst = !pkLiveBlockBaseText || /[.!?]\s*$/.test(pkLiveBlockBaseText);
+  const firstPart = formatSentence(paragraphs[0], shouldCapFirst);
   blk.content = pkLiveBlockBaseText ? `${pkLiveBlockBaseText} ${firstPart}` : firstPart;
 
   if (isFinalCommit) {
     if (typeof takeSnapshot === 'function') takeSnapshot('voice-dictation');
     pkLiveBlockBaseText = blk.content.trim();
-    // If user said "new paragraph" / "new line", create additional paragraph blocks cleanly
+    let createdNewBlocks = false;
     for (let i = 1; i < paragraphs.length; i++) {
       const nb = { id: generateId('b'), type: 'paragraph', content: formatSentence(paragraphs[i], true) };
       note.blocks.push(nb);
       pkLiveBlockId = nb.id;
       pkLiveBlockBaseText = nb.content;
+      createdNewBlocks = true;
     }
+    const addedDisplay = paragraphs.map((p, idx) => formatSentence(p, idx === 0 ? shouldCapFirst : true)).join(' ');
     pkSessionCommittedText = pkSessionCommittedText
-      ? `${pkSessionCommittedText} ${paragraphs.map(p => formatSentence(p, true)).join(' ')}`
-      : paragraphs.map(p => formatSentence(p, true)).join(' ');
+      ? `${pkSessionCommittedText} ${addedDisplay}`
+      : addedDisplay;
     pkCurrentDraftText = '';
+
+    note.updatedAt = TODAY_KEY;
+    if (createdNewBlocks || !patchLiveBlockTextDirect(blk.id, blk.content)) {
+      renderBlocks(note);
+      if (isDictationActive) highlightLiveDictationBlock(pkLiveBlockId, true);
+    }
+    if (typeof updateWordCount === 'function') updateWordCount(note);
+    persistState();
   } else {
     pkCurrentDraftText = firstPart;
+    if (!patchLiveBlockTextDirect(blk.id, blk.content)) {
+      renderBlocks(note);
+      if (isDictationActive) highlightLiveDictationBlock(pkLiveBlockId, true);
+    }
   }
-
-  note.updatedAt = TODAY_KEY;
-  renderBlocks(note);
-  if (typeof updateWordCount === 'function') updateWordCount(note);
-  if (isFinalCommit) persistState();
-  if (isDictationActive) highlightLiveDictationBlock(pkLiveBlockId, true);
   renderDictationLivePreview();
 }
 
-function pushCapturedPCMChunk(float32Chunk) {
-  if (!isDictationActive) return;
+// =========================================================================
+// ENGINE 1: INSTANT REAL-TIME BROWSER SPEECH RECOGNITION (0ms LAG)
+// =========================================================================
+function stopNativeLiveSpeech() {
+  if (pkSpeechRecRestartTimer) {
+    clearTimeout(pkSpeechRecRestartTimer);
+    pkSpeechRecRestartTimer = null;
+  }
+  if (pkSpeechRec) {
+    const rec = pkSpeechRec;
+    pkSpeechRec = null;
+    rec.onresult = null;
+    rec.onerror = null;
+    rec.onend = null;
+    rec.onspeechstart = null;
+    rec.onspeechend = null;
+    try { rec.stop(); } catch (_) {}
+  }
+}
+
+function startNativeLiveSpeech() {
+  stopNativeLiveSpeech();
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    pkDictationMode = 'offline';
+    updateDictationHeaderUI();
+    startOfflineWhisperDictation();
+    return;
+  }
+
+  const sessionId = pkDictSessionId;
+  const rec = new SpeechRec();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.lang = pkDictationLang || 'en-US';
+  pkSpeechRec = rec;
+
+  rec.onstart = () => {
+    if (!isDictationActive || sessionId !== pkDictSessionId) return;
+    pkNativeNetworkErrors = 0;
+    const badge = document.getElementById('pkDictationStatusBadge');
+    const sig = document.getElementById('pkDictationSignalLabel');
+    if (badge) badge.textContent = 'LIVE';
+    if (sig) sig.textContent = 'Listening live...';
+  };
+
+  rec.onspeechstart = () => {
+    if (!isDictationActive || sessionId !== pkDictSessionId) return;
+    setDictationSpeakingVisual(true);
+    const sig = document.getElementById('pkDictationSignalLabel');
+    if (sig) sig.textContent = 'Streaming words...';
+  };
+
+  rec.onspeechend = () => {
+    setDictationSpeakingVisual(false);
+  };
+
+  rec.onresult = (event) => {
+    if (!isDictationActive || pkDictClosing || sessionId !== pkDictSessionId) return;
+    setDictationSpeakingVisual(true);
+
+    let interimStr = '';
+    const finalParts = [];
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const res = event.results[i];
+      if (!res || !res[0]) continue;
+      const transcript = (res[0].transcript || '').trim();
+      if (!transcript) continue;
+
+      if (res.isFinal) {
+        // Deduplicate Android Chrome duplicate final firing within 900ms
+        const now = Date.now();
+        if (transcript.toLowerCase() === pkLastFinalChunk.toLowerCase() && (now - pkLastFinalTs) < 900) {
+          continue;
+        }
+        pkLastFinalChunk = transcript;
+        pkLastFinalTs = now;
+        finalParts.push(transcript);
+      } else {
+        interimStr += (interimStr ? ' ' : '') + transcript;
+      }
+    }
+
+    if (finalParts.length > 0) {
+      applyLiveDictationToNote(finalParts.join(' '), true);
+    }
+
+    if (interimStr) {
+      updateLiveInterimWords(interimStr);
+    } else if (finalParts.length > 0) {
+      updateLiveInterimWords('');
+    }
+  };
+
+  rec.onerror = (event) => {
+    if (!isDictationActive || pkDictClosing || sessionId !== pkDictSessionId) return;
+    const code = event && event.error ? event.error : '';
+    if (code === 'no-speech' || code === 'aborted') return;
+
+    if (code === 'not-allowed' || code === 'service-not-allowed') {
+      showToast('Allow microphone permission to use Voice Dictation', 'ochre');
+      cleanupVoiceDictationUI();
+      return;
+    }
+
+    if (code === 'network' || code === 'audio-capture') {
+      pkNativeNetworkErrors++;
+      if (pkNativeNetworkErrors >= 2) {
+        stopNativeLiveSpeech();
+        pkDictationMode = 'offline';
+        updateDictationHeaderUI();
+        showToast('Offline detected — switching to Offline AI Worker', 'ochre');
+        startOfflineWhisperDictation();
+      }
+    }
+  };
+
+  rec.onend = () => {
+    if (!isDictationActive || pkDictClosing || pkDictationMode !== 'live' || sessionId !== pkDictSessionId) return;
+    // Commit any trailing interim text before seamless browser restart
+    if (pkCurrentDraftText.trim()) {
+      applyLiveDictationToNote(pkCurrentDraftText.trim(), true);
+    }
+    setDictationSpeakingVisual(false);
+    pkSpeechRecRestartTimer = setTimeout(() => {
+      if (!isDictationActive || pkDictClosing || pkDictationMode !== 'live' || sessionId !== pkDictSessionId) return;
+      try {
+        startNativeLiveSpeech();
+      } catch (_) {}
+    }, 150);
+  };
+
+  try {
+    rec.start();
+  } catch (err) {
+    console.warn('Native SpeechRecognition start error:', err);
+    pkDictationMode = 'offline';
+    updateDictationHeaderUI();
+    startOfflineWhisperDictation();
+  }
+}
+
+// =========================================================================
+// ENGINE 2: OFF-MAIN-THREAD WHISPER WEB WORKER (ZERO-LAG OFFLINE FALLBACK)
+// =========================================================================
+function terminateWhisperWorker() {
+  if (pkWhisperWorker) {
+    try { pkWhisperWorker.terminate(); } catch (_) {}
+    pkWhisperWorker = null;
+  }
+  pkWhisperWorkerReady = false;
+  if (pkWhisperPendingResolve) {
+    const r = pkWhisperPendingResolve;
+    pkWhisperPendingResolve = null;
+    r('');
+  }
+}
+
+function getOrCreateWhisperWorker() {
+  if (typeof releaseUnusedAIEngines === 'function') releaseUnusedAIEngines('whisper');
+  if (pkWhisperWorker) return pkWhisperWorker;
+  const worker = new Worker('./js/whisper-worker.js', { type: 'module' });
+  worker.onmessage = (event) => {
+    const msg = event.data || {};
+    if (msg.type === 'progress') {
+      const pct = typeof msg.progress === 'number' ? Math.max(8, Math.min(98, Math.round(msg.progress))) : 25;
+      setDictationProgress(true, pct, `AI ${pct}%`);
+      const sig = document.getElementById('pkDictationSignalLabel');
+      if (sig && isDictationActive) sig.textContent = `Caching offline AI (${pct}%)...`;
+    } else if (msg.type === 'ready') {
+      pkWhisperWorkerReady = true;
+      setDictationProgress(false, 100, isDictationActive ? 'OFFLINE AI' : 'READY');
+      updateDictationHeaderUI();
+      renderDictationLivePreview();
+    } else if (msg.type === 'result' || msg.type === 'cancelled' || msg.type === 'error') {
+      if (pkWhisperPendingResolve) {
+        const resolve = pkWhisperPendingResolve;
+        pkWhisperPendingResolve = null;
+        resolve(msg.type === 'result' ? (msg.text || '') : '');
+      }
+      if (msg.type === 'error') {
+        console.warn('Offline Whisper worker error:', msg.message);
+      }
+    }
+  };
+  worker.onerror = (err) => {
+    console.warn('Whisper worker crash:', err);
+    terminateWhisperWorker();
+  };
+  pkWhisperWorker = worker;
+  worker.postMessage({ type: 'init', isLiteMobile: !!window.PK_LITE_MODE });
+  return worker;
+}
+
+function buildWhisperNormalized16kPCM(chunks, sourceSampleRate) {
+  let totalLen = 0;
+  for (const c of chunks) totalLen += c.length;
+  if (totalLen === 0) return { pcm: new Float32Array(0), peak: 0 };
+
+  const merged = new Float32Array(totalLen);
+  let offset = 0;
+  for (const c of chunks) {
+    merged.set(c, offset);
+    offset += c.length;
+  }
+
+  if (window.PKWasm && window.PKWasm.ready) {
+    const wasmRes = window.PKWasm.resampleAndNormalizePcm(merged, sourceSampleRate, 32);
+    if (wasmRes) return wasmRes;
+  }
+
+  const ratio = sourceSampleRate / 16000;
+  const outLen = Math.max(1, Math.floor(merged.length / ratio));
+  const resampled = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const srcIdx = i * ratio;
+    const idx0 = Math.floor(srcIdx);
+    const idx1 = Math.min(merged.length - 1, idx0 + 1);
+    const frac = srcIdx - idx0;
+    resampled[i] = merged[idx0] * (1 - frac) + merged[idx1] * frac;
+  }
+  let mean = 0;
+  for (let i = 0; i < resampled.length; i++) mean += resampled[i];
+  mean /= resampled.length;
+  let peak = 0;
+  for (let i = 0; i < resampled.length; i++) {
+    resampled[i] -= mean;
+    const a = Math.abs(resampled[i]);
+    if (a > peak) peak = a;
+  }
+  if (peak > 0.00025) {
+    const scale = Math.min(32, 0.85 / peak);
+    for (let i = 0; i < resampled.length; i++) {
+      const v = resampled[i] * scale;
+      resampled[i] = Math.max(-0.98, Math.min(0.98, v));
+    }
+  }
+  return { pcm: resampled, peak };
+}
+
+function pushOfflinePCMChunk(float32Chunk) {
+  if (!isDictationActive || pkDictationMode !== 'offline') return;
   const copy = new Float32Array(float32Chunk);
-  // Track recent raw mic peak so we know when real audio arrived
   let chunkPeak = 0;
-  for (let i = 0; i < copy.length; i += 4) {
+  for (let i = 0; i < copy.length; i += 8) {
     const a = Math.abs(copy[i]);
     if (a > chunkPeak) chunkPeak = a;
   }
   pkRawMicPeakRecent = Math.max(pkRawMicPeakRecent * 0.85, chunkPeak);
-
-  if (pkStreamSamples < pkDictSampleRate * 16) {
+  const now = Date.now();
+  if (chunkPeak > 0.012) {
+    if (!pkSpeechHeard) pkSpeechStartTs = now;
+    pkSpeechHeard = true;
+    pkLastSpeechTs = now;
+    setDictationSpeakingVisual(true);
+  }
+  if (pkStreamSamples < pkDictSampleRate * 14) {
     pkStreamChunks.push(copy);
     pkStreamSamples += copy.length;
   }
 }
 
-// Start Mic Capture using AudioContext CREATED SYNCHRONOUSLY inside user tap gesture!
-async function attachMicCaptureToContext(ctx) {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error('Microphone API unavailable in this browser');
-  }
-
-  let stream = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: true,
-        channelCount: 1
-      }
-    });
-  } catch (e) {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  }
-  if (!isDictationActive) {
-    stream.getTracks().forEach(t => t.stop());
-    return false;
-  }
-
-  pkDictMediaStream = stream;
-  if (ctx.state === 'suspended') {
-    try { await ctx.resume(); } catch (e) {}
-  }
-  pkDictSampleRate = ctx.sampleRate || 48000;
-
-  const source = ctx.createMediaStreamSource(stream);
-
-  // 1. Clean 80 Hz high-pass filter (removes breath pops & low rumble)
-  const highPass = ctx.createBiquadFilter();
-  highPass.type = 'highpass';
-  highPass.frequency.value = 80;
-  source.connect(highPass);
-
-  // 2. Visual Waveform & Adaptive VAD Branch (+5dB vocal presence + Whisper boost)
-  const presence = ctx.createBiquadFilter();
-  presence.type = 'peaking';
-  presence.frequency.value = 2800;
-  presence.Q.value = 1.1;
-  presence.gain.value = 5.0;
-
-  const gain = ctx.createGain();
-  const gainCfg = DICTATION_GAIN_LEVELS[pkDictationGainIdx] || DICTATION_GAIN_LEVELS[0];
-  gain.gain.value = gainCfg.gain;
-  pkDictGainNode = gain;
-
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 128;
-  analyser.smoothingTimeConstant = 0.72;
-  pkDictAnalyser = analyser;
-
-  highPass.connect(presence);
-  presence.connect(gain);
-  gain.connect(analyser);
-
-  // 3. Modern AudioWorklet PCM Capture (zero-glitch on iOS Safari & Android Chrome!) with ScriptProcessor fallback
-  pkStreamChunks = [];
-  pkStreamSamples = 0;
-  pkLastTranscribedSamples = 0;
-
-  let workletAttached = false;
-  if (ctx.audioWorklet && typeof AudioWorkletNode !== 'undefined' && location.protocol !== 'file:') {
-    try {
-      const workletCode = `
-        class PKDictPCMProcessor extends AudioWorkletProcessor {
-          process(inputs) {
-            const input = inputs && inputs[0] && inputs[0][0];
-            if (input && input.length) {
-              this.port.postMessage(input.slice());
-            }
-            return true;
-          }
-        }
-        registerProcessor('pk-dict-pcm', PKDictPCMProcessor);
-      `;
-      const wBlob = new Blob([workletCode], { type: 'application/javascript' });
-      const wUrl = URL.createObjectURL(wBlob);
-      await ctx.audioWorklet.addModule(wUrl);
-      URL.revokeObjectURL(wUrl);
-
-      if (!isDictationActive) return false;
-      const workletNode = new AudioWorkletNode(ctx, 'pk-dict-pcm');
-      workletNode.port.onmessage = (ev) => {
-        if (ev.data) pushCapturedPCMChunk(ev.data);
-      };
-      const keepAlive = ctx.createGain();
-      keepAlive.gain.value = 0.00001;
-      highPass.connect(workletNode);
-      workletNode.connect(keepAlive);
-      keepAlive.connect(ctx.destination);
-      pkDictCaptureNode = workletNode;
-      workletAttached = true;
-    } catch (wErr) {
-      workletAttached = false;
-    }
-  }
-
-  if (!workletAttached && typeof ctx.createScriptProcessor === 'function') {
-    const proc = ctx.createScriptProcessor(4096, 1, 1);
-    const keepAlive = ctx.createGain();
-    keepAlive.gain.value = 0.00001;
-    proc.onaudioprocess = (ev) => {
-      const ch = ev.inputBuffer.getChannelData(0);
-      if (ch && ch.length) pushCapturedPCMChunk(ch);
-    };
-    highPass.connect(proc);
-    proc.connect(keepAlive);
-    keepAlive.connect(ctx.destination);
-    pkDictCaptureNode = proc;
-  }
-
-  startDictationWaveformLoop();
-  return true;
-}
-
-function stopMicCapture() {
-  if (pkDictWaveAnimId) {
-    cancelAnimationFrame(pkDictWaveAnimId);
-    pkDictWaveAnimId = null;
-  }
+function stopOfflineMicCapture() {
+  if (pkDictStreamInterval) { clearInterval(pkDictStreamInterval); pkDictStreamInterval = null; }
   if (pkDictCaptureNode) {
-    try { pkDictCaptureNode.disconnect(); } catch (e) {}
+    try { pkDictCaptureNode.disconnect(); } catch (_) {}
     pkDictCaptureNode = null;
   }
   if (pkDictMediaStream) {
-    pkDictMediaStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+    pkDictMediaStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
     pkDictMediaStream = null;
   }
   if (pkDictAudioCtx) {
-    try { pkDictAudioCtx.close(); } catch (e) {}
+    try { pkDictAudioCtx.close(); } catch (_) {}
     pkDictAudioCtx = null;
   }
-  pkDictGainNode = null;
-  pkDictAnalyser = null;
 }
 
-// Real-Time Rolling Streaming Transcription Pass (updates HUD + Note live WHILE YOU TALK!)
-async function runLiveTranscriptionPass(shouldCommit = false) {
-  if (isDictationBusy) return;
-  const minSamples = Math.floor(pkDictSampleRate * 0.45);
+async function runOfflineWorkerPass(shouldCommit = false) {
+  if (isDictationBusy || !pkWhisperWorkerReady) return;
+  const minSamples = Math.floor(pkDictSampleRate * 0.55);
   if (pkStreamSamples < minSamples) {
     if (shouldCommit) {
       pkStreamChunks = [];
@@ -14368,18 +14488,12 @@ async function runLiveTranscriptionPass(shouldCommit = false) {
     }
     return;
   }
-
-  // Skip redundant partial pass if no new audio arrived since last pass
-  if (!shouldCommit && (pkStreamSamples - pkLastTranscribedSamples) < Math.floor(pkDictSampleRate * 0.45)) {
-    return;
-  }
+  if (!shouldCommit && (pkStreamSamples - pkLastTranscribedSamples) < Math.floor(pkDictSampleRate * 0.65)) return;
 
   const snapshotChunks = pkStreamChunks.slice();
   const snapshotSamples = pkStreamSamples;
   const sr = pkDictSampleRate;
-
   if (shouldCommit) {
-    // Immediately reset rolling buffer so user's NEXT sentence records cleanly in parallel!
     pkStreamChunks = [];
     pkStreamSamples = 0;
     pkLastTranscribedSamples = 0;
@@ -14390,147 +14504,123 @@ async function runLiveTranscriptionPass(shouldCommit = false) {
   }
 
   const { pcm, peak } = buildWhisperNormalized16kPCM(snapshotChunks, sr);
-  if (pcm.length < 3200 || peak <= 0.00016) return;
+  if (pcm.length < 4000 || peak <= 0.00025) return;
 
   isDictationBusy = true;
-  const statusBadge = document.getElementById('pkDictationStatusBadge');
-  const sigLabel = document.getElementById('pkDictationSignalLabel');
-  const modelReady = !!pkWhisperPipeline;
-  if (statusBadge && modelReady) statusBadge.textContent = shouldCommit ? 'COMMITTING' : 'STREAMING';
-  if (sigLabel && modelReady) sigLabel.textContent = 'Streaming words live into note...';
-
   try {
-    const rawText = await transcribeFloat32WithWhisper(pcm);
-    const cleaned = formatSpokenDictationText(rawText);
+    const worker = getOrCreateWhisperWorker();
+    const jobId = ++pkWhisperJobId;
+    const text = await new Promise((resolve) => {
+      pkWhisperPendingResolve = resolve;
+      worker.postMessage(
+        { type: 'transcribe', id: jobId, sessionId: pkDictSessionId, pcm, isFinal: shouldCommit, isLiteMobile: !!window.PK_LITE_MODE },
+        [pcm.buffer]
+      );
+    });
+    const cleaned = formatSpokenDictationText(text);
     if (cleaned) {
-      applyLiveDictationToNote(cleaned, shouldCommit);
-      if (shouldCommit && typeof pkHaptic === 'function') pkHaptic(10);
+      if (shouldCommit) {
+        applyLiveDictationToNote(cleaned, true);
+        if (typeof pkHaptic === 'function') pkHaptic(8);
+      } else {
+        updateLiveInterimWords(cleaned);
+      }
     }
-  } catch (err) {
-    console.warn('Real-time dictation pass error:', err);
-    const s = document.getElementById('pkDictationSignalLabel');
-    if (s) s.textContent = 'Offline AI needs internet once to download (~39 MB)';
   } finally {
     isDictationBusy = false;
-    if (isDictationActive && !pkDictClosing) {
-      const sb = document.getElementById('pkDictationStatusBadge');
-      if (sb && pkWhisperPipeline) sb.textContent = 'LIVE STREAM';
-    }
   }
 }
 
-function startDictationWaveformLoop() {
-  const canvas = document.getElementById('pkDictationWaveCanvas');
-  const hud = document.getElementById('pkDictationHUD');
-  const sigLabel = document.getElementById('pkDictationSignalLabel');
-  if (!canvas || !pkDictAnalyser) return;
-
-  const dpr = window.PK_LITE_MODE ? 1 : Math.min(window.devicePixelRatio || 1, 2);
-  const dataArr = new Uint8Array(pkDictAnalyser.frequencyBinCount);
-  const barCount = 34;
-  const smoothBars = new Float32Array(barCount);
-  const peakCaps = new Float32Array(barCount);
+async function startOfflineWhisperDictation() {
+  stopOfflineMicCapture();
+  pkStreamChunks = [];
+  pkStreamSamples = 0;
+  pkLastTranscribedSamples = 0;
   pkSpeechHeard = false;
   pkSpeechStartTs = 0;
   pkLastSpeechTs = 0;
-  pkNoiseFloor = 0.045;
+  pkRawMicPeakRecent = 0;
 
-  const draw = () => {
-    if (!isDictationActive || !pkDictAnalyser) return;
-    pkDictWaveAnimId = requestAnimationFrame(draw);
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Microphone unavailable in this browser', 'ochre');
+    cleanupVoiceDictationUI();
+    return;
+  }
 
-    const cssW = canvas.clientWidth || 320;
-    const cssH = canvas.clientHeight || 40;
-    if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
-      canvas.width = Math.round(cssW * dpr);
-      canvas.height = Math.round(cssH * dpr);
+  getOrCreateWhisperWorker();
+  if (!pkWhisperWorkerReady) setDictationProgress(true, 12, 'LOADING AI');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+    });
+    if (!isDictationActive || pkDictationMode !== 'offline') {
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+    pkDictMediaStream = stream;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
+    pkDictAudioCtx = ctx;
+    pkDictSampleRate = ctx.sampleRate || 48000;
+
+    const source = ctx.createMediaStreamSource(stream);
+    let attached = false;
+    if (ctx.audioWorklet && typeof AudioWorkletNode !== 'undefined' && location.protocol !== 'file:') {
+      try {
+        const code = `class P extends AudioWorkletProcessor{process(i){const a=i&&i[0]&&i[0][0];if(a&&a.length)this.port.postMessage(a.slice());return true;}}registerProcessor('pk-dict-pcm',P);`;
+        const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+        await ctx.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+        if (!isDictationActive) return;
+        const node = new AudioWorkletNode(ctx, 'pk-dict-pcm');
+        node.port.onmessage = (ev) => { if (ev.data) pushOfflinePCMChunk(ev.data); };
+        const mute = ctx.createGain();
+        mute.gain.value = 0.00001;
+        source.connect(node);
+        node.connect(mute);
+        mute.connect(ctx.destination);
+        pkDictCaptureNode = node;
+        attached = true;
+      } catch (_) { attached = false; }
+    }
+    if (!attached && typeof ctx.createScriptProcessor === 'function') {
+      const proc = ctx.createScriptProcessor(4096, 1, 1);
+      const mute = ctx.createGain();
+      mute.gain.value = 0.00001;
+      proc.onaudioprocess = (ev) => {
+        const ch = ev.inputBuffer.getChannelData(0);
+        if (ch && ch.length) pushOfflinePCMChunk(ch);
+      };
+      source.connect(proc);
+      proc.connect(mute);
+      mute.connect(ctx.destination);
+      pkDictCaptureNode = proc;
     }
 
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssW, cssH);
-
-    pkDictAnalyser.getByteFrequencyData(dataArr);
-    let sum = 0;
-    for (let i = 1; i < Math.min(38, dataArr.length); i++) sum += dataArr[i];
-    const avgNorm = sum / (37 * 255);
-    const visualEnergy = Math.min(1, Math.pow(avgNorm * 2.15, 0.60));
-
-    // Adaptive ambient noise-floor tracker so +15dB / +22dB boost NEVER traps VAD!
-    const speechThreshold = Math.min(0.62, Math.max(0.055, pkNoiseFloor * 1.5 + 0.035));
-    const nowTs = Date.now();
-    if (visualEnergy <= speechThreshold) {
-      pkNoiseFloor = pkNoiseFloor * 0.96 + visualEnergy * 0.04;
-    } else {
-      pkNoiseFloor = Math.min(0.36, pkNoiseFloor * 0.997 + visualEnergy * 0.003);
-      if (!pkSpeechHeard) pkSpeechStartTs = nowTs;
-      pkSpeechHeard = true;
-      pkLastSpeechTs = nowTs;
-    }
-
-    // Luminous reactive glow around the Dictation Studio capsule
-    if (hud) {
-      const glowAlpha = (0.14 + visualEnergy * 0.38).toFixed(2);
-      hud.style.boxShadow = `0 18px 45px rgba(0,0,0,0.42), 0 0 ${Math.round(14 + visualEnergy * 26)}px rgba(200, 70, 43, ${glowAlpha})`;
-    }
-
-    const modelReady = !!pkWhisperPipeline;
-    if (sigLabel && modelReady && !isDictationBusy) {
-      if (visualEnergy > speechThreshold) {
-        sigLabel.textContent = visualEnergy > 0.22 ? 'Voice live · streaming text...' : 'Soft whisper heard · streaming...';
-      } else {
-        sigLabel.textContent = 'Listening — speak or whisper naturally';
+    pkDictStreamInterval = setInterval(() => {
+      if (!isDictationActive || pkDictClosing || isDictationBusy || !pkWhisperWorkerReady) return;
+      if (pkStreamSamples < Math.floor(pkDictSampleRate * 0.6)) return;
+      const now = Date.now();
+      const quietMs = pkLastSpeechTs ? (now - pkLastSpeechTs) : 0;
+      const spokenMs = pkSpeechStartTs ? (now - pkSpeechStartTs) : 0;
+      if (pkSpeechHeard && (quietMs > 1250 || spokenMs > 10000)) {
+        runOfflineWorkerPass(true);
+      } else if (pkSpeechHeard) {
+        runOfflineWorkerPass(false);
       }
-    }
-
-    // Symmetrical studio waveform bars + floating peak-hold micro-caps
-    const midY = cssH / 2;
-    ctx.fillStyle = 'rgba(148, 148, 142, 0.16)';
-    ctx.fillRect(0, midY - 0.5, cssW, 1);
-
-    const gap = 3;
-    const barW = Math.max(2.5, (cssW - gap * (barCount - 1)) / barCount);
-    const halfBars = Math.floor(barCount / 2);
-    const grad = ctx.createLinearGradient(0, 0, cssW, 0);
-    grad.addColorStop(0, 'rgba(200, 70, 43, 0.42)');
-    grad.addColorStop(0.5, 'rgba(225, 86, 54, 1.0)');
-    grad.addColorStop(1, 'rgba(200, 70, 43, 0.42)');
-
-    for (let i = 0; i < barCount; i++) {
-      const distFromCenter = Math.abs(i - halfBars);
-      const binIdx = Math.min(dataArr.length - 1, 1 + Math.floor(distFromCenter * 1.4));
-      const boosted = Math.pow(dataArr[binIdx] / 255, 0.55);
-      const envelope = 1 - (distFromCenter / (halfBars + 3)) * 0.44;
-      const targetH = Math.max(3, Math.min(cssH - 6, boosted * envelope * (cssH - 6)));
-
-      smoothBars[i] = targetH > smoothBars[i]
-        ? smoothBars[i] + (targetH - smoothBars[i]) * 0.56
-        : smoothBars[i] + (targetH - smoothBars[i]) * 0.22;
-
-      if (smoothBars[i] > peakCaps[i]) peakCaps[i] = smoothBars[i];
-      else peakCaps[i] = Math.max(smoothBars[i], peakCaps[i] - 0.35);
-
-      const barH = smoothBars[i];
-      const x = i * (barW + gap);
-      const y = midY - barH / 2;
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.roundRect(x, y, barW, barH, barW / 2);
-      ctx.fill();
-
-      if (peakCaps[i] > 8) {
-        const capOffset = peakCaps[i] / 2 + 2;
-        ctx.fillStyle = 'rgba(235, 138, 72, 0.85)';
-        ctx.fillRect(x, Math.max(1, midY - capOffset), barW, 1.5);
-        ctx.fillRect(x, Math.min(cssH - 2.5, midY + capOffset - 1.5), barW, 1.5);
-      }
-    }
-  };
-
-  draw();
+    }, 1200);
+  } catch (err) {
+    console.warn('Offline mic error:', err);
+    showToast('Allow microphone permission to use Voice Dictation', 'ochre');
+    cleanupVoiceDictationUI();
+  }
 }
 
+// =========================================================================
+// PUBLIC DICTATION CONTROLS
+// =========================================================================
 function toggleVoiceDictation() {
   if (isDictationActive) {
     stopVoiceDictation(true);
@@ -14542,35 +14632,28 @@ function toggleVoiceDictation() {
 async function startVoiceDictation() {
   if (state.appMode !== 'workspace') setAppMode('workspace');
   const note = getActiveNote();
+  if (note && note.encryptedPayload) {
+    showToast('Unlock encrypted note in Vault Lock first', 'ochre');
+    return;
+  }
   if (note && note.locked) {
     showToast('Unlock note before dictating', 'ochre');
     return;
   }
   if (typeof stopReadingAloud === 'function') stopReadingAloud();
 
-  // CRITICAL FOR MOBILE (iOS Safari & Android Chrome):
-  // Create & resume AudioContext SYNCHRONOUSLY inside the tap gesture BEFORE any await!
-  let syncAudioCtx = null;
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
-      syncAudioCtx = new AudioCtx();
-      syncAudioCtx.resume().catch(() => {});
-    }
-  } catch (e) {}
-
+  pkDictSessionId++;
   isDictationActive = true;
   isDictationBusy = false;
   pkDictClosing = false;
   pkDictStartedAt = Date.now();
-  pkStreamChunks = [];
-  pkStreamSamples = 0;
-  pkLastTranscribedSamples = 0;
   pkSessionCommittedText = '';
   pkCurrentDraftText = '';
+  pkLastFinalChunk = '';
+  pkLastFinalTs = 0;
+  pkNativeNetworkErrors = 0;
   pkLiveBlockId = null;
   pkLiveBlockBaseText = '';
-  pkRawMicPeakRecent = 0;
 
   const hud = document.getElementById('pkDictationHUD');
   const timerEl = document.getElementById('pkDictationTimer');
@@ -14580,7 +14663,8 @@ async function startVoiceDictation() {
   if (timerEl) timerEl.textContent = '00:00';
   if (mobileBtn) mobileBtn.classList.add('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
   if (desktopBtn) desktopBtn.classList.add('text-[var(--accent-vermilion)]', 'bg-[var(--accent-vermilion-tint)]');
-  updateDictationGainUI();
+
+  updateDictationHeaderUI();
   prepareLiveDictationBlock(false);
   renderDictationLivePreview();
 
@@ -14589,56 +14673,24 @@ async function startVoiceDictation() {
     if (!isDictationActive) return;
     const secs = Math.floor((Date.now() - pkDictStartedAt) / 1000);
     if (timerEl) timerEl.textContent = formatTimerMMSS(secs);
-  }, 500);
+  }, 1000);
 
-  try {
-    if (!syncAudioCtx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      syncAudioCtx = new AudioCtx();
-    }
-    pkDictAudioCtx = syncAudioCtx;
-    await attachMicCaptureToContext(syncAudioCtx);
-
-    // Start loading / warming up on-device Whisper AI Worker immediately
-    ensureWhisperEngineReady().catch((err) => {
-      console.warn('Whisper AI init error:', err);
-      const s = document.getElementById('pkDictationSignalLabel');
-      if (s) s.textContent = 'Connect to internet once to cache offline AI (~39 MB)';
-    });
-
-    // Continuous Real-Time Streaming Scheduler (fires every 850ms so words appear LIVE as you speak!)
-    if (pkDictStreamInterval) clearInterval(pkDictStreamInterval);
-    pkDictStreamInterval = setInterval(() => {
-      if (!isDictationActive || pkDictClosing || isDictationBusy) return;
-      if (!pkWhisperPipeline) return;
-      const now = Date.now();
-      const minSamples = Math.floor(pkDictSampleRate * 0.5);
-      if (pkStreamSamples < minSamples) return;
-
-      const quietMs = pkLastSpeechTs ? (now - pkLastSpeechTs) : 0;
-      const spokenMs = pkSpeechStartTs ? (now - pkSpeechStartTs) : 0;
-
-      if (pkSpeechHeard && (quietMs > 1150 || spokenMs > 10500)) {
-        // Sentence paused or hit 10.5s -> commit finalized sentence & start next fresh!
-        runLiveTranscriptionPass(true);
-      } else if (pkSpeechHeard || pkRawMicPeakRecent > 0.0005) {
-        // Still speaking -> stream real-time live words into HUD + active note!
-        runLiveTranscriptionPass(false);
-      }
-    }, 850);
-
-    if (typeof pkHaptic === 'function') pkHaptic(10);
-  } catch (err) {
-    console.warn('Voice dictation mic error:', err);
-    showToast('Allow microphone permission to use Voice Dictation', 'ochre');
-    cleanupVoiceDictationUI();
+  if (pkDictationMode === 'live' && hasNativeSpeechRecognition()) {
+    startNativeLiveSpeech();
+  } else {
+    pkDictationMode = 'offline';
+    updateDictationHeaderUI();
+    await startOfflineWhisperDictation();
   }
+  if (typeof pkHaptic === 'function') pkHaptic(10);
 }
 
 async function dictationInsertNewParagraph() {
   if (!isDictationActive) return;
-  if (pkStreamSamples > Math.floor(pkDictSampleRate * 0.35)) {
-    await runLiveTranscriptionPass(true);
+  if (pkCurrentDraftText.trim()) {
+    applyLiveDictationToNote(pkCurrentDraftText.trim(), true);
+  } else if (pkDictationMode === 'offline' && pkStreamSamples > Math.floor(pkDictSampleRate * 0.45)) {
+    await runOfflineWorkerPass(true);
   }
   prepareLiveDictationBlock(true);
   if (typeof pkHaptic === 'function') pkHaptic(8);
@@ -14656,9 +14708,11 @@ function clearCurrentDictationDraft() {
     const blk = note.blocks.find(b => b.id === pkLiveBlockId);
     if (blk) {
       blk.content = pkLiveBlockBaseText;
-      renderBlocks(note);
+      if (!patchLiveBlockTextDirect(blk.id, blk.content)) {
+        renderBlocks(note);
+        highlightLiveDictationBlock(pkLiveBlockId, true);
+      }
       if (typeof updateWordCount === 'function') updateWordCount(note);
-      highlightLiveDictationBlock(pkLiveBlockId, true);
     }
   }
   renderDictationLivePreview();
@@ -14666,20 +14720,23 @@ function clearCurrentDictationDraft() {
 }
 
 function cleanupVoiceDictationUI() {
+  pkDictSessionId++;
   isDictationActive = false;
   isDictationBusy = false;
   pkDictClosing = false;
   if (pkDictTimerInterval) { clearInterval(pkDictTimerInterval); pkDictTimerInterval = null; }
-  if (pkDictStreamInterval) { clearInterval(pkDictStreamInterval); pkDictStreamInterval = null; }
-  stopMicCapture();
+  if (pkDictSpeakDecayTimer) { clearTimeout(pkDictSpeakDecayTimer); pkDictSpeakDecayTimer = null; }
+  setDictationSpeakingVisual(false);
+  stopNativeLiveSpeech();
+  stopOfflineMicCapture();
+  if (pkWhisperWorker) {
+    try { pkWhisperWorker.postMessage({ type: 'cancel', sessionId: pkDictSessionId }); } catch (_) {}
+  }
   setDictationProgress(false, 0);
   highlightLiveDictationBlock(null, false);
 
   const hud = document.getElementById('pkDictationHUD');
-  if (hud) {
-    hud.classList.add('hidden');
-    hud.style.boxShadow = '';
-  }
+  if (hud) hud.classList.add('hidden');
   const mobileBtn = document.getElementById('mobileDictateBtn');
   if (mobileBtn) mobileBtn.classList.remove('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
   const desktopBtn = document.getElementById('desktopDictateBtn');
@@ -14692,21 +14749,19 @@ async function stopVoiceDictation(flushFinal = true) {
     return;
   }
   pkDictClosing = true;
-  if (pkDictStreamInterval) { clearInterval(pkDictStreamInterval); pkDictStreamInterval = null; }
+  stopNativeLiveSpeech();
 
-  // Finalize any trailing words cleanly before closing so nothing is lost
-  if (flushFinal && pkStreamSamples > Math.floor(pkDictSampleRate * 0.35) && pkWhisperPipeline) {
-    const statusBadge = document.getElementById('pkDictationStatusBadge');
-    if (statusBadge) statusBadge.textContent = 'FINALIZING';
-    // Wait briefly if a background pass is finishing
-    for (let i = 0; i < 30 && isDictationBusy; i++) {
-      await new Promise(r => setTimeout(r, 120));
-    }
-    if (pkStreamSamples > Math.floor(pkDictSampleRate * 0.35)) {
-      await runLiveTranscriptionPass(true);
-    }
-  } else if (flushFinal && pkCurrentDraftText.trim()) {
+  if (flushFinal && pkCurrentDraftText.trim()) {
     applyLiveDictationToNote(pkCurrentDraftText.trim(), true);
+  } else if (flushFinal && pkDictationMode === 'offline' && pkWhisperWorkerReady && pkStreamSamples > Math.floor(pkDictSampleRate * 0.45)) {
+    const badge = document.getElementById('pkDictationStatusBadge');
+    if (badge) badge.textContent = 'FINISHING';
+    for (let i = 0; i < 20 && isDictationBusy; i++) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    if (pkStreamSamples > Math.floor(pkDictSampleRate * 0.45)) {
+      await runOfflineWorkerPass(true);
+    }
   }
   cleanupVoiceDictationUI();
 }

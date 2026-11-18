@@ -717,6 +717,7 @@ document.addEventListener('keydown', (e) => {
     // Floating Surfaces (Smooth Rise / Glide Down)
     ['pkScratchpadDrawer', 'pk-motion-float', 170],
     ['pkAudioReaderHUD', 'pk-motion-float', 170],
+    ['pkDictationHUD', 'pk-motion-float', 170],
     ['pkSelectionReadBar', 'pk-motion-float', 170],
 
     // Popovers, Menus & Collapsible Sub-Panels (Crisp Spring Pop / Tuck)

@@ -149,231 +149,173 @@ body {
   --ease-in-out-smooth: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* Modal Backdrop Blur Fade */
+/* Modal Backdrop Smooth Fade (Pure GPU opacity — zero backdrop-filter lag) */
 @keyframes backdropFadeIn {
-  0% { opacity: 0; backdrop-filter: blur(0px); }
-  100% { opacity: 1; backdrop-filter: blur(8px); }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 .animate-backdrop {
-  animation: backdropFadeIn 0.26s var(--ease-spring) forwards;
-  will-change: opacity, backdrop-filter;
+  animation: backdropFadeIn 0.18s ease-out forwards;
 }
 
-/* Modal Spring Card Opening (Scale + Rise + Blur Dissolve) */
+/* Modal Spring Card Opening (Pure GPU transform + opacity — zero filter:blur lag) */
 @keyframes modalSpringIn {
   0% {
     opacity: 0;
-    transform: scale(0.92) translateY(24px);
-    filter: blur(8px);
-  }
-  65% {
-    transform: scale(1.008) translateY(-2px);
-    filter: blur(0px);
+    transform: translate3d(0, 14px, 0) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 .animate-modal-card {
-  animation: modalSpringIn 0.34s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: modalSpringIn 0.22s var(--ease-spring) forwards;
 }
 
-/* Command Palette Opening (Raycast / Spotlight Easing + Glass Lens) */
+/* Command Palette Opening (Pure GPU transform + opacity) */
 @keyframes cmdPaletteIn {
   0% {
     opacity: 0;
-    transform: scale(0.93) translateY(-26px);
-    filter: blur(10px);
-  }
-  68% {
-    transform: scale(1.008) translateY(1.5px);
-    filter: blur(0px);
+    transform: translate3d(0, -14px, 0) scale(0.97);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 .animate-cmd-card {
-  animation: cmdPaletteIn 0.3s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: cmdPaletteIn 0.2s var(--ease-spring) forwards;
 }
 
-/* Popovers, Menus & Dropdowns Spring Scale */
+/* Popovers, Menus & Dropdowns Spring Scale (Pure GPU) */
 @keyframes popoverSpringIn {
   0% {
     opacity: 0;
-    transform: scale(0.9) translateY(-10px);
-    filter: blur(6px);
-  }
-  65% {
-    transform: scale(1.02) translateY(1px);
-    filter: blur(0px);
+    transform: translate3d(0, -6px, 0) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 .animate-menu {
-  animation: popoverSpringIn 0.22s var(--ease-spring) forwards;
-  transform-origin: top left;
-  will-change: transform, opacity, filter;
+  animation: popoverSpringIn 0.16s var(--ease-spring) forwards;
+  transform-origin: top right;
 }
 
-/* Document Switch / Note Entry Smooth Glide */
+/* Document Switch / Note Entry Smooth Glide (Pure GPU) */
 @keyframes docGlideIn {
   0% {
     opacity: 0;
-    transform: translateY(14px) scale(0.992);
-    filter: blur(5px);
-  }
-  68% {
-    opacity: 1;
-    transform: translateY(-0.8px) scale(1.001);
-    filter: blur(0px);
+    transform: translate3d(0, 8px, 0);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
   }
 }
 .animate-doc-glide {
-  animation: docGlideIn 0.34s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: docGlideIn 0.2s var(--ease-spring) forwards;
 }
 
-/* Modal Tab Switching Crossfade & Lift */
+/* Modal Tab Switching Crossfade & Lift (Pure GPU) */
 @keyframes tabContentIn {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
-    filter: blur(3px);
+    transform: translate3d(0, 5px, 0);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
   }
 }
 .animate-tab-content {
-  animation: tabContentIn 0.24s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: tabContentIn 0.16s ease-out forwards;
 }
 
 /* Star / Favorite Pop */
 @keyframes starPop {
-  0% { transform: scale(0.7) rotate(-22deg); }
-  45% { transform: scale(1.48) rotate(16deg); }
-  75% { transform: scale(0.92) rotate(-4deg); }
-  100% { transform: scale(1) rotate(0deg); }
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.22); }
+  100% { transform: scale(1); }
 }
 .star-pop {
-  animation: starPop 0.36s var(--ease-bounce);
+  animation: starPop 0.24s var(--ease-bounce);
 }
 
-/* Toast Dynamic Island Spring Notification */
+/* Toast Notification (Pure GPU) */
 @keyframes toastSpringIn {
   0% {
     opacity: 0;
-    transform: translateY(24px) scale(0.88);
-    filter: blur(6px);
-  }
-  65% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.02);
-    filter: blur(0px);
+    transform: translate3d(0, 12px, 0) scale(0.95);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 @keyframes toastSpringOut {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(14px) scale(0.9);
-    filter: blur(4px);
+    transform: translate3d(0, 8px, 0) scale(0.95);
   }
 }
 .animate-toast-in {
-  animation: toastSpringIn 0.32s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: toastSpringIn 0.2s var(--ease-spring) forwards;
 }
 .animate-toast-out {
-  animation: toastSpringOut 0.22s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: toastSpringOut 0.15s ease-in forwards;
 }
 
-/* Dynamic Island Autocorrect Undo Chip Spring */
+/* Autocorrect Undo Chip Spring (Pure GPU) */
 @keyframes chipSpringIn {
   0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.85);
-    filter: blur(4px);
-  }
-  65% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.04);
-    filter: blur(0px);
+    transform: translate3d(0, 8px, 0) scale(0.94);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 @keyframes chipSpringOut {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(8px) scale(0.88);
-    filter: blur(3px);
+    transform: translate3d(0, 6px, 0) scale(0.94);
   }
 }
 .animate-chip-in {
-  animation: chipSpringIn 0.26s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: chipSpringIn 0.18s var(--ease-spring) forwards;
 }
 .animate-chip-out {
-  animation: chipSpringOut 0.18s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: chipSpringOut 0.14s ease-in forwards;
 }
 
 /* View Switch Crossfade (Notes <-> Calendar) */
 @keyframes viewFadeIn {
-  0% { opacity: 0; transform: scale(0.99) translateY(6px); filter: blur(3px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }
+  0% { opacity: 0; transform: translate3d(0, 4px, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 .animate-view-fade {
-  animation: viewFadeIn 0.26s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: viewFadeIn 0.18s ease-out forwards;
 }
 
-/* Document Banner Shimmer Reveal */
+/* Document Banner Reveal */
 @keyframes bannerShimmerIn {
-  0% { opacity: 0; transform: scale(1.03); filter: blur(10px); }
-  100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+  0% { opacity: 0; transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
 }
 .animate-banner-in {
-  animation: bannerShimmerIn 0.45s var(--ease-spring) forwards;
-  will-change: transform, opacity, filter;
+  animation: bannerShimmerIn 0.24s ease-out forwards;
 }
 
 /* Tactile Micro-Interactions on Interactive Elements */
@@ -517,11 +459,10 @@ html:not(.dark) input[type="datetime-local"] {
   background: var(--bg-panel);
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 10px 30px -4px rgba(0,0,0,0.22), 0 0 0 1px var(--border-hairline), 0 0 16px -4px var(--accent-vermilion-tint);
+  box-shadow: 0 8px 24px -4px rgba(0,0,0,0.22), 0 0 0 1px var(--border-hairline);
   cursor: pointer;
   user-select: none;
-  backdrop-filter: blur(10px);
-  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-spring), background-color 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.16s var(--ease-spring), background-color 0.14s ease, border-color 0.14s ease;
 }
 #pkAutocorrectChip:hover {
   background: var(--bg-hover);
@@ -711,10 +652,9 @@ html:not(.dark) input[type="datetime-local"] {
    1000X COOLER: AMBIENT AURA, ZEN FOCUS, SHIMMER & CELEBRATION PARTICLES
    ========================================================================= */
 /* Living Breathing Atmospheric Aura Glow */
-/* Ambient Cursor Spotlight Glow */
+/* Ambient Cursor Spotlight disabled for zero-lag 60fps performance */
 #pkCursorSpotlight {
-  background: radial-gradient(600px circle at var(--cursor-x, -500px) var(--cursor-y, -500px), rgba(var(--accent-vermilion-rgb, 229, 77, 46), 0.055), transparent 75%);
-  will-change: background;
+  display: none !important;
   pointer-events: none;
 }
 
@@ -795,42 +735,22 @@ html:not(.dark) input[type="datetime-local"] {
   }
 }
 
-/* Context Menu High-Tech Spring Entrance & Item Stagger */
+/* Context Menu Crisp Entrance (Pure GPU — zero blur lag) */
 .pk-context-animate {
-  animation: pkContextPop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity, filter;
+  animation: pkContextPop 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes pkContextPop {
   0% {
     opacity: 0;
-    transform: scale(0.9) translateY(-6px);
-    filter: blur(8px);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.018) translateY(1px);
-    filter: blur(0px);
+    transform: translate3d(0, -5px, 0) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 .pk-context-item {
-  animation: pkContextItemIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  animation-delay: calc(var(--item-idx, 0) * 14ms);
-  will-change: transform, opacity;
-}
-@keyframes pkContextItemIn {
-  0% {
-    opacity: 0;
-    transform: translateY(4px) scale(0.98);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  opacity: 1;
 }
 
 /* Active Voice Highlight for Document Canvas */
@@ -859,19 +779,8 @@ html:not(.dark) input[type="datetime-local"] {
   100% { transform: scaleY(1); opacity: 1; }
 }
 
-@keyframes auraBreathe {
-  0%, 100% {
-    transform: translateX(-50%) scale(1) translateY(0);
-    opacity: 0.22;
-  }
-  50% {
-    transform: translateX(-50%) scale(1.18) translateY(-10px);
-    opacity: 0.38;
-  }
-}
 .animate-aura {
-  animation: auraBreathe 8s ease-in-out infinite;
-  will-change: transform, opacity;
+  display: none !important;
 }
 
 /* Zen Focus Mode Styles */

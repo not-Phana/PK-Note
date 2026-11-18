@@ -30,7 +30,6 @@
 <body class="h-[100dvh] w-screen flex select-none text-[13px] overflow-hidden">
 
   <!-- Ambient Cursor Spotlight Glow -->
-  <div id="pkCursorSpotlight" class="pointer-events-none fixed inset-0 z-[1] transition-opacity duration-300" style="--cursor-x: -500px; --cursor-y: -500px;"></div>
 
   <!-- Right-Click Tactical Sonar Ripple Shockwave Container -->
   <div id="pkContextMenuShockwaveContainer" class="pointer-events-none fixed inset-0 z-[998] overflow-hidden"></div>
@@ -39,8 +38,8 @@
   <div id="docReadingProgressBar" class="fixed top-0 left-0 h-[2.5px] bg-gradient-to-r from-[var(--accent-vermilion)] via-[var(--accent-ochre)] to-[var(--accent-vermilion)] z-[1000] transition-all duration-75 pointer-events-none" style="width: 0%"></div>
 
   <!-- Mobile Backdrops (Layered above mobile bottom nav so drawers cover cleanly!) -->
-  <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-black/60 z-[70] md:hidden backdrop-blur-xs transition-opacity"></div>
-  <div id="mobileInspectorBackdrop" onclick="closeRightSidebar()" class="hidden fixed inset-0 bg-black/60 z-[70] lg:hidden backdrop-blur-xs transition-opacity"></div>
+  <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-black/60 z-[70] md:hidden transition-opacity"></div>
+  <div id="mobileInspectorBackdrop" onclick="closeRightSidebar()" class="hidden fixed inset-0 bg-black/60 z-[70] lg:hidden transition-opacity"></div>
 
   <!-- =====================================================================
        LEFT SIDEBAR: ARCHIVAL INDEX, MODE SWITCHER & MINI CALENDAR
@@ -60,7 +59,6 @@
         </span>
         <div class="truncate flex items-baseline gap-2">
           <span class="text-xs font-semibold tracking-tight text-[var(--text-primary)]">PK NOTE</span>
-          <span class="text-[10px] font-mono text-[var(--accent-vermilion)]">v2.5</span>
         </div>
       </button>
 
@@ -135,27 +133,31 @@
     <!-- Scrollable Index Tree, Mini Calendar & Tags -->
     <div class="flex-1 overflow-y-auto px-2 py-2.5 space-y-4">
       
-      <!-- Compact Sidebar Mini-Calendar & Today's Schedule -->
-      <div class="px-1.5 py-2 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2">
-        <div class="flex items-center justify-between">
-          <button onclick="setAppMode('calendar')" class="font-mono text-[10px] uppercase tracking-wider font-medium text-[var(--text-primary)] hover:text-[var(--accent-vermilion)] transition-colors" id="miniCalMonthLabel">
-            NOV 2026
-          </button>
-          <div class="flex items-center gap-0.5">
-            <button onclick="shiftMiniCalMonth(-1)" title="Previous Month" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button onclick="jumpMiniCalToday()" title="Jump to Today" class="px-1 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] font-mono text-[9px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center">
-              <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg>
-            </button>
-            <button onclick="shiftMiniCalMonth(1)" title="Next Month" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+      <!-- Collapsible Sidebar Mini-Calendar (Tucked by default so Notes stay front-and-center) -->
+      <details class="rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
+        <summary class="px-2 py-1.5 flex items-center justify-between cursor-pointer select-none list-none">
+          <span class="font-mono text-[10px] uppercase tracking-wider font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]" id="miniCalMonthLabel">NOV 2026</span>
+          <span class="font-mono text-[9px] text-[var(--text-tertiary)]">Calendar ▾</span>
+        </summary>
+        <div class="px-1.5 pb-2 pt-1 border-t border-[var(--border-hairline)] space-y-2">
+          <div class="flex items-center justify-between">
+            <button onclick="setAppMode('calendar')" class="font-mono text-[9.5px] uppercase text-[var(--accent-vermilion)] hover:underline cursor-pointer">Open Schedule</button>
+            <div class="flex items-center gap-0.5">
+              <button onclick="shiftMiniCalMonth(-1)" title="Previous Month" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button onclick="jumpMiniCalToday()" title="Jump to Today" class="px-1 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] font-mono text-[9px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center">
+                <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg>
+              </button>
+              <button onclick="shiftMiniCalMonth(1)" title="Next Month" class="p-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
           </div>
+          <div id="miniCalGrid" class="grid grid-cols-7 gap-y-0.5 text-center font-mono text-[10px]"></div>
+          <div id="miniCalUpcoming" class="pt-1.5 border-t border-[var(--border-hairline)] space-y-1"></div>
         </div>
-        <div id="miniCalGrid" class="grid grid-cols-7 gap-y-0.5 text-center font-mono text-[10px]"></div>
-        <div id="miniCalUpcoming" class="pt-1.5 border-t border-[var(--border-hairline)] space-y-1"></div>
-      </div>
+      </details>
 
       <!-- Pinned Notes -->
       <div id="pinnedSection" class="space-y-0.5">
@@ -231,10 +233,10 @@
        ===================================================================== -->
   <main class="flex-1 h-full flex flex-col min-w-0 bg-[var(--bg-canvas)] relative overflow-hidden">
     
-    <!-- Top Hairline Utility & Breadcrumb Bar (Ergonomic 52px Mobile Header, Compact 44px Desktop) -->
-    <header id="topHeaderBar" class="h-[52px] md:h-11 px-2.5 sm:px-4 flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]/95 backdrop-blur-md z-10 shrink-0 gap-2 transition-opacity">
+    <!-- Top Minimal Utility & Breadcrumb Bar (Solid zero-blur background for 60fps scroll) -->
+    <header id="topHeaderBar" class="h-[48px] md:h-11 px-2.5 sm:px-4 flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] z-30 shrink-0 gap-2 relative">
       <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
-        <button id="expandLeftBtn" onclick="toggleLeftSidebar()" class="w-9 h-9 md:w-auto md:h-auto md:p-1.5 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center shrink-0 cursor-pointer" title="Toggle Sidebar (Cmd+\)">
+        <button id="expandLeftBtn" onclick="toggleLeftSidebar()" class="w-8 h-8 md:w-auto md:h-auto md:p-1.5 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] flex items-center justify-center shrink-0 cursor-pointer" title="Toggle Sidebar (Cmd+\)">
           <svg class="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
             <rect x="3" y="3" width="18" height="18" rx="1"/><line x1="9" y1="3" x2="9" y2="21"/>
           </svg>
@@ -242,10 +244,10 @@
 
         <!-- Mode Quick Pill in Header -->
         <div class="hidden md:flex items-center gap-0.5 bg-[var(--bg-panel)] p-0.5 rounded-[3px] border border-[var(--border-hairline)] shrink-0">
-          <button id="topTabWorkspace" onclick="setAppMode('workspace')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors">
+          <button id="topTabWorkspace" onclick="setAppMode('workspace')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase">
             Notes
           </button>
-          <button id="topTabCalendar" onclick="setAppMode('calendar')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors">
+          <button id="topTabCalendar" onclick="setAppMode('calendar')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase">
             Schedule
           </button>
         </div>
@@ -253,7 +255,7 @@
         <!-- Workspace Breadcrumb Path -->
         <nav id="workspaceBreadcrumbNav" class="flex items-center gap-1.5 text-[13px] md:text-xs text-[var(--text-secondary)] truncate">
           <span class="text-[var(--text-tertiary)] hidden sm:inline">/</span>
-          <span id="breadcrumbFolder" onclick="toggleFolderDropdown(event)" class="px-1.5 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] cursor-pointer transition-colors truncate hidden sm:inline" title="Switch Collection">General</span>
+          <span id="breadcrumbFolder" onclick="toggleFolderDropdown(event)" class="px-1.5 py-0.5 rounded-[2px] hover:bg-[var(--bg-hover)] cursor-pointer truncate hidden sm:inline" title="Switch Collection">General</span>
           <span class="text-[var(--text-tertiary)] hidden sm:inline">/</span>
           <span id="breadcrumbTitleText" class="font-medium text-[var(--text-primary)] truncate">Welcome to PK Note</span>
         </nav>
@@ -261,168 +263,120 @@
         <!-- Calendar Breadcrumb Path -->
         <nav id="calendarBreadcrumbNav" class="hidden flex items-center gap-1.5 text-xs text-[var(--text-secondary)] truncate">
           <span class="text-[var(--text-tertiary)] hidden sm:inline">/</span>
-          <span class="font-mono text-[11px] text-[var(--text-tertiary)] hidden md:inline">CHRONOLOGY</span>
-          <span class="text-[var(--text-tertiary)] hidden md:inline">/</span>
           <span id="calendarBreadcrumbPeriod" class="font-medium text-[var(--text-primary)] truncate">November 2026</span>
         </nav>
       </div>
 
-      <!-- Right Header Controls -->
+      <!-- Right Header Controls (Minimal: Only essential actions — all secondary tools live neatly inside More ...) -->
       <div class="flex items-center gap-1 shrink-0">
-        <span id="saveIndicator" class="hidden lg:inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--text-tertiary)] mr-2">
+        <span id="saveIndicator" class="hidden xl:inline-flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-tertiary)] mr-1.5">
           <span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--text-tertiary)]"></span>
           SYNCED
         </span>
 
-        <!-- Document-Specific Controls (De-cluttered on Mobile) -->
-        <div id="workspaceHeaderControls" class="flex items-center gap-1">
-          <button onclick="toggleTypographyPopover(event)" id="fontToggleBtn" title="Typography & Reading Settings" class="hidden md:flex px-2 py-1 rounded-[3px] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center gap-1.5 cursor-pointer">
-            <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <polyline points="4 7 4 4 20 4 20 7"></polyline>
-              <line x1="9" y1="20" x2="15" y2="20"></line>
-              <line x1="12" y1="4" x2="12" y2="20"></line>
-            </svg>
-            <span id="fontToggleLabel">INTER</span>
-          </button>
-
-          <button onclick="toggleHeaderGrid()" title="Toggle Architectural Header Grid" class="hidden md:inline-flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
-            </svg>
-          </button>
-
-          <!-- Read-Only Locked Indicator Pill (Only shown when active note is locked) -->
+        <div id="workspaceHeaderControls" class="flex items-center gap-1 relative">
+          <!-- Locked Indicator (Only visible when note is locked) -->
           <button onclick="toggleNoteLock()" id="headerNoteLockBadge" title="Note is locked (read-only). Tap to unlock." class="hidden items-center gap-1 px-1.5 py-0.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-[var(--accent-vermilion)] font-mono text-[9px] font-semibold cursor-pointer">
             <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <span class="hidden sm:inline">LOCKED</span>
           </button>
 
-          <!-- 1-Tap Read Aloud Button (Desktop — on phone, Listen sits directly in the Action Bar below!) -->
-          <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Selection or Note Aloud" class="hidden md:flex md:px-2 md:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center gap-1 cursor-pointer">
-            <svg class="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-            </svg>
-            <span class="hidden lg:inline font-mono text-[10px] tracking-tight" id="headerReadAloudLabel">LISTEN</span>
-          </button>
-
-          <!-- Kokoro-82M Voice Studio Quick Button (Desktop) -->
-          <button onclick="openVoiceModelModal()" id="desktopVoiceStudioBtn" title="Kokoro-82M Voice Studio (Switch Voices)" class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-            </svg>
-            <span class="hidden xl:inline">VOICE</span>
-          </button>
-
-          <!-- Whisper Studio Dictation Button (Desktop) -->
-          <button onclick="toggleVoiceDictation()" id="desktopDictateBtn" title="Whisper Voice Dictation (Talk or Whisper to Write)" class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
+          <!-- Real-Time Dictate -->
+          <button onclick="toggleVoiceDictation()" id="desktopDictateBtn" title="Real-Time Voice Dictation" class="w-8 h-8 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] font-mono text-[10px] flex items-center justify-center gap-1 cursor-pointer">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><circle cx="19" cy="5" r="2" fill="currentColor" stroke="none"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             </svg>
-            <span class="hidden xl:inline">DICTATE</span>
+            <span class="hidden lg:inline">Dictate</span>
           </button>
 
-          <!-- Pomodoro Focus Timer Button (Desktop) -->
-          <button onclick="openFocusTimerModal()" id="desktopFocusTimerBtn" title="Pomodoro Focus Timer" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
-            <span id="desktopFocusTimerLabel" class="hidden xl:inline">TIMER</span>
-          </button>
-
-          <!-- Study Flashcards Button (Desktop) -->
-          <button onclick="openStudyDeckModal()" id="desktopStudyDeckBtn" title="Study Flashcards (Auto-Generated from Notes)" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg>
-            <span class="hidden 2xl:inline">STUDY</span>
-          </button>
-
-          <!-- Ambient Focus Soundscapes Button (Desktop) -->
-          <button onclick="openSoundscapeModal()" id="desktopSoundscapeBtn" title="Focus Soundscapes (0 MB Procedural Audio)" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 12h2l2-5 3 10 3-8 2 6 2-3h4"/></svg>
-            <span id="desktopSoundscapeLabel" class="hidden 2xl:inline">AMBIENT</span>
-          </button>
-
-          <!-- Quick Scratchpad Button (Desktop) -->
-          <button onclick="toggleScratchpadDrawer()" id="desktopScratchpadBtn" title="Quick Scratchpad (Alt+S)" class="hidden xl:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] font-mono text-[10px] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          </button>
-
-          <!-- PK Special Studio Button (Vault Lock · Habits · Sketchpad · Spotlight — Alt+P) -->
-          <button type="button" onclick="openSpecialStudio()" id="desktopSpecialStudioBtn" title="PK Special Studio · Vault, Habits, Sketch, Cinema (Alt+P)" class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] hover:text-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)]/50 font-mono text-[10px] font-semibold transition-colors cursor-pointer shrink-0">
-            <svg class="w-3.5 h-3.5 shrink-0 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span class="hidden lg:inline">SPECIAL</span>
-          </button>
-
-          <!-- PK AI Assistant Button (Groq · NVIDIA · Local — Alt+A) -->
-          <button onclick="openGroqAssistant()" id="headerGroqAiBtn" title="PK AI Assistant · Groq / NVIDIA / Local (Alt+A)" class="w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/40 hover:border-[var(--accent-vermilion)] font-mono text-[10px] font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer shrink-0">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></svg>
-            <span class="hidden md:inline">AI</span>
-          </button>
-
-          <!-- Mobile Undo Button (36x36 comfortable touch target on phone header) -->
-          <button onclick="performUndo()" id="mobileHeaderUndoBtn" title="Undo Last Edit (Ctrl+Z)" class="md:hidden w-9 h-9 rounded-md text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
-              <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
-              <polyline points="7 6 3 10 7 14"></polyline>
+          <!-- Read Aloud / Read Selection -->
+          <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Selection or Note Aloud" class="w-8 h-8 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
             </svg>
+            <span class="hidden lg:inline font-mono text-[10px]" id="headerReadAloudLabel">Listen</span>
           </button>
 
-          <!-- Star / Favorite Button (Desktop & Tablet — also in Phone Command Deck) -->
-          <button onclick="toggleFavoriteActiveNote()" id="favBtn" title="Pin Note to Index" class="hidden sm:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-ochre)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
-            <svg id="favIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-            </svg>
+          <!-- AI Assistant (Alt+A) -->
+          <button onclick="openGroqAssistant()" id="headerGroqAiBtn" title="PK AI Assistant (Alt+A)" class="w-8 h-8 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/40 hover:border-[var(--accent-vermilion)] font-mono text-[10px] font-semibold flex items-center justify-center gap-1 cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>
+            <span class="hidden sm:inline">AI</span>
           </button>
 
-          <!-- Export & Vault Actions Menu (Desktop) -->
-          <button onclick="openNoteActionsMenu(event)" id="noteActionsBtn" title="Export & Vault Backup Actions" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors items-center justify-center cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <!-- Desktop Clean Tools & Note Actions Menu (...) -->
+          <button type="button" id="desktopToolsMenuBtn" onclick="toggleDesktopToolsMenu(event)" title="Tools, Appearance & Note Options" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] items-center justify-center cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg>
           </button>
 
-          <!-- Sound Effects Haptic Audio Toggle (Desktop) -->
-          <button onclick="toggleSoundSetting()" id="soundToggleBtn" title="Toggle Tactile Mechanical Sound Effects" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
-            <svg id="soundOnIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-            <svg id="soundOffIcon" class="hidden w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-          </button>
-
-          <!-- Zen Focus Mode Button (Desktop) -->
-          <button onclick="toggleZenMode()" id="zenModeBtn" title="Toggle Zen Focus Mode (Cmd+D)" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
-          </button>
-
-          <!-- Customize Workspace & Appearance Button (Desktop) -->
-          <button onclick="openCustomizerModal()" id="customizerBtn" title="Customize Banners, Theme Accents & Typography" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
-
-          <!-- User Guide Button (Desktop) -->
-          <button onclick="openUserGuideModal()" title="PK Note Handbook & Shortcuts (?)" class="hidden md:flex px-2 py-1 rounded-[3px] font-mono text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] transition-colors items-center gap-1 cursor-pointer">
-            <span>?</span>
-            <span class="hidden xl:inline text-[10px] font-normal text-[var(--text-tertiary)]">GUIDE</span>
-          </button>
-
-          <!-- Delete Note Button (Desktop) -->
-          <button onclick="deleteActiveNote()" title="Delete Note" class="hidden md:flex p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-            </svg>
-          </button>
-
-          <!-- Clean Mobile More Menu (36x36 comfortable touch target) -->
-          <button onclick="openMobileMoreSheet()" id="mobileHeaderMoreBtn" title="Phone Command Deck" class="md:hidden w-9 h-9 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center cursor-pointer">
+          <!-- Mobile More Sheet Trigger -->
+          <button onclick="openMobileMoreSheet()" id="mobileHeaderMoreBtn" title="Tools & Actions" class="md:hidden w-8 h-8 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] flex items-center justify-center cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg>
           </button>
 
-          <div class="hidden md:block h-3.5 w-[1px] bg-[var(--border-hairline)] mx-1"></div>
-
-          <!-- Inspector Button (Desktop & Tablet — on phone, Graph sits cleanly in Bottom Nav!) -->
-          <button onclick="toggleRightSidebar()" id="toggleInspectorBtn" title="Toggle Inspector Panel" class="hidden md:flex items-center justify-center gap-1.5 px-2 py-1 rounded-[3px] text-xs font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
-              <circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/>
+          <!-- Inspector Toggle (Desktop) -->
+          <button onclick="toggleRightSidebar()" id="toggleInspectorBtn" title="Toggle Inspector Panel" class="hidden md:flex items-center justify-center p-1.5 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="1"/><line x1="15" y1="3" x2="15" y2="21"/>
             </svg>
-            <span class="hidden sm:inline">Inspector</span>
           </button>
+
+          <!-- Organized Desktop Tools Popover (All secondary features in 1 calm menu!) -->
+          <div id="desktopToolsMenuPopover" class="hidden absolute right-0 top-10 w-60 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl p-1.5 z-[960] select-none font-sans text-xs">
+            <div class="px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">Studio &amp; Tools</div>
+            <div class="grid grid-cols-2 gap-1 mb-1.5">
+              <button type="button" onclick="closeDesktopToolsMenu(); openSpecialStudio()" id="desktopSpecialStudioBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-vermilion)] shrink-0"></span><span class="truncate">Special Studio</span>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openVoiceModelModal()" id="desktopVoiceStudioBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] truncate cursor-pointer">Voice Studio</button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openFocusTimerModal()" id="desktopFocusTimerBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] truncate cursor-pointer"><span id="desktopFocusTimerLabel">Focus Timer</span></button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openStudyDeckModal()" id="desktopStudyDeckBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] truncate cursor-pointer">Study Deck</button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openSoundscapeModal()" id="desktopSoundscapeBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] truncate cursor-pointer"><span id="desktopSoundscapeLabel">Soundscapes</span></button>
+              <button type="button" onclick="closeDesktopToolsMenu(); toggleScratchpadDrawer()" id="desktopScratchpadBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] truncate cursor-pointer">Scratchpad</button>
+            </div>
+
+            <div class="border-t border-[var(--border-hairline)] my-1"></div>
+            <div class="px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">Note &amp; View</div>
+            <div class="space-y-0.5">
+              <button type="button" onclick="closeDesktopToolsMenu(); toggleTypographyPopover(event)" id="fontToggleBtn" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Typography</span>
+                <span id="fontToggleLabel" class="font-mono text-[10px] text-[var(--text-tertiary)]">INTER</span>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); toggleFavoriteActiveNote()" id="favBtn" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Pin / Star Note</span>
+                <svg id="favIcon" class="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openNoteActionsMenu(event)" id="noteActionsBtn" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Export &amp; Backup</span>
+                <span class="font-mono text-[10px] text-[var(--text-tertiary)]">MD / JSON</span>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openCustomizerModal()" id="customizerBtn" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Theme &amp; Banner</span>
+                <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Style</span>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); toggleSoundSetting()" id="soundToggleBtn" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Typing Sound FX</span>
+                <span>
+                  <svg id="soundOnIcon" class="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                  <svg id="soundOffIcon" class="hidden w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                </span>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); toggleZenMode()" id="zenModeBtn" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Zen Focus Mode</span>
+                <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Ctrl+D</span>
+              </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openUserGuideModal()" class="w-full px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] flex items-center justify-between text-[var(--text-primary)] cursor-pointer">
+                <span>Shortcuts &amp; Guide</span>
+                <span class="font-mono text-[10px] text-[var(--text-tertiary)]">?</span>
+              </button>
+              <div class="border-t border-[var(--border-hairline)] my-1"></div>
+              <button type="button" onclick="closeDesktopToolsMenu(); deleteActiveNote()" class="w-full px-2 py-1.5 rounded hover:bg-rose-500/10 flex items-center justify-between text-rose-500 cursor-pointer">
+                <span>Delete Note</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Calendar-Specific Header Controls -->
@@ -475,41 +429,15 @@
         </div>
       </div>
 
-      <!-- Sticky Mobile 4-Button Edge-to-Edge Tool Ribbon (Zero Clipping on Any Phone Width!) -->
-      <div id="mobileActionRibbon" class="md:hidden sticky top-8 z-20 px-3 py-2 bg-[var(--bg-canvas)]/95 backdrop-blur-md border-b border-[var(--border-hairline)] grid grid-cols-4 gap-1.5 select-none">
-        <button type="button" onclick="toggleVoiceDictation()" id="mobileRibbonDictateBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold shadow-xs active:scale-95 transition-transform cursor-pointer truncate">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-          <span>Dictate</span>
-        </button>
-
-        <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="toggleReadingNoteAloud()" id="mobileRibbonListenBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer truncate">
-          <svg class="w-3.5 h-3.5 shrink-0 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-          <span id="mobileRibbonListenLabel">Listen</span>
-        </button>
-
-        <button type="button" onclick="openVoiceModelModal()" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer truncate">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
-          <span>Voices</span>
-        </button>
-
-        <button type="button" onclick="openMobileSlashMenu()" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer truncate">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>Block</span>
-        </button>
-      </div>
-
-      <!-- Dynamic Ambient Aura Glow (Atmospheric Cyber-Archival Lighting) -->
-      <div id="ambientAuraGlow" class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] max-w-[140vw] h-[360px] rounded-full blur-[90px] opacity-25 dark:opacity-20 animate-aura transition-all duration-700 select-none z-0" style="background: radial-gradient(circle, var(--accent-vermilion) 0%, transparent 70%);"></div>
-      
-      <!-- Document Banner & Ruled Drafting Header Band -->
-      <div id="docBannerContainer" class="relative z-[1] group/banner w-full transition-all duration-200">
-        <div id="ruledHeaderBand" class="w-full h-10 sm:h-16 archival-ruled-band border-b border-[var(--border-hairline)] bg-cover bg-center transition-all relative overflow-hidden"></div>
+      <!-- Document Banner (Hidden automatically when note has no custom banner) -->
+      <div id="docBannerContainer" class="relative z-[1] group/banner w-full">
+        <div id="ruledHeaderBand" class="hidden w-full border-b border-[var(--border-hairline)] bg-cover bg-center relative overflow-hidden"></div>
         <div id="docBannerActions" class="hidden sm:flex absolute bottom-2.5 right-4 items-center gap-1.5 opacity-0 group-hover/banner:opacity-100 transition-opacity z-10">
-          <button onclick="openCustomizerModal('banner')" title="Change Note Banner" class="px-2.5 py-1 rounded-[3px] bg-black/65 hover:bg-black/85 text-white backdrop-blur-md text-[11px] font-mono flex items-center gap-1.5 border border-white/20 transition-colors shadow-sm cursor-pointer">
+          <button onclick="openCustomizerModal('banner')" title="Change Note Banner" class="px-2.5 py-1 rounded-[3px] bg-black/75 hover:bg-black/90 text-white text-[11px] font-mono flex items-center gap-1.5 border border-white/20 shadow-sm cursor-pointer">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span id="docBannerActionLabel">Change Banner</span>
           </button>
-          <button id="docBannerRemoveBtn" onclick="removeActiveDocBanner()" title="Remove Banner" class="hidden px-2 py-1 rounded-[3px] bg-black/65 hover:bg-red-600/85 text-white backdrop-blur-md text-[11px] font-mono border border-white/20 transition-colors shadow-sm cursor-pointer">
+          <button id="docBannerRemoveBtn" onclick="removeActiveDocBanner()" title="Remove Banner" class="hidden px-2 py-1 rounded-[3px] bg-black/75 hover:bg-red-600/90 text-white text-[11px] font-mono border border-white/20 shadow-sm cursor-pointer">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -517,35 +445,17 @@
 
       <!-- Obsidian Split Grid Wrapper (1 column normally; 2 live side-by-side notes when Split View is active) -->
       <div id="pkEditorSplitGrid" class="relative z-[1] w-full">
-      <!-- Configurable Reading Measure Container (Clean mobile left gutter for thumb drag handles!) -->
-      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto pl-9 pr-4 sm:px-10 pt-4 sm:pt-5 pb-36 transition-all duration-150 w-full">
-        
-        <!-- Document Customization Quick Bar -->
-        <div id="docQuickActionRow" class="hidden sm:flex items-center gap-3 mb-2.5 text-[11px] font-mono text-[var(--text-tertiary)] opacity-60 hover:opacity-100 transition-opacity select-none">
-          <button onclick="openCustomizerModal('banner')" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span id="quickBannerText">Add Banner</span>
-          </button>
-          <span>&bull;</span>
-          <button onclick="toggleGlyphPicker(event)" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
-            <span>Change Icon</span>
-          </button>
-          <span>&bull;</span>
-          <button onclick="openCustomizerModal('theme')" class="hover:text-[var(--accent-vermilion)] transition-colors flex items-center gap-1 cursor-pointer">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span>Customize Style</span>
-          </button>
-        </div>
+      <!-- Configurable Reading Measure Container -->
+      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto pl-9 pr-4 sm:px-10 pt-5 sm:pt-7 pb-36 w-full">
 
-        <!-- Document Classification Stamp & Icon Selector -->
-        <div class="flex items-center gap-2.5 mb-3 relative">
-          <button id="pageGlyphBtn" onclick="toggleGlyphPicker(event)" title="Change Document Glyph" class="w-7 h-7 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-center text-[var(--accent-vermilion)] transition-colors cursor-pointer">
+        <!-- Document Icon Selector -->
+        <div class="flex items-center gap-2 mb-2.5 relative">
+          <button id="pageGlyphBtn" onclick="toggleGlyphPicker(event)" title="Change Document Icon" class="w-7 h-7 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-center text-[var(--accent-vermilion)] cursor-pointer">
           </button>
-
-          <span id="docIdStamp" class="font-mono text-[11px] text-[var(--text-tertiary)] tracking-wide uppercase">DOC-01</span>
+          <span id="docIdStamp" class="hidden font-mono text-[10px] text-[var(--text-tertiary)] uppercase">DOC-01</span>
 
           <!-- Monochrome SVG Glyph Picker Popover -->
-          <div id="glyphPickerPopover" class="hidden absolute top-9 left-0 p-2.5 w-56 popover-surface z-40 animate-menu">
+          <div id="glyphPickerPopover" class="hidden absolute top-9 left-0 p-2.5 w-56 popover-surface z-40">
             <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Document Symbol</div>
             <div id="glyphGrid" class="grid grid-cols-6 gap-1"></div>
           </div>
@@ -796,7 +706,7 @@
       </div>
 
       <!-- Calendar Tactical Bottom HUD Bar (Desktop Keyboard Legend) -->
-      <div id="calendarBottomHud" class="hidden md:flex border-t border-[var(--border-hairline)] bg-[var(--bg-panel)]/80 backdrop-blur-xs px-3.5 py-1.5 items-center justify-between text-[11px] font-mono text-[var(--text-tertiary)] shrink-0 select-none">
+      <div id="calendarBottomHud" class="hidden md:flex border-t border-[var(--border-hairline)] bg-[var(--bg-panel)]/80 px-3.5 py-1.5 items-center justify-between text-[11px] font-mono text-[var(--text-tertiary)] shrink-0 select-none">
         <div class="flex items-center gap-3 overflow-x-auto py-0.5">
           <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">M</kbd> Month</span>
           <span class="flex items-center gap-1"><kbd class="px-1 py-0.2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-medium">W</kbd> Week</span>
@@ -886,7 +796,7 @@
         <canvas id="knowledgeGraphCanvas" class="block w-full h-full" style="touch-action: none;"></canvas>
         
         <!-- Live Connection HUD Guidance Bar -->
-        <div id="graphCanvasHUD" class="hidden absolute top-2 left-2 right-2 px-2.5 py-1.5 rounded-[3px] bg-black/85 backdrop-blur-md text-white text-[11px] font-mono flex items-center justify-between border border-white/20 z-20 shadow-lg animate-toast-in select-none">
+        <div id="graphCanvasHUD" class="hidden absolute top-2 left-2 right-2 px-2.5 py-1.5 rounded-[3px] bg-black/85 text-white text-[11px] font-mono flex items-center justify-between border border-white/20 z-20 shadow-lg animate-toast-in select-none">
           <div class="flex items-center gap-1.5 truncate">
             <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
             <span id="graphCanvasHUDText" class="truncate font-medium">Drag or click to target note to link</span>
@@ -949,7 +859,7 @@
   <!-- =====================================================================
        EVENT CREATION / INSPECTION / EDITING MODAL DIALOG
        ===================================================================== -->
-  <div id="eventModalBackdrop" onclick="closeEventModal(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[960] flex items-center justify-center p-4 animate-backdrop">
+  <div id="eventModalBackdrop" onclick="closeEventModal(event)" class="hidden fixed inset-0 bg-black/60 z-[960] flex items-center justify-center p-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-lg popover-surface overflow-hidden animate-modal-card flex flex-col max-h-[90vh]">
       
       <!-- Modal Header -->
@@ -1137,7 +1047,7 @@
   </div>
 
   <!-- Command Palette (`Cmd/Ctrl + K`) — Redesigned High-End Swiss Spotlight -->
-  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[970] flex items-start justify-center pt-[10vh] px-4 animate-backdrop">
+  <div id="commandPaletteBackdrop" onclick="closeCommandPalette(event)" class="hidden fixed inset-0 bg-black/60 z-[970] flex items-start justify-center pt-[10vh] px-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-cmd-card flex flex-col max-h-[82vh]">
       <!-- Search Bar -->
       <div class="px-4 py-3.5 border-b border-[var(--border-hairline)] flex items-center gap-3 bg-[var(--bg-canvas)]">
@@ -1177,7 +1087,7 @@
   </div>
 
   <!-- Start Fresh Confirmation Modal -->
-  <div id="startFreshModal" onclick="closeStartFreshModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4 animate-backdrop">
+  <div id="startFreshModal" onclick="closeStartFreshModal()" class="hidden fixed inset-0 bg-black/60 z-[1100] flex items-center justify-center p-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 space-y-4 shadow-2xl animate-modal-card">
       <div class="flex items-center gap-3">
         <span class="w-8 h-8 rounded-full bg-[var(--accent-vermilion-tint)] flex items-center justify-center text-[var(--accent-vermilion)] shrink-0">
@@ -1313,7 +1223,7 @@
   </div>
 
   <!-- Interactive User Guide & Handbook Modal -->
-  <div id="userGuideModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-backdrop">
+  <div id="userGuideModal" class="hidden fixed inset-0 bg-black/65 z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
       
       <!-- Modal Header -->
@@ -1369,7 +1279,7 @@
 
   <!-- Mobile Keyboard Accessory Bar (Desktop Formatting & Power Tools on Phone) -->
   <div id="mobileKeyboardAccessoryBar"
-       class="md:hidden fixed bottom-0 left-0 right-0 z-[88] bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] px-2 py-1.5 flex items-center justify-between gap-1 shadow-lg select-none translate-y-full opacity-0 pointer-events-none transition-all">
+       class="md:hidden fixed bottom-0 left-0 right-0 z-[88] bg-[var(--bg-panel)]/95 border-t border-[var(--border-hairline)] px-2 py-1.5 flex items-center justify-between gap-1 shadow-lg select-none translate-y-full opacity-0 pointer-events-none transition-all">
     <div class="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
       <button type="button" onpointerdown="event.preventDefault()" onclick="toggleVoiceDictation()" id="mobileDictateBtn" title="Voice Dictation (Whisper or Talk)" class="px-2.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] text-white min-w-[36px] min-h-[36px] flex items-center justify-center gap-1 font-mono text-[10px] font-semibold shrink-0 cursor-pointer">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
@@ -1422,7 +1332,7 @@
   </div>
 
   <!-- Mobile Bottom Navigation Bar (Visible on mobile screens < md, iPhone safe-area aware) -->
-  <nav id="mobileBottomNav" style="padding-bottom: env(safe-area-inset-bottom);" class="md:hidden fixed bottom-0 left-0 right-0 min-h-[58px] bg-[var(--bg-panel)]/95 backdrop-blur-md border-t border-[var(--border-hairline)] z-[85] flex items-center justify-around px-2 select-none">
+  <nav id="mobileBottomNav" style="padding-bottom: env(safe-area-inset-bottom);" class="md:hidden fixed bottom-0 left-0 right-0 min-h-[58px] bg-[var(--bg-panel)]/95 border-t border-[var(--border-hairline)] z-[85] flex items-center justify-around px-2 select-none">
     <!-- Notes Tab -->
     <button onclick="mobileNavSelect('notes')" id="mobileNavNotes" class="flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] transition-colors">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -1513,7 +1423,7 @@
   </div>
 
   <!-- In-App PWA Install Dialog / Banner -->
-  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[985] flex items-center justify-center p-4 animate-backdrop">
+  <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 z-[985] flex items-center justify-center p-4 animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-sm rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-5 space-y-4 shadow-2xl animate-modal-card">
       <div class="flex items-center gap-3">
         <img src="icon-192.png" alt="PK Note App Icon" class="w-12 h-12 rounded-lg border border-[var(--border-hairline)] shrink-0" />
@@ -1534,7 +1444,7 @@
 
 
   <!-- Custom Desktop-Grade Native Context Menu (Ultra-Cool Glassmorphic HUD) -->
-  <div id="pkContextMenu" class="hidden fixed z-[999] popover-surface rounded-lg border border-[var(--border-hairline)] shadow-2xl min-w-[220px] max-w-[280px] select-none text-[12px] overflow-hidden backdrop-blur-xl">
+  <div id="pkContextMenu" class="hidden fixed z-[999] popover-surface rounded-lg border border-[var(--border-hairline)] shadow-2xl min-w-[220px] max-w-[280px] select-none text-[12px] overflow-hidden">
     <div class="h-[1.5px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-45"></div>
     <div id="pkContextMenuTopBar" class="px-2.5 pt-1.5 pb-1 border-b border-[var(--border-hairline)] flex items-center justify-between gap-1 bg-[var(--bg-canvas)]/40">
       <div class="flex items-center gap-1.5 min-w-0">
@@ -1564,13 +1474,13 @@
   </div>
 
   <!-- Context Submenu Container -->
-  <div id="pkContextSubmenu" class="hidden fixed z-[1000] popover-surface rounded-lg border border-[var(--border-hairline)] shadow-2xl py-1 min-w-[170px] max-w-[230px] select-none text-[12px] overflow-hidden backdrop-blur-xl">
+  <div id="pkContextSubmenu" class="hidden fixed z-[1000] popover-surface rounded-lg border border-[var(--border-hairline)] shadow-2xl py-1 min-w-[170px] max-w-[230px] select-none text-[12px] overflow-hidden">
     <div class="h-[1.5px] w-full bg-gradient-to-r from-transparent via-[var(--accent-vermilion)] to-transparent opacity-45"></div>
     <div id="pkContextSubmenuItems" class="space-y-0.5 px-1 py-0.5 max-h-[60vh] overflow-y-auto"></div>
   </div>
 
   <!-- Floating Ambient Audio Reader HUD (Perfectly Centered on Phone & Desktop, Live Progress Bar) -->
-  <div id="pkAudioReaderHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[996] flex flex-col rounded-2xl sm:rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl select-none backdrop-blur-xl overflow-hidden">
+  <div id="pkAudioReaderHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[996] flex flex-col rounded-2xl sm:rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl select-none overflow-hidden">
     <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2">
       <div class="flex items-center gap-1 h-3.5 px-0.5 shrink-0" id="pkAudioEqWave">
         <span class="pk-eq-bar"></span>
@@ -1791,7 +1701,7 @@
   <input type="file" id="noteBannerFileInput" accept="image/*" onchange="handleBannerFileUpload(event)" class="hidden" />
 
   <!-- Interactive Workspace & Document Customizer Modal -->
-  <div id="workspaceCustomizerModal" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-backdrop">
+  <div id="workspaceCustomizerModal" class="hidden fixed inset-0 bg-black/65 z-[950] flex items-center justify-center p-3 sm:p-6 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
       
       <!-- Modal Header -->
@@ -1842,7 +1752,7 @@
   <canvas id="celebrationCanvas" class="fixed inset-0 pointer-events-none z-[9999]"></canvas>
 
   <!-- Zen Focus Mode HUD Indicator -->
-  <div id="zenModeIndicator" class="hidden fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white backdrop-blur-md border border-white/20 font-mono text-xs flex items-center gap-2.5 z-[905] shadow-2xl transition-all select-none animate-toast-in">
+  <div id="zenModeIndicator" class="hidden fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white border border-white/20 font-mono text-xs flex items-center gap-2.5 z-[905] shadow-2xl transition-all select-none animate-toast-in">
     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
     <span class="font-medium tracking-wide">ZEN FOCUS ACTIVE</span>
     <span class="text-white/40 text-[10px]">&bull;</span>
@@ -1851,7 +1761,7 @@
 
 
   <!-- Fast Link Note Picker Modal -->
-  <div id="linkNotePickerModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[960] flex items-center justify-center p-3 select-none animate-backdrop">
+  <div id="linkNotePickerModal" class="hidden fixed inset-0 bg-black/60 z-[960] flex items-center justify-center p-3 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-md max-h-[80vh] flex flex-col rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
       <div class="px-4 py-3 border-b border-[var(--border-hairline)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">
         <div class="flex items-center gap-2">
@@ -1874,7 +1784,7 @@
   </div>
 
   <!-- Interactive Fullscreen / Expanded Topology Graph Studio Modal -->
-  <div id="expandedGraphModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[955] flex flex-col p-2 sm:p-4 select-none animate-backdrop">
+  <div id="expandedGraphModal" class="hidden fixed inset-0 bg-black/80 z-[955] flex flex-col p-2 sm:p-4 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="flex-1 flex flex-col rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card">
       
       <!-- Studio Header -->
@@ -1927,7 +1837,7 @@
         <canvas id="expandedKnowledgeGraphCanvas" class="block w-full h-full" style="touch-action: none;"></canvas>
 
         <!-- Studio Floating Link Guidance HUD -->
-        <div id="expGraphHUD" class="hidden absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/85 backdrop-blur-md text-white text-xs font-mono flex items-center gap-3 border border-white/20 z-20 shadow-2xl animate-toast-in select-none">
+        <div id="expGraphHUD" class="hidden absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/85 text-white text-xs font-mono flex items-center gap-3 border border-white/20 z-20 shadow-2xl animate-toast-in select-none">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
           <span id="expGraphHUDText" class="font-medium">Connecting... Drag or click on another note to create [[link]]</span>
           <button onclick="cancelGraphConnection()" class="hover:text-red-300 underline text-[11px] cursor-pointer">Cancel (Esc)</button>
@@ -1955,7 +1865,7 @@
 
 
   <!-- Live Wikilink Hover Page Preview Card -->
-  <div id="wikiLinkPreviewCard" onmouseenter="cancelHideWikiLinkPreview()" onmouseleave="hideWikiLinkPreview()" class="hidden fixed pointer-events-auto z-[970] w-80 p-3.5 rounded-lg bg-[var(--bg-panel)]/95 backdrop-blur-md border border-[var(--border-strong)] shadow-2xl space-y-2.5 select-none animate-toast-in text-xs transition-all duration-150">
+  <div id="wikiLinkPreviewCard" onmouseenter="cancelHideWikiLinkPreview()" onmouseleave="hideWikiLinkPreview()" class="hidden fixed pointer-events-auto z-[970] w-80 p-3.5 rounded-lg bg-[var(--bg-panel)]/95 border border-[var(--border-strong)] shadow-2xl space-y-2.5 select-none animate-toast-in text-xs transition-all duration-150">
     <div class="flex items-center justify-between gap-2 border-b border-[var(--border-hairline)] pb-2">
       <div class="flex items-center gap-2 truncate">
         <span id="wikiPreviewGlyph" class="text-[var(--accent-ochre)] shrink-0"></span>
@@ -1974,7 +1884,7 @@
   </div>
 
   <!-- Graph Node Interactive Hover Preview Card -->
-  <div id="graphNodeHoverCard" class="hidden absolute pointer-events-auto z-40 max-w-xs w-72 p-3 rounded-lg bg-[var(--bg-panel)]/95 backdrop-blur-md border border-[var(--border-strong)] shadow-2xl space-y-2 select-none animate-toast-in text-xs transition-opacity duration-150">
+  <div id="graphNodeHoverCard" class="hidden absolute pointer-events-auto z-40 max-w-xs w-72 p-3 rounded-lg bg-[var(--bg-panel)]/95 border border-[var(--border-strong)] shadow-2xl space-y-2 select-none animate-toast-in text-xs transition-opacity duration-150">
     <div class="flex items-center justify-between gap-2 border-b border-[var(--border-hairline)] pb-1.5">
       <div class="flex items-center gap-1.5 truncate">
         <span id="graphNodeCardGlyph" class="text-[var(--accent-ochre)] shrink-0"></span>
@@ -1993,7 +1903,7 @@
   </div>
 
   <!-- Canvas Quick Note Creator Modal (Double-Click on Canvas) -->
-  <div id="canvasCreateNoteModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[965] flex items-center justify-center p-3 select-none animate-backdrop">
+  <div id="canvasCreateNoteModal" class="hidden fixed inset-0 bg-black/60 z-[965] flex items-center justify-center p-3 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-w-sm p-4 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl space-y-3 animate-modal-card">
       <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-2">
         <div class="flex items-center gap-1.5 font-mono text-xs font-semibold text-[var(--text-primary)] uppercase">
@@ -2019,7 +1929,7 @@
 
 
   <!-- Mobile Command Deck & Desktop Power Tools Sheet -->
-  <div id="mobileMoreSheetBackdrop" onclick="closeMobileMoreSheet()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[975] flex items-end justify-center p-0 select-none animate-backdrop">
+  <div id="mobileMoreSheetBackdrop" onclick="closeMobileMoreSheet()" class="hidden fixed inset-0 bg-black/65 z-[975] flex items-end justify-center p-0 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full max-h-[86vh] flex flex-col rounded-t-2xl bg-[var(--bg-panel)] border-t border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu pb-6">
       
       <!-- Sheet Handle & Header -->
@@ -2290,7 +2200,7 @@
 
 
   <!-- Voice Model Switcher Studio Modal (Kokoro-82M Neural ONNX + On-Device Fallback, Clean Editorial UI) -->
-  <div id="voiceModelModalBackdrop" onclick="closeVoiceModelModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[980] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+  <div id="voiceModelModalBackdrop" onclick="closeVoiceModelModal()" class="hidden fixed inset-0 bg-black/65 z-[980] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
       
       <!-- Modal Header -->
@@ -2488,7 +2398,7 @@
   <input type="file" id="pkMarkdownImportInput" accept=".md,.markdown,.txt,text/markdown,text/plain" class="hidden" onchange="handleMarkdownFileImport(event)" />
 
   <!-- 1. Floating Find & Replace Bar (Ctrl+H / Cmd+Shift+F & Phone Command Deck) -->
-  <div id="pkFindReplaceBar" class="hidden fixed top-14 inset-x-0 mx-auto w-[94vw] max-w-md z-[910] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl p-3 space-y-2 select-none backdrop-blur-xl">
+  <div id="pkFindReplaceBar" class="hidden fixed top-14 inset-x-0 mx-auto w-[94vw] max-w-md z-[910] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl p-3 space-y-2 select-none">
     <div class="flex items-center gap-1.5">
       <div class="relative flex-1">
         <input type="text" id="pkFindInput" oninput="runNoteFind()" onkeydown="if(event.key==='Enter'){event.preventDefault();jumpNoteFindMatch(event.shiftKey?-1:1);} if(event.key==='Escape'){closeFindReplaceBar();}" placeholder="Find in note..." class="w-full pl-2.5 pr-14 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] font-mono" />
@@ -2580,7 +2490,7 @@
   </div>
 
   <!-- 3. Floating Pomodoro Focus Timer Pill (Visible when timer is running/active) -->
-  <div id="pkFocusTimerHUD" class="hidden fixed top-14 right-3 sm:right-5 z-[890] flex items-center gap-2 px-3 py-1.5 rounded-full popover-surface border border-[var(--border-strong)] shadow-xl select-none backdrop-blur-xl">
+  <div id="pkFocusTimerHUD" class="hidden fixed top-14 right-3 sm:right-5 z-[890] flex items-center gap-2 px-3 py-1.5 rounded-full popover-surface border border-[var(--border-strong)] shadow-xl select-none">
     <span id="pkFocusTimerDot" class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)] animate-pulse shrink-0"></span>
     <button onclick="openFocusTimerModal()" class="font-mono text-xs font-semibold text-[var(--text-primary)] tabular-nums cursor-pointer" id="pkFocusTimerHudClock">25:00</button>
     <button onclick="toggleFocusTimerPause()" id="pkFocusTimerHudToggle" title="Pause / Resume" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
@@ -2593,7 +2503,7 @@
   </div>
 
   <!-- 4. Smart Note Templates Gallery Modal -->
-  <div id="templatesModalBackdrop" onclick="closeTemplatesModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[982] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+  <div id="templatesModalBackdrop" onclick="closeTemplatesModal()" class="hidden fixed inset-0 bg-black/65 z-[982] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full sm:max-w-lg max-h-[86vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
       <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between shrink-0">
         <div>
@@ -2607,7 +2517,7 @@
   </div>
 
   <!-- 5. Pomodoro Focus Timer Modal -->
-  <div id="focusTimerModalBackdrop" onclick="closeFocusTimerModal()" class="hidden fixed inset-0 bg-black/65 backdrop-blur-xs z-[982] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+  <div id="focusTimerModalBackdrop" onclick="closeFocusTimerModal()" class="hidden fixed inset-0 bg-black/65 z-[982] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
     <div onclick="event.stopPropagation()" class="w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-menu">
       <div class="px-5 py-3.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between">
         <div>
@@ -2636,7 +2546,7 @@
   </div>
 
   <!-- Floating Block Quick Action Pill (Tap 6-dot handle for safe Up/Down/Duplicate/Delete) -->
-  <div id="pkBlockTouchMenu" class="hidden fixed z-[940] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-1 flex items-center gap-0.5 select-none backdrop-blur-xl font-mono text-[10px]">
+  <div id="pkBlockTouchMenu" class="hidden fixed z-[940] popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl p-1 flex items-center gap-0.5 select-none font-mono text-[10px]">
     <button type="button" onclick="moveTouchMenuBlock(-1)" title="Move Block Up" class="px-2 py-1.5 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] flex items-center gap-1 cursor-pointer">
       <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
       <span>Up</span>
@@ -2653,7 +2563,7 @@
   <div id="pkBlockDropLine" class="hidden fixed pointer-events-none z-[935] h-[2.5px] rounded-full bg-[var(--accent-vermilion)] shadow-sm"></div>
 
   <!-- Live Floating Slide Action Indicator (Appears while sliding a block left/right with your finger) -->
-  <div id="pkBlockSlideBadge" class="hidden fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg backdrop-blur-md transition-colors"></div>
+  <div id="pkBlockSlideBadge" class="hidden fixed pointer-events-none z-[945] px-2.5 py-1 rounded-full font-mono text-[10px] font-semibold uppercase tracking-wider shadow-lg transition-colors"></div>
 
   <!-- =====================================================================
        SIGNATURE CRAFT SUITE MODALS (100% Client-Side, Pure HTML, Zero Emoji)

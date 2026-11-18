@@ -731,6 +731,7 @@ document.addEventListener('keydown', (e) => {
     ['glyphPickerPopover', 'pk-motion-popover', 135],
     ['typographyPopover', 'pk-motion-popover', 135],
     ['noteActionsPopover', 'pk-motion-popover', 135],
+    ['desktopToolsMenuPopover', 'pk-motion-popover', 135],
     ['calQuickAddPopover', 'pk-motion-popover', 135],
     ['calEventPreviewPopover', 'pk-motion-popover', 135],
     ['calDayOverflowPopover', 'pk-motion-popover', 135],

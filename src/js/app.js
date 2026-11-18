@@ -9823,19 +9823,33 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Ambient Cursor Spotlight Pointermove Listener (Desktop mouse only — disabled on touch/lite phones!)
-let cursorRaf = null;
-if (!window.PK_LITE_MODE) {
-  window.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'mouse' || state.cursorSpotlight === false) return;
-    if (cursorRaf) return;
-    cursorRaf = requestAnimationFrame(() => {
-      document.documentElement.style.setProperty('--cursor-x', `${e.clientX}px`);
-      document.documentElement.style.setProperty('--cursor-y', `${e.clientY}px`);
-      cursorRaf = null;
-    });
-  }, { passive: true });
+// Cursor spotlight listener removed for zero-lag 60fps pointer performance.
+
+// Desktop Tools ("More ...") Popover Menu Controller
+function toggleDesktopToolsMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('desktopToolsMenuPopover');
+  if (!menu) return;
+  const isHidden = menu.classList.contains('hidden');
+  if (typeof closeAllPopovers === 'function') closeAllPopovers();
+  if (isHidden) {
+    menu.classList.remove('hidden');
+  } else {
+    menu.classList.add('hidden');
+  }
 }
+
+function closeDesktopToolsMenu() {
+  const menu = document.getElementById('desktopToolsMenuPopover');
+  if (menu) menu.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('desktopToolsMenuPopover');
+  if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !e.target.closest('#desktopToolsMenuBtn')) {
+    menu.classList.add('hidden');
+  }
+});
 
 // Tactile Mechanical Typing Audio Listener (Skipped on Lite mobile mode to prevent audio-node GC stutter)
 document.addEventListener('keydown', e => {
@@ -12191,7 +12205,7 @@ if (window.visualViewport) {
       if (actionLabel) actionLabel.textContent = 'Change Banner';
       if (quickBannerText) quickBannerText.textContent = 'Change Banner';
     } else {
-      bannerBg.className = `w-full ${state.showHeaderGrid ? 'h-16 archival-ruled-band' : 'h-8'} border-b border-[var(--border-hairline)] transition-all relative`;
+      bannerBg.className = 'hidden';
       bannerBg.style.backgroundImage = '';
       bannerBg.style.backgroundColor = '';
       bannerBg.innerHTML = '';
@@ -13573,24 +13587,7 @@ function renderTypographyPopover() {
       }, { passive: true });
     }
 
-    // 3D Tilt Physics on Banner Container (Desktop mouse only — skipped on mobile!)
-    const bannerContainer = document.getElementById('docBannerContainer');
-    if (bannerContainer && !window.PK_LITE_MODE) {
-      bannerContainer.classList.add('tilt-card');
-      bannerContainer.addEventListener('mousemove', (e) => {
-        const note = getActiveNote();
-        if (!note || !note.banner) return;
-        const rect = bannerContainer.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -3.5;
-        const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 3.5;
-        bannerContainer.style.transform = `perspective(1200px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
-      });
-      bannerContainer.addEventListener('mouseleave', () => {
-        bannerContainer.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg)';
-      });
-    }
+    // Banner 3D tilt listener removed for zero-reflow 60fps performance.
 
     // Global Keydown for Zen Mode (Cmd+D / Esc) — removed duplicate key-click audio!
     document.addEventListener('keydown', (e) => {

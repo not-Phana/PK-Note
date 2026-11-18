@@ -1,5 +1,5 @@
 // ============================================================================
-// PK NOTE — MULTI-PROVIDER AI ASSISTANT (Groq · NVIDIA AI · Local Model)
+// PK NOTE — MULTI-PROVIDER AI ASSISTANT (Gemini · Groq · NVIDIA · Local Model)
 // 100% Client-Side BYOK & Local Server Support, SSE Streaming, Zero Emoji
 // Full PK Note integration: Active Note, Vault, Calendar, Study Deck, Voice
 // ============================================================================
@@ -8,6 +8,25 @@ const PK_AI_CONFIG_KEY = 'pk_note_ai_config_v2';
 const PK_GROQ_LEGACY_CONFIG_KEY = 'pk_note_groq_config_v1';
 
 const PK_AI_PROVIDERS = {
+  gemini: {
+    id: 'gemini',
+    name: 'Gemini AI',
+    shortName: 'Gemini',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaultModel: 'gemini-2.5-flash',
+    requiresKey: true,
+    keyPlaceholder: 'AIza...',
+    keyLabel: 'Gemini API Key (Saved Locally)',
+    keyUrl: 'https://aistudio.google.com/apikey',
+    keyLinkText: 'Get free key',
+    models: [
+      { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash (Fast · Recommended)' },
+      { id: 'gemini-2.5-pro', label: 'gemini-2.5-pro (Deep Reasoning)' },
+      { id: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite (Ultra-Fast)' },
+      { id: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Next-Gen Lite)' },
+      { id: 'gemini-3.8-flash', label: 'gemini-3.8-flash (Next-Gen Flash)' }
+    ]
+  },
   groq: {
     id: 'groq',
     name: 'Groq Cloud',
@@ -143,6 +162,12 @@ window.onPKMemoryReady = async function () {
 function getDefaultAiConfig() {
   return {
     provider: 'groq',
+    gemini: {
+      apiKey: '',
+      baseUrl: PK_AI_PROVIDERS.gemini.defaultBaseUrl,
+      model: PK_AI_PROVIDERS.gemini.defaultModel,
+      discoveredModels: []
+    },
     groq: {
       apiKey: '',
       baseUrl: PK_AI_PROVIDERS.groq.defaultBaseUrl,
@@ -178,7 +203,7 @@ function loadAiConfig() {
     if (rawV2) {
       const parsed = JSON.parse(rawV2);
       const provider = PK_AI_PROVIDERS[parsed.provider] ? parsed.provider : 'groq';
-      ['groq', 'nvidia', 'local'].forEach(pid => {
+      ['gemini', 'groq', 'nvidia', 'local'].forEach(pid => {
         const src = parsed[pid] || {};
         def[pid] = {
           apiKey: typeof src.apiKey === 'string' ? src.apiKey.trim() : '',
@@ -307,7 +332,7 @@ function captureCurrentProviderInputsIntoConfig(cfg) {
   const customInp = document.getElementById('pkGroqCustomModelInput');
 
   if (keyInput) cfg[pid].apiKey = keyInput.value.trim();
-  if (pid !== 'groq' && baseInput && baseInput.value.trim()) {
+  if (pid !== 'groq' && pid !== 'gemini' && baseInput && baseInput.value.trim()) {
     cfg[pid].baseUrl = baseInput.value.trim();
   }
   if (modelSel) {
@@ -358,10 +383,12 @@ function populateModelSelectForProvider(pid, data) {
       customInp.classList.remove('hidden');
       customInp.value = data.model || '';
       customInp.placeholder = pid === 'local'
-        ? 'e.g. llama3.2, qwen2.5:7b, gemma3:4b...'
+        ? 'e.g. google/gemma-4-e4b, qwen/qwen3.5-9b...'
         : pid === 'nvidia'
           ? 'e.g. nvidia/nemotron-3.5-lightning-30b-a3b'
-          : 'e.g. llama-3.3-70b-versatile';
+          : pid === 'gemini'
+            ? 'e.g. gemini-2.5-flash, gemini-2.5-pro'
+            : 'e.g. openai/gpt-oss-120b';
     }
   }
 }
@@ -372,9 +399,10 @@ function syncGroqHeaderAndSettingsUI() {
   const ready = isProviderReady(spec.id, data);
 
   // Provider tabs highlight
-  const activeTabCls = 'px-2 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer';
-  const idleTabCls = 'px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer';
+  const activeTabCls = 'px-1.5 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate';
+  const idleTabCls = 'px-1.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate';
   const tabs = [
+    ['gemini', 'pkAiProviderTabGemini'],
     ['groq', 'pkAiProviderTabGroq'],
     ['nvidia', 'pkAiProviderTabNvidia'],
     ['local', 'pkAiProviderTabLocal']
@@ -403,7 +431,7 @@ function syncGroqHeaderAndSettingsUI() {
     else keyBtnLabel.textContent = ready ? spec.shortName : 'Add Key';
   }
 
-  // Endpoint section (shown for NVIDIA & Local, hidden for Groq)
+  // Endpoint section (shown for NVIDIA & Local, hidden for Groq & Gemini)
   const endpointSec = document.getElementById('pkAiEndpointSection');
   const baseLabel = document.getElementById('pkAiBaseUrlLabel');
   const baseInput = document.getElementById('pkAiBaseUrlInput');
@@ -411,7 +439,7 @@ function syncGroqHeaderAndSettingsUI() {
   const nvidiaHint = document.getElementById('pkAiNvidiaCorsHint');
   const localHint = document.getElementById('pkAiLocalCorsHint');
 
-  if (endpointSec) endpointSec.classList.toggle('hidden', spec.id === 'groq');
+  if (endpointSec) endpointSec.classList.toggle('hidden', spec.id === 'groq' || spec.id === 'gemini');
   if (localPresets) localPresets.classList.toggle('hidden', spec.id !== 'local');
   if (nvidiaHint) nvidiaHint.classList.toggle('hidden', spec.id !== 'nvidia');
   if (localHint) localHint.classList.toggle('hidden', spec.id !== 'local');
@@ -884,8 +912,10 @@ async function pasteAiApiKey() {
       }
       const cfg = loadAiConfig();
       captureCurrentProviderInputsIntoConfig(cfg);
-      // Smart auto-switch provider if key prefix clearly identifies Groq or NVIDIA
-      if (/^gsk_/i.test(cleaned) && cfg.provider !== 'groq') {
+      // Smart auto-switch provider if key prefix clearly identifies Gemini, Groq, or NVIDIA
+      if (/^AIza/i.test(cleaned) && cfg.provider !== 'gemini') {
+        cfg.provider = 'gemini';
+      } else if (/^gsk_/i.test(cleaned) && cfg.provider !== 'groq') {
         cfg.provider = 'groq';
       } else if (/^nvapi-/i.test(cleaned) && cfg.provider !== 'nvidia') {
         cfg.provider = 'nvidia';
@@ -1032,7 +1062,7 @@ const PK_LOCAL_AUTO_PORTS = [
 ];
 
 function isNonChatModelId(id) {
-  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety/i.test(String(id || ''));
+  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety|imagen|veo|aqa|bison|gecko|lyria|robotics|computer-use|native-audio|image-generation|\blive-/i.test(String(id || ''));
 }
 
 function isModelNotFoundError(status, msg) {
@@ -1086,15 +1116,23 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
   const headers = {};
   if (apiKey && apiKey.trim()) headers['Authorization'] = `Bearer ${apiKey.trim()}`;
 
-  // 1. Standard OpenAI-compatible GET /v1/models
+  // 1. Standard OpenAI-compatible GET /v1/models (also supports Gemini /v1beta/openai/models)
   try {
     const res = await fetch(endpoints.modelsUrl, { method: 'GET', headers });
     if (res.ok) {
       const json = await res.json();
       const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
-      const ids = list
-        .map(item => (typeof item === 'string' ? item : (item && (item.id || item.name || item.model)) || ''))
+      let ids = list
+        .map(item => {
+          const raw = typeof item === 'string' ? item : (item && (item.id || item.name || item.model)) || '';
+          return pid === 'gemini' ? String(raw).replace(/^models\//i, '') : String(raw);
+        })
         .filter(id => id && !isNonChatModelId(id));
+      if (pid === 'gemini') {
+        const geminiFirst = ids.filter(id => /^gemini-/i.test(id));
+        const others = ids.filter(id => !/^gemini-/i.test(id));
+        ids = [...geminiFirst, ...others];
+      }
       if (ids.length > 0) return [...new Set(ids)];
     }
   } catch (err) {
@@ -1122,8 +1160,8 @@ async function fetchAiProviderModels() {
   captureCurrentProviderInputsIntoConfig(cfg);
   const { spec, data } = getActiveProviderSpec(cfg);
 
-  if (spec.id === 'groq' && !data.apiKey) {
-    if (typeof showToast === 'function') showToast('Paste your Groq API key first to fetch models', 'ochre');
+  if ((spec.id === 'groq' || spec.id === 'gemini') && !data.apiKey) {
+    if (typeof showToast === 'function') showToast(`Paste your ${spec.shortName} API key first to fetch models`, 'ochre');
     return;
   }
 
@@ -1214,10 +1252,15 @@ async function testGroqConnection() {
 
     let res = await runPing(data.model);
 
+    const extractApiErrMsg = (errData, status) => {
+      const obj = Array.isArray(errData) ? errData[0] : errData;
+      return obj?.error?.message || obj?.detail || obj?.title || `HTTP ${status}`;
+    };
+
     // Auto-recover if a cloud model was retired/unavailable on this key
     if (!res.ok && spec.id !== 'local') {
       const errData = await res.json().catch(() => ({}));
-      const msg = errData?.error?.message || errData?.detail || errData?.title || `HTTP ${res.status}`;
+      const msg = extractApiErrMsg(errData, res.status);
       if (isModelNotFoundError(res.status, msg)) {
         const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
         const fallbackModel = liveModels.find(m => m !== data.model);
@@ -1235,7 +1278,7 @@ async function testGroqConnection() {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      const msg = errData?.error?.message || errData?.detail || errData?.title || `HTTP ${res.status}`;
+      const msg = extractApiErrMsg(errData, res.status);
       throw new Error(msg);
     }
 
@@ -1921,9 +1964,14 @@ async function sendGroqPrompt(overrideText) {
       }
     }
 
+    const extractStreamErr = (errJson, status) => {
+      const obj = Array.isArray(errJson) ? errJson[0] : errJson;
+      return obj?.error?.message || obj?.detail || obj?.title || `${spec.shortName} HTTP ${status}`;
+    };
+
     if (!res.ok && spec.id !== 'local') {
       const errJson = await res.json().catch(() => ({}));
-      const errMsg = errJson?.error?.message || errJson?.detail || errJson?.title || `${spec.shortName} HTTP ${res.status}`;
+      const errMsg = extractStreamErr(errJson, res.status);
       if (isModelNotFoundError(res.status, errMsg)) {
         const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
         const fallbackModel = liveModels.find(m => m !== activeModel);
@@ -1945,7 +1993,7 @@ async function sendGroqPrompt(overrideText) {
 
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({}));
-      const errMsg = errJson?.error?.message || errJson?.detail || errJson?.title || `${spec.shortName} HTTP ${res.status}`;
+      const errMsg = extractStreamErr(errJson, res.status);
       throw new Error(errMsg);
     }
 

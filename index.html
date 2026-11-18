@@ -8229,15 +8229,15 @@
     const KOKORO_ESM_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
     const KOKORO_ESM_FALLBACK_URL = 'https://unpkg.com/kokoro-js@1.2.1/dist/kokoro.web.js';
 
-    // Official Kokoro-82M v1.0 Voice Roster — Studio-Natural Cute, Female & Male Presets (Zero Robotic Chipmunk)
+    // Official Kokoro-82M v1.0 Voice Roster — Pure Studio-Natural Human Voices (Zero Robotic Pitch Artifacts)
     const KOKORO_VOICE_CATALOG = [
-      // Cute / Small Voices (Built on Kokoro's top Grade A/A-/B- human voices with gentle natural sweetness)
-      { id: 'cute_mimi',   baseVoice: 'af_bella',  defaultPitch: 1.14, name: 'Mimi',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Sweet, petite & warm' },
-      { id: 'cute_yuki',   baseVoice: 'af_heart',  defaultPitch: 1.11, name: 'Yuki',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Soft, light & natural' },
-      { id: 'cute_hana',   baseVoice: 'af_bella',  defaultPitch: 1.09, name: 'Hana',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Warm, lively & expressive' },
-      { id: 'cute_koko',   baseVoice: 'af_nicole', defaultPitch: 1.12, name: 'Koko',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Gentle, whisper-soft & cozy' },
-      { id: 'cute_lumi',   baseVoice: 'bf_emma',   defaultPitch: 1.10, name: 'Lumi',     gender: 'female', category: 'cute', accent: 'UK', lang: 'en-GB', grade: 'CUTE', style: 'Bright, petite British' },
-      { id: 'cute_sora',   baseVoice: 'af_heart',  defaultPitch: 1.06, name: 'Sora',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Youthful, silky & natural' },
+      // Cute / Youthful Voices (Built on Kokoro's Grade A/A-/B- human voices within the pure ±1.3-semitone lifelike zone)
+      { id: 'cute_mimi',   baseVoice: 'af_bella',  defaultPitch: 1.08, name: 'Mimi',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Sweet, petite & natural' },
+      { id: 'cute_yuki',   baseVoice: 'af_heart',  defaultPitch: 1.06, name: 'Yuki',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Soft, silky & lifelike' },
+      { id: 'cute_hana',   baseVoice: 'af_bella',  defaultPitch: 1.04, name: 'Hana',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Warm, expressive & bright' },
+      { id: 'cute_koko',   baseVoice: 'af_nicole', defaultPitch: 1.07, name: 'Koko',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Gentle, whisper-soft & cozy' },
+      { id: 'cute_lumi',   baseVoice: 'bf_emma',   defaultPitch: 1.06, name: 'Lumi',     gender: 'female', category: 'cute', accent: 'UK', lang: 'en-GB', grade: 'CUTE', style: 'Bright, natural British' },
+      { id: 'cute_sora',   baseVoice: 'af_heart',  defaultPitch: 1.03, name: 'Sora',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Youthful, pure human' },
 
       // Female Voices (US & UK — Ordered by official Kokoro-82M naturalness grade)
       { id: 'af_heart',    baseVoice: 'af_heart',    defaultPitch: 1.0, name: 'Heart',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'A',  style: 'Flagship Warm & Natural' },
@@ -8279,14 +8279,15 @@
       const srcLen = float32Samples.length;
       if (srcLen === 0) return new Blob([], { type: 'audio/wav' });
 
-      // 1. Trim dead leading/trailing silence (keep natural 40ms breath margin)
-      const margin = Math.min(Math.floor(sr * 0.04), Math.floor(srcLen / 6));
+      // 1. Trim only pure dead digital silence (preserve natural 70ms lead-in & 90ms soft human breath tail!)
+      const leadMargin = Math.min(Math.floor(sr * 0.07), Math.floor(srcLen / 6));
+      const tailMargin = Math.min(Math.floor(sr * 0.09), Math.floor(srcLen / 6));
       let start = 0;
       let end = srcLen - 1;
-      while (start < srcLen - 1 && Math.abs(float32Samples[start]) < 0.002) start++;
-      while (end > start && Math.abs(float32Samples[end]) < 0.002) end--;
-      start = Math.max(0, start - margin);
-      end = Math.min(srcLen - 1, end + margin);
+      while (start < srcLen - 1 && Math.abs(float32Samples[start]) < 0.0006) start++;
+      while (end > start && Math.abs(float32Samples[end]) < 0.0006) end--;
+      start = Math.max(0, start - leadMargin);
+      end = Math.min(srcLen - 1, end + tailMargin);
       const numSamples = Math.max(1, end - start + 1);
 
       // 2. Copy slice + remove DC offset
@@ -8352,16 +8353,16 @@
       return new Blob([buffer], { type: 'audio/wav' });
     }
 
-    // Generate Kokoro-82M audio in its optimal human prosody zone (never slow-mo slurred or chipmunk!)
+    // Generate Kokoro-82M audio in its optimal pure-human prosody zone (zero chipmunk/vocoder artifacts!)
     async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0) {
-      const pitch = Math.max(0.84, Math.min(1.22, Number(userPitch) || voiceMeta.defaultPitch || 1.0));
+      const pitch = Math.max(0.90, Math.min(1.14, Number(userPitch) || voiceMeta.defaultPitch || 1.0));
       const baseId = voiceMeta.baseVoice || voiceMeta.id || 'af_heart';
-      // Keep Kokoro's internal generation speed strictly inside its natural human zone (0.88..1.25)!
-      const compensatedSpeed = Math.max(0.88, Math.min(1.25, (Number(userRate) || 1.0) / Math.pow(pitch, 0.72)));
+      // Keep Kokoro's internal generation speed strictly inside its natural human zone (0.90..1.22)!
+      const compensatedSpeed = Math.max(0.90, Math.min(1.22, (Number(userRate) || 1.0) / Math.pow(pitch, 0.65)));
       const rawAudio = await tts.generate(text, { voice: baseId, speed: compensatedSpeed });
 
       const nativeSr = rawAudio.sampling_rate || 24000;
-      const targetSr = Math.abs(pitch - 1.0) < 0.015 ? nativeSr : Math.round(nativeSr * pitch);
+      const targetSr = Math.abs(pitch - 1.0) < 0.01 ? nativeSr : Math.round(nativeSr * pitch);
       const isQuantized = (getVoiceSettings().kokoroQuant || 'fp16') === 'q8';
       return encodePcmToWavBlob(rawAudio.audio, targetSr, isQuantized);
     }
@@ -8438,6 +8439,13 @@
         state.voiceSettings.kokoroVoiceId = 'af_heart';
       }
       if (state.voiceSettings.kokoroQuant !== 'fp16' && state.voiceSettings.kokoroQuant !== 'q8') state.voiceSettings.kokoroQuant = 'fp16';
+      // Migrate any old extreme chipmunk pitch values (> 1.14) back into the pure natural human range
+      if (typeof state.voiceSettings.pitch === 'number' && state.voiceSettings.pitch > 1.14) {
+        state.voiceSettings.pitch = 1.06;
+      }
+      if (typeof state.voiceSettings.pitch === 'number' && state.voiceSettings.pitch < 0.90) {
+        state.voiceSettings.pitch = 0.94;
+      }
       return state.voiceSettings;
     }
 
@@ -8894,7 +8902,7 @@
       return text;
     }
 
-    function splitTextIntoNaturalChunks(cleanText, maxChunkChars = 220) {
+    function splitTextIntoNaturalChunks(cleanText, maxChunkChars = 300) {
       if (!cleanText) return [];
 
       // Protect common honorifics/abbreviations so sentence splitting doesn't break after Dr. / Mr. / Ms.
@@ -8906,8 +8914,25 @@
         .map(s => s.replace(/\u0000/g, '.').trim())
         .filter(Boolean);
 
+      // Group short adjacent sentences into cohesive natural breath groups (up to ~300 chars)
+      // so Kokoro-82M's StyleTTS2 prosody model generates lifelike multi-sentence cadence & breathing!
+      const groupedSentences = [];
+      let breathGroup = '';
+      for (const s of rawSentences) {
+        const punctuated = ensureTerminalPunctuation(s);
+        if (!breathGroup) {
+          breathGroup = punctuated;
+        } else if ((breathGroup.length + 1 + punctuated.length) <= maxChunkChars) {
+          breathGroup += ' ' + punctuated;
+        } else {
+          groupedSentences.push(breathGroup);
+          breathGroup = punctuated;
+        }
+      }
+      if (breathGroup) groupedSentences.push(breathGroup);
+
       const finalChunks = [];
-      for (const sentence of rawSentences) {
+      for (const sentence of groupedSentences) {
         if (sentence.length <= maxChunkChars) {
           finalChunks.push(ensureTerminalPunctuation(sentence));
         } else {
@@ -9075,11 +9100,11 @@
     }
 
     function formatVoicePitchLabel(p) {
-      if (p < 0.92) return `Deep (${p.toFixed(2)})`;
-      if (p <= 1.06) return `Natural (${p.toFixed(2)})`;
-      if (p <= 1.18) return `Soft (${p.toFixed(2)})`;
-      if (p <= 1.27) return `Cute (${p.toFixed(2)})`;
-      return `Tiny (${p.toFixed(2)})`;
+      if (p < 0.96) return `Deep (${p.toFixed(2)})`;
+      if (p <= 1.02) return `Natural (${p.toFixed(2)})`;
+      if (p <= 1.06) return `Soft (${p.toFixed(2)})`;
+      if (p <= 1.10) return `Sweet (${p.toFixed(2)})`;
+      return `Petite (${p.toFixed(2)})`;
     }
 
     function setVoiceGenderFilter(filter, render = true) {
@@ -9613,8 +9638,8 @@
             kokoroActiveObjectUrl = null;
           }
           if (!isSpeechAudioPaused) {
-            // Natural breathing pause (slightly longer after titles & headings)
-            const pauseMs = item.isHeading ? 300 : 140;
+            // Natural narrator breathing pause (longer after titles & headings)
+            const pauseMs = item.isHeading ? 380 : 180;
             kokoroPauseTimer = setTimeout(() => {
               if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
                 currentSpeechQueueIndex++;
@@ -15602,13 +15627,13 @@
               <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Tone / Cute Scale</span>
               <span id="voicePitchDisplay" class="font-mono text-[11px] text-[var(--accent-vermilion)] font-semibold">Natural (1.00)</span>
             </div>
-            <input type="range" id="voicePitchSlider" min="0.8" max="1.38" step="0.02" value="1.0" oninput="handleVoicePitchChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
+            <input type="range" id="voicePitchSlider" min="0.90" max="1.14" step="0.01" value="1.0" oninput="handleVoicePitchChange(this.value)" class="w-full accent-[var(--accent-vermilion)] cursor-pointer" />
             <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)]">
-              <button onclick="setVoicePitchPreset(0.88)" class="hover:underline cursor-pointer">Deep</button>
+              <button onclick="setVoicePitchPreset(0.93)" class="hover:underline cursor-pointer">Deep</button>
               <button onclick="setVoicePitchPreset(1.0)" class="hover:underline cursor-pointer">Natural</button>
-              <button onclick="setVoicePitchPreset(1.15)" class="hover:underline cursor-pointer">Soft</button>
-              <button onclick="setVoicePitchPreset(1.24)" class="hover:underline cursor-pointer">Cute</button>
-              <button onclick="setVoicePitchPreset(1.32)" class="hover:underline cursor-pointer text-[var(--accent-vermilion)] font-semibold">Tiny</button>
+              <button onclick="setVoicePitchPreset(1.04)" class="hover:underline cursor-pointer">Soft</button>
+              <button onclick="setVoicePitchPreset(1.08)" class="hover:underline cursor-pointer">Sweet</button>
+              <button onclick="setVoicePitchPreset(1.12)" class="hover:underline cursor-pointer text-[var(--accent-vermilion)] font-semibold">Petite</button>
             </div>
           </div>
         </div>

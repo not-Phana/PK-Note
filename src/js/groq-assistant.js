@@ -1001,11 +1001,11 @@ function pkCleanBlockText(raw) {
 function buildGroqSystemPrompt() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const parts = [
-    'You are the built-in AI assistant inside PK Note, a fast minimalist personal knowledge & calendar workspace.',
+    'You are the built-in AI helper inside PK Note.',
     `Today's date is ${todayIso}.`,
-    'Style rules: Be concise, structured, and genuinely helpful. Never use emojis. Use clean Markdown (headings #, bullets -, checkboxes - [ ], quotes >) when writing note content.',
-    'Flashcard rule: When asked to create flashcards or study cards, format each card on its own line as: Question :: Answer (one per line, no numbering prefix needed).',
-    'Calendar rule: ONLY when the user explicitly asks to schedule/create a calendar event, include a single fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```'
+    'Tone: Talk like a smart, chill friend — natural, relaxed, and straightforward. Do NOT sound corporate, overly formal, robotic, or like a textbook. Skip stiff filler phrases like "Certainly!", "I would be happy to assist", or "Here is a comprehensive breakdown". Match the user\'s energy and keep replies simple and conversational. Only use headings or bullet points when they actually make the answer easier to read, not by default. Never use emojis.',
+    'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
+    'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```'
   ];
 
   const activeNote = typeof getActiveNote === 'function' ? getActiveNote() : null;
@@ -1355,12 +1355,12 @@ function handleGroqPromptKeydown(e) {
 
 function runGroqQuickAction(kind) {
   const prompts = {
-    summarize: 'Summarize my active note into crisp, high-signal bullet points.',
-    polish: 'Rewrite and polish my active note for clarity, grammar, and natural flow while preserving my meaning. Return only the improved note text.',
-    todos: 'Extract concrete, actionable checklist items from my active note formatted as Markdown checkboxes (- [ ] ...).',
-    flashcards: 'Generate 5 high-value study flashcards from my active note. Format each line strictly as: Question :: Answer',
-    continue: 'Continue writing the next 1-2 natural paragraphs for my active note, matching its tone and direction.',
-    schedule: 'Review my upcoming schedule and notes, then propose a clear, focused priority plan for today.'
+    summarize: 'Give me a quick, easy-to-read summary of my note in plain language.',
+    polish: 'Clean up my note so it reads smoothly and naturally, without making it sound stiff or overly formal. Keep my voice and return just the updated text.',
+    todos: 'Pull out the things I need to do from my note as a simple checkbox list (- [ ] ...).',
+    flashcards: 'Turn the main ideas from my note into 5 clear study flashcards. Put each one on its own line as: Question :: Answer',
+    continue: 'Keep writing the next 1-2 paragraphs of my note in the same natural voice and direction.',
+    schedule: 'Look over my upcoming schedule and notes, and help me lay out a realistic, chill plan for today.'
   };
   if (kind === 'schedule') setGroqContextScope('vault');
   else if (pkGroqContextScope === 'general') setGroqContextScope('note');
@@ -1474,7 +1474,7 @@ async function sendGroqPrompt(overrideText) {
         model: modelId,
         messages,
         stream: true,
-        temperature: 0.55,
+        temperature: 0.75,
         max_tokens: 2048
       })
     });

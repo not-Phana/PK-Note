@@ -983,3 +983,15 @@ html.pk-lite-gpu .animate-ping {
   filter: none !important;
 }
 
+/* OPPO / ColorOS Secure Keyboard Fix: mask API key visually on type="text" so mobile OS never locks clipboard/paste */
+.pk-key-masked {
+  -webkit-text-security: disc;
+}
+#pkGroqAssistantPanel input,
+#pkGroqAssistantPanel textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+
+

@@ -577,9 +577,75 @@ function toggleGroqKeyVisibility() {
   const inp = document.getElementById('pkGroqApiKeyInput');
   const btn = document.getElementById('pkGroqRevealBtn');
   if (!inp) return;
-  const showing = inp.type === 'text';
-  inp.type = showing ? 'password' : 'text';
-  if (btn) btn.textContent = showing ? 'Show' : 'Hide';
+  // Keep type="text" always so OPPO / ColorOS Secure Keyboard never blocks clipboard paste!
+  const isMasked = inp.classList.contains('pk-key-masked');
+  inp.classList.toggle('pk-key-masked', !isMasked);
+  if (btn) btn.textContent = isMasked ? 'Hide' : 'Show';
+}
+
+async function pasteAiApiKey() {
+  const inp = document.getElementById('pkGroqApiKeyInput');
+  if (!inp) return;
+  if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+    try {
+      const raw = await navigator.clipboard.readText();
+      const cleaned = String(raw || '').trim().replace(/\s+/g, '');
+      if (!cleaned) {
+        if (typeof showToast === 'function') showToast('Clipboard is empty — copy your API key first', 'ochre');
+        return;
+      }
+      const cfg = loadAiConfig();
+      captureCurrentProviderInputsIntoConfig(cfg);
+      // Smart auto-switch provider if key prefix clearly identifies Groq or NVIDIA
+      if (/^gsk_/i.test(cleaned) && cfg.provider !== 'groq') {
+        cfg.provider = 'groq';
+      } else if (/^nvapi-/i.test(cleaned) && cfg.provider !== 'nvidia') {
+        cfg.provider = 'nvidia';
+      }
+      cfg[cfg.provider].apiKey = cleaned;
+      saveAiConfig(cfg);
+      syncGroqHeaderAndSettingsUI();
+      if (typeof showToast === 'function') {
+        showToast(`Pasted ${PK_AI_PROVIDERS[cfg.provider].shortName} API key — tap Test or Save`);
+      }
+      return;
+    } catch (_) {
+      // Clipboard read denied/unavailable -> unmask & focus normal text box so OS long-press Paste works cleanly
+    }
+  }
+  inp.classList.remove('pk-key-masked');
+  const btn = document.getElementById('pkGroqRevealBtn');
+  if (btn) btn.textContent = 'Hide';
+  inp.focus();
+  try { inp.select(); } catch (_) {}
+  if (typeof showToast === 'function') {
+    showToast('Tap & hold the key box -> Paste (normal keyboard enabled)');
+  }
+}
+
+async function pasteAiBaseUrl() {
+  const inp = document.getElementById('pkAiBaseUrlInput');
+  if (!inp) return;
+  if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+    try {
+      const raw = await navigator.clipboard.readText();
+      const cleaned = String(raw || '').trim().replace(/\s+/g, '');
+      if (!cleaned) {
+        if (typeof showToast === 'function') showToast('Clipboard is empty', 'ochre');
+        return;
+      }
+      inp.value = cleaned;
+      const cfg = loadAiConfig();
+      cfg[cfg.provider].baseUrl = cleaned;
+      saveAiConfig(cfg);
+      syncGroqHeaderAndSettingsUI();
+      if (typeof showToast === 'function') showToast('Pasted endpoint URL');
+      return;
+    } catch (_) {}
+  }
+  inp.focus();
+  try { inp.select(); } catch (_) {}
+  if (typeof showToast === 'function') showToast('Tap & hold URL box -> Paste');
 }
 
 function handleGroqModelSelectChange(val) {

@@ -2812,7 +2812,7 @@
       </div>
 
       <!-- Collapsible Multi-Provider AI Settings Panel (Groq · NVIDIA AI · Local Model) -->
-      <div id="pkGroqSettingsPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[64vh] overflow-y-auto">
+      <div id="pkGroqSettingsPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[64vh] overflow-y-auto select-text">
         <!-- 3-Way Provider Switcher -->
         <div class="space-y-1">
           <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">AI Provider</div>
@@ -2836,12 +2836,17 @@
             <button type="button" onclick="applyLocalServerPreset('llamacpp')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">llama.cpp :8080</button>
             <button type="button" onclick="applyLocalServerPreset('jan')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Jan :1337</button>
           </div>
-          <input type="text"
-                 id="pkAiBaseUrlInput"
-                 autocomplete="off"
-                 spellcheck="false"
-                 placeholder="http://localhost:1234/v1"
-                 class="w-full px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+          <div class="flex items-center gap-1.5">
+            <input type="text"
+                   id="pkAiBaseUrlInput"
+                   autocomplete="off"
+                   autocapitalize="off"
+                   autocorrect="off"
+                   spellcheck="false"
+                   placeholder="http://localhost:1234/v1"
+                   class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="pasteAiBaseUrl()" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0">Paste</button>
+          </div>
           <!-- NVIDIA CORS Note + 1-Click Self-Hosted Worker Snippet -->
           <div id="pkAiNvidiaCorsHint" class="hidden px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed space-y-1.5">
             <div>NVIDIA NIM blocks direct browser CORS on web pages. If Test fails with a CORS error, deploy your own free 10-line Cloudflare Worker relay and paste its URL above.</div>
@@ -2860,12 +2865,16 @@
             <a id="pkAiGetKeyLink" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="text-[var(--accent-vermilion)] hover:underline shrink-0">Get free key</a>
           </div>
           <div class="flex items-center gap-1.5">
-            <input type="password"
+            <input type="text"
                    id="pkGroqApiKeyInput"
+                   inputmode="text"
                    autocomplete="off"
+                   autocapitalize="off"
+                   autocorrect="off"
                    spellcheck="false"
                    placeholder="gsk_..."
-                   class="flex-1 min-w-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+                   class="pk-key-masked select-text flex-1 min-w-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="pasteAiApiKey()" id="pkAiPasteKeyBtn" class="px-2 py-1.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--bg-hover)] border border-[var(--accent-vermilion)]/50 font-mono text-[10px] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0">Paste</button>
             <button type="button" onclick="toggleGroqKeyVisibility()" id="pkGroqRevealBtn" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)] cursor-pointer shrink-0">Show</button>
           </div>
         </div>

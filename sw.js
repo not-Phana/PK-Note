@@ -1,5 +1,5 @@
 // PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
-const CACHE_NAME = 'pk-note-v2.0.5';
+const CACHE_NAME = 'pk-note-v2.0.6';
 
 const PRECACHE_ASSETS = [
   './',
@@ -9,6 +9,7 @@ const PRECACHE_ASSETS = [
   './css/app.min.css',
   './js/boot.min.js',
   './js/wasm-bridge.min.js',
+  './js/kokoro-worker.js',
   './js/app.min.js',
   './wasm/pk_engine.wasm',
   './manifest.webmanifest',

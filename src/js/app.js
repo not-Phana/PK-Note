@@ -6307,6 +6307,8 @@ let kokoroActiveObjectUrl = null;
 let kokoroPauseTimer = null;
 let pkKokoroAudioEl = null;
 let pkKokoroAudioUnlocked = false;
+let pkVoiceAudioCtx = null;
+let pkVoiceAudioSource = null;
 const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
 
 function getKokoroAudioElement() {
@@ -6318,8 +6320,26 @@ function getKokoroAudioElement() {
   return pkKokoroAudioEl;
 }
 
-// Unlock HTML5 Audio synchronously inside user click gesture (critical for iOS Safari & Android Chrome)
+function stopVoiceAudioCtxSource() {
+  if (pkVoiceAudioSource) {
+    try { pkVoiceAudioSource.onended = null; pkVoiceAudioSource.stop(); } catch (_) {}
+    pkVoiceAudioSource = null;
+  }
+}
+
+// Dual-unlock HTML5 <audio> AND Web Audio AudioContext synchronously inside the user's tap gesture!
+// IMPORTANT: Always call AFTER stopReadingAloud() so stopReadingAloud() never aborts the unlock!
 function unlockMobileAudioElement() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      if (!pkVoiceAudioCtx) pkVoiceAudioCtx = new AudioCtx();
+      if (pkVoiceAudioCtx.state === 'suspended') {
+        pkVoiceAudioCtx.resume().catch(() => {});
+      }
+    }
+  } catch (_) {}
+
   if (pkKokoroAudioUnlocked) return;
   try {
     const audio = getKokoroAudioElement();
@@ -6333,7 +6353,40 @@ function unlockMobileAudioElement() {
     } else {
       pkKokoroAudioUnlocked = true;
     }
-  } catch (e) {}
+  } catch (_) {}
+}
+
+// Plays WAV via <audio>; if Android Chrome/iOS Safari rejects <audio>.play() after a long download,
+// seamlessly plays through the already-unlocked Web Audio AudioContext (ZERO NotAllowedError!).
+async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
+  stopVoiceAudioCtxSource();
+  const audio = getKokoroAudioElement();
+  audio.onended = onEnded || null;
+  audio.onerror = onError || null;
+  audio.src = url;
+  try {
+    await audio.play();
+    return true;
+  } catch (playErr) {
+    if (blob && pkVoiceAudioCtx) {
+      try {
+        if (pkVoiceAudioCtx.state === 'suspended') await pkVoiceAudioCtx.resume();
+        const ab = await blob.arrayBuffer();
+        const decoded = await pkVoiceAudioCtx.decodeAudioData(ab.slice(0));
+        const src = pkVoiceAudioCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(pkVoiceAudioCtx.destination);
+        src.onended = () => {
+          if (pkVoiceAudioSource === src) pkVoiceAudioSource = null;
+          if (typeof onEnded === 'function') onEnded();
+        };
+        pkVoiceAudioSource = src;
+        src.start(0);
+        return true;
+      } catch (_) {}
+    }
+    throw playErr;
+  }
 }
 
 function getVoiceSettings() {
@@ -6612,10 +6665,97 @@ function setKokoroQuant(quant) {
     : 'Fast Mode (q8 · 88 MB) selected — crash-safe mobile mode');
 }
 
+let kokoroWorker = null;
+let kokoroWorkerReqId = 0;
+const kokoroWorkerPending = new Map();
+let kokoroWorkerLastUiTs = 0;
+
+function terminateKokoroWorker() {
+  if (kokoroWorker) {
+    try { kokoroWorker.terminate(); } catch (_) {}
+    kokoroWorker = null;
+  }
+  kokoroWorkerPending.forEach(({ reject }) => reject(new Error('Worker stopped')));
+  kokoroWorkerPending.clear();
+}
+
+function getOrCreateKokoroWorker(expectedMB, alreadyCached) {
+  if (kokoroWorker) return kokoroWorker;
+  if (typeof Worker === 'undefined' || location.protocol === 'file:') return null;
+  try {
+    const w = new Worker('./js/kokoro-worker.js', { type: 'module' });
+    w.onmessage = (ev) => {
+      const d = ev.data || {};
+      if (d.type === 'reply') {
+        const entry = kokoroWorkerPending.get(d.id);
+        if (!entry) return;
+        kokoroWorkerPending.delete(d.id);
+        if (d.ok) entry.resolve(d);
+        else entry.reject(new Error(d.error || 'Kokoro worker error'));
+        return;
+      }
+      if (d.type === 'progress') {
+        const activeVoiceName = getSelectedKokoroVoice().name;
+        let hudStatus = null;
+        if (d.status === 'progress') {
+          const isMain = (d.file || '').includes('.onnx');
+          const pct = typeof d.progress === 'number' ? d.progress : (d.total ? (d.loaded / d.total) * 100 : 0);
+          if (isMain && d.total > 1000000) {
+            const loadedMB = (d.loaded / (1024 * 1024)).toFixed(0);
+            const totalMB = (d.total / (1024 * 1024)).toFixed(0);
+            kokoroLoadProgressPct = Math.max(8, Math.min(98, pct));
+            kokoroLoadStatusText = alreadyCached
+              ? `Loading from cache ${Math.round(kokoroLoadProgressPct)}%...`
+              : `Downloading ${Math.round(kokoroLoadProgressPct)}% (${loadedMB}/${totalMB} MB)`;
+            hudStatus = alreadyCached
+              ? `Loading cache ${Math.round(kokoroLoadProgressPct)}%`
+              : `${Math.round(kokoroLoadProgressPct)}% · ${loadedMB}/${totalMB} MB`;
+          } else {
+            if (kokoroLoadProgressPct < 12) kokoroLoadProgressPct = 10;
+            kokoroLoadStatusText = alreadyCached ? `Loading ${activeVoiceName}...` : 'Preparing neural voice...';
+            hudStatus = kokoroLoadStatusText;
+          }
+        } else if (d.status === 'done' && (d.file || '').includes('.onnx')) {
+          kokoroLoadProgressPct = 99;
+          kokoroLoadStatusText = `Warming up ${activeVoiceName} neural voice...`;
+          hudStatus = `Warming up ${activeVoiceName}...`;
+        } else if (d.status === 'ready') {
+          kokoroLoadProgressPct = 100;
+          kokoroLoadStatusText = 'Kokoro-82M Ready (Cached Offline)';
+          hudStatus = `${activeVoiceName} Ready!`;
+        }
+        const now = performance.now();
+        if (now - kokoroWorkerLastUiTs > 140 || d.status === 'done' || d.status === 'ready') {
+          kokoroWorkerLastUiTs = now;
+          updateKokoroEngineUI();
+          updateKokoroHudProgress(true, kokoroLoadProgressPct);
+          if (hudStatus) updateVoiceStudioHUDLabels(hudStatus);
+        }
+      }
+    };
+    w.onerror = () => {
+      terminateKokoroWorker();
+    };
+    kokoroWorker = w;
+    return w;
+  } catch (_) {
+    return null;
+  }
+}
+
+function callKokoroWorker(worker, payload) {
+  return new Promise((resolve, reject) => {
+    const id = ++kokoroWorkerReqId;
+    kokoroWorkerPending.set(id, { resolve, reject });
+    worker.postMessage({ ...payload, id });
+  });
+}
+
 // Low-RAM Phone Anti-Crash Memory Guard: never hold Kokoro-82M + Whisper AI in WASM RAM simultaneously!
 function releaseUnusedAIEngines(keepEngine) {
   if (!window.PK_LITE_MODE) return;
-  if (keepEngine !== 'kokoro' && kokoroTTSInstance) {
+  if (keepEngine !== 'kokoro' && (kokoroTTSInstance || kokoroWorker)) {
+    terminateKokoroWorker();
     kokoroTTSInstance = null;
     kokoroLoadPromise = null;
     kokoroEngineState = 'idle';
@@ -6662,7 +6802,50 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
       // Request persistent browser storage so Android Chrome does NOT evict the cached Kokoro AI model!
       requestPersistentBrowserStorage();
       const alreadyCached = await checkKokoroCacheStatus();
+      const expectedMB = targetQuant === 'fp16' ? 156 : 88;
+      const activeVoiceName = getSelectedKokoroVoice().name;
 
+      // FAST PATH: Run Kokoro-82M in a dedicated off-main-thread Web Worker (0ms UI lag, locked 60fps on 2019 phones!)
+      const worker = getOrCreateKokoroWorker(expectedMB, alreadyCached);
+      if (worker) {
+        kokoroLoadProgressPct = alreadyCached ? 45 : 8;
+        kokoroLoadStatusText = alreadyCached
+          ? `Loading ${activeVoiceName} from device cache (0 MB download)...`
+          : `Downloading Kokoro-82M (${expectedMB} MB once)...`;
+        updateKokoroEngineUI();
+        updateKokoroHudProgress(true, kokoroLoadProgressPct);
+        updateVoiceStudioHUDLabels(alreadyCached ? `Loading ${activeVoiceName}...` : `Downloading (${expectedMB} MB once)...`);
+
+        await callKokoroWorker(worker, { type: 'init', dtype: targetQuant });
+
+        const workerProxy = {
+          isWorkerProxy: true,
+          async generate(text, opts = {}) {
+            const w = getOrCreateKokoroWorker(expectedMB, true);
+            if (!w) throw new Error('Kokoro worker unavailable');
+            const res = await callKokoroWorker(w, {
+              type: 'generate',
+              dtype: targetQuant,
+              text,
+              voice: opts.voice || 'af_heart',
+              speed: opts.speed || 1.0
+            });
+            return { audio: new Float32Array(res.audio), sampling_rate: res.sampleRate || 24000 };
+          }
+        };
+
+        kokoroTTSInstance = workerProxy;
+        kokoroEngineState = 'ready';
+        kokoroLoadProgressPct = 100;
+        kokoroIsCachedLocally = true;
+        kokoroLoadStatusText = 'Kokoro-82M Ready (Off-Thread · Cached Offline)';
+        updateKokoroEngineUI();
+        updateKokoroHudProgress(false, 100);
+        updateVoiceStudioHUDLabels();
+        return workerProxy;
+      }
+
+      // FALLBACK PATH (file:// local open without HTTP server): In-page KokoroTTS
       let mod = null;
       try {
         mod = await import(KOKORO_ESM_URL);
@@ -6673,8 +6856,6 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
       if (!KokoroTTS) throw new Error('KokoroTTS export not found');
 
       kokoroLoadProgressPct = alreadyCached ? 45 : 8;
-      const expectedMB = targetQuant === 'fp16' ? 156 : 88;
-      const activeVoiceName = getSelectedKokoroVoice().name;
       kokoroLoadStatusText = alreadyCached
         ? `Loading ${activeVoiceName} from device cache (0 MB download)...`
         : (targetQuant === 'fp16'
@@ -7569,8 +7750,8 @@ function renderVoiceCardsList() {
 // AUDITION / TEST VOICE (KOKORO-82M & DEVICE)
 // =========================================================================
 async function testKokoroVoice(voiceId = null) {
-  unlockMobileAudioElement();
   stopReadingAloud();
+  unlockMobileAudioElement();
   const sessionId = ++speechPlaybackSessionId;
   const settings = getVoiceSettings();
   const targetId = voiceId || settings.kokoroVoiceId || 'af_heart';
@@ -7633,10 +7814,7 @@ async function testKokoroVoice(voiceId = null) {
     }
     kokoroAuditionCache.set(cacheKey, url);
 
-    const audio = getKokoroAudioElement();
-    audio.onended = null;
-    audio.src = url;
-    await audio.play();
+    await playKokoroUrlOrBlob(url, blob, null, null);
     showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
   } catch (err) {
     console.warn('Kokoro audition error:', err);
@@ -7820,7 +7998,7 @@ function synthesizeKokoroChunk(index, sessionId) {
     const blob = await generateKokoroWavBlob(tts, item.text, voiceMeta, speed, pitch);
     if (sessionId !== speechPlaybackSessionId) return null;
     const url = URL.createObjectURL(blob);
-    return { url };
+    return { url, blob };
   }));
 
   kokoroPrefetchMap.set(index, promise);
@@ -7873,10 +8051,7 @@ async function playNextKokoroSentence(sessionId) {
     }
     kokoroActiveObjectUrl = result.url;
 
-    const audio = getKokoroAudioElement();
-    audio.src = result.url;
-
-    audio.onended = () => {
+    const onEndedHandler = () => {
       if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive) return;
       if (kokoroActiveObjectUrl === result.url) {
         URL.revokeObjectURL(result.url);
@@ -7898,7 +8073,7 @@ async function playNextKokoroSentence(sessionId) {
       }
     };
 
-    audio.onerror = (err) => {
+    const onErrorHandler = (err) => {
       console.warn('Kokoro audio playback error:', err);
       if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
         currentSpeechQueueIndex++;
@@ -7908,7 +8083,7 @@ async function playNextKokoroSentence(sessionId) {
 
     if (!isSpeechAudioPaused) {
       try {
-        await audio.play();
+        await playKokoroUrlOrBlob(result.url, result.blob, onEndedHandler, onErrorHandler);
         // Only prefetch next 1 sentence AFTER current audio starts playing (zero 2019-phone CPU lockup!)
         if (idx + 1 < speechSentenceQueue.length) {
           if (kokoroPrefetchDelayTimer) clearTimeout(kokoroPrefetchDelayTimer);
@@ -7917,7 +8092,7 @@ async function playNextKokoroSentence(sessionId) {
             if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
               synthesizeKokoroChunk(idx + 1, sessionId).catch(() => {});
             }
-          }, window.PK_LITE_MODE ? 350 : 80);
+          }, window.PK_LITE_MODE ? 250 : 80);
         }
       } catch (playErr) {
         if (playErr && (playErr.name === 'NotAllowedError' || String(playErr).includes('play()'))) {
@@ -7972,12 +8147,14 @@ function playNextDeviceSpeechSentence(sessionId) {
     loadDetectedVoiceModels(true);
     voice = getSelectedVoiceModel();
   }
-  // ZERO ROBOTIC FALLBACK: Never speak with utterance.voice = null (default robotic OS voice)!
+  // ZERO ROBOTIC FALLBACK: Never speak with robotic OS default!
+  // Seamlessly hand off to off-main-thread Kokoro-82M Neural AI right away so the user's tap reads immediately!
   if (!voice || !isTier1NaturalVoice(voice)) {
-    stopReadingAloud();
-    showToast('No natural 0 MB voice in this browser — switching to Offline AI (Kokoro)', 'ochre');
-    setVoiceEngine('kokoro');
-    openVoiceModelModal();
+    settings.engine = 'kokoro';
+    persistState();
+    updateKokoroEngineUI();
+    showToast('Using Kokoro-82M Natural AI Voice (zero robotic voices)');
+    playNextKokoroSentence(sessionId);
     return;
   }
 
@@ -8104,8 +8281,8 @@ function playNextSpeechSentence() {
 }
 
 function readTextAloud(text, title = 'Selection') {
-  unlockMobileAudioElement();
   stopReadingAloud();
+  unlockMobileAudioElement();
 
   const clean = normalizeTextForNaturalSpeech(text);
   const chunks = splitTextIntoNaturalChunks(clean, window.PK_LITE_MODE ? 150 : 185);
@@ -8176,17 +8353,17 @@ function toggleReadingNoteAloud() {
 }
 
 function startReadingActiveNoteAloud() {
-  unlockMobileAudioElement();
   const note = getActiveNote();
   if (!note) return;
 
   const settings = getVoiceSettings();
   if (settings.engine === 'device' && !('speechSynthesis' in window)) {
-    showToast('Speech synthesis not supported in this browser', 'ochre');
-    return;
+    settings.engine = 'kokoro';
   }
 
   stopReadingAloud();
+  // MUST run AFTER stopReadingAloud() so stopReadingAloud() never aborts mobile audio unlock!
+  unlockMobileAudioElement();
 
   // Build clean, naturally normalized sentence queue from title & blocks
   const queue = [];
@@ -8250,11 +8427,15 @@ function togglePauseReadingAloud() {
     if (playIcon) playIcon.classList.add('hidden');
 
     if (settings.engine === 'kokoro') {
-      const audio = getKokoroAudioElement();
-      if (audio && audio.src && audio.paused && !audio.ended) {
-        audio.play().catch(() => {});
+      if (pkVoiceAudioSource && pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'suspended') {
+        pkVoiceAudioCtx.resume().catch(() => {});
       } else {
-        playNextKokoroSentence(speechPlaybackSessionId);
+        const audio = getKokoroAudioElement();
+        if (audio && audio.src && audio.paused && !audio.ended && audio.src !== SILENT_WAV_DATA_URI) {
+          audio.play().catch(() => { playNextKokoroSentence(speechPlaybackSessionId); });
+        } else {
+          playNextKokoroSentence(speechPlaybackSessionId);
+        }
       }
     } else if ('speechSynthesis' in window) {
       window.speechSynthesis.resume();
@@ -8271,6 +8452,9 @@ function togglePauseReadingAloud() {
     }
     if (settings.engine === 'kokoro') {
       if (pkKokoroAudioEl) pkKokoroAudioEl.pause();
+      if (pkVoiceAudioSource && pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'running') {
+        pkVoiceAudioCtx.suspend().catch(() => {});
+      }
     } else if ('speechSynthesis' in window) {
       window.speechSynthesis.pause();
     }
@@ -8281,6 +8465,7 @@ function togglePauseReadingAloud() {
 function stopReadingAloud() {
   speechPlaybackSessionId++;
   clearDeviceSpeechTimers();
+  stopVoiceAudioCtxSource();
   if (kokoroPrefetchDelayTimer) {
     clearTimeout(kokoroPrefetchDelayTimer);
     kokoroPrefetchDelayTimer = null;

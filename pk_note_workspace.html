@@ -8225,7 +8225,9 @@
     //     100% Client-Side WASM/ONNX — Zero Server Required (Phone & Desktop)
     // =========================================================================
     const KOKORO_MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
-    const KOKORO_ESM_URL = 'https://esm.sh/kokoro-js@1.2.1';
+    // Official browser-targeted ESM bundle (avoids esm.sh Node fs.readFile crash!)
+    const KOKORO_ESM_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
+    const KOKORO_ESM_FALLBACK_URL = 'https://unpkg.com/kokoro-js@1.2.1/dist/kokoro.web.js';
 
     // Official Kokoro-82M v1.0 Voice Roster — Studio-Natural Cute, Female & Male Presets (Zero Robotic Chipmunk)
     const KOKORO_VOICE_CATALOG = [
@@ -8669,7 +8671,12 @@
 
       kokoroLoadPromise = (async () => {
         try {
-          const mod = await import(KOKORO_ESM_URL);
+          let mod = null;
+          try {
+            mod = await import(KOKORO_ESM_URL);
+          } catch (cdnErr) {
+            mod = await import(KOKORO_ESM_FALLBACK_URL);
+          }
           const { KokoroTTS } = mod;
           if (!KokoroTTS) throw new Error('KokoroTTS export not found');
 
@@ -9647,7 +9654,8 @@
         if (sessionId !== speechPlaybackSessionId) return;
         console.warn('Kokoro synthesis error:', err);
         stopReadingAloud();
-        showToast('Kokoro-82M could not start — check connection once or switch to Fast (q8)', 'ochre');
+        const reason = err && err.message ? err.message.slice(0, 64) : 'Unknown runtime error';
+        showToast(`Kokoro-82M error: ${reason}`, 'ochre');
       }
     }
 

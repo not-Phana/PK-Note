@@ -208,22 +208,34 @@ function renderSplitNotePane() {
   ).join('');
 
   const note = (state.notes || []).find(n => n.id === pkSplitNoteId);
-  if (!note) return;
+  if (!note) {
+    // Reassign or close split pane if the split note was deleted
+    const fallback = (state.notes || []).find(n => n.id !== state.activeNoteId) || state.notes[0];
+    if (fallback) {
+      pkSplitNoteId = fallback.id;
+      sel.value = fallback.id;
+    } else {
+      closeSplitNotePane();
+      return;
+    }
+  }
+  const activeSplitNote = (state.notes || []).find(n => n.id === pkSplitNoteId);
+  if (!activeSplitNote) return;
 
-  titleInp.value = note.title || '';
+  titleInp.value = activeSplitNote.title || '';
   if (metaEl) {
-    const status = note.properties && note.properties.status ? ` · ${note.properties.status}` : '';
-    metaEl.textContent = `${note.folder || 'General'}${status} · ${(note.tags || []).map(t => '#' + t).join(' ') || 'No tags'}`;
+    const status = activeSplitNote.properties && activeSplitNote.properties.status ? ` · ${activeSplitNote.properties.status}` : '';
+    metaEl.textContent = `${activeSplitNote.folder || 'General'}${status} · ${(activeSplitNote.tags || []).map(t => '#' + t).join(' ') || 'No tags'}`;
   }
 
-  if (note.encryptedPayload) {
+  if (activeSplitNote.encryptedPayload) {
     bodyEl.classList.add('hidden');
     if (lockMsg) lockMsg.classList.remove('hidden');
   } else {
     bodyEl.classList.remove('hidden');
     if (lockMsg) lockMsg.classList.add('hidden');
     if (document.activeElement !== bodyEl) {
-      bodyEl.value = noteBlocksToEditableText(note);
+      bodyEl.value = noteBlocksToEditableText(activeSplitNote);
     }
   }
 }
@@ -742,10 +754,10 @@ document.addEventListener('keydown', (e) => {
     const origToggle = cl.toggle.bind(cl);
     const origContains = cl.contains.bind(cl);
 
-    // Strip legacy keyframe classes that conflict with smooth CSS transitions
-    origRemove('animate-backdrop', 'animate-menu');
+    // Strip ALL legacy keyframe/transition classes that conflict with smooth PK Motion transitions!
+    origRemove('animate-backdrop', 'animate-menu', 'animate-modal-card', 'animate-cmd-card', 'transition-opacity', 'transition-all');
     if (el.firstElementChild) {
-      el.firstElementChild.classList.remove('animate-modal-card', 'animate-cmd-card');
+      el.firstElementChild.classList.remove('animate-modal-card', 'animate-cmd-card', 'animate-menu', 'animate-backdrop');
     }
     origAdd(motionClass);
     if (!origContains('hidden')) origAdd('pk-anim-open');

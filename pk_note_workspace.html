@@ -1215,7 +1215,7 @@
   </div>
 
   <!-- Minimal Status Toast Container -->
-  <div id="toastContainer" class="fixed bottom-20 md:bottom-4 right-4 z-[990] flex flex-col gap-1.5 pointer-events-none"></div>
+  <div id="toastContainer" class="fixed bottom-20 md:bottom-4 right-4 z-[1005] flex flex-col gap-1.5 pointer-events-none"></div>
 
 
 
@@ -1582,7 +1582,7 @@
   </div>
 
   <!-- Floating Ambient Audio Reader HUD (Perfectly Centered on Phone & Desktop, Live Progress Bar) -->
-  <div id="pkAudioReaderHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[900] flex flex-col rounded-2xl sm:rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl select-none backdrop-blur-xl overflow-hidden">
+  <div id="pkAudioReaderHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[996] flex flex-col rounded-2xl sm:rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl select-none backdrop-blur-xl overflow-hidden">
     <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2">
       <div class="flex items-center gap-1 h-3.5 px-0.5 shrink-0" id="pkAudioEqWave">
         <span class="pk-eq-bar"></span>
@@ -1632,7 +1632,7 @@
   </div>
 
   <!-- Floating Selection-Only Read Aloud Pill (Appears automatically whenever text is highlighted on PC or phone) -->
-  <div id="pkSelectionReadBar" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" class="hidden fixed bottom-[80px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[92vw] z-[910] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/60 shadow-xl select-none">
+  <div id="pkSelectionReadBar" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" class="hidden fixed bottom-[80px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[92vw] z-[997] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/60 shadow-xl select-none">
     <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="readCurrentSelectionOnly()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-vermilion)] hover:opacity-95 text-white font-mono text-[11px] font-semibold cursor-pointer">
       <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       <span id="pkSelectionReadLabel">Read Selected</span>

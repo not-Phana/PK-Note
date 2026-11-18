@@ -14,6 +14,9 @@ let pkSpecialActiveTab = 'vault'; // 'vault' | 'habits' | 'sketch' | 'spotlight'
 // DRAWER OPEN / CLOSE (SILKY SIDEBAR SPRING GLIDE)
 // ============================================================================
 function openSpecialStudio(initialTab) {
+  if (typeof closeGroqAssistant === 'function' && typeof pkGroqDrawerOpen !== 'undefined' && pkGroqDrawerOpen) {
+    closeGroqAssistant();
+  }
   if (initialTab && ['vault', 'habits', 'sketch', 'spotlight'].includes(initialTab)) {
     pkSpecialActiveTab = initialTab;
   }

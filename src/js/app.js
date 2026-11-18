@@ -2759,9 +2759,26 @@ function toggleMobileMetaLedger() {
 }
 
 function updateWordCount(note) {
-  const fullText = [note.title, ...note.blocks.map(b => b.content || '')].join(' ').trim();
-  const words = fullText ? fullText.split(/\s+/).length : 0;
-  document.getElementById('docWordCount').textContent = words;
+  if (!note) return;
+  if (note.encryptedPayload) {
+    const wcEl = document.getElementById('docWordCount');
+    if (wcEl) wcEl.textContent = 'Encrypted';
+    const readEl = document.getElementById('docReadingTimeMeta');
+    if (readEl) readEl.textContent = 'AES-256 Vault';
+    const mobSummary = document.getElementById('mobileMetaSummaryText');
+    if (mobSummary) mobSummary.textContent = `${note.folder || 'General'} · Encrypted Vault`;
+    return;
+  }
+  const blockTexts = (note.blocks || []).map(b => {
+    if (b.type === 'sketch' || b.type === 'divider') return '';
+    if (b.type === 'table' && Array.isArray(b.rows)) return b.rows.map(r => r.join(' ')).join(' ');
+    if (b.type === 'toggle') return `${b.content || ''} ${b.body || ''}`;
+    return b.content || '';
+  });
+  const fullText = [note.title || '', ...blockTexts].join(' ').replace(/<[^>]+>/g, ' ').trim();
+  const words = fullText ? fullText.split(/\s+/).filter(Boolean).length : 0;
+  const wcEl = document.getElementById('docWordCount');
+  if (wcEl) wcEl.textContent = words;
   const mins = Math.max(1, Math.ceil(words / 220));
   const readEl = document.getElementById('docReadingTimeMeta');
   if (readEl) {
@@ -3231,8 +3248,8 @@ function handleCodeKeydown(e) {
 
 function handleBlockBlur(e, blockId) {
   const note = getActiveNote();
-  const block = note.blocks.find(b => b.id === blockId);
-  if (block && block.type !== 'code' && block.type !== 'divider') {
+  const block = note && note.blocks ? note.blocks.find(b => b.id === blockId) : null;
+  if (block && block.type !== 'code' && block.type !== 'divider' && block.type !== 'table' && block.type !== 'sketch') {
     e.currentTarget.innerHTML = renderRichBlockHTML(block.content);
   }
 }
@@ -9004,6 +9021,10 @@ function toggleReadingNoteAloud() {
 function startReadingActiveNoteAloud() {
   const note = getActiveNote();
   if (!note) return;
+  if (note.encryptedPayload) {
+    showToast('Unlock this encrypted note in Vault Lock first', 'ochre');
+    return;
+  }
 
   const settings = getVoiceSettings();
   if (settings.engine === 'device' && !('speechSynthesis' in window)) {
@@ -9030,8 +9051,22 @@ function startReadingActiveNoteAloud() {
     ? (window.PK_LITE_MODE ? 115 : 165)
     : (window.PK_LITE_MODE ? 150 : 185);
   (note.blocks || []).forEach(b => {
-    if (!b.content || !b.content.trim()) return;
-    const clean = normalizeTextForNaturalSpeech(b.content);
+    if (!b || b.type === 'divider' || b.type === 'sketch') return;
+    let rawText = '';
+    if (b.type === 'toggle') {
+      const head = (b.content || '').trim();
+      const body = (b.body || '').trim();
+      rawText = head && body ? `${head}. ${body}` : (head || body);
+    } else if (b.type === 'table' && Array.isArray(b.rows)) {
+      rawText = b.rows
+        .map(row => (Array.isArray(row) ? row.map(c => String(c || '').trim()).filter(Boolean).join(', ') : ''))
+        .filter(Boolean)
+        .join('. ');
+    } else {
+      rawText = b.content || '';
+    }
+    if (!rawText || !rawText.trim()) return;
+    const clean = normalizeTextForNaturalSpeech(rawText);
     if (!clean) return;
     const isHeading = ['h1', 'h2', 'h3'].includes(b.type);
     let chunks = splitTextIntoNaturalChunks(clean, bodyMax);
@@ -9960,8 +9995,23 @@ function deleteNoteById(noteId) {
   const note = state.notes.find(n => n.id === noteId);
   const title = note ? note.title : 'Document';
   state.notes = state.notes.filter(n => n.id !== noteId);
+  if (Array.isArray(state.openTabs)) {
+    state.openTabs = state.openTabs.filter(id => id !== noteId);
+  }
   if (state.activeNoteId === noteId) {
-    state.activeNoteId = state.notes[0].id;
+    state.activeNoteId = (Array.isArray(state.openTabs) && state.openTabs.length > 0 && state.notes.some(n => n.id === state.openTabs[0]))
+      ? state.openTabs[0]
+      : state.notes[0].id;
+  }
+  if (typeof pkSplitNoteId !== 'undefined' && pkSplitNoteId === noteId) {
+    const fallback = state.notes.find(n => n.id !== state.activeNoteId);
+    if (fallback) {
+      pkSplitNoteId = fallback.id;
+    } else if (typeof closeSplitNotePane === 'function') {
+      closeSplitNotePane();
+    } else {
+      pkSplitNoteId = null;
+    }
   }
   renderAll();
   persistState();
@@ -15287,8 +15337,12 @@ function applyNoteLockVisuals(note) {
   const newTagInput = document.getElementById('newTagInput');
   if (newTagInput) newTagInput.classList.toggle('hidden', locked);
   document.querySelectorAll('#tagsContainer button').forEach(b => b.classList.toggle('hidden', locked));
-  const folderSel = document.getElementById('docFolderSelect');
-  if (folderSel) folderSel.disabled = locked;
+  const folderBtn = document.getElementById('folderDropdownBtn');
+  if (folderBtn) {
+    folderBtn.disabled = locked;
+    folderBtn.classList.toggle('opacity-50', locked);
+    folderBtn.classList.toggle('pointer-events-none', locked);
+  }
   const mobWriteBar = document.getElementById('mobileBottomWriteBar');
   if (mobWriteBar) mobWriteBar.classList.toggle('hidden', locked);
   const deskAppendZone = document.getElementById('desktopAppendZone');
@@ -15454,7 +15508,7 @@ document.addEventListener('pointermove', (e) => {
   }
 
   // Auto-scroll editor container near top/bottom viewport edges
-  const scroller = document.getElementById('editorScrollArea') || document.querySelector('main');
+  const scroller = document.getElementById('documentScrollArea') || document.querySelector('main');
   if (scroller) {
     if (e.clientY < 95) scroller.scrollTop -= 10;
     else if (e.clientY > window.innerHeight - 95) scroller.scrollTop += 10;

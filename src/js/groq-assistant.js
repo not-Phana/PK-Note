@@ -539,6 +539,9 @@ function setGroqContextScope(scope) {
 }
 
 function openGroqAssistant(autoShowSettings = false) {
+  if (typeof closeSpecialStudio === 'function' && typeof pkSpecialDrawerOpen !== 'undefined' && pkSpecialDrawerOpen) {
+    closeSpecialStudio();
+  }
   syncGroqHeaderAndSettingsUI();
   updateAiMemoryBadge();
   const cfg = loadAiConfig();
@@ -1342,24 +1345,49 @@ function buildGroqSystemPrompt(recalledCtx = null) {
   const activeNote = typeof getActiveNote === 'function' ? getActiveNote() : null;
 
   if (pkGroqContextScope === 'note' && activeNote) {
-    const lines = (activeNote.blocks || []).map(b => {
-      const t = pkCleanBlockText(b.content);
-      if (!t) return '';
-      if (b.type === 'h1') return `# ${t}`;
-      if (b.type === 'h2') return `## ${t}`;
-      if (b.type === 'h3') return `### ${t}`;
-      if (b.type === 'todo') return `- [${b.checked ? 'x' : ' '}] ${t}`;
-      if (b.type === 'bullet') return `- ${t}`;
-      if (b.type === 'quote' || b.type === 'callout') return `> ${t}`;
-      return t;
-    }).filter(Boolean).join('\n').slice(0, 7500);
+    let lines = '';
+    if (activeNote.encryptedPayload) {
+      lines = '(encrypted AES-256-GCM note — currently locked by user in Vault Lock)';
+    } else {
+      lines = (activeNote.blocks || []).map(b => {
+        if (!b || b.type === 'divider' || b.type === 'sketch') return '';
+        if (b.type === 'toggle') {
+          const head = pkCleanBlockText(b.content);
+          const body = pkCleanBlockText(b.body);
+          if (!head && !body) return '';
+          return body ? `> ${head}\n  ${body}` : `> ${head}`;
+        }
+        if (b.type === 'table' && Array.isArray(b.rows)) {
+          return b.rows
+            .map(row => Array.isArray(row) ? `| ${row.map(c => pkCleanBlockText(c)).join(' | ')} |` : '')
+            .filter(Boolean)
+            .join('\n');
+        }
+        const t = pkCleanBlockText(b.content);
+        if (!t) return '';
+        if (b.type === 'h1') return `# ${t}`;
+        if (b.type === 'h2') return `## ${t}`;
+        if (b.type === 'h3') return `### ${t}`;
+        if (b.type === 'todo') return `- [${b.checked ? 'x' : ' '}] ${t}`;
+        if (b.type === 'bullet') return `- ${t}`;
+        if (b.type === 'quote' || b.type === 'callout') return `> ${t}`;
+        return t;
+      }).filter(Boolean).join('\n').slice(0, 7500);
+    }
 
     parts.push(
-      `\nACTIVE NOTE CONTEXT:\nTitle: ${activeNote.title || 'Untitled'}\nFolder: ${activeNote.folder || 'General'}\nTags: ${(activeNote.tags || []).join(', ') || 'none'}\nLocked: ${activeNote.locked ? 'yes' : 'no'}\nContent:\n${lines || '(empty note)'}`
+      `\nACTIVE NOTE CONTEXT:\nTitle: ${activeNote.title || 'Untitled'}\nFolder: ${activeNote.folder || 'General'}\nTags: ${(activeNote.tags || []).join(', ') || 'none'}\nLocked: ${activeNote.locked ? 'yes' : 'no'}\nEncrypted: ${activeNote.encryptedPayload ? 'yes' : 'no'}\nContent:\n${lines || '(empty note)'}`
     );
   } else if (pkGroqContextScope === 'vault' && typeof state !== 'undefined') {
     const noteSummaries = (state.notes || []).slice(0, 18).map(n => {
-      const preview = (n.blocks || []).map(b => pkCleanBlockText(b.content)).filter(Boolean).join(' ').slice(0, 220);
+      const preview = n.encryptedPayload
+        ? '[Encrypted AES-256-GCM note]'
+        : (n.blocks || []).map(b => {
+            if (!b || b.type === 'divider' || b.type === 'sketch') return '';
+            if (b.type === 'toggle') return [pkCleanBlockText(b.content), pkCleanBlockText(b.body)].filter(Boolean).join(' ');
+            if (b.type === 'table' && Array.isArray(b.rows)) return b.rows.flat().map(c => pkCleanBlockText(c)).filter(Boolean).join(' ');
+            return pkCleanBlockText(b.content);
+          }).filter(Boolean).join(' ').slice(0, 220);
       return `- "${n.title || 'Untitled'}" [${n.folder || 'General'}]${n.id === state.activeNoteId ? ' (ACTIVE)' : ''}: ${preview}`;
     }).join('\n');
 

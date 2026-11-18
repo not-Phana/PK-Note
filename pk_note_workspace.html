@@ -2786,9 +2786,9 @@
     </div>
   </div>
 
-  <!-- 6. PK Note AI Assistant Drawer (Direct Groq Cloud API · BYOK · Streaming · Workspace Actions) -->
-  <div id="pkGroqAssistantBackdrop" onclick="closeGroqAssistant()" class="hidden fixed inset-0 bg-black/60 z-[986] flex items-end sm:items-stretch sm:justify-end p-0 select-none">
-    <div onclick="event.stopPropagation()" class="w-full sm:w-[440px] max-w-full h-[92dvh] sm:h-full flex flex-col rounded-t-2xl sm:rounded-none bg-[var(--bg-panel)] border-t sm:border-t-0 sm:border-l border-[var(--border-strong)] shadow-2xl overflow-hidden">
+  <!-- 6. PK Note AI Assistant Drawer (Direct Groq Cloud API · BYOK · Silky Sidebar-Style Slide Drawer) -->
+  <div id="pkGroqAssistantBackdrop" onclick="closeGroqAssistant()" aria-hidden="true" class="pk-drawer-backdrop fixed inset-0 bg-black/60 z-[986] flex items-stretch justify-end p-0 select-none opacity-0 pointer-events-none invisible">
+    <aside id="pkGroqAssistantPanel" onclick="event.stopPropagation()" class="pk-drawer-panel w-full sm:w-[440px] max-w-full h-full flex flex-col bg-[var(--bg-panel)] border-l border-[var(--border-strong)] shadow-2xl overflow-hidden translate-x-full">
 
       <!-- Assistant Header -->
       <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0">
@@ -2895,7 +2895,7 @@
         </div>
       </div>
 
-    </div>
+    </aside>
   </div>
 
   <script src="./js/wasm-bridge.min.js" defer></script>

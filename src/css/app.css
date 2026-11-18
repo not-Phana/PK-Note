@@ -906,6 +906,14 @@ body.zen-active .block-row:focus-within {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Silky Sidebar-Matching Slide Drawer (Pure GPU transform + opacity — 60fps even on 2019 phones!) */
+.pk-drawer-backdrop {
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pk-drawer-panel {
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Study Deck Tactile Card & Vault Pulse Heatmap */
 .pk-study-card {
   transition: transform 0.16s ease, border-color 0.16s ease;

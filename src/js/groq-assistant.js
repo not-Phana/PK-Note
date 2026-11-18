@@ -95,6 +95,8 @@ function setGroqContextScope(scope) {
   }
 }
 
+let pkGroqDrawerOpen = false;
+
 function openGroqAssistant(autoShowSettings = false) {
   syncGroqHeaderAndSettingsUI();
   const cfg = loadGroqConfig();
@@ -105,16 +107,41 @@ function openGroqAssistant(autoShowSettings = false) {
   }
   renderGroqMessages();
   const backdrop = document.getElementById('pkGroqAssistantBackdrop');
-  if (backdrop) backdrop.classList.remove('hidden');
+  const panel = document.getElementById('pkGroqAssistantPanel');
+  if (backdrop && panel) {
+    pkGroqDrawerOpen = true;
+    backdrop.setAttribute('aria-hidden', 'false');
+    backdrop.classList.remove('invisible', 'pointer-events-none');
+    // Force compositor start frame so transform glides smoothly in from right edge just like sidebars!
+    requestAnimationFrame(() => {
+      backdrop.classList.remove('opacity-0');
+      backdrop.classList.add('opacity-100');
+      panel.classList.remove('translate-x-full');
+      panel.classList.add('translate-x-0');
+    });
+  }
   if (cfg.apiKey && window.innerWidth >= 768) {
     const inp = document.getElementById('pkGroqPromptInput');
-    if (inp) setTimeout(() => inp.focus(), 40);
+    if (inp) setTimeout(() => inp.focus(), 220);
   }
 }
 
 function closeGroqAssistant() {
   const backdrop = document.getElementById('pkGroqAssistantBackdrop');
-  if (backdrop) backdrop.classList.add('hidden');
+  const panel = document.getElementById('pkGroqAssistantPanel');
+  pkGroqDrawerOpen = false;
+  if (panel) {
+    panel.classList.remove('translate-x-0');
+    panel.classList.add('translate-x-full');
+  }
+  if (backdrop) {
+    backdrop.setAttribute('aria-hidden', 'true');
+    backdrop.classList.remove('opacity-100');
+    backdrop.classList.add('opacity-0', 'pointer-events-none');
+    setTimeout(() => {
+      if (!pkGroqDrawerOpen) backdrop.classList.add('invisible');
+    }, 240);
+  }
 }
 
 function toggleGroqSettingsPanel() {
@@ -684,13 +711,11 @@ async function sendGroqPrompt(overrideText) {
 document.addEventListener('keydown', (e) => {
   if (e.altKey && (e.key === 'a' || e.key === 'A')) {
     e.preventDefault();
-    const bd = document.getElementById('pkGroqAssistantBackdrop');
-    if (bd && !bd.classList.contains('hidden')) closeGroqAssistant();
+    if (pkGroqDrawerOpen) closeGroqAssistant();
     else openGroqAssistant();
     return;
   }
-  if (e.key === 'Escape') {
-    const bd = document.getElementById('pkGroqAssistantBackdrop');
-    if (bd && !bd.classList.contains('hidden')) closeGroqAssistant();
+  if (e.key === 'Escape' && pkGroqDrawerOpen) {
+    closeGroqAssistant();
   }
 });

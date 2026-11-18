@@ -348,6 +348,12 @@
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
 
+          <!-- PK Special Studio Button (Vault Lock · Habits · Sketchpad · Spotlight — Alt+P) -->
+          <button type="button" onclick="openSpecialStudio()" id="desktopSpecialStudioBtn" title="PK Special Studio · Vault, Habits, Sketch, Cinema (Alt+P)" class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] hover:text-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)]/50 font-mono text-[10px] font-semibold transition-colors cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5 shrink-0 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span class="hidden lg:inline">SPECIAL</span>
+          </button>
+
           <!-- PK AI Assistant Button (Groq · NVIDIA · Local — Alt+A) -->
           <button onclick="openGroqAssistant()" id="headerGroqAiBtn" title="PK AI Assistant · Groq / NVIDIA / Local (Alt+A)" class="w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/40 hover:border-[var(--accent-vermilion)] font-mono text-[10px] font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer shrink-0">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></svg>
@@ -2071,6 +2077,14 @@
               </div>
             </button>
 
+            <button onclick="closeMobileMoreSheet(); openSpecialStudio()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--accent-vermilion-tint)] hover:bg-[var(--bg-hover)] border border-[var(--accent-vermilion)]/40 text-left transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <div class="min-w-0">
+                <div class="font-medium text-[var(--accent-vermilion)] truncate">Special Studio</div>
+                <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Vault · Habits · Sketch</div>
+              </div>
+            </button>
+
             <button onclick="closeMobileMoreSheet(); openGroqAssistant()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--accent-vermilion-tint)] hover:bg-[var(--bg-hover)] border border-[var(--accent-vermilion)]/40 text-left transition-colors cursor-pointer">
               <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></svg>
               <div class="min-w-0">
@@ -3033,9 +3047,198 @@
     </aside>
   </div>
 
+  <!-- 7. PK Special Studio Slide-Over Drawer (AES-256 Vault Lock · Daily Habits · Canvas Sketchpad · Spotlight Teleprompter) -->
+  <div id="pkSpecialStudioBackdrop" onclick="closeSpecialStudio()" aria-hidden="true" class="pk-drawer-backdrop fixed inset-0 bg-black/60 z-[987] flex items-stretch justify-end p-0 select-none opacity-0 pointer-events-none invisible">
+    <aside id="pkSpecialStudioPanel" onclick="event.stopPropagation()" class="pk-drawer-panel w-full sm:w-[440px] max-w-full h-full flex flex-col bg-[var(--bg-panel)] border-l border-[var(--border-strong)] shadow-2xl overflow-hidden translate-x-full">
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </span>
+          <div class="min-w-0">
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">PK Special Studio</div>
+            <div class="font-mono text-[9.5px] text-[var(--text-tertiary)] truncate">Vault · Habits · Sketch · Cinema</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeSpecialStudio()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+      </div>
+
+      <!-- 4-Way Feature Switcher -->
+      <div class="px-3.5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0">
+        <div class="grid grid-cols-4 gap-1 font-mono text-[10px]">
+          <button type="button" id="pkSpecTabVault" onclick="setSpecialStudioTab('vault')" class="px-2 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Vault</button>
+          <button type="button" id="pkSpecTabHabits" onclick="setSpecialStudioTab('habits')" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Habits</button>
+          <button type="button" id="pkSpecTabSketch" onclick="setSpecialStudioTab('sketch')" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Sketch</button>
+          <button type="button" id="pkSpecTabSpotlight" onclick="setSpecialStudioTab('spotlight')" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Cinema</button>
+        </div>
+      </div>
+
+      <!-- Body Views -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4 text-xs select-text">
+
+        <!-- VIEW 1: Secret Vault Lock (Real AES-256-GCM Encryption) -->
+        <div id="pkSpecViewVault" class="space-y-3">
+          <div class="p-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <div id="pkVaultNoteTitle" class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Active Note</div>
+              <span id="pkVaultStatusBadge" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9px] text-[var(--text-tertiary)]">UNENCRYPTED</span>
+            </div>
+            <p id="pkVaultStatusDesc" class="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
+              Seal this note with real browser Web Crypto AES-256-GCM encryption. Your passphrase is never stored anywhere.
+            </p>
+            <div class="space-y-1.5 pt-1">
+              <label for="pkVaultPassInput" class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold block">Passphrase (100,000 PBKDF2-SHA256 rounds)</label>
+              <div class="flex items-center gap-1.5">
+                <input type="text"
+                       id="pkVaultPassInput"
+                       autocomplete="off"
+                       autocapitalize="off"
+                       spellcheck="false"
+                       placeholder="Enter secret passphrase..."
+                       class="pk-key-masked select-text flex-1 min-w-0 px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+                <button type="button" id="pkVaultPassRevealBtn" onclick="toggleVaultPassVisibility()" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)] cursor-pointer shrink-0">Show</button>
+              </div>
+            </div>
+            <div class="pt-1 flex items-center gap-2">
+              <button type="button" id="pkVaultEncryptBtn" onclick="encryptActiveNoteWithVault()" class="flex-1 py-2 px-3 rounded-[4px] bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold cursor-pointer">Seal &amp; Encrypt Note</button>
+              <button type="button" id="pkVaultDecryptBtn" onclick="decryptActiveNoteWithVault()" class="hidden flex-1 py-2 px-3 rounded-[4px] bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold cursor-pointer">Decrypt &amp; Unlock Note</button>
+            </div>
+          </div>
+          <div class="px-3 py-2 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed">
+            Zero-knowledge: if you forget the passphrase, the encrypted note cannot be recovered.
+          </div>
+        </div>
+
+        <!-- VIEW 2: Daily Habits & 1-Tap Daily Briefing -->
+        <div id="pkSpecViewHabits" class="hidden space-y-3">
+          <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2">
+            <div class="flex items-center justify-between font-mono text-[10px]">
+              <span class="uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Today's Progress</span>
+              <span id="pkHabitsProgressText" class="text-[var(--accent-vermilion)] font-semibold">0/3 done today</span>
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-[var(--bg-panel)] overflow-hidden">
+              <div id="pkHabitsProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-200" style="width: 0%"></div>
+            </div>
+            <button type="button" onclick="createDailyBriefingNote()" class="w-full mt-1 py-1.5 px-3 rounded-[4px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--bg-hover)] border border-[var(--accent-vermilion)]/40 font-mono text-[10.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer">
+              + Stamp Today's Daily Briefing Note (Calendar + Habits)
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <input type="text"
+                   id="pkHabitAddInput"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addSpecialHabit();}"
+                   placeholder="Add a daily habit..."
+                   class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-sans text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="addSpecialHabit()" class="px-3 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-semibold cursor-pointer shrink-0">Add</button>
+          </div>
+
+          <div id="pkHabitsList" class="space-y-2">
+            <!-- Rendered by renderHabitsPanel() -->
+          </div>
+        </div>
+
+        <!-- VIEW 3: Interactive Canvas Sketchpad -->
+        <div id="pkSpecViewSketch" class="hidden space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="setSpecialSketchColor('#D95338')" title="Vermilion" class="w-5 h-5 rounded-full bg-[#D95338] border border-white/40 cursor-pointer"></button>
+              <button type="button" onclick="setSpecialSketchColor('#18181B')" title="Ink Black" class="w-5 h-5 rounded-full bg-[#18181B] border border-[var(--border-strong)] cursor-pointer"></button>
+              <button type="button" onclick="setSpecialSketchColor('#F4F4F5')" title="Chalk White" class="w-5 h-5 rounded-full bg-[#F4F4F5] border border-[var(--border-strong)] cursor-pointer"></button>
+              <button type="button" onclick="setSpecialSketchColor('#C88D32')" title="Ochre" class="w-5 h-5 rounded-full bg-[#C88D32] border border-white/40 cursor-pointer"></button>
+              <button type="button" onclick="setSpecialSketchColor('#10B981')" title="Emerald" class="w-5 h-5 rounded-full bg-[#10B981] border border-white/40 cursor-pointer"></button>
+            </div>
+            <div class="flex items-center gap-1 font-mono text-[9.5px]">
+              <button type="button" onclick="setSpecialSketchSize(2)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Fine</button>
+              <button type="button" onclick="setSpecialSketchSize(4)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Med</button>
+              <button type="button" onclick="setSpecialSketchSize(8)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Bold</button>
+              <button type="button" id="pkSketchEraserBtn" onclick="toggleSpecialSketchEraser()" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Erase</button>
+            </div>
+          </div>
+
+          <canvas id="pkSpecialSketchCanvas" style="touch-action: none; height: 260px;" class="w-full rounded-lg border border-[var(--border-strong)] cursor-crosshair block"></canvas>
+
+          <div class="flex items-center justify-between gap-1.5 font-mono text-[10px]">
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="undoSpecialSketchStroke()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Undo</button>
+              <button type="button" onclick="toggleSpecialSketchGrid()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Grid</button>
+              <button type="button" onclick="clearSpecialSketch()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-rose-500 cursor-pointer">Clear</button>
+            </div>
+            <button type="button" onclick="downloadSpecialSketchPng()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">PNG</button>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <input type="text"
+                   id="pkSketchCaptionInput"
+                   placeholder="Optional sketch caption..."
+                   class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="insertSpecialSketchIntoNote()" class="px-3 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10.5px] font-semibold cursor-pointer shrink-0">Insert into Note</button>
+          </div>
+        </div>
+
+        <!-- VIEW 4: Spotlight Teleprompter Cinema Reader -->
+        <div id="pkSpecViewSpotlight" class="hidden space-y-3">
+          <div class="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-3">
+            <div class="space-y-1">
+              <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--accent-vermilion)] font-semibold">Spotlight Cinema Mode</div>
+              <div id="pkSpotlightPreviewTitle" class="font-serif font-semibold text-base text-[var(--text-primary)] truncate">Active Note</div>
+              <div id="pkSpotlightPreviewMeta" class="font-mono text-[10px] text-[var(--text-tertiary)]">0 words · ~1 min read</div>
+            </div>
+            <p class="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
+              Full-screen distraction-free teleprompter with smooth variable-speed auto-scroll (Space to pause), font scaling, mirror flip for prompter glass, and 1-tap Kokoro voice sync.
+            </p>
+            <button type="button" onclick="launchSpotlightReader()" class="w-full py-2 px-3 rounded-[4px] bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold cursor-pointer">Launch Spotlight Teleprompter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Dock to Existing Craft Tools -->
+      <div class="px-3.5 py-2.5 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0">
+        <div class="font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5">More Special Tools</div>
+        <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+          <button type="button" onclick="closeSpecialStudio(); openStudyDeckModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Study Deck</button>
+          <button type="button" onclick="closeSpecialStudio(); openSoundscapeModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Soundscapes</button>
+          <button type="button" onclick="closeSpecialStudio(); openTimeCapsuleModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Time-Capsule</button>
+          <button type="button" onclick="closeSpecialStudio(); openVaultPulseModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Vault Pulse</button>
+          <button type="button" onclick="closeSpecialStudio(); toggleScratchpadDrawer()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Scratchpad</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 8. Full-Screen Spotlight Teleprompter Cinema Overlay -->
+  <div id="pkSpotlightOverlay" class="hidden fixed inset-0 z-[995] bg-[#0B0B0D] text-[#F4F1EA] flex flex-col select-text">
+    <!-- Top Control Strip -->
+    <div class="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-2 bg-[#111114] shrink-0 select-none">
+      <div class="flex items-center gap-1.5 font-mono text-[10.5px]">
+        <button type="button" id="pkSpotlightPlayBtn" onclick="toggleSpotlightAutoScroll()" class="px-3 py-1 rounded-[4px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Auto-Scroll</button>
+        <button type="button" onclick="adjustSpotlightSpeed(-0.2)" class="px-2 py-1 rounded-[4px] bg-white/10 hover:bg-white/15 text-white cursor-pointer">-</button>
+        <span id="pkSpotlightSpeedLbl" class="px-1.5 text-white/80">1.0x</span>
+        <button type="button" onclick="adjustSpotlightSpeed(0.2)" class="px-2 py-1 rounded-[4px] bg-white/10 hover:bg-white/15 text-white cursor-pointer">+</button>
+      </div>
+      <div class="flex items-center gap-1.5 font-mono text-[10.5px]">
+        <button type="button" onclick="adjustSpotlightFont(-4)" class="px-2 py-1 rounded-[4px] bg-white/10 hover:bg-white/15 text-white cursor-pointer">A-</button>
+        <button type="button" onclick="adjustSpotlightFont(4)" class="px-2 py-1 rounded-[4px] bg-white/10 hover:bg-white/15 text-white cursor-pointer">A+</button>
+        <button type="button" id="pkSpotlightMirrorBtn" onclick="toggleSpotlightMirror()" class="px-2.5 py-1 rounded-[4px] bg-white/10 hover:bg-white/15 text-white/80 cursor-pointer">Mirror</button>
+        <button type="button" onclick="speakFromSpotlightReader()" class="px-2.5 py-1 rounded-[4px] bg-white/10 hover:bg-white/15 text-[var(--accent-vermilion)] font-semibold cursor-pointer">Speak</button>
+        <button type="button" onclick="closeSpotlightReader()" class="px-2.5 py-1 rounded-[4px] bg-white/10 hover:bg-rose-500/80 text-white cursor-pointer">Exit</button>
+      </div>
+    </div>
+
+    <!-- Subtle Reading Guide Line -->
+    <div class="relative flex-1 overflow-hidden">
+      <div class="pointer-events-none absolute inset-x-0 top-[28%] h-px bg-[var(--accent-vermilion)]/35 z-10"></div>
+      <div id="pkSpotlightScroller" class="h-full overflow-y-auto px-6 sm:px-12 py-12">
+        <div id="pkSpotlightContent" class="max-w-3xl mx-auto font-sans"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="./js/wasm-bridge.min.js" defer></script>
   <script src="./js/app.min.js" defer></script>
   <script src="./js/special-craft.min.js" defer></script>
+  <script src="./js/special-studio.min.js" defer></script>
   <script src="./js/ai-memory.min.js" defer></script>
   <script src="./js/groq-assistant.min.js" defer></script>
 </body>

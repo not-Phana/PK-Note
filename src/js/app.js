@@ -2771,6 +2771,33 @@ function updateWordCount(note) {
 
 function renderBlocks(note) {
   const container = document.getElementById('blocksContainer');
+  if (note && note.encryptedPayload) {
+    container.innerHTML = `
+      <div class="my-6 p-5 rounded-xl bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/40 space-y-3 text-center max-w-md mx-auto select-text">
+        <div class="w-10 h-10 mx-auto rounded-lg bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div class="space-y-1">
+          <div class="font-serif font-semibold text-base text-[var(--text-primary)]">Vault-Encrypted Note</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Protected with AES-256-GCM · PBKDF2-SHA256</div>
+        </div>
+        <div class="flex items-center gap-1.5 pt-1">
+          <input type="text"
+                 id="pkInlineVaultPassInput"
+                 autocomplete="off"
+                 autocapitalize="off"
+                 spellcheck="false"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();decryptActiveNoteWithVault();}"
+                 placeholder="Enter passphrase..."
+                 class="pk-key-masked select-text flex-1 min-w-0 px-3 py-1.5 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+          <button type="button" onclick="decryptActiveNoteWithVault()" class="px-3 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold cursor-pointer shrink-0">Unlock</button>
+        </div>
+      </div>
+    `;
+    renderDocKnowledgeRadar(note);
+    if (typeof applyNoteLockVisuals === 'function') applyNoteLockVisuals(note);
+    return;
+  }
   container.innerHTML = note.blocks.map((block, index) => renderSingleBlockHTML(block, index)).join('');
   renderDocKnowledgeRadar(note);
   if (typeof applyNoteLockVisuals === 'function') applyNoteLockVisuals(note);
@@ -2948,6 +2975,18 @@ function renderSingleBlockHTML(block) {
                oninput="handleCodeInput(event, '${block.id}')"
                onkeydown="handleCodeKeydown(event, '${block.id}')"
                class="p-3.5 text-[12.5px] leading-relaxed text-[var(--code-text)] overflow-x-auto focus:outline-none whitespace-pre">${escapeHtml(block.content || '')}</pre>
+        </div>
+      `;
+      break;
+
+    case 'sketch':
+      innerBlock = `
+        <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden">
+          <img src="${block.imageData || ''}" alt="${escapeHtml(block.content || 'Sketch')}" class="w-full max-h-[340px] object-contain bg-[var(--bg-canvas)] block" />
+          <div class="px-3 py-1.5 border-t border-[var(--border-hairline)] flex items-center justify-between gap-2 font-mono text-[10px] text-[var(--text-tertiary)]">
+            <span class="truncate">${escapeHtml(block.content || 'Canvas Sketch')}</span>
+            <button type="button" onclick="deleteBlock('${block.id}')" class="hover:text-rose-500 cursor-pointer shrink-0">Remove</button>
+          </div>
         </div>
       `;
       break;
@@ -5339,6 +5378,11 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: 'Find & Replace in Active Note', hint: 'Search text across all blocks with match navigation & replace all', glyph: 'search', shortcut: 'Ctrl+H', run: () => openFindReplaceBar() },
     { kind: 'action', label: 'Note Templates Gallery', hint: 'Create or insert structured Meeting, Journal, Study, Project & Book templates', glyph: 'document', shortcut: 'Tpl', run: () => openTemplatesModal() },
     { kind: 'action', label: 'Pomodoro Focus Timer', hint: '25m / 50m study & deep work timer with chime & session tracker', glyph: 'clock', shortcut: 'Timer', run: () => openFocusTimerModal() },
+    { kind: 'action', label: 'PK Special Studio (Vault · Habits · Sketch · Cinema)', hint: 'AES-256 Vault Lock, Daily Habits, Canvas Sketchpad & Spotlight Teleprompter (Alt+P)', glyph: 'sparkles', shortcut: 'Alt+P', run: () => openSpecialStudio() },
+    { kind: 'action', label: 'Special: Secret Vault Lock (AES-256-GCM)', hint: 'Encrypt or decrypt active note with real Web Crypto passphrase protection', glyph: 'alert', shortcut: 'Vault', run: () => openSpecialStudio('vault') },
+    { kind: 'action', label: 'Special: Daily Habits & Briefing Generator', hint: '7-day streak matrix + 1-tap Daily Briefing note with calendar events', glyph: 'checkSquare', shortcut: 'Habits', run: () => openSpecialStudio('habits') },
+    { kind: 'action', label: 'Special: Canvas Sketchpad', hint: 'Draw diagrams or doodles with mouse or finger and drop straight into your note', glyph: 'document', shortcut: 'Draw', run: () => openSpecialStudio('sketch') },
+    { kind: 'action', label: 'Special: Spotlight Teleprompter Reader', hint: 'Full-screen auto-scroll cinema reader with mirror mode & voice sync', glyph: 'compass', shortcut: 'Cinema', run: () => launchSpotlightReader() },
     { kind: 'action', label: 'Study Deck: Auto Flashcards from Notes', hint: 'Interactive spaced-recall flashcards generated from your note or vault', glyph: 'grid', shortcut: 'Study', run: () => openStudyDeckModal() },
     { kind: 'action', label: 'Focus Soundscapes (Rain, Fire, Brown Noise)', hint: '0 MB procedural offline Web Audio ambiance for deep focus', glyph: 'volume', shortcut: 'Sound', run: () => openSoundscapeModal() },
     { kind: 'action', label: 'Time-Capsule: Note Snapshots & Diff', hint: 'Stamp versions, inspect line diffs, and restore any snapshot safely', glyph: 'clock', shortcut: 'History', run: () => openTimeCapsuleModal() },
@@ -10958,6 +11002,7 @@ function exportCurrentNoteMarkdown() {
       case 'quote': lines.push('> ' + c, ''); break;
       case 'callout': lines.push('> [!NOTE]', '> ' + c, ''); break;
       case 'code': lines.push('```' + (b.language || ''), c, '```', ''); break;
+      case 'sketch': lines.push(`![${c || 'Sketch'}](${b.imageData || ''})`, ''); break;
       case 'divider': lines.push('---', ''); break;
       default: lines.push(c, ''); break;
     }

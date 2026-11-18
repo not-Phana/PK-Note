@@ -49,6 +49,7 @@ const jsFiles = [
   ['src/js/wasm-bridge.js', 'js/wasm-bridge.min.js'],
   ['src/js/app.js', 'js/app.min.js'],
   ['src/js/special-craft.js', 'js/special-craft.min.js'],
+  ['src/js/special-studio.js', 'js/special-studio.min.js'],
   ['src/js/groq-assistant.js', 'js/groq-assistant.min.js']
 ];
 for (const [src, dst] of jsFiles) {

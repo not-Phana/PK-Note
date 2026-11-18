@@ -494,7 +494,28 @@ const SLASH_COMMANDS = [
   { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
 ];
 
+let pendingStateDirty = false;
+
+function flushPersistStateNow() {
+  if (!pendingStateDirty) return;
+  clearTimeout(saveTimer);
+  pendingStateDirty = false;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const indicator = document.getElementById('saveIndicator');
+    if (indicator) {
+      indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--text-tertiary)]"></span>SYNCED`;
+    }
+  } catch (e) {}
+}
+
+window.addEventListener('pagehide', flushPersistStateNow);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPersistStateNow();
+});
+
 function persistState() {
+  pendingStateDirty = true;
   const indicator = document.getElementById('saveIndicator');
   if (indicator) {
     indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--accent-ochre)]"></span>SAVING`;
@@ -503,14 +524,7 @@ function persistState() {
   const delayMs = window.PK_LITE_MODE ? 650 : 280;
   saveTimer = setTimeout(() => {
     const doSave = () => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        if (indicator) {
-          indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--text-tertiary)]"></span>SYNCED`;
-        }
-      } catch (e) {
-        console.error('Persist failed:', e);
-      }
+      flushPersistStateNow();
     };
     if (typeof requestIdleCallback === 'function') {
       requestIdleCallback(doSave, { timeout: 1000 });
@@ -6329,10 +6343,9 @@ function getVoiceSettings() {
   if (!state.voiceSettings) {
     const isCompactPhone = typeof window !== 'undefined' && window.innerWidth < 1024;
     state.voiceSettings = {
-      engine: 'device',          // 'device' (Instant Natural · 0 MB · No Download!) | 'kokoro' (Optional Offline AI)
-      voiceDefaultMigratedV2: true,
-      kokoroVoiceId: 'af_heart', // Flagship Grade-A natural Kokoro-82M voice
-      kokoroQuant: isCompactPhone ? 'q8' : 'fp16', // q8 on phones (low RAM, crash-safe) | fp16 Studio HD on desktop
+      engine: 'device',          // 'device' (Instant Natural · 0 MB) | 'kokoro' (Offline AI · Mimi, Heart, etc.)
+      kokoroVoiceId: 'cute_mimi', // Natural expressive Kokoro voice
+      kokoroQuant: isCompactPhone ? 'q8' : 'fp16', // q8 on phones (crash-safe) | fp16 Studio HD on desktop
       voiceURI: '',
       voiceName: '',
       rate: 1.0,
@@ -6341,25 +6354,16 @@ function getVoiceSettings() {
       autoScroll: true
     };
   }
-  // One-time migration so users aren't forced to download 156 MB unless they opt into Offline Kokoro AI
-  if (!state.voiceSettings.voiceDefaultMigratedV2) {
-    state.voiceSettings.voiceDefaultMigratedV2 = true;
-    if (!kokoroIsCachedLocally) {
-      state.voiceSettings.engine = 'device';
-    }
-  }
-  // One-time recovery for phones previously auto-bounced to slow Kokoro WASM before Android Google TTS detection fix
-  if (!state.voiceSettings.voiceFastMobileFixV3) {
-    state.voiceSettings.voiceFastMobileFixV3 = true;
-    if (window.PK_LITE_MODE && kokoroEngineState !== 'ready') {
-      state.voiceSettings.engine = 'device';
-    }
-  }
+  // NEVER overwrite a user's saved engine ('kokoro' / Mimi) back to 'device' on reload!
   if (!state.voiceSettings.engine) state.voiceSettings.engine = 'device';
   if (!state.voiceSettings.kokoroVoiceId || !KOKORO_VOICE_CATALOG.some(v => v.id === state.voiceSettings.kokoroVoiceId)) {
-    state.voiceSettings.kokoroVoiceId = 'af_heart';
+    state.voiceSettings.kokoroVoiceId = 'cute_mimi';
   }
-  if (state.voiceSettings.kokoroQuant !== 'fp16' && state.voiceSettings.kokoroQuant !== 'q8') state.voiceSettings.kokoroQuant = 'fp16';
+  if (window.PK_LITE_MODE) {
+    state.voiceSettings.kokoroQuant = 'q8';
+  } else if (state.voiceSettings.kokoroQuant !== 'fp16' && state.voiceSettings.kokoroQuant !== 'q8') {
+    state.voiceSettings.kokoroQuant = 'fp16';
+  }
   // Migrate any old extreme chipmunk pitch values (> 1.14) back into the pure natural human range
   if (typeof state.voiceSettings.pitch === 'number' && state.voiceSettings.pitch > 1.14) {
     state.voiceSettings.pitch = 1.06;
@@ -6375,12 +6379,31 @@ function getSelectedKokoroVoice() {
   return KOKORO_VOICE_CATALOG.find(v => v.id === settings.kokoroVoiceId) || KOKORO_VOICE_CATALOG[0];
 }
 
+async function requestPersistentBrowserStorage() {
+  try {
+    if (navigator.storage && typeof navigator.storage.persist === 'function') {
+      const already = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+      if (!already) await navigator.storage.persist();
+    }
+  } catch (_) {}
+}
+
 async function checkKokoroCacheStatus() {
   try {
     if (!('caches' in window)) return false;
+    const settings = getVoiceSettings();
+    const targetQuant = (window.PK_LITE_MODE || settings.kokoroQuant === 'q8') ? 'q8' : 'fp16';
     const cache = await caches.open('transformers-cache');
     const keys = await cache.keys();
-    kokoroIsCachedLocally = keys.some(req => req.url && req.url.toLowerCase().includes('kokoro-82m'));
+    // Verify the actual .onnx model file for the active precision is cached (not just a small JSON config)
+    const quantPattern = targetQuant === 'q8' ? 'quantized' : 'fp16';
+    kokoroIsCachedLocally = keys.some(req => {
+      const u = (req.url || '').toLowerCase();
+      return u.includes('kokoro-82m') && u.includes('.onnx') && (u.includes(quantPattern) || u.includes(targetQuant));
+    }) || keys.some(req => {
+      const u = (req.url || '').toLowerCase();
+      return u.includes('kokoro-82m') && u.includes('.onnx');
+    });
     updateKokoroEngineUI();
     return kokoroIsCachedLocally;
   } catch (e) {
@@ -6506,8 +6529,10 @@ function setVoiceEngine(engine) {
   settings.engine = engine;
   renderVoiceCardsList();
   updateVoiceStudioHUDLabels();
-  setTimeout(() => persistState(), 0);
+  pendingStateDirty = true;
+  flushPersistStateNow();
   if (engine === 'kokoro') {
+    requestPersistentBrowserStorage();
     checkKokoroCacheStatus();
     showToast('Switched to Offline AI (Kokoro-82M)');
   } else {
@@ -6628,6 +6653,10 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
 
   kokoroLoadPromise = (async () => {
     try {
+      // Request persistent browser storage so Android Chrome does NOT evict the cached Kokoro AI model!
+      requestPersistentBrowserStorage();
+      const alreadyCached = await checkKokoroCacheStatus();
+
       let mod = null;
       try {
         mod = await import(KOKORO_ESM_URL);
@@ -6637,14 +6666,17 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
       const { KokoroTTS } = mod;
       if (!KokoroTTS) throw new Error('KokoroTTS export not found');
 
-      kokoroLoadProgressPct = 8;
+      kokoroLoadProgressPct = alreadyCached ? 45 : 8;
       const expectedMB = targetQuant === 'fp16' ? 156 : 88;
-      kokoroLoadStatusText = targetQuant === 'fp16'
-        ? 'Downloading Kokoro-82M Studio HD (156 MB once)...'
-        : 'Downloading Kokoro-82M Fast q8 (88 MB once)...';
+      const activeVoiceName = getSelectedKokoroVoice().name;
+      kokoroLoadStatusText = alreadyCached
+        ? `Loading ${activeVoiceName} from device cache (0 MB download)...`
+        : (targetQuant === 'fp16'
+            ? 'Downloading Kokoro-82M Studio HD (156 MB once)...'
+            : 'Downloading Kokoro-82M Fast q8 (88 MB once)...');
       updateKokoroEngineUI();
-      updateKokoroHudProgress(true, 8);
-      updateVoiceStudioHUDLabels(`Downloading 8% (0/${expectedMB} MB)`);
+      updateKokoroHudProgress(true, kokoroLoadProgressPct);
+      updateVoiceStudioHUDLabels(alreadyCached ? `Loading ${activeVoiceName} from cache...` : `Downloading 8% (0/${expectedMB} MB)`);
 
       const tts = await KokoroTTS.from_pretrained(KOKORO_MODEL_ID, {
         dtype: targetQuant,
@@ -6664,24 +6696,30 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
               const loadedMB = (info.loaded / (1024 * 1024)).toFixed(0);
               const totalMB = (info.total / (1024 * 1024)).toFixed(0);
               kokoroLoadProgressPct = Math.max(8, Math.min(98, pct));
-              kokoroLoadStatusText = `Downloading ${Math.round(kokoroLoadProgressPct)}% (${loadedMB}/${totalMB} MB)`;
-              hudStatus = `${Math.round(kokoroLoadProgressPct)}% · ${loadedMB}/${totalMB} MB`;
+              kokoroLoadStatusText = alreadyCached
+                ? `Loading from cache ${Math.round(kokoroLoadProgressPct)}%...`
+                : `Downloading ${Math.round(kokoroLoadProgressPct)}% (${loadedMB}/${totalMB} MB)`;
+              hudStatus = alreadyCached
+                ? `Loading cache ${Math.round(kokoroLoadProgressPct)}%`
+                : `${Math.round(kokoroLoadProgressPct)}% · ${loadedMB}/${totalMB} MB`;
             } else {
               fileProgressMap.set(fileKey, { loaded: info.loaded || pct, total: info.total || 100 });
               if (kokoroLoadProgressPct < 12) kokoroLoadProgressPct = 10;
-              kokoroLoadStatusText = `Preparing tokenizer (${fileKey.split('/').pop()})...`;
-              hudStatus = 'Preparing tokenizer...';
+              kokoroLoadStatusText = alreadyCached
+                ? `Loading ${activeVoiceName} voice data...`
+                : `Preparing tokenizer (${fileKey.split('/').pop()})...`;
+              hudStatus = alreadyCached ? `Loading ${activeVoiceName}...` : 'Preparing tokenizer...';
             }
           } else if (info.status === 'done') {
             if (fileKey.includes('.onnx')) {
               kokoroLoadProgressPct = 99;
-              kokoroLoadStatusText = 'Compiling neural engine (almost ready)...';
-              hudStatus = 'Compiling WASM engine...';
+              kokoroLoadStatusText = `Warming up ${activeVoiceName} neural engine...`;
+              hudStatus = `Warming up ${activeVoiceName}...`;
             }
           } else if (info.status === 'ready') {
             kokoroLoadProgressPct = 100;
             kokoroLoadStatusText = 'Kokoro-82M Ready (Cached Offline)';
-            hudStatus = 'Kokoro-82M Ready!';
+            hudStatus = `${activeVoiceName} Ready!`;
           }
 
           // Throttle DOM updates to ~8fps so phone downloads run at max speed without jank
@@ -7319,7 +7357,8 @@ function selectKokoroVoice(voiceId, autoAudition = false) {
   if (typeof pkHaptic === 'function') pkHaptic(6);
   const tag = voice.category === 'cute' ? 'Cute' : (voice.gender === 'male' ? 'Male' : 'Female');
   showToast(`Selected ${voice.name} (${tag} · ${voice.accent})`);
-  persistState();
+  pendingStateDirty = true;
+  flushPersistStateNow();
   clearKokoroPrefetchCache();
 
   // Only run Kokoro WASM synthesis when user explicitly taps "Test" — never freeze UI while switching!
@@ -7570,7 +7609,9 @@ async function testKokoroVoice(voiceId = null) {
   showToast(
     kokoroEngineState === 'ready'
       ? `Preparing ${voiceMeta.name}...`
-      : `Loading Kokoro-82M to test ${voiceMeta.name}...`,
+      : (kokoroIsCachedLocally
+          ? `Warming up cached ${voiceMeta.name} (0 MB)...`
+          : `Downloading AI engine once for ${voiceMeta.name}...`),
     'ochre'
   );
 

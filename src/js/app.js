@@ -6309,13 +6309,19 @@ let pkKokoroAudioEl = null;
 let pkKokoroAudioUnlocked = false;
 let pkVoiceAudioCtx = null;
 let pkVoiceAudioSource = null;
-const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 function getKokoroAudioElement() {
   if (!pkKokoroAudioEl) {
-    pkKokoroAudioEl = new Audio();
+    pkKokoroAudioEl = document.createElement('audio');
+    pkKokoroAudioEl.id = 'pkKokoroAudioElement';
     pkKokoroAudioEl.preload = 'auto';
+    pkKokoroAudioEl.volume = 1.0;
+    pkKokoroAudioEl.muted = false;
+    pkKokoroAudioEl.style.display = 'none';
     pkKokoroAudioEl.setAttribute('playsinline', '');
+    pkKokoroAudioEl.setAttribute('webkit-playsinline', '');
+    if (document.body) document.body.appendChild(pkKokoroAudioEl);
   }
   return pkKokoroAudioEl;
 }
@@ -6328,7 +6334,7 @@ function stopVoiceAudioCtxSource() {
 }
 
 // Dual-unlock HTML5 <audio> AND Web Audio AudioContext synchronously inside the user's tap gesture!
-// IMPORTANT: Always call AFTER stopReadingAloud() so stopReadingAloud() never aborts the unlock!
+// IMPORTANT: Only call for Kokoro playback (NEVER during speechSynthesis, so Android AudioFocus isn't stolen!)
 function unlockMobileAudioElement() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -6337,12 +6343,20 @@ function unlockMobileAudioElement() {
       if (pkVoiceAudioCtx.state === 'suspended') {
         pkVoiceAudioCtx.resume().catch(() => {});
       }
+      // Play 1-sample silent buffer synchronously inside tap gesture (required by older Android/iOS Chrome!)
+      const silentBuf = pkVoiceAudioCtx.createBuffer(1, 1, 22050);
+      const src = pkVoiceAudioCtx.createBufferSource();
+      src.buffer = silentBuf;
+      src.connect(pkVoiceAudioCtx.destination);
+      src.start(0);
     }
   } catch (_) {}
 
   if (pkKokoroAudioUnlocked) return;
   try {
     const audio = getKokoroAudioElement();
+    audio.muted = false;
+    audio.volume = 1.0;
     audio.src = SILENT_WAV_DATA_URI;
     const p = audio.play();
     if (p && typeof p.then === 'function') {
@@ -6404,7 +6418,14 @@ function getVoiceSettings() {
       autoScroll: true
     };
   }
-  // NEVER overwrite a user's saved engine ('kokoro' / Mimi) back to 'device' on reload!
+  // One-time recovery on Android phones previously auto-switched to Kokoro when Chromium Android voices were filtered out
+  const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
+  if (isAndroid && !state.voiceSettings.voiceAndroidSoundFixV4) {
+    state.voiceSettings.voiceAndroidSoundFixV4 = true;
+    if (kokoroEngineState !== 'ready') {
+      state.voiceSettings.engine = 'device';
+    }
+  }
   if (!state.voiceSettings.engine) state.voiceSettings.engine = 'device';
   if (!state.voiceSettings.kokoroVoiceId || !KOKORO_VOICE_CATALOG.some(v => v.id === state.voiceSettings.kokoroVoiceId)) {
     state.voiceSettings.kokoroVoiceId = 'cute_mimi';
@@ -7243,27 +7264,47 @@ function scoreNaturalDeviceVoice(voice) {
   return score;
 }
 
+const IS_ANDROID_BROWSER = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
+
 // ZERO-ROBOTIC-VOICE STRICT FILTER:
-// Only genuine Neural / Natural / Cloud-Network / WaveNet / Studio / Premium / Enhanced / Siri human voices pass!
+// Blocks EVERY robotic/legacy/compact voice across all OSes, while properly recognizing Chromium Android's
+// locale-named Google Speech Services voices (since Chromium Android hardcodes localService=true & hides metadata).
+function isExplicitlyRoboticVoice(voice) {
+  if (!voice) return true;
+  const name = (voice.name || '').toLowerCase();
+  const uri = (voice.voiceURI || '').toLowerCase();
+  const combined = `${name} ${uri}`;
+  if (/(espeak|compact|eloquence|flite|festival|pico|mbrola|sapi|samsung|desktop|-local\b|albert|bad news|bahh|bells|boing|bubbles|cellos|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|vicki|whisper|wobble|zarvox)/.test(combined)) {
+    return true;
+  }
+  if (name.includes('microsoft') && !/(natural|neural|online)/.test(combined)) {
+    return true;
+  }
+  return false;
+}
+
 function isTier1NaturalVoice(voice) {
-  if (!voice) return false;
+  if (!voice || isExplicitlyRoboticVoice(voice)) return false;
   const name = (voice.name || '').toLowerCase();
   const uri = (voice.voiceURI || '').toLowerCase();
   const combined = `${name} ${uri}`;
 
-  // Hard reject any local-compact / legacy Android / Samsung / desktop / robotic patterns even if labeled "Google"
-  if (/(espeak|compact|eloquence|flite|festival|pico|mbrola|sapi|samsung|desktop|-local\b|android\s+speech|albert|bad news|bahh|bells|boing|bubbles|cellos|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|vicki|whisper|wobble|zarvox)/.test(combined)) {
-    return false;
-  }
-  if (name.includes('microsoft') && !/(natural|neural|online)/.test(combined)) {
-    return false;
-  }
-
-  // Genuine cloud/network neural voices (localService === false, e.g. Chrome/Android -network WaveNet & Edge Online Natural)
+  // Genuine cloud/network neural voices (Edge Online Natural, Chrome Google Cloud, Android -network)
   if (voice.localService === false) return true;
 
   // Genuine high-definition local neural/enhanced voices (Apple Premium/Enhanced/Siri, Neural, Natural, WaveNet, Studio)
-  return /(natural|neural|online|premium|enhanced|siri|wavenet|studio|multilingual|-network\b)/.test(combined);
+  if (/(natural|neural|online|premium|enhanced|siri|wavenet|studio|multilingual|-network\b)/.test(combined)) {
+    return true;
+  }
+
+  // Chromium on Android (TtsPlatformImplAndroid) hardcodes localService=true and exposes Google Speech Services
+  // simply as locale display names like "English United States" / "English (United States)" without "Natural".
+  if (IS_ANDROID_BROWSER) {
+    const lang = (voice.lang || '').toLowerCase();
+    if (lang.startsWith('en') || voice.default) return true;
+  }
+
+  return false;
 }
 
 // Strictly identify & remove EVERY robotic / legacy / compact / un-enhanced system voice from PK Note!
@@ -7283,9 +7324,12 @@ function loadDetectedVoiceModels(forceRefresh = false) {
   const rawVoices = window.speechSynthesis.getVoices();
   if (rawVoices && rawVoices.length > 0) {
     const userLangPrefix = (navigator.language || 'en').slice(0, 2).toLowerCase();
-    // STRICT: ONLY Tier-1 Natural/Neural/Cloud-Network/Enhanced voices allowed — ZERO robotic fallbacks!
-    const naturalAll = rawVoices
-      .filter(v => isTier1NaturalVoice(v))
+    // Prefer cloud/network voices exclusively when present; on Android also allow Chromium's non-robotic Google locale voices!
+    const valid = rawVoices.filter(v => isTier1NaturalVoice(v));
+    const cloudOrNeural = valid.filter(v =>
+      v.localService === false || /(natural|neural|online|premium|enhanced|siri|wavenet|studio|-network\b)/i.test(`${v.name} ${v.voiceURI}`)
+    );
+    const naturalAll = (cloudOrNeural.length > 0 ? cloudOrNeural : valid)
       .sort((a, b) => scoreNaturalDeviceVoice(b) - scoreNaturalDeviceVoice(a));
 
     const primaryLang = naturalAll.filter(v => {
@@ -8143,17 +8187,20 @@ function playNextDeviceSpeechSentence(sessionId) {
   const settings = getVoiceSettings();
   let voice = getSelectedVoiceModel();
   if (!voice) {
-    // Force one fresh voice check in case browser populated voices late
     loadDetectedVoiceModels(true);
     voice = getSelectedVoiceModel();
   }
-  // ZERO ROBOTIC FALLBACK: Never speak with robotic OS default!
+  const rawVoiceList = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
+  const allowAndroidPendingBind = IS_ANDROID_BROWSER && rawVoiceList.length === 0;
+
+  // ZERO ROBOTIC FALLBACK on desktop/non-Android (or Android with only robotic voices):
   // Seamlessly hand off to off-main-thread Kokoro-82M Neural AI right away so the user's tap reads immediately!
-  if (!voice || !isTier1NaturalVoice(voice)) {
+  if (!allowAndroidPendingBind && (!voice || !isTier1NaturalVoice(voice))) {
+    unlockMobileAudioElement();
     settings.engine = 'kokoro';
     persistState();
     updateKokoroEngineUI();
-    showToast('Using Kokoro-82M Natural AI Voice (zero robotic voices)');
+    showToast('Using Kokoro-82M Natural AI Voice');
     playNextKokoroSentence(sessionId);
     return;
   }
@@ -8162,7 +8209,7 @@ function playNextDeviceSpeechSentence(sessionId) {
     highlightVoiceBlock(item.blockId);
   }
 
-  const shortName = voice.name
+  const shortName = voice && voice.name
     ? voice.name.replace(/Microsoft\s+|Online\s*\(Natural\)\s*-\s*English.*/gi, '').trim().slice(0, 18) || voice.name.slice(0, 18)
     : 'Natural';
   updateVoiceStudioHUDLabels(`${shortName} (${idx + 1}/${speechSentenceQueue.length})`);
@@ -8175,8 +8222,12 @@ function playNextDeviceSpeechSentence(sessionId) {
   const basePitch = settings.pitch || 1.0;
 
   const utterance = new SpeechSynthesisUtterance(item.text);
-  utterance.voice = voice;
-  if (voice.lang) utterance.lang = voice.lang;
+  if (voice) {
+    utterance.voice = voice;
+    if (voice.lang) utterance.lang = voice.lang;
+  } else {
+    utterance.lang = navigator.language || 'en-US';
+  }
   utterance.rate = Math.max(0.75, Math.min(1.5,
     isQuestion ? baseRate * 0.96
     : isExclamation ? baseRate * 1.03
@@ -8281,8 +8332,10 @@ function playNextSpeechSentence() {
 }
 
 function readTextAloud(text, title = 'Selection') {
+  const settings = getVoiceSettings();
   stopReadingAloud();
-  unlockMobileAudioElement();
+  // Only unlock HTML5/WebAudio for Kokoro — never steal Android AudioFocus when using Instant speechSynthesis!
+  if (settings.engine === 'kokoro') unlockMobileAudioElement();
 
   const clean = normalizeTextForNaturalSpeech(text);
   const chunks = splitTextIntoNaturalChunks(clean, window.PK_LITE_MODE ? 150 : 185);
@@ -8291,10 +8344,9 @@ function readTextAloud(text, title = 'Selection') {
     return;
   }
 
-  const settings = getVoiceSettings();
   if (settings.engine === 'device' && !('speechSynthesis' in window)) {
-    showToast('Speech synthesis not supported on this browser', 'ochre');
-    return;
+    settings.engine = 'kokoro';
+    unlockMobileAudioElement();
   }
 
   speechSentenceQueue = chunks.map(c => ({
@@ -8362,8 +8414,8 @@ function startReadingActiveNoteAloud() {
   }
 
   stopReadingAloud();
-  // MUST run AFTER stopReadingAloud() so stopReadingAloud() never aborts mobile audio unlock!
-  unlockMobileAudioElement();
+  // Only unlock HTML5/WebAudio for Kokoro — never steal Android AudioFocus when using Instant speechSynthesis!
+  if (settings.engine === 'kokoro') unlockMobileAudioElement();
 
   // Build clean, naturally normalized sentence queue from title & blocks
   const queue = [];

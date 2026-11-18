@@ -994,4 +994,142 @@ html.pk-lite-gpu .animate-ping {
   -webkit-touch-callout: default !important;
 }
 
+/* ============================================================================
+   PK MOTION ENGINE — 60fps PURE-GPU OPEN & CLOSE ANIMATIONS (ZERO BLUR LAG!)
+   Strict transform + opacity only so 2019 phones stay locked at 60fps.
+   ============================================================================ */
+
+/* 1. Center Modals (Backdrop fade + Inner Card Spring Lift & Scale) */
+.pk-motion-modal {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.pk-motion-modal > * {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0) scale(0.955);
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+}
+.pk-motion-modal.pk-anim-open {
+  opacity: 1;
+}
+.pk-motion-modal.pk-anim-open > * {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.pk-motion-modal.pk-anim-closing {
+  opacity: 0;
+  pointer-events: none !important;
+  transition: opacity 0.17s ease;
+}
+.pk-motion-modal.pk-anim-closing > * {
+  opacity: 0;
+  transform: translate3d(0, 10px, 0) scale(0.965);
+  transition: transform 0.17s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease;
+}
+
+/* 2. Bottom Sheets (Backdrop fade + Inner Sheet Slide Up / Down) */
+.pk-motion-sheet {
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.pk-motion-sheet > * {
+  opacity: 0;
+  transform: translate3d(0, 38px, 0);
+  transition: transform 0.27s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.pk-motion-sheet.pk-anim-open {
+  opacity: 1;
+}
+.pk-motion-sheet.pk-anim-open > * {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+.pk-motion-sheet.pk-anim-closing {
+  opacity: 0;
+  pointer-events: none !important;
+  transition: opacity 0.18s ease;
+}
+.pk-motion-sheet.pk-anim-closing > * {
+  opacity: 0;
+  transform: translate3d(0, 32px, 0);
+  transition: transform 0.18s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease;
+}
+
+/* 3. Floating Surfaces (Scratchpad, Audio HUD, Selection Read Pill) */
+.pk-motion-float {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0) scale(0.965);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.pk-motion-float.pk-anim-open {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.pk-motion-float.pk-anim-closing {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0) scale(0.97);
+  pointer-events: none !important;
+  transition: transform 0.16s cubic-bezier(0.4, 0, 1, 1), opacity 0.15s ease;
+}
+
+/* 4. Crisp Popovers, Menus & Collapsible Drawer Panels */
+.pk-motion-popover {
+  opacity: 0;
+  transform: translate3d(0, -6px, 0) scale(0.965);
+  transform-origin: top center;
+  transition: transform 0.19s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease;
+}
+.pk-motion-popover.pk-anim-open {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.pk-motion-popover.pk-anim-closing {
+  opacity: 0;
+  transform: translate3d(0, -5px, 0) scale(0.97);
+  pointer-events: none !important;
+  transition: transform 0.13s cubic-bezier(0.4, 0, 1, 1), opacity 0.12s ease;
+}
+
+/* 5. Cinema Fullscreen Overlay (Spotlight Teleprompter) */
+.pk-motion-cinema {
+  opacity: 0;
+  transform: scale(0.975);
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+}
+.pk-motion-cinema.pk-anim-open {
+  opacity: 1;
+  transform: scale(1);
+}
+.pk-motion-cinema.pk-anim-closing {
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none !important;
+  transition: transform 0.18s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease;
+}
+
+/* 6. Mobile Sidebar Backdrops Smooth Fade */
+.pk-motion-backdrop {
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.pk-motion-backdrop.pk-anim-open {
+  opacity: 1;
+}
+.pk-motion-backdrop.pk-anim-closing {
+  opacity: 0;
+  pointer-events: none !important;
+  transition: opacity 0.18s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-motion-modal, .pk-motion-modal > *,
+  .pk-motion-sheet, .pk-motion-sheet > *,
+  .pk-motion-float, .pk-motion-popover,
+  .pk-motion-cinema, .pk-motion-backdrop {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+
 

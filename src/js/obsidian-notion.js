@@ -671,3 +671,183 @@ document.addEventListener('keydown', (e) => {
     closeDatabaseModal();
   }
 });
+
+// ============================================================================
+// 6. PK MOTION ENGINE — AUTOMATIC 60FPS PURE-GPU OPEN & CLOSE ANIMATIONS
+// Intercepts .classList hidden add/remove/toggle on all modals, sheets,
+// popovers & overlays so EVERY panel animates smoothly on BOTH open AND close!
+// ============================================================================
+(function initPKMotionEngine() {
+  const MOTION_REGISTRY = [
+    // Center Modals (Spring Lift & Scale + Smooth Backdrop Fade)
+    ['commandPaletteBackdrop', 'pk-motion-modal', 180],
+    ['pkDatabaseBackdrop', 'pk-motion-modal', 180],
+    ['voiceModelModalBackdrop', 'pk-motion-modal', 180],
+    ['pkStudyDeckBackdrop', 'pk-motion-modal', 180],
+    ['pkSoundscapeBackdrop', 'pk-motion-modal', 180],
+    ['pkTimeCapsuleBackdrop', 'pk-motion-modal', 180],
+    ['pkVaultPulseBackdrop', 'pk-motion-modal', 180],
+    ['focusTimerModalBackdrop', 'pk-motion-modal', 180],
+    ['templatesModalBackdrop', 'pk-motion-modal', 180],
+    ['eventModalBackdrop', 'pk-motion-modal', 180],
+    ['workspaceCustomizerModal', 'pk-motion-modal', 180],
+    ['userGuideModal', 'pk-motion-modal', 180],
+    ['linkNotePickerModal', 'pk-motion-modal', 180],
+    ['startFreshModal', 'pk-motion-modal', 180],
+    ['pwaInstallModal', 'pk-motion-modal', 180],
+    ['expandedGraphModal', 'pk-motion-modal', 180],
+    ['canvasCreateNoteModal', 'pk-motion-modal', 180],
+
+    // Bottom Sheets (Slide Up / Slide Down + Backdrop Fade)
+    ['mobileMoreSheetBackdrop', 'pk-motion-sheet', 190],
+    ['mobileQuickMenuBackdrop', 'pk-motion-sheet', 190],
+
+    // Floating Surfaces (Smooth Rise / Glide Down)
+    ['pkScratchpadDrawer', 'pk-motion-float', 170],
+    ['pkAudioReaderHUD', 'pk-motion-float', 170],
+    ['pkSelectionReadBar', 'pk-motion-float', 170],
+
+    // Popovers, Menus & Collapsible Sub-Panels (Crisp Spring Pop / Tuck)
+    ['pkFindReplaceBar', 'pk-motion-popover', 135],
+    ['slashMenu', 'pk-motion-popover', 135],
+    ['wikiLinkMenu', 'pk-motion-popover', 135],
+    ['pkContextMenu', 'pk-motion-popover', 135],
+    ['pkContextSubmenu', 'pk-motion-popover', 135],
+    ['pkBlockTouchMenu', 'pk-motion-popover', 135],
+    ['folderDropdownMenu', 'pk-motion-popover', 135],
+    ['glyphPickerPopover', 'pk-motion-popover', 135],
+    ['typographyPopover', 'pk-motion-popover', 135],
+    ['noteActionsPopover', 'pk-motion-popover', 135],
+    ['calQuickAddPopover', 'pk-motion-popover', 135],
+    ['calEventPreviewPopover', 'pk-motion-popover', 135],
+    ['calDayOverflowPopover', 'pk-motion-popover', 135],
+    ['pkGroqSettingsPanel', 'pk-motion-popover', 135],
+    ['pkAiMemoryPanel', 'pk-motion-popover', 135],
+
+    // Fullscreen Cinema Overlay (Zoom Fade)
+    ['pkSpotlightOverlay', 'pk-motion-cinema', 190],
+
+    // Mobile Sidebar Backdrops (Smooth Fade)
+    ['mobileSidebarBackdrop', 'pk-motion-backdrop', 190],
+    ['mobileInspectorBackdrop', 'pk-motion-backdrop', 190]
+  ];
+
+  function enhanceElementMotion(el, motionClass, closeDurationMs) {
+    if (!el || el.__pkMotionEnhanced) return;
+    el.__pkMotionEnhanced = true;
+
+    const cl = el.classList;
+    const origAdd = cl.add.bind(cl);
+    const origRemove = cl.remove.bind(cl);
+    const origToggle = cl.toggle.bind(cl);
+    const origContains = cl.contains.bind(cl);
+
+    // Strip legacy keyframe classes that conflict with smooth CSS transitions
+    origRemove('animate-backdrop', 'animate-menu');
+    if (el.firstElementChild) {
+      el.firstElementChild.classList.remove('animate-modal-card', 'animate-cmd-card');
+    }
+    origAdd(motionClass);
+    if (!origContains('hidden')) origAdd('pk-anim-open');
+
+    let closeTimer = null;
+    let raf1 = null;
+    let raf2 = null;
+
+    const clearPending = () => {
+      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+      if (raf1) { cancelAnimationFrame(raf1); raf1 = null; }
+      if (raf2) { cancelAnimationFrame(raf2); raf2 = null; }
+    };
+
+    const playOpen = () => {
+      clearPending();
+      const wasHidden = origContains('hidden') || el.dataset.pkClosing === '1';
+      el.dataset.pkClosing = '0';
+      origRemove('hidden', 'pk-anim-closing');
+      if (!wasHidden && origContains('pk-anim-open')) return;
+      origRemove('pk-anim-open');
+      // Double RAF guarantees the browser paints the start frame before springing open!
+      raf1 = requestAnimationFrame(() => {
+        raf1 = null;
+        raf2 = requestAnimationFrame(() => {
+          raf2 = null;
+          if (el.dataset.pkClosing !== '1') {
+            origAdd('pk-anim-open');
+          }
+        });
+      });
+    };
+
+    const playClose = () => {
+      if (origContains('hidden') && el.dataset.pkClosing !== '1') return;
+      if (el.dataset.pkClosing === '1') return;
+      clearPending();
+      const reduceMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduceMotion) {
+        el.dataset.pkClosing = '0';
+        origRemove('pk-anim-open', 'pk-anim-closing');
+        origAdd('hidden');
+        return;
+      }
+      el.dataset.pkClosing = '1';
+      origRemove('pk-anim-open');
+      origAdd('pk-anim-closing');
+      closeTimer = setTimeout(() => {
+        closeTimer = null;
+        if (el.dataset.pkClosing === '1') {
+          el.dataset.pkClosing = '0';
+          origRemove('pk-anim-closing');
+          origAdd('hidden');
+        }
+      }, closeDurationMs);
+    };
+
+    try {
+      cl.contains = function (token) {
+        if (token === 'hidden' && el.dataset.pkClosing === '1') return true;
+        return origContains(token);
+      };
+
+      cl.add = function (...tokens) {
+        const rest = tokens.filter(t => t !== 'hidden');
+        if (rest.length > 0) origAdd(...rest);
+        if (tokens.includes('hidden')) playClose();
+      };
+
+      cl.remove = function (...tokens) {
+        const rest = tokens.filter(t => t !== 'hidden');
+        if (rest.length > 0) origRemove(...rest);
+        if (tokens.includes('hidden')) playOpen();
+      };
+
+      cl.toggle = function (token, force) {
+        if (token !== 'hidden') return origToggle(token, force);
+        const isEffectivelyHidden = origContains('hidden') || el.dataset.pkClosing === '1';
+        const shouldHide = force !== undefined ? !!force : !isEffectivelyHidden;
+        if (shouldHide) {
+          playClose();
+          return true;
+        } else {
+          playOpen();
+          return false;
+        }
+      };
+    } catch (_) {}
+  }
+
+  function wireAll() {
+    for (let i = 0; i < MOTION_REGISTRY.length; i++) {
+      const [id, cls, dur] = MOTION_REGISTRY[i];
+      const el = document.getElementById(id);
+      if (el) enhanceElementMotion(el, cls, dur);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireAll);
+  } else {
+    wireAll();
+  }
+})();
+

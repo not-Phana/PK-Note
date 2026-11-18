@@ -766,7 +766,10 @@
 
     /* Mobile Ergonomics: Prevent iOS Safari input auto-zoom (<16px) & improve tap targets */
     @media (max-width: 767px) {
-      #blocksContainer [contenteditable="true"],
+      #blocksContainer [data-block-id] {
+        font-size: 15px;
+        line-height: 1.6;
+      }
       #pkFindInput, #pkReplaceInput, #voiceSearchInput, #voiceCustomTestInput, #newTagInput {
         font-size: 16px !important;
       }
@@ -1055,7 +1058,7 @@
 
 </style>
 </head>
-<body class="h-screen w-screen flex select-none text-[13px] overflow-hidden">
+<body class="h-[100dvh] w-screen flex select-none text-[13px] overflow-hidden">
 
   <!-- Ambient Cursor Spotlight Glow -->
   <div id="pkCursorSpotlight" class="pointer-events-none fixed inset-0 z-[1] transition-opacity duration-300" style="--cursor-x: -500px; --cursor-y: -500px;"></div>
@@ -1066,15 +1069,14 @@
   <!-- Document Live Reading Progress Bar -->
   <div id="docReadingProgressBar" class="fixed top-0 left-0 h-[2.5px] bg-gradient-to-r from-[var(--accent-vermilion)] via-[var(--accent-ochre)] to-[var(--accent-vermilion)] z-[1000] transition-all duration-75 pointer-events-none" style="width: 0%"></div>
 
-  <!-- Mobile Sidebar Backdrop -->
-    <!-- Mobile Backdrops -->
-  <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-black/55 z-40 md:hidden backdrop-blur-xs transition-opacity"></div>
-  <div id="mobileInspectorBackdrop" onclick="closeRightSidebar()" class="hidden fixed inset-0 bg-black/55 z-40 lg:hidden backdrop-blur-xs transition-opacity"></div>
+  <!-- Mobile Backdrops (Layered above mobile bottom nav so drawers cover cleanly!) -->
+  <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-black/60 z-[70] md:hidden backdrop-blur-xs transition-opacity"></div>
+  <div id="mobileInspectorBackdrop" onclick="closeRightSidebar()" class="hidden fixed inset-0 bg-black/60 z-[70] lg:hidden backdrop-blur-xs transition-opacity"></div>
 
   <!-- =====================================================================
        LEFT SIDEBAR: ARCHIVAL INDEX, MODE SWITCHER & MINI CALENDAR
        ===================================================================== -->
-  <aside id="leftSidebar" class="panel-transition fixed md:static inset-y-0 left-0 h-full w-72 max-w-[85vw] shrink-0 flex flex-col border-r border-[var(--border-hairline)] bg-[var(--bg-panel)] z-50 overflow-hidden shadow-2xl md:shadow-none">
+  <aside id="leftSidebar" class="panel-transition fixed md:static inset-y-0 left-0 h-full w-[82vw] max-w-[300px] md:w-64 shrink-0 flex flex-col border-r border-[var(--border-hairline)] bg-[var(--bg-panel)] z-[75] md:z-30 overflow-hidden shadow-2xl md:shadow-none -translate-x-full md:translate-x-0">
     
     <!-- Workspace Header -->
     <div class="h-11 px-3 flex items-center justify-between border-b border-[var(--border-hairline)] shrink-0">
@@ -1326,8 +1328,8 @@
             <span class="hidden sm:inline">LOCKED</span>
           </button>
 
-          <!-- 1-Tap Read Aloud Button (36x36 touch target on phone, compact on desktop) -->
-          <button onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Note Aloud (Kokoro-82M Voice)" class="w-9 h-9 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors flex items-center justify-center gap-1 cursor-pointer">
+          <!-- 1-Tap Read Aloud Button (Desktop — on phone, Listen sits directly in the Action Bar below!) -->
+          <button onclick="toggleReadingNoteAloud()" id="headerReadAloudBtn" title="Read Note Aloud" class="hidden md:flex md:px-2 md:py-1 rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-hairline)] transition-colors items-center justify-center gap-1 cursor-pointer">
             <svg class="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
               <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -1416,9 +1418,9 @@
 
           <div class="hidden md:block h-3.5 w-[1px] bg-[var(--border-hairline)] mx-1"></div>
 
-          <!-- Inspector Button (36x36 on mobile, crisp pill on desktop) -->
-          <button onclick="toggleRightSidebar()" id="toggleInspectorBtn" title="Toggle Inspector Panel" class="w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center gap-1.5 sm:px-2 sm:py-1 rounded-md sm:rounded-[3px] text-xs font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors cursor-pointer">
-            <svg class="w-4 h-4 sm:w-3.5 sm:h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+          <!-- Inspector Button (Desktop & Tablet — on phone, Graph sits cleanly in Bottom Nav!) -->
+          <button onclick="toggleRightSidebar()" id="toggleInspectorBtn" title="Toggle Inspector Panel" class="hidden md:flex items-center justify-center gap-1.5 px-2 py-1 rounded-[3px] text-xs font-medium bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
               <circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/>
             </svg>
             <span class="hidden sm:inline">Inspector</span>
@@ -1457,31 +1459,26 @@
          =================================================================== -->
     <div id="documentScrollArea" class="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth select-text relative isolate">
 
-      <!-- Sticky Mobile 1-Tap Labeled Tool Ribbon (Dictate, Listen, Voices, Block, Find — Always Visible on Phone!) -->
-      <div id="mobileActionRibbon" class="md:hidden sticky top-0 z-20 px-3 py-2 bg-[var(--bg-canvas)]/92 backdrop-blur-md border-b border-[var(--border-hairline)] flex items-center gap-1.5 overflow-x-auto select-none">
-        <button type="button" onclick="toggleVoiceDictation()" id="mobileRibbonDictateBtn" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold shadow-xs active:scale-95 transition-transform cursor-pointer">
+      <!-- Sticky Mobile 4-Button Edge-to-Edge Tool Ribbon (Zero Clipping on Any Phone Width!) -->
+      <div id="mobileActionRibbon" class="md:hidden sticky top-0 z-20 px-3 py-2 bg-[var(--bg-canvas)]/95 backdrop-blur-md border-b border-[var(--border-hairline)] grid grid-cols-4 gap-1.5 select-none">
+        <button type="button" onclick="toggleVoiceDictation()" id="mobileRibbonDictateBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--accent-vermilion)] text-white font-mono text-[11px] font-semibold shadow-xs active:scale-95 transition-transform cursor-pointer truncate">
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
           <span>Dictate</span>
         </button>
 
-        <button type="button" onclick="toggleReadingNoteAloud()" id="mobileRibbonListenBtn" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer">
+        <button type="button" onclick="toggleReadingNoteAloud()" id="mobileRibbonListenBtn" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer truncate">
           <svg class="w-3.5 h-3.5 shrink-0 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           <span id="mobileRibbonListenLabel">Listen</span>
         </button>
 
-        <button type="button" onclick="openVoiceModelModal()" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer">
+        <button type="button" onclick="openVoiceModelModal()" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer truncate">
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
           <span>Voices</span>
         </button>
 
-        <button type="button" onclick="openMobileSlashMenu()" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer">
+        <button type="button" onclick="openMobileSlashMenu()" class="inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer truncate">
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span>Block</span>
-        </button>
-
-        <button type="button" onclick="openFindReplaceBar()" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[11px] active:scale-95 transition-transform cursor-pointer">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
-          <span>Find</span>
         </button>
       </div>
 
@@ -1676,30 +1673,36 @@
          =================================================================== -->
     <div id="calendarViewport" class="hidden flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg-canvas)]">
       
-      <!-- Calendar Control Sub-Header -->
-      <div class="px-3 sm:px-5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)]/55 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+      <!-- Calendar Control Sub-Header (Compact 2-Row Mobile Layout, Single-Row Desktop) -->
+      <div class="px-3 sm:px-5 py-2 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)]/55 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
         
-        <!-- Left: Date Navigation & Editorial Serif Title -->
-        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div class="flex items-center rounded-[3px] border border-[var(--border-hairline)] bg-[var(--bg-canvas)] overflow-hidden">
-            <button onclick="navigateCalendar(-1)" title="Previous Period ([)" class="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-hairline)] transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button onclick="jumpCalendarToday()" title="Jump to Today (T)" class="px-2.5 py-1 hover:bg-[var(--bg-hover)] font-mono text-[11px] font-medium text-[var(--text-primary)] transition-colors">
-              Today
-            </button>
-            <button onclick="navigateCalendar(1)" title="Next Period (])" class="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-l border-[var(--border-hairline)] transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+        <!-- Row 1: Date Navigation, Editorial Title & Mobile Agenda Toggle -->
+        <div class="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 min-w-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="flex items-center rounded-[3px] border border-[var(--border-hairline)] bg-[var(--bg-canvas)] overflow-hidden shrink-0">
+              <button onclick="navigateCalendar(-1)" title="Previous Period ([)" class="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-hairline)] transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button onclick="jumpCalendarToday()" title="Jump to Today (T)" class="px-2 py-1 hover:bg-[var(--bg-hover)] font-mono text-[11px] font-medium text-[var(--text-primary)] transition-colors">
+                Today
+              </button>
+              <button onclick="navigateCalendar(1)" title="Next Period (])" class="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-l border-[var(--border-hairline)] transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+
+            <h2 id="calendarPeriodHeading" class="font-serif text-base sm:text-2xl font-medium tracking-tight text-[var(--text-primary)] truncate">
+              November 2026
+            </h2>
           </div>
 
-          <h2 id="calendarPeriodHeading" class="font-serif text-lg sm:text-2xl font-medium tracking-tight text-[var(--text-primary)] truncate">
-            November 2026
-          </h2>
+          <button onclick="toggleCalendarAgendaSidebar()" title="Toggle Day Ledger" class="sm:hidden p-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
         </div>
 
-        <!-- Right: Search/Color Filter + Month/Week/Day Segmented Switcher -->
-        <div class="flex items-center gap-2 flex-wrap">
+        <!-- Row 2 (Mobile) / Right (Desktop): View Switcher + Desktop Actions -->
+        <div class="flex items-center gap-2">
           <!-- Event Search Filter -->
           <div class="relative hidden md:flex items-center">
             <svg class="w-3 h-3 text-[var(--text-tertiary)] absolute left-2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -1715,36 +1718,36 @@
           <!-- Color Filter Dot Pills -->
           <div id="calendarColorFilterBar" class="hidden lg:flex items-center gap-1 px-1.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]"></div>
 
-          <!-- Month / Week / Day / Year View Switcher -->
-          <div class="flex items-center p-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
-            <button id="calViewBtnMonth" onclick="setCalendarView('month')" title="Month View (M)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
+          <!-- Month / Week / Day / Year View Switcher (Full-Width 4-Col Grid on Phone!) -->
+          <div class="grid grid-cols-4 sm:flex items-center w-full sm:w-auto p-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
+            <button id="calViewBtnMonth" onclick="setCalendarView('month')" title="Month View (M)" class="px-2 sm:px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors text-center">
               Month
             </button>
-            <button id="calViewBtnWeek" onclick="setCalendarView('week')" title="Week View (W)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
+            <button id="calViewBtnWeek" onclick="setCalendarView('week')" title="Week View (W)" class="px-2 sm:px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors text-center">
               Week
             </button>
-            <button id="calViewBtnDay" onclick="setCalendarView('day')" title="Day View (D)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
+            <button id="calViewBtnDay" onclick="setCalendarView('day')" title="Day View (D)" class="px-2 sm:px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors text-center">
               Day
             </button>
-            <button id="calViewBtnYear" onclick="setCalendarView('year')" title="Year Matrix View (Y)" class="px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors">
+            <button id="calViewBtnYear" onclick="setCalendarView('year')" title="Year Matrix View (Y)" class="px-2 sm:px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors text-center">
               Year
             </button>
           </div>
 
-          <!-- Direct RFC 5545 iCalendar (.ics) Export -->
-          <button id="calExportIcsBtn" onclick="exportCalendarToICS()" title="Export to iCalendar .ICS (E)" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          <!-- Direct RFC 5545 iCalendar (.ics) Export (Desktop) -->
+          <button id="calExportIcsBtn" onclick="exportCalendarToICS()" title="Export to iCalendar .ICS (E)" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span class="hidden xl:inline">Export .ics</span>
           </button>
 
-          <!-- Day Ledger / Agenda Sidebar Toggle Button -->
-          <button id="calToggleAgendaBtn" onclick="toggleCalendarAgendaSidebar()" title="Toggle Day Ledger (L)" class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          <!-- Day Ledger / Agenda Sidebar Toggle Button (Desktop) -->
+          <button id="calToggleAgendaBtn" onclick="toggleCalendarAgendaSidebar()" title="Toggle Day Ledger (L)" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             <span class="hidden sm:inline">Agenda</span>
           </button>
 
-          <!-- Fast Add Event Button -->
-          <button onclick="openQuickAddPopover(event)" class="flex items-center gap-1.5 px-3 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-mono text-[11px] font-medium transition-opacity">
+          <!-- Fast Add Event Button (Desktop — Phone already has top-right + and bottom Day bar + Event!) -->
+          <button onclick="openQuickAddPopover(event)" class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-mono text-[11px] font-medium transition-opacity">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Event</span>
           </button>
@@ -1791,7 +1794,7 @@
   <!-- =====================================================================
        RIGHT CONTEXTUAL INSPECTOR (WORKSPACE MODE): GRAPH, BACKLINKS & OUTLINE
        ===================================================================== -->
-  <aside id="rightSidebar" class="panel-transition fixed lg:static inset-y-0 right-0 h-full w-full sm:w-80 flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] z-50 overflow-hidden shadow-2xl lg:shadow-none">
+  <aside id="rightSidebar" class="panel-transition fixed lg:static inset-y-0 right-0 h-full w-full sm:w-80 flex flex-col border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] z-[75] lg:z-30 overflow-hidden shadow-2xl lg:shadow-none translate-x-full lg:translate-x-0">
     
     <!-- Segmented Tab Header -->
     <div class="h-11 px-3 flex items-center justify-between border-b border-[var(--border-hairline)] shrink-0">
@@ -2462,7 +2465,7 @@
             {
               id: 'b-w1',
               type: 'callout',
-              content: 'Welcome to **PK Note** — your personal knowledge environment and integrated chronology. Designed for deep thinking, focused writing, and linked notes without visual clutter.'
+              content: 'Welcome to PK Note — your personal knowledge environment and integrated chronology. Designed for deep thinking, focused writing, and linked notes without visual clutter.'
             },
             {
               id: 'b-w2',
@@ -2472,22 +2475,22 @@
             {
               id: 'b-w3',
               type: 'bullet',
-              content: 'Press **⌘K** (or Ctrl+K) anywhere to open the redesigned Command Palette.'
+              content: 'Press Cmd+K (or Ctrl+K) anywhere to open the Command Palette.'
             },
             {
               id: 'b-w4',
               type: 'bullet',
-              content: 'Type **/** on an empty line to convert any block into Headings, Checklists, Quotes, or Code.'
+              content: 'Type / on an empty line to convert any block into Headings, Checklists, Quotes, or Code.'
             },
             {
               id: 'b-w5',
               type: 'bullet',
-              content: 'Type **[[** to link ideas together (e.g. [[Personal Knowledge Hub]] or [[Daily Log — ' + TODAY_KEY + ']]).'
+              content: 'Link ideas together with double brackets, such as [[Personal Knowledge Hub]] or [[Daily Log — ' + TODAY_KEY + ']].'
             },
             {
               id: 'b-w6',
               type: 'bullet',
-              content: '**Right-click** any note, block, calendar event, or graph node for instant native actions.'
+              content: 'Drag handles, swipe blocks, or tap the top bar for Voice Dictation and Read Aloud.'
             },
             {
               id: 'b-w7',
@@ -3021,7 +3024,8 @@
 
       if (isMobile) {
         if (state.leftSidebarOpen) {
-          left.style.width = '16rem';
+          left.style.width = '82vw';
+          left.style.maxWidth = '300px';
           left.style.transform = 'translateX(0)';
           left.style.opacity = '1';
           mobileBackdrop.classList.remove('hidden');
@@ -3031,6 +3035,7 @@
         }
       } else {
         mobileBackdrop.classList.add('hidden');
+        left.style.maxWidth = '';
         left.style.transform = 'translateX(0)';
         if (state.leftSidebarOpen) {
           left.style.width = '16rem';
@@ -3098,7 +3103,7 @@
         const inspectorBackdrop = document.getElementById('mobileInspectorBackdrop');
 
         if (isMobileScreen) {
-          rightSidebar.style.width = '20rem';
+          rightSidebar.style.width = window.innerWidth < 640 ? '100%' : '20rem';
           if (state.rightSidebarOpen) {
             rightSidebar.style.transform = 'translateX(0)';
             rightSidebar.style.opacity = '1';
@@ -3834,7 +3839,7 @@
               <button type="button"
                       onclick="event.stopPropagation(); drillDownToDay('${dateKey}')"
                       title="Zoom to ${dateKey} day view"
-                      class="font-mono text-[11px] leading-none px-1.5 py-0.5 rounded-[2px] cursor-pointer hover:scale-105 transition-transform ${
+                      class="whitespace-nowrap font-mono text-[11px] leading-none px-1.5 py-0.5 rounded-[2px] cursor-pointer hover:scale-105 transition-transform ${
                 isToday
                   ? 'bg-[var(--accent-vermilion)] text-white font-semibold'
                   : isSelected
@@ -3843,7 +3848,7 @@
                       ? 'text-[var(--text-primary)] hover:text-[var(--accent-vermilion)]'
                       : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }">
-                ${d.getDate() === 1 ? `${MONTH_SHORT[d.getMonth()]} 1` : d.getDate()}
+                ${d.getDate() === 1 && window.innerWidth >= 640 ? `${MONTH_SHORT[d.getMonth()]} 1` : d.getDate()}
               </button>
 
               <button onclick="event.stopPropagation(); openQuickAddPopover(event, { dateKey: '${dateKey}' })"
@@ -3959,8 +3964,17 @@
       const isDark = state.theme === 'dark';
       const now = new Date();
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      // On narrow mobile screens (< 640px), show a clean 3-day focus window in Week mode so columns & events fit edge-to-edge without slicing!
+      if (mode === 'week' && window.innerWidth < 640 && daysArray.length === 7) {
+        const selKey = state.calendarSelectedDate || TODAY_KEY;
+        let focusIdx = daysArray.findIndex(d => formatLocalDateKey(d) === selKey);
+        if (focusIdx < 0) focusIdx = daysArray.findIndex(d => formatLocalDateKey(d) === TODAY_KEY);
+        if (focusIdx < 0) focusIdx = 0;
+        const startIdx = Math.max(0, Math.min(4, focusIdx - 1));
+        daysArray = daysArray.slice(startIdx, startIdx + 3);
+      }
       const numDays = daysArray.length;
-      const minColWidthClass = mode === 'week' ? 'min-w-[115px] sm:min-w-0' : 'min-w-0';
+      const minColWidthClass = 'min-w-0';
 
       // 1. Day Column Headers
       const dayHeadersHtml = daysArray.map(d => {
@@ -4046,8 +4060,8 @@
                  onclick="openQuickAddPopover(event, { dateKey: '${key}', startHour: ${h} })"
                  ondblclick="openEventModal({ dateKey: '${key}', startHour: ${h} })"
                  title="Click to schedule at ${String(h).padStart(2, '0')}:00"
-                 class="border-b border-[var(--border-hairline)] hover:bg-[var(--accent-vermilion-tint)]/50 transition-colors relative group">
-              <div class="w-full h-1/2 border-b border-dashed border-[var(--border-hairline)]/45 pointer-events-none"></div>
+                 class="border-b border-[var(--border-hairline)] hover:bg-[var(--accent-vermilion-tint)]/50 transition-colors relative group z-0">
+              <div class="w-full h-1/2 pointer-events-none" style="border-bottom: 1px dashed rgba(148, 148, 142, 0.14);"></div>
             </div>
           `;
         }
@@ -5908,6 +5922,9 @@
 
     function toggleLeftSidebar() {
       state.leftSidebarOpen = !state.leftSidebarOpen;
+      if (state.leftSidebarOpen && window.innerWidth < 1024) {
+        state.rightSidebarOpen = false;
+      }
       applyThemeAndLayout();
       persistState();
     }
@@ -5919,6 +5936,9 @@
 
     function toggleRightSidebar() {
       state.rightSidebarOpen = !state.rightSidebarOpen;
+      if (state.rightSidebarOpen && window.innerWidth < 1024) {
+        state.leftSidebarOpen = false;
+      }
       applyThemeAndLayout();
       if (state.rightSidebarOpen && state.appMode === 'workspace') {
         requestAnimationFrame(resizeGraphCanvas);
@@ -8488,8 +8508,8 @@
       }
       if (searchInput) {
         searchInput.placeholder = isKokoro
-          ? 'Search voices (e.g. Mimi, Yuki, Hana, Heart, Michael, British)...'
-          : 'Search device voices (e.g. David, Zira, Samantha, Google)...';
+          ? 'Search voices (e.g. Mimi, Yuki, Heart, Bella, Michael)...'
+          : 'Search natural voices (e.g. Google, Ava, Samantha)...';
       }
 
       if (isKokoro) {
@@ -9495,23 +9515,20 @@
               <span class="w-6 h-6 rounded-full flex items-center justify-center font-serif text-xs font-semibold shrink-0 ${isSelected ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] border border-[var(--border-hairline)]'}">
                 ${isSelected ? '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : escapeHtml(initial)}
               </span>
-              <div class="min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-serif font-medium text-xs text-[var(--text-primary)] truncate max-w-[180px] sm:max-w-[270px]">${escapeHtml(v.name)}</span>
-                  ${qualityTag}
-                </div>
-                <div class="flex items-center gap-2 font-mono text-[10px] text-[var(--text-tertiary)]">
+              <div class="min-w-0 flex-1">
+                <div class="font-serif font-medium text-xs text-[var(--text-primary)] truncate">${escapeHtml(v.name)}</div>
+                <div class="flex items-center flex-wrap gap-1.5 mt-0.5 font-mono text-[9.5px] text-[var(--text-tertiary)]">
                   <span>${escapeHtml(v.lang)}</span>
-                  <span>·</span>
-                  <span>0 MB · Instant</span>
+                  ${qualityTag}
+                  ${genderBadge}
+                  <span>0 MB</span>
                 </div>
               </div>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              ${genderBadge}
+            <div class="flex items-center shrink-0">
               <button onclick="event.stopPropagation(); testDeviceVoiceByIndex(${idx})"
                       title="Audition Natural Voice"
-                      class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+                      class="px-2.5 py-1 rounded-[4px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
                 Test
               </button>
             </div>
@@ -15730,7 +15747,7 @@
       </div>
 
       <!-- Filters & Voice Selector Body -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+      <div class="flex-1 overflow-y-auto p-4 pb-6 space-y-3.5 text-xs">
 
         <!-- Dual-Engine Selector Tabs (Instant 0 MB First!) -->
         <div class="flex items-center gap-1.5 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)]">
@@ -15959,8 +15976,8 @@
       </div>
 
       <!-- Real-Time 60fps Symmetrical Acoustic Waveform -->
-      <div class="relative rounded-xl bg-[var(--bg-canvas)]/90 border border-[var(--border-hairline)] px-2.5 py-2 overflow-hidden">
-        <canvas id="pkDictationWaveCanvas" class="block w-full h-10"></canvas>
+      <div class="relative rounded-xl bg-[var(--bg-canvas)]/90 border border-[var(--border-hairline)] px-2.5 py-1.5 overflow-hidden">
+        <canvas id="pkDictationWaveCanvas" class="block w-full h-8"></canvas>
         <div class="flex items-center justify-between gap-2 mt-1 font-mono text-[9px] text-[var(--text-tertiary)]">
           <span id="pkDictationSignalLabel" class="truncate">Listening — speak or whisper naturally</span>
           <span id="pkDictationEngineTag" class="shrink-0 text-[var(--text-tertiary)]/80">On-Device AI</span>
@@ -15968,7 +15985,7 @@
       </div>
 
       <!-- Real-Time Live Streaming Transcript Box (Updates word-by-word as you talk!) -->
-      <div id="pkDictationPreview" class="w-full min-h-[54px] max-h-[96px] overflow-y-auto px-3 py-2 rounded-xl bg-[var(--bg-canvas)]/80 border border-[var(--border-hairline)] font-serif text-[13px] leading-relaxed text-[var(--text-primary)] select-text">
+      <div id="pkDictationPreview" class="w-full min-h-[42px] max-h-[82px] overflow-y-auto px-2.5 py-1.5 rounded-xl bg-[var(--bg-canvas)]/80 border border-[var(--border-hairline)] font-serif text-[13px] leading-snug text-[var(--text-primary)] select-text">
         <span class="text-[var(--text-tertiary)] italic">Start speaking or whispering — words stream live here and directly into your note...</span>
       </div>
 

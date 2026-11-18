@@ -13,18 +13,20 @@ const PK_AI_PROVIDERS = {
     name: 'Gemini AI',
     shortName: 'Gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-2.5-flash',
+    defaultModel: 'gemini-3.5-flash-lite',
     requiresKey: true,
-    keyPlaceholder: 'AIza...',
+    keyPlaceholder: 'AIza... or AQ....',
     keyLabel: 'Gemini API Key (Saved Locally)',
     keyUrl: 'https://aistudio.google.com/apikey',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash (Fast · Recommended)' },
-      { id: 'gemini-2.5-pro', label: 'gemini-2.5-pro (Deep Reasoning)' },
-      { id: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite (Ultra-Fast)' },
-      { id: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Next-Gen Lite)' },
-      { id: 'gemini-3.8-flash', label: 'gemini-3.8-flash (Next-Gen Flash)' }
+      { id: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Fast · Recommended)' },
+      { id: 'gemini-flash-lite-latest', label: 'gemini-flash-lite-latest (Auto-Latest Lite)' },
+      { id: 'gemini-3.8-flash', label: 'gemini-3.8-flash (Latest Flash)' },
+      { id: 'gemini-flash-latest', label: 'gemini-flash-latest (Auto-Latest Flash)' },
+      { id: 'gemma-4-31b-it', label: 'gemma-4-31b-it (Gemma 4 · 31B)' },
+      { id: 'gemma-4-26b-a4b-it', label: 'gemma-4-26b-a4b-it (Gemma 4 · 26B Fast)' },
+      { id: 'gemini-pro-latest', label: 'gemini-pro-latest (Pro · Paid Tier)' }
     ]
   },
   groq: {
@@ -196,6 +198,12 @@ const PK_RETIRED_GROQ_MODELS = new Set([
   'qwen/qwen3-32b'
 ]);
 
+const PK_RETIRED_GEMINI_MODELS = new Set([
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro'
+]);
+
 function loadAiConfig() {
   const def = getDefaultAiConfig();
   try {
@@ -217,6 +225,11 @@ function loadAiConfig() {
       // Upgrade retired Groq presets automatically to live active default
       if (PK_RETIRED_GROQ_MODELS.has(def.groq.model)) {
         def.groq.model = PK_AI_PROVIDERS.groq.defaultModel;
+        migrated = true;
+      }
+      // Upgrade retired Gemini 2.5 presets automatically to live active Gemini 3.5 Flash-Lite
+      if (PK_RETIRED_GEMINI_MODELS.has(def.gemini.model)) {
+        def.gemini.model = PK_AI_PROVIDERS.gemini.defaultModel;
         migrated = true;
       }
       // Upgrade untouched v2.3.0 generic local default (llama3.2) to user's installed LM Studio library
@@ -912,8 +925,8 @@ async function pasteAiApiKey() {
       }
       const cfg = loadAiConfig();
       captureCurrentProviderInputsIntoConfig(cfg);
-      // Smart auto-switch provider if key prefix clearly identifies Gemini, Groq, or NVIDIA
-      if (/^AIza/i.test(cleaned) && cfg.provider !== 'gemini') {
+      // Smart auto-switch provider if key prefix clearly identifies Gemini (AIza / AQ.), Groq, or NVIDIA
+      if (/^(?:AIza|AQ\.)/i.test(cleaned) && cfg.provider !== 'gemini') {
         cfg.provider = 'gemini';
       } else if (/^gsk_/i.test(cleaned) && cfg.provider !== 'groq') {
         cfg.provider = 'groq';
@@ -1062,7 +1075,7 @@ const PK_LOCAL_AUTO_PORTS = [
 ];
 
 function isNonChatModelId(id) {
-  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety|imagen|veo|aqa|bison|gecko|lyria|robotics|computer-use|native-audio|image-generation|\blive-/i.test(String(id || ''));
+  return /embed|phonon|orpheus|whisper|tts|playai|clip|rerank|synthetic-video|guard|safety|imagen|veo|aqa|bison|gecko|lyria|robotics|computer-use|native-audio|image-generation|-image\b|nano-banana|transcribe|deep-research|decision-|antigravity-preview|customtools|live-translate|\blive-/i.test(String(id || ''));
 }
 
 function isModelNotFoundError(status, msg) {
@@ -1493,13 +1506,13 @@ function extractMemoryPayloadsFromText(text) {
 
 function stripSpecialBlocksForDisplay(text, isStreaming = false) {
   let out = String(text || '')
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>/gi, '')
     .replace(/```pk-event[\s\S]*?```/gi, '')
     .replace(/```pk-memory[\s\S]*?```/gi, '');
-  // Hide unclosed <think> or hidden pk-memory / pk-event block while streaming
+  // Hide unclosed <think>/<thought> or hidden pk-memory / pk-event block while streaming
   if (isStreaming) {
     out = out
-      .replace(/<think>[\s\S]*$/gi, '')
+      .replace(/<(?:think|thought)>[\s\S]*$/gi, '')
       .replace(/```pk-(?:memory|event)[\s\S]*$/gi, '');
   }
   return out.trim();
@@ -1972,9 +1985,13 @@ async function sendGroqPrompt(overrideText) {
     if (!res.ok && spec.id !== 'local') {
       const errJson = await res.json().catch(() => ({}));
       const errMsg = extractStreamErr(errJson, res.status);
-      if (isModelNotFoundError(res.status, errMsg)) {
+      if (spec.id === 'gemini' && res.status === 503 && activeModel !== 'gemini-3.5-flash-lite') {
+        activeModel = 'gemini-3.5-flash-lite';
+        if (typeof showToast === 'function') showToast('Model busy (503) — falling back to gemini-3.5-flash-lite', 'ochre');
+        res = await doChatFetch(endpoints.chatUrl, activeModel);
+      } else if (isModelNotFoundError(res.status, errMsg)) {
         const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
-        const fallbackModel = liveModels.find(m => m !== activeModel);
+        const fallbackModel = liveModels.find(m => m !== activeModel && !(spec.id === 'gemini' && PK_RETIRED_GEMINI_MODELS.has(m)));
         if (fallbackModel) {
           activeModel = fallbackModel;
           data.model = fallbackModel;

@@ -8182,7 +8182,7 @@
         state.voiceSettings = {
           engine: 'kokoro',          // 'kokoro' | 'device'
           kokoroVoiceId: 'af_heart', // Flagship natural Kokoro-82M voice
-          kokoroQuant: 'q8',         // 'q8' (~86MB Studio Natural) | 'q4' (~45MB Mobile Lite)
+          kokoroQuant: 'q8',         // 'q8' (~88MB — smallest & fastest valid Kokoro-82M ONNX)
           voiceURI: '',
           voiceName: '',
           rate: 1.0,
@@ -8191,12 +8191,12 @@
           autoScroll: true
         };
       }
-      // Backfill new Kokoro properties for existing saved workspaces
+      // Backfill new Kokoro properties & migrate any legacy 'q4' (which is 291MB on HF!) to fastest 'q8' (88MB)
       if (!state.voiceSettings.engine) state.voiceSettings.engine = 'kokoro';
       if (!state.voiceSettings.kokoroVoiceId || !KOKORO_VOICE_CATALOG.some(v => v.id === state.voiceSettings.kokoroVoiceId)) {
         state.voiceSettings.kokoroVoiceId = 'af_heart';
       }
-      if (!state.voiceSettings.kokoroQuant) state.voiceSettings.kokoroQuant = 'q8';
+      if (state.voiceSettings.kokoroQuant !== 'q8') state.voiceSettings.kokoroQuant = 'q8';
       return state.voiceSettings;
     }
 
@@ -8344,42 +8344,82 @@
       }
     }
 
+    function updateKokoroHudProgress(visible, pct = 0) {
+      const track = document.getElementById('pkAudioHudProgressTrack');
+      const bar = document.getElementById('pkAudioHudProgressBar');
+      const instantBtn = document.getElementById('pkAudioHudInstantBtn');
+      if (track) track.classList.toggle('hidden', !visible);
+      if (bar) bar.style.width = `${Math.max(4, Math.min(100, pct))}%`;
+      if (instantBtn) instantBtn.classList.toggle('hidden', !visible);
+    }
+
+    // Allows instant zero-wait playback while Kokoro-82M caches in the background
+    function switchToInstantDevicePlayback() {
+      const savedQueue = [...speechSentenceQueue];
+      const savedIdx = currentSpeechQueueIndex;
+      const savedLabel = document.getElementById('pkAudioReaderLabel')?.textContent || 'Reading note...';
+      const settings = getVoiceSettings();
+      settings.engine = 'device';
+      persistState();
+      updateKokoroEngineUI();
+      updateKokoroHudProgress(false, 0);
+
+      if (!('speechSynthesis' in window)) {
+        showToast('Device speech not supported on this browser', 'ochre');
+        return;
+      }
+
+      if (savedQueue.length > 0) {
+        speechPlaybackSessionId++;
+        window.speechSynthesis.cancel();
+        speechSentenceQueue = savedQueue;
+        currentSpeechQueueIndex = Math.min(savedIdx, savedQueue.length - 1);
+        isSpeechAudioActive = true;
+        isSpeechAudioPaused = false;
+        const hud = document.getElementById('pkAudioReaderHUD');
+        const label = document.getElementById('pkAudioReaderLabel');
+        if (hud) hud.classList.remove('hidden');
+        if (label) label.textContent = savedLabel;
+        updateVoiceStudioHUDLabels();
+        updateHeaderReadAloudState();
+        playNextDeviceSpeechSentence(speechPlaybackSessionId);
+        showToast('Switched to instant Device Voice (zero wait)');
+      } else {
+        startReadingActiveNoteAloud();
+      }
+    }
+
     function setKokoroQuant(quant) {
       const settings = getVoiceSettings();
-      if (settings.kokoroQuant === quant) return;
-      settings.kokoroQuant = quant;
+      settings.kokoroQuant = 'q8';
       persistState();
-      // If a different quantization was already loaded, allow reloading the new quant on next play
-      if (kokoroTTSInstance && kokoroLoadedQuant !== quant) {
-        kokoroTTSInstance = null;
-        kokoroLoadedQuant = null;
-        kokoroLoadPromise = null;
-        kokoroEngineState = 'idle';
-      }
       updateKokoroEngineUI();
-      showToast(quant === 'q4' ? 'Kokoro-82M Lite (q4 · ~45MB mobile-friendly)' : 'Kokoro-82M Studio (q8 · ~86MB natural quality)');
+      showToast('Kokoro-82M q8 (88MB — smallest & fastest on-device weights)');
     }
 
     async function ensureKokoroEngineLoaded(onProgressCallback = null) {
-      const settings = getVoiceSettings();
-      const targetQuant = settings.kokoroQuant || 'q8';
+      const targetQuant = 'q8'; // 88MB — smallest & fastest valid ONNX weights for Kokoro-82M
 
       if (kokoroTTSInstance && kokoroLoadedQuant === targetQuant && kokoroEngineState === 'ready') {
+        updateKokoroHudProgress(false, 100);
         return kokoroTTSInstance;
       }
 
       if (kokoroLoadPromise && kokoroLoadedQuant === targetQuant) {
+        updateKokoroHudProgress(true, kokoroLoadProgressPct);
         return kokoroLoadPromise;
       }
 
       kokoroLoadedQuant = targetQuant;
       kokoroEngineState = 'loading';
-      kokoroLoadProgressPct = 5;
-      kokoroLoadStatusText = 'Importing Kokoro-82M runtime...';
+      kokoroLoadProgressPct = 4;
+      kokoroLoadStatusText = 'Connecting to Kokoro-82M runtime...';
       updateKokoroEngineUI();
-      updateVoiceStudioHUDLabels('Loading Kokoro-82M...');
+      updateKokoroHudProgress(true, 4);
+      updateVoiceStudioHUDLabels('Loading runtime...');
 
       const fileProgressMap = new Map();
+      let lastUiUpdateTs = 0;
 
       kokoroLoadPromise = (async () => {
         try {
@@ -8387,9 +8427,11 @@
           const { KokoroTTS } = mod;
           if (!KokoroTTS) throw new Error('KokoroTTS export not found');
 
-          kokoroLoadProgressPct = 10;
-          kokoroLoadStatusText = `Initializing Kokoro-82M (${targetQuant.toUpperCase()}) ONNX weights...`;
+          kokoroLoadProgressPct = 8;
+          kokoroLoadStatusText = 'Downloading Kokoro-82M q8 (88 MB once)...';
           updateKokoroEngineUI();
+          updateKokoroHudProgress(true, 8);
+          updateVoiceStudioHUDLabels('Downloading 8% (0/88 MB)');
 
           const tts = await KokoroTTS.from_pretrained(KOKORO_MODEL_ID, {
             dtype: targetQuant,
@@ -8397,36 +8439,48 @@
             progress_callback: (info) => {
               if (!info) return;
               const fileKey = info.file || info.name || 'model';
+              let hudStatus = null;
+
               if (info.status === 'progress') {
+                const isMainModel = fileKey.includes('.onnx');
                 const pct = typeof info.progress === 'number'
                   ? info.progress
                   : (info.total ? (info.loaded / info.total) * 100 : 0);
-                fileProgressMap.set(fileKey, {
-                  loaded: info.loaded || pct,
-                  total: info.total || 100
-                });
-                let totalLoaded = 0;
-                let totalSize = 0;
-                fileProgressMap.forEach(v => {
-                  totalLoaded += v.loaded;
-                  totalSize += v.total;
-                });
-                const combined = totalSize > 0 ? (totalLoaded / totalSize) * 100 : pct;
-                kokoroLoadProgressPct = Math.max(10, Math.min(99, combined));
-                const shortFile = fileKey.split('/').pop();
-                kokoroLoadStatusText = `Caching ${shortFile} (${Math.round(kokoroLoadProgressPct)}%)`;
+
+                if (isMainModel && info.total > 1000000) {
+                  const loadedMB = (info.loaded / (1024 * 1024)).toFixed(0);
+                  const totalMB = (info.total / (1024 * 1024)).toFixed(0);
+                  kokoroLoadProgressPct = Math.max(8, Math.min(98, pct));
+                  kokoroLoadStatusText = `Downloading ${Math.round(kokoroLoadProgressPct)}% (${loadedMB}/${totalMB} MB)`;
+                  hudStatus = `${Math.round(kokoroLoadProgressPct)}% · ${loadedMB}/${totalMB} MB`;
+                } else {
+                  fileProgressMap.set(fileKey, { loaded: info.loaded || pct, total: info.total || 100 });
+                  if (kokoroLoadProgressPct < 12) kokoroLoadProgressPct = 10;
+                  kokoroLoadStatusText = `Preparing tokenizer (${fileKey.split('/').pop()})...`;
+                  hudStatus = 'Preparing tokenizer...';
+                }
               } else if (info.status === 'done') {
-                const entry = fileProgressMap.get(fileKey);
-                if (entry) entry.loaded = entry.total;
-                kokoroLoadStatusText = `Loaded ${(fileKey.split('/').pop() || 'weights')}`;
+                if (fileKey.includes('.onnx')) {
+                  kokoroLoadProgressPct = 99;
+                  kokoroLoadStatusText = 'Compiling neural engine (almost ready)...';
+                  hudStatus = 'Compiling WASM engine...';
+                }
               } else if (info.status === 'ready') {
                 kokoroLoadProgressPct = 100;
-                kokoroLoadStatusText = 'Kokoro-82M ready on-device';
+                kokoroLoadStatusText = 'Kokoro-82M Ready (Cached Offline)';
+                hudStatus = 'Kokoro-82M Ready!';
               }
-              updateKokoroEngineUI();
-              updateVoiceStudioHUDLabels(`Loading Kokoro-82M (${Math.round(kokoroLoadProgressPct)}%)...`);
-              if (typeof onProgressCallback === 'function') {
-                onProgressCallback(kokoroLoadProgressPct, kokoroLoadStatusText);
+
+              // Throttle DOM updates to ~8fps so phone downloads run at max speed without jank
+              const now = performance.now();
+              if (now - lastUiUpdateTs > 120 || info.status === 'done' || info.status === 'ready') {
+                lastUiUpdateTs = now;
+                updateKokoroEngineUI();
+                updateKokoroHudProgress(true, kokoroLoadProgressPct);
+                if (hudStatus) updateVoiceStudioHUDLabels(hudStatus);
+                if (typeof onProgressCallback === 'function') {
+                  onProgressCallback(kokoroLoadProgressPct, kokoroLoadStatusText);
+                }
               }
             }
           });
@@ -8435,8 +8489,9 @@
           kokoroEngineState = 'ready';
           kokoroLoadProgressPct = 100;
           kokoroIsCachedLocally = true;
-          kokoroLoadStatusText = 'Kokoro-82M Ready (On-Device)';
+          kokoroLoadStatusText = 'Kokoro-82M Ready (Cached Offline)';
           updateKokoroEngineUI();
+          updateKokoroHudProgress(false, 100);
           updateVoiceStudioHUDLabels();
           return tts;
         } catch (err) {
@@ -8445,6 +8500,7 @@
           kokoroLoadPromise = null;
           kokoroLoadStatusText = (err && err.message) ? err.message.slice(0, 72) : 'Failed to load Kokoro-82M weights';
           updateKokoroEngineUI();
+          updateKokoroHudProgress(false, 0);
           throw err;
         }
       })();
@@ -9553,6 +9609,7 @@
 
       const hud = document.getElementById('pkAudioReaderHUD');
       if (hud) hud.classList.add('hidden');
+      updateKokoroHudProgress(false, 0);
 
       const pauseIcon = document.getElementById('pkAudioPauseIcon');
       const playIcon = document.getElementById('pkAudioPlayIcon');
@@ -14400,42 +14457,54 @@
     <div id="pkContextSubmenuItems" class="space-y-0.5 px-1 py-0.5 max-h-[60vh] overflow-y-auto"></div>
   </div>
 
-  <!-- Floating Ambient Audio Reader HUD (Web Speech API Equalizer & Controller) -->
-  <div id="pkAudioReaderHUD" class="hidden fixed bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-[900] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl animate-menu select-none backdrop-blur-xl max-w-[92vw]">
-    <div class="flex items-center gap-1 h-3.5 px-0.5 shrink-0" id="pkAudioEqWave">
-      <span class="pk-eq-bar"></span>
-      <span class="pk-eq-bar"></span>
-      <span class="pk-eq-bar"></span>
-      <span class="pk-eq-bar"></span>
-      <span class="pk-eq-bar"></span>
+  <!-- Floating Ambient Audio Reader HUD (Perfectly Centered on Phone & Desktop, Live Progress Bar) -->
+  <div id="pkAudioReaderHUD" class="hidden fixed bottom-[74px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[94vw] z-[900] flex flex-col rounded-2xl sm:rounded-full popover-surface border border-[var(--border-strong)] shadow-2xl select-none backdrop-blur-xl overflow-hidden">
+    <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2">
+      <div class="flex items-center gap-1 h-3.5 px-0.5 shrink-0" id="pkAudioEqWave">
+        <span class="pk-eq-bar"></span>
+        <span class="pk-eq-bar"></span>
+        <span class="pk-eq-bar"></span>
+        <span class="pk-eq-bar"></span>
+        <span class="pk-eq-bar"></span>
+      </div>
+      
+      <div class="flex flex-col min-w-0 max-w-[155px] sm:max-w-[240px]">
+        <span id="pkAudioReaderLabel" class="font-serif text-xs text-[var(--text-primary)] font-medium truncate">Reading document...</span>
+        <span id="pkAudioReaderVoiceLabel" class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Kokoro-82M</span>
+      </div>
+
+      <!-- 1-Tap Instant Device Voice Switch (Shown while Kokoro-82M is downloading so you never have to wait) -->
+      <button onclick="switchToInstantDevicePlayback()" id="pkAudioHudInstantBtn" title="Play instantly with Device Native voice (no wait)" class="hidden shrink-0 px-2 py-0.5 rounded-full bg-[var(--accent-vermilion-tint)] hover:bg-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] hover:text-white font-mono text-[9px] font-semibold transition-colors cursor-pointer">
+        ⚡ Instant
+      </button>
+
+      <!-- Quick Voice Switcher Pill -->
+      <button onclick="openVoiceModelModal()" title="Switch Voice Model" class="shrink-0 px-2 py-0.5 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 transition-colors cursor-pointer">
+        <span>🎙️</span>
+        <span class="hidden sm:inline">Voice</span>
+      </button>
+
+      <!-- Speed Quick Cycle Pill -->
+      <button onclick="cycleAudioReaderRate()" id="pkAudioRatePill" title="Change Speech Rate" class="shrink-0 px-1.5 py-0.5 rounded font-mono text-[10px] text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
+        1.0x
+      </button>
+
+      <!-- Pause / Resume Toggle -->
+      <button onclick="togglePauseReadingAloud()" id="pkAudioPauseBtn" title="Pause / Resume" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center shrink-0">
+        <svg id="pkAudioPauseIcon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        <svg id="pkAudioPlayIcon" class="hidden w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+
+      <!-- Stop Button -->
+      <button onclick="stopReadingAloud()" title="Stop Voice" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] transition-colors cursor-pointer flex items-center justify-center shrink-0">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+      </button>
     </div>
-    
-    <div class="flex flex-col min-w-0 max-w-[120px] sm:max-w-[200px]">
-      <span id="pkAudioReaderLabel" class="font-serif text-xs text-[var(--text-primary)] font-medium truncate">Reading document...</span>
-      <span id="pkAudioReaderVoiceLabel" class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Default Model</span>
+
+    <!-- Live Kokoro-82M Download Progress Strip along bottom of HUD -->
+    <div id="pkAudioHudProgressTrack" class="hidden w-full h-[3px] bg-[var(--bg-canvas)]">
+      <div id="pkAudioHudProgressBar" class="h-full bg-[var(--accent-vermilion)] transition-all duration-150" style="width: 5%"></div>
     </div>
-
-    <!-- Quick Voice Switcher Pill -->
-    <button onclick="openVoiceModelModal()" title="Switch Voice Model" class="shrink-0 px-2 py-0.5 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 transition-colors cursor-pointer">
-      <span>🎙️</span>
-      <span class="hidden sm:inline">Voice</span>
-    </button>
-
-    <!-- Speed Quick Cycle Pill -->
-    <button onclick="cycleAudioReaderRate()" id="pkAudioRatePill" title="Change Speech Rate" class="shrink-0 px-1.5 py-0.5 rounded font-mono text-[10px] text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
-      1.0x
-    </button>
-
-    <!-- Pause / Resume Toggle -->
-    <button onclick="togglePauseReadingAloud()" id="pkAudioPauseBtn" title="Pause / Resume" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center shrink-0">
-      <svg id="pkAudioPauseIcon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-      <svg id="pkAudioPlayIcon" class="hidden w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-    </button>
-
-    <!-- Stop Button -->
-    <button onclick="stopReadingAloud()" title="Stop Voice" class="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] transition-colors cursor-pointer flex items-center justify-center shrink-0">
-      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-    </button>
   </div>
 
 
@@ -15025,17 +15094,12 @@
             </div>
           </div>
 
-          <!-- Quantization Selector (Studio q8 vs Mobile Lite q4) -->
+          <!-- Model Info & Instant Fallback Strip -->
           <div id="kokoroQuantToggleWrap" class="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[var(--border-hairline)]">
-            <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Model Weights (Cached Offline):</span>
-            <div class="flex items-center gap-1">
-              <button id="kokoroQuantQ8" onclick="setKokoroQuant('q8')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)] cursor-pointer">
-                Studio q8 (~86MB)
-              </button>
-              <button id="kokoroQuantQ4" onclick="setKokoroQuant('q4')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-transparent cursor-pointer">
-                Mobile Lite q4 (~45MB)
-              </button>
-            </div>
+            <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Kokoro-82M q8 (~88 MB once, then offline)</span>
+            <button onclick="setVoiceEngine('device')" class="px-2 py-0.5 rounded-[3px] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] cursor-pointer transition-colors">
+              ⚡ Need instant (0 MB)? Use Device Voice
+            </button>
           </div>
 
           <!-- Real-Time ONNX Weight Download & Init Progress Bar -->

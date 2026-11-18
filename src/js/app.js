@@ -6144,7 +6144,7 @@ const KOKORO_VOICE_CATALOG = [
   { id: 'cute_lumi',   baseVoice: 'bf_emma',   defaultPitch: 1.06, name: 'Lumi',     gender: 'female', category: 'cute', accent: 'UK', lang: 'en-GB', grade: 'CUTE', style: 'Bright, natural British' },
   { id: 'cute_sora',   baseVoice: 'af_heart',  defaultPitch: 1.03, name: 'Sora',     gender: 'female', category: 'cute', accent: 'US', lang: 'en-US', grade: 'CUTE', style: 'Youthful, pure human' },
 
-  // Female Voices (Curated Top-Grade Studio-Natural US & UK Human Voices Only — Zero Robotic/Low-Grade Voices)
+  // Female Voices (Strictly Top-Grade Studio-Natural US & UK Human Voices Only — Zero Robotic/Low-Grade Voices)
   { id: 'af_heart',    baseVoice: 'af_heart',    defaultPitch: 1.0, name: 'Heart',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'A',  style: 'Flagship Warm & Natural' },
   { id: 'af_bella',    baseVoice: 'af_bella',    defaultPitch: 1.0, name: 'Bella',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'A-', style: 'Expressive & Engaging' },
   { id: 'af_nicole',   baseVoice: 'af_nicole',   defaultPitch: 1.0, name: 'Nicole',   gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'B-', style: 'Studio Whisper-Clear' },
@@ -6152,14 +6152,11 @@ const KOKORO_VOICE_CATALOG = [
   { id: 'af_aoede',    baseVoice: 'af_aoede',    defaultPitch: 1.0, name: 'Aoede',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C+', style: 'Melodic & Smooth' },
   { id: 'af_kore',     baseVoice: 'af_kore',     defaultPitch: 1.0, name: 'Kore',     gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C+', style: 'Clear & Balanced' },
   { id: 'af_sarah',    baseVoice: 'af_sarah',    defaultPitch: 1.0, name: 'Sarah',    gender: 'female', category: 'female', accent: 'US', lang: 'en-US', grade: 'C+', style: 'Calm Conversational' },
-  { id: 'bf_isabella', baseVoice: 'bf_isabella', defaultPitch: 1.0, name: 'Isabella', gender: 'female', category: 'female', accent: 'UK', lang: 'en-GB', grade: 'C',  style: 'British Refined' },
 
-  // Male Voices (Curated Top-Grade Studio-Natural US & UK Human Voices Only)
+  // Male Voices (Strictly Top-Grade Studio-Natural US Human Voices Only)
   { id: 'am_michael',  baseVoice: 'am_michael',  defaultPitch: 1.0, name: 'Michael',  gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Natural Warm Narrator' },
   { id: 'am_fenrir',   baseVoice: 'am_fenrir',   defaultPitch: 1.0, name: 'Fenrir',   gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Deep Authoritative' },
-  { id: 'am_puck',     baseVoice: 'am_puck',     defaultPitch: 1.0, name: 'Puck',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Dynamic & Expressive' },
-  { id: 'bm_george',   baseVoice: 'bm_george',   defaultPitch: 1.0, name: 'George',   gender: 'male',   category: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  style: 'British Warm Scholar' },
-  { id: 'bm_fable',    baseVoice: 'bm_fable',    defaultPitch: 1.0, name: 'Fable',    gender: 'male',   category: 'male',   accent: 'UK', lang: 'en-GB', grade: 'C',  style: 'British Storyteller' }
+  { id: 'am_puck',     baseVoice: 'am_puck',     defaultPitch: 1.0, name: 'Puck',     gender: 'male',   category: 'male',   accent: 'US', lang: 'en-US', grade: 'C+', style: 'Dynamic & Expressive' }
 ];
 
 // Studio-master Float32 PCM into a clean 16-bit WAV Blob:
@@ -6549,8 +6546,19 @@ function updateKokoroHudProgress(visible, pct = 0) {
   if (instantBtn) instantBtn.classList.toggle('hidden', !visible);
 }
 
-// Allows instant zero-wait playback while Kokoro-82M caches in the background
+// Allows instant zero-wait playback ONLY if a verified natural 0 MB voice is available (never robotic!)
 function switchToInstantDevicePlayback() {
+  if (!('speechSynthesis' in window)) {
+    showToast('Instant natural voice not supported on this browser', 'ochre');
+    return;
+  }
+  loadDetectedVoiceModels(true);
+  const naturalVoice = getSelectedVoiceModel();
+  if (!naturalVoice) {
+    showToast('No natural 0 MB voice on this device — keeping Offline AI (Kokoro)', 'ochre');
+    return;
+  }
+
   const savedQueue = [...speechSentenceQueue];
   const savedIdx = currentSpeechQueueIndex;
   const savedLabel = document.getElementById('pkAudioReaderLabel')?.textContent || 'Reading note...';
@@ -6560,14 +6568,12 @@ function switchToInstantDevicePlayback() {
   updateKokoroEngineUI();
   updateKokoroHudProgress(false, 0);
 
-  if (!('speechSynthesis' in window)) {
-    showToast('Device speech not supported on this browser', 'ochre');
-    return;
-  }
-
   if (savedQueue.length > 0) {
     speechPlaybackSessionId++;
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      lastSpeechCancelTs = Date.now();
+      window.speechSynthesis.cancel();
+    }
     speechSentenceQueue = savedQueue;
     currentSpeechQueueIndex = Math.min(savedIdx, savedQueue.length - 1);
     isSpeechAudioActive = true;
@@ -6579,7 +6585,7 @@ function switchToInstantDevicePlayback() {
     updateVoiceStudioHUDLabels();
     updateHeaderReadAloudState();
     playNextDeviceSpeechSentence(speechPlaybackSessionId);
-    showToast('Switched to instant Device Voice (zero wait)');
+    showToast('Switched to Instant Natural Voice (0 MB)');
   } else {
     startReadingActiveNoteAloud();
   }
@@ -7056,40 +7062,32 @@ function scoreNaturalDeviceVoice(voice) {
   return score;
 }
 
-// Tier-1 genuine Neural / Cloud / Network / Enhanced human voices (zero robotic compact voices!)
+// ZERO-ROBOTIC-VOICE STRICT FILTER:
+// Only genuine Neural / Natural / Cloud-Network / WaveNet / Studio / Premium / Enhanced / Siri human voices pass!
 function isTier1NaturalVoice(voice) {
   if (!voice) return false;
   const name = (voice.name || '').toLowerCase();
   const uri = (voice.voiceURI || '').toLowerCase();
   const combined = `${name} ${uri}`;
-  if (voice.localService === false) return true;
-  return /(natural|neural|online|premium|enhanced|siri|google|wavenet|studio|multilingual|-network)/.test(combined);
-}
 
-// Strictly identify & remove EVERY robotic / legacy SAPI / eSpeak / compact / novelty system voice!
-function isRoboticSystemVoice(voice) {
-  if (!voice) return true;
-  const name = (voice.name || '').toLowerCase();
-  const uri = (voice.voiceURI || '').toLowerCase();
-  const combined = `${name} ${uri}`;
-
-  // Explicitly block all novelty, eSpeak, Eloquence, Compact, SAPI, and old desktop robotic voices
-  const roboticPattern = /(espeak|compact|eloquence|flite|festival|pico|mbrola|sapi|albert|bad news|bahh|bells|boing|bubbles|cellos|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|vicki|whisper|wobble|zarvox)/;
-  if (roboticPattern.test(combined)) return true;
-
-  // Block ALL legacy non-Natural Windows desktop voices (Microsoft David, Zira, Mark, Hazel, George, Susan, etc.)
-  if ((name.includes('microsoft') || name.includes('desktop')) && !/(natural|neural|online)/.test(combined)) {
-    return true;
+  // Hard reject any local-compact / legacy Android / Samsung / desktop / robotic patterns even if labeled "Google"
+  if (/(espeak|compact|eloquence|flite|festival|pico|mbrola|sapi|samsung|desktop|-local\b|android\s+speech|albert|bad news|bahh|bells|boing|bubbles|cellos|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|vicki|whisper|wobble|zarvox)/.test(combined)) {
+    return false;
+  }
+  if (name.includes('microsoft') && !/(natural|neural|online)/.test(combined)) {
+    return false;
   }
 
-  // Tier-1 Neural / Cloud / Network / Google / Enhanced / Siri voices are genuinely natural!
-  if (isTier1NaturalVoice(voice)) return false;
+  // Genuine cloud/network neural voices (localService === false, e.g. Chrome/Android -network WaveNet & Edge Online Natural)
+  if (voice.localService === false) return true;
 
-  // Allow curated high-quality named voices (Apple/iOS modern voices) ONLY if not compact/robotic
-  if (/\b(samantha|karen|daniel|moira|tessa|serena|martha|arthur|ava|allison|zoe|nicky)\b/.test(name)) return false;
+  // Genuine high-definition local neural/enhanced voices (Apple Premium/Enhanced/Siri, Neural, Natural, WaveNet, Studio)
+  return /(natural|neural|online|premium|enhanced|siri|wavenet|studio|multilingual|-network\b)/.test(combined);
+}
 
-  // Block all old offline Android `-local` compact voices and generic robotic OS fallbacks!
-  return true;
+// Strictly identify & remove EVERY robotic / legacy / compact / un-enhanced system voice from PK Note!
+function isRoboticSystemVoice(voice) {
+  return !isTier1NaturalVoice(voice);
 }
 
 let voicesCacheReady = false;
@@ -7104,10 +7102,9 @@ function loadDetectedVoiceModels(forceRefresh = false) {
   const rawVoices = window.speechSynthesis.getVoices();
   if (rawVoices && rawVoices.length > 0) {
     const userLangPrefix = (navigator.language || 'en').slice(0, 2).toLowerCase();
-    // Completely strip ALL robotic system voices & prefer Tier-1 Neural/Network voices exclusively when present!
-    const nonRobotic = rawVoices.filter(v => !isRoboticSystemVoice(v));
-    const tier1Only = nonRobotic.filter(v => isTier1NaturalVoice(v));
-    const naturalAll = (tier1Only.length > 0 ? tier1Only : nonRobotic)
+    // STRICT: ONLY Tier-1 Natural/Neural/Cloud-Network/Enhanced voices allowed — ZERO robotic fallbacks!
+    const naturalAll = rawVoices
+      .filter(v => isTier1NaturalVoice(v))
       .sort((a, b) => scoreNaturalDeviceVoice(b) - scoreNaturalDeviceVoice(a));
 
     const primaryLang = naturalAll.filter(v => {
@@ -7533,7 +7530,7 @@ function renderVoiceCardsList() {
         : '';
     const genderBadge = gender === 'male' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-500 font-mono text-[9px] font-semibold">MALE</span>' :
                         gender === 'female' ? '<span class="px-1.5 py-0.5 rounded-[2px] bg-rose-500/10 text-rose-500 font-mono text-[9px] font-semibold">FEMALE</span>' :
-                        '<span class="px-1.5 py-0.5 rounded-[2px] bg-slate-500/10 text-slate-500 font-mono text-[9px]">SYSTEM</span>';
+                        '<span class="px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-500 font-mono text-[9px] font-semibold">NATURAL</span>';
     const initial = (v.name || 'V').trim().charAt(0).toUpperCase();
 
     return `
@@ -7975,14 +7972,22 @@ function playNextDeviceSpeechSentence(sessionId) {
     loadDetectedVoiceModels(true);
     voice = getSelectedVoiceModel();
   }
+  // ZERO ROBOTIC FALLBACK: Never speak with utterance.voice = null (default robotic OS voice)!
+  if (!voice || !isTier1NaturalVoice(voice)) {
+    stopReadingAloud();
+    showToast('No natural 0 MB voice in this browser — switching to Offline AI (Kokoro)', 'ochre');
+    setVoiceEngine('kokoro');
+    openVoiceModelModal();
+    return;
+  }
 
   if (settings.autoScroll !== false) {
     highlightVoiceBlock(item.blockId);
   }
 
-  const shortName = voice && voice.name
+  const shortName = voice.name
     ? voice.name.replace(/Microsoft\s+|Online\s*\(Natural\)\s*-\s*English.*/gi, '').trim().slice(0, 18) || voice.name.slice(0, 18)
-    : 'System Natural';
+    : 'Natural';
   updateVoiceStudioHUDLabels(`${shortName} (${idx + 1}/${speechSentenceQueue.length})`);
 
   // Expressive prosody micro-tuning for questions (?), exclamations (!), and headings
@@ -7993,12 +7998,8 @@ function playNextDeviceSpeechSentence(sessionId) {
   const basePitch = settings.pitch || 1.0;
 
   const utterance = new SpeechSynthesisUtterance(item.text);
-  if (voice) {
-    utterance.voice = voice;
-    if (voice.lang) utterance.lang = voice.lang;
-  } else {
-    utterance.lang = navigator.language || 'en-US';
-  }
+  utterance.voice = voice;
+  if (voice.lang) utterance.lang = voice.lang;
   utterance.rate = Math.max(0.75, Math.min(1.5,
     isQuestion ? baseRate * 0.96
     : isExclamation ? baseRate * 1.03

@@ -6451,7 +6451,7 @@ function updateKokoroEngineUI() {
       if (preloadBtn) preloadBtn.classList.add('hidden');
       if (progressWrap) progressWrap.classList.add('hidden');
     } else if (kokoroEngineState === 'loading') {
-      if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0';
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
       if (countEl) countEl.textContent = 'Loading Kokoro-82M Weights...';
       if (subEl) subEl.textContent = kokoroLoadStatusText || 'Caching model on device (one-time)...';
       if (preloadBtn) preloadBtn.classList.add('hidden');
@@ -6469,7 +6469,7 @@ function updateKokoroEngineUI() {
       }
       if (progressWrap) progressWrap.classList.add('hidden');
     } else {
-      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500/75 animate-pulse shrink-0';
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
       if (countEl) countEl.textContent = `Kokoro-82M · ${cuteCount} Cute, ${femaleCount} Female, ${maleCount} Male`;
       if (subEl) {
         subEl.textContent = kokoroIsCachedLocally
@@ -6487,7 +6487,7 @@ function updateKokoroEngineUI() {
     const neuralCount = voices.filter(v => scoreNaturalDeviceVoice(v) >= 90).length;
     const maleCount = voices.filter(v => classifyVoiceGender(v) === 'male').length;
     const femaleCount = voices.filter(v => classifyVoiceGender(v) === 'female').length;
-    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
     if (countEl) {
       countEl.textContent = neuralCount > 0
         ? `Instant Natural · ${neuralCount} Neural HD (${voices.length} total)`
@@ -6561,8 +6561,12 @@ function switchToInstantDevicePlayback() {
 }
 
 function setKokoroQuant(quant) {
-  const next = quant === 'q8' ? 'q8' : 'fp16';
+  // On 2019 / low-RAM phones, enforce crash-safe q8 (fp16 156 MB + ~450 MB RAM OOM-crashes mobile tabs!)
+  const next = (window.PK_LITE_MODE || quant === 'q8') ? 'q8' : 'fp16';
   const settings = getVoiceSettings();
+  if (window.PK_LITE_MODE && quant === 'fp16') {
+    showToast('Using Fast q8 (88 MB) on phone to prevent memory crashes', 'ochre');
+  }
   if (settings.kokoroQuant === next) return;
   settings.kokoroQuant = next;
   kokoroTTSInstance = null;
@@ -6574,7 +6578,7 @@ function setKokoroQuant(quant) {
   updateKokoroEngineUI();
   showToast(next === 'fp16'
     ? 'Studio HD (fp16 · 156 MB) selected — purest human warmth'
-    : 'Fast Mode (q8 · 88 MB) selected — lighter mobile download');
+    : 'Fast Mode (q8 · 88 MB) selected — crash-safe mobile mode');
 }
 
 // Low-RAM Phone Anti-Crash Memory Guard: never hold Kokoro-82M + Whisper AI in WASM RAM simultaneously!
@@ -7014,8 +7018,17 @@ function scoreNaturalDeviceVoice(voice) {
   return score;
 }
 
-// Strictly identify & remove EVERY robotic / legacy SAPI / eSpeak / novelty system voice from PK Note,
-// while preserving genuine Natural / Neural / Google / Android Speech Services / Siri / Enhanced voices!
+// Tier-1 genuine Neural / Cloud / Network / Enhanced human voices (zero robotic compact voices!)
+function isTier1NaturalVoice(voice) {
+  if (!voice) return false;
+  const name = (voice.name || '').toLowerCase();
+  const uri = (voice.voiceURI || '').toLowerCase();
+  const combined = `${name} ${uri}`;
+  if (voice.localService === false) return true;
+  return /(natural|neural|online|premium|enhanced|siri|google|wavenet|studio|multilingual|-network)/.test(combined);
+}
+
+// Strictly identify & remove EVERY robotic / legacy SAPI / eSpeak / compact / novelty system voice!
 function isRoboticSystemVoice(voice) {
   if (!voice) return true;
   const name = (voice.name || '').toLowerCase();
@@ -7031,12 +7044,13 @@ function isRoboticSystemVoice(voice) {
     return true;
   }
 
-  // Cloud/network voices (localService === false) & modern Android Google/Samsung TTS voices are natural!
-  if (voice.localService === false) return false;
-  const isNaturalQuality = /(natural|neural|online|premium|enhanced|siri|google|wavenet|studio|multilingual|-network|-local|en-[a-z]{2}-x-|android|samsung|english\s*\(?united|english\s*\(?us|english\s*\(?uk|samantha|karen|daniel|moira|tessa|serena|martha|arthur|ava|allison|zoe|nicky)/.test(combined);
-  if (isNaturalQuality) return false;
+  // Tier-1 Neural / Cloud / Network / Google / Enhanced / Siri voices are genuinely natural!
+  if (isTier1NaturalVoice(voice)) return false;
 
-  // Block unknown generic legacy OS fallback voices
+  // Allow curated high-quality named voices (Apple/iOS modern voices) ONLY if not compact/robotic
+  if (/\b(samantha|karen|daniel|moira|tessa|serena|martha|arthur|ava|allison|zoe|nicky)\b/.test(name)) return false;
+
+  // Block all old offline Android `-local` compact voices and generic robotic OS fallbacks!
   return true;
 }
 
@@ -7052,16 +7066,18 @@ function loadDetectedVoiceModels(forceRefresh = false) {
   const rawVoices = window.speechSynthesis.getVoices();
   if (rawVoices && rawVoices.length > 0) {
     const userLangPrefix = (navigator.language || 'en').slice(0, 2).toLowerCase();
-    // Completely strip ALL robotic system voices & keep user's language + English natural voices first (capped cleanly for 2019 phones!)
-    const naturalAll = rawVoices
-      .filter(v => !isRoboticSystemVoice(v))
+    // Completely strip ALL robotic system voices & prefer Tier-1 Neural/Network voices exclusively when present!
+    const nonRobotic = rawVoices.filter(v => !isRoboticSystemVoice(v));
+    const tier1Only = nonRobotic.filter(v => isTier1NaturalVoice(v));
+    const naturalAll = (tier1Only.length > 0 ? tier1Only : nonRobotic)
       .sort((a, b) => scoreNaturalDeviceVoice(b) - scoreNaturalDeviceVoice(a));
 
     const primaryLang = naturalAll.filter(v => {
       const l = (v.lang || '').toLowerCase();
       return l.startsWith('en') || l.startsWith(userLangPrefix);
     });
-    localVoiceModels = (primaryLang.length > 0 ? primaryLang : naturalAll).slice(0, 24);
+    const cap = window.PK_LITE_MODE ? 14 : 24;
+    localVoiceModels = (primaryLang.length > 0 ? primaryLang : naturalAll).slice(0, cap);
     voicesCacheReady = true;
   }
   return localVoiceModels;
@@ -7114,12 +7130,13 @@ function getSelectedVoiceModel() {
 // =========================================================================
 function openVoiceModelModal() {
   loadDetectedVoiceModels(!voicesCacheReady);
+  // Populate inputs & cards BEFORE unhiding backdrop -> zero forced reflows, zero CSS transition storms, <10ms open!
+  syncVoiceStudioInputs();
+  renderVoiceCardsList();
   const backdrop = document.getElementById('voiceModelModalBackdrop');
   if (backdrop) {
     backdrop.classList.remove('hidden');
   }
-  syncVoiceStudioInputs();
-  renderVoiceCardsList();
   if (getVoiceSettings().engine === 'kokoro') {
     checkKokoroCacheStatus();
   }
@@ -7151,7 +7168,7 @@ function syncVoiceStudioInputs() {
     karaokeToggle.checked = settings.autoScroll !== false;
   }
 
-  setVoiceGenderFilter(settings.genderFilter || 'all', false);
+  setVoiceGenderFilter(settings.genderFilter || 'all', false, false);
 }
 
 function formatVoicePitchLabel(p) {
@@ -7162,11 +7179,11 @@ function formatVoicePitchLabel(p) {
   return `Petite (${p.toFixed(2)})`;
 }
 
-function setVoiceGenderFilter(filter, render = true) {
+function setVoiceGenderFilter(filter, render = true, shouldPersist = true) {
   activeVoiceGenderFilter = filter;
   const settings = getVoiceSettings();
   settings.genderFilter = filter;
-  persistState();
+  if (shouldPersist) persistState();
 
   ['all', 'cute', 'female', 'male'].forEach(f => {
     const btn = document.getElementById(`voiceFilter${f.charAt(0).toUpperCase() + f.slice(1)}`);
@@ -7182,9 +7199,13 @@ function setVoiceGenderFilter(filter, render = true) {
   if (render) renderVoiceCardsList();
 }
 
+let voiceSearchDebounceTimer = null;
 function handleVoiceSearchInput(query) {
   voiceSearchFilter = (query || '').toLowerCase().trim();
-  renderVoiceCardsList();
+  clearTimeout(voiceSearchDebounceTimer);
+  voiceSearchDebounceTimer = setTimeout(() => {
+    renderVoiceCardsList();
+  }, 120);
 }
 
 function handleVoiceRateChange(val) {
@@ -7599,9 +7620,14 @@ function testDeviceVoice(targetVoice = null) {
     clearTimeout(deviceAuditionTimer);
     deviceAuditionTimer = null;
   }
-  // Suppress Android's spurious onvoiceschanged event during cancel/speak so modal NEVER loops/freezes!
-  suppressVoicesChangedUntil = Date.now() + 1800;
-  window.speechSynthesis.cancel();
+  // Only cancel if actively speaking/pending (avoids Android TTS Binder IPC freeze when idle!)
+  let didCancel = false;
+  if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+    suppressVoicesChangedUntil = Date.now() + 1800;
+    lastSpeechCancelTs = Date.now();
+    window.speechSynthesis.cancel();
+    didCancel = true;
+  }
   const settings = getVoiceSettings();
   const voice = targetVoice || getSelectedVoiceModel();
   if (!voice) {
@@ -7616,21 +7642,30 @@ function testDeviceVoice(targetVoice = null) {
     customRaw || "Hi Kon, PK Note instant natural voice is ready with zero download."
   );
   const utterance = new SpeechSynthesisUtterance(text);
-  if (voice) utterance.voice = voice;
+  if (voice) {
+    utterance.voice = voice;
+    if (voice.lang) utterance.lang = voice.lang;
+  }
   utterance.rate = Math.max(0.75, Math.min(1.5, settings.rate || 1.0));
   utterance.pitch = Math.max(0.90, Math.min(1.14, settings.pitch || 1.0));
   currentActiveUtterance = utterance;
 
-  // 75ms debounced delay after cancel() prevents Android/Chrome TTS queue lockups & dropped utterances!
-  deviceAuditionTimer = setTimeout(() => {
-    deviceAuditionTimer = null;
+  const fireSpeak = () => {
     try {
       suppressVoicesChangedUntil = Date.now() + 1800;
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
       window.speechSynthesis.speak(utterance);
     } catch (e) {}
-  }, 75);
-  if (typeof playMechanicalClick === 'function') playMechanicalClick(0.9);
+  };
+
+  if (didCancel) {
+    deviceAuditionTimer = setTimeout(() => {
+      deviceAuditionTimer = null;
+      fireSpeak();
+    }, 95);
+  } else {
+    fireSpeak();
+  }
   showToast(`Auditioning: ${voice ? voice.name.slice(0, 26) : 'Instant Natural'}`);
 }
 

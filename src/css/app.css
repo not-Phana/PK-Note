@@ -906,6 +906,14 @@ body.zen-active .block-row:focus-within {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Voice Studio Layout Containment (Zero Scroll Jank & Zero Full-Modal Repaints) */
+#voiceCardsList {
+  contain: layout style;
+}
+#voiceCardsList > div {
+  contain: layout style paint;
+}
+
 /* Guarantee mobile bottom nav stays 100% hidden while typing (cannot be overridden by Tailwind .flex) */
 #mobileBottomNav.pk-nav-hidden {
   display: none !important;
@@ -934,13 +942,23 @@ html.pk-lite-gpu .popover-surface {
 }
 html.pk-lite-gpu .shadow-2xl,
 html.pk-lite-gpu .shadow-xl {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28) !important;
 }
 html.pk-lite-gpu #docReadingProgressBar {
   box-shadow: none !important;
 }
-html.pk-lite-gpu .animate-aura {
+/* CRITICAL FOR 2019 PHONE GPUs: Kill all filter:blur() & will-change:filter modal animations & infinite pulse/ping loops! */
+html.pk-lite-gpu .animate-aura,
+html.pk-lite-gpu .animate-backdrop,
+html.pk-lite-gpu .animate-modal-card,
+html.pk-lite-gpu .animate-cmd-card,
+html.pk-lite-gpu .animate-menu,
+html.pk-lite-gpu .animate-doc-glide,
+html.pk-lite-gpu .animate-tab-content,
+html.pk-lite-gpu .animate-pulse,
+html.pk-lite-gpu .animate-ping {
   animation: none !important;
   will-change: auto !important;
+  filter: none !important;
 }
 

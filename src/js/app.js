@@ -16194,49 +16194,205 @@ function attachSwipeDownDismiss(backdropId, closeFn) {
   sheet.addEventListener('touchcancel', finishSwipe);
 }
 
-// --- 19E. CLEAN NON-INTRUSIVE MOBILE GESTURES (Never fights Android Back, scrolling, or text selection!) ---
-//     Only allows: swipe to CLOSE an already-open sidebar/inspector, and Calendar month flick.
+// --- 19E. OBSIDIAN / TELEGRAM-STYLE 1:1 FINGER-FOLLOWING SIDEBAR ENGINE ---
+//     Swipe Right anywhere on canvas (>26px from edge — never fights Android Back!) -> Left Sidebar follows your finger!
+//     Swipe Left anywhere on open Left Sidebar -> glides shut 1:1!
+//     Swipe Left on canvas -> Right Inspector follows your finger! Swipe Right on open Inspector -> glides shut!
 (function initGlobalFingerGestures() {
-  let gesture = null;
+  let track = null;
+
+  function isOverlayModalOpen() {
+    if (typeof pkGroqDrawerOpen !== 'undefined' && pkGroqDrawerOpen) return true;
+    if (typeof pkSpecialDrawerOpen !== 'undefined' && pkSpecialDrawerOpen) return true;
+    const modalIds = [
+      'pkDatabaseBackdrop', 'pkSpotlightOverlay', 'commandPaletteBackdrop',
+      'voiceModelModalBackdrop', 'mobileMoreSheetBackdrop', 'mobileQuickMenuBackdrop',
+      'eventModalBackdrop', 'workspaceCustomizerModal', 'expandedGraphModal'
+    ];
+    for (let i = 0; i < modalIds.length; i++) {
+      const el = document.getElementById(modalIds[i]);
+      if (el && !el.classList.contains('hidden')) return true;
+    }
+    return false;
+  }
+
+  function hasHorizScrollAncestor(el) {
+    let cur = el;
+    while (cur && cur !== document.body) {
+      if (cur.scrollWidth > cur.clientWidth + 6) {
+        const ov = window.getComputedStyle(cur).overflowX;
+        if (ov === 'auto' || ov === 'scroll') return true;
+      }
+      cur = cur.parentElement;
+    }
+    return false;
+  }
 
   document.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) { gesture = null; return; }
+    track = null;
+    if (e.touches.length !== 1 || window.innerWidth >= 1024) return;
+    if (isOverlayModalOpen()) return;
+    if (typeof pkMobileArrangeMode !== 'undefined' && pkMobileArrangeMode) return;
+
     const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement ? e.target.parentElement : null);
-    if (targetEl && targetEl.closest('canvas, input, textarea, [contenteditable="true"], [data-drag-handle]')) {
-      gesture = null;
+    if (targetEl && targetEl.closest('canvas, input, textarea, select, [data-drag-handle], #pkAudioReaderHUD, #pkDictationHUD, #pkFocusTimerHUD')) {
       return;
     }
+    // Don't hijack while user is adjusting a text selection
+    const selStr = window.getSelection ? window.getSelection().toString().trim() : '';
+    if (selStr.length > 0) return;
+
     const t = e.touches[0];
-    gesture = { startX: t.clientX, startY: t.clientY, startTs: Date.now() };
+    const W = window.innerWidth;
+    const leftOpen = !!state.leftSidebarOpen;
+    const rightOpen = !!state.rightSidebarOpen;
+
+    // Avoid OS back-gesture zone (0..24px from screen edges) when opening a closed sidebar
+    if (!leftOpen && !rightOpen && (t.clientX < 24 || t.clientX > W - 24)) return;
+    if (!leftOpen && !rightOpen && targetEl && hasHorizScrollAncestor(targetEl)) return;
+
+    track = {
+      startX: t.clientX,
+      startY: t.clientY,
+      lastX: t.clientX,
+      startTs: Date.now(),
+      locked: null, // 'open-left' | 'close-left' | 'open-right' | 'close-right' | 'calendar' | 'aborted'
+      leftOpen,
+      rightOpen,
+      sidebarEl: null,
+      backdropEl: null,
+      sidebarW: 280,
+      progress: 0
+    };
   }, { passive: true });
 
-  document.addEventListener('touchend', (e) => {
-    if (!gesture || e.changedTouches.length === 0) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - gesture.startX;
-    const dy = t.clientY - gesture.startY;
-    const dt = Date.now() - gesture.startTs;
-    gesture = null;
+  document.addEventListener('touchmove', (e) => {
+    if (!track || track.locked === 'aborted' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - track.startX;
+    const dy = t.clientY - track.startY;
+    track.lastX = t.clientX;
 
-    if (dt > 500 || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.5) return;
-
-    // Only swipe to CLOSE already-open mobile sidebars (never hijack screen edges from Android Back!)
-    if (window.innerWidth < 1024) {
-      if (state.leftSidebarOpen && dx < -70) {
-        closeMobileSidebar();
+    if (!track.locked) {
+      // Vertical scroll always wins immediately!
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 0.85) {
+        track.locked = 'aborted';
         return;
       }
-      if (state.rightSidebarOpen && dx > 70) {
-        closeRightSidebar();
+      if (Math.abs(dx) < 16) return;
+
+      // Decide gesture direction
+      if (track.leftOpen && dx < 0) {
+        track.locked = 'close-left';
+        track.sidebarEl = document.getElementById('leftSidebar');
+        track.backdropEl = document.getElementById('mobileSidebarBackdrop');
+      } else if (track.rightOpen && dx > 0) {
+        track.locked = 'close-right';
+        track.sidebarEl = document.getElementById('rightSidebar');
+        track.backdropEl = document.getElementById('mobileInspectorBackdrop');
+      } else if (!track.leftOpen && !track.rightOpen && state.appMode === 'calendar') {
+        track.locked = 'calendar';
         return;
+      } else if (!track.leftOpen && !track.rightOpen && dx > 0 && window.innerWidth < 768) {
+        track.locked = 'open-left';
+        track.sidebarEl = document.getElementById('leftSidebar');
+        track.backdropEl = document.getElementById('mobileSidebarBackdrop');
+      } else if (!track.leftOpen && !track.rightOpen && dx < 0 && state.appMode === 'workspace') {
+        track.locked = 'open-right';
+        track.sidebarEl = document.getElementById('rightSidebar');
+        track.backdropEl = document.getElementById('mobileInspectorBackdrop');
+      } else {
+        track.locked = 'aborted';
+        return;
+      }
+
+      if (!track.sidebarEl) { track.locked = 'aborted'; return; }
+      // Dismiss soft keyboard if opening sidebar
+      if ((track.locked === 'open-left' || track.locked === 'open-right') && document.activeElement && document.activeElement.blur) {
+        try { document.activeElement.blur(); } catch (_) {}
+      }
+      track.sidebarW = Math.max(220, track.sidebarEl.offsetWidth || Math.min(300, window.innerWidth * 0.82));
+      track.sidebarEl.style.transition = 'none';
+      track.sidebarEl.style.opacity = '1';
+      if (track.backdropEl) {
+        track.backdropEl.classList.remove('hidden');
+        track.backdropEl.style.transition = 'none';
       }
     }
 
-    // Calendar horizontal flick -> Next / Previous period
-    if (state.appMode === 'calendar' && !state.leftSidebarOpen && !state.rightSidebarOpen && typeof navigateCalendar === 'function') {
-      navigateCalendar(dx < 0 ? 1 : -1);
+    if (track.locked === 'calendar') return;
+    if (!track.sidebarEl) return;
+
+    const w = track.sidebarW;
+    let p = 0; // 0 = fully closed, 1 = fully open
+    if (track.locked === 'open-left') {
+      p = Math.max(0, Math.min(1, dx / w));
+      track.sidebarEl.style.transform = `translate3d(${Math.round((p - 1) * w)}px, 0, 0)`;
+    } else if (track.locked === 'close-left') {
+      p = Math.max(0, Math.min(1, 1 + dx / w));
+      track.sidebarEl.style.transform = `translate3d(${Math.round((p - 1) * w)}px, 0, 0)`;
+    } else if (track.locked === 'open-right') {
+      p = Math.max(0, Math.min(1, -dx / w));
+      track.sidebarEl.style.transform = `translate3d(${Math.round((1 - p) * w)}px, 0, 0)`;
+    } else if (track.locked === 'close-right') {
+      p = Math.max(0, Math.min(1, 1 - dx / w));
+      track.sidebarEl.style.transform = `translate3d(${Math.round((1 - p) * w)}px, 0, 0)`;
+    }
+    track.progress = p;
+    if (track.backdropEl) {
+      track.backdropEl.style.opacity = String(p.toFixed(3));
     }
   }, { passive: true });
+
+  const finishTrack = () => {
+    if (!track) return;
+    const st = track;
+    track = null;
+    if (!st.locked || st.locked === 'aborted') return;
+
+    const dx = st.lastX - st.startX;
+    const dt = Math.max(1, Date.now() - st.startTs);
+    const vel = Math.abs(dx) / dt; // px per ms
+
+    if (st.locked === 'calendar') {
+      if (Math.abs(dx) > 65 && dt < 500 && typeof navigateCalendar === 'function') {
+        navigateCalendar(dx < 0 ? 1 : -1);
+      }
+      return;
+    }
+
+    if (st.sidebarEl) st.sidebarEl.style.transition = '';
+    if (st.backdropEl) {
+      st.backdropEl.style.transition = '';
+      st.backdropEl.style.opacity = '';
+    }
+
+    const isOpening = st.locked === 'open-left' || st.locked === 'open-right';
+    const shouldBeOpen = isOpening
+      ? (st.progress > 0.26 || (vel > 0.35 && st.progress > 0.1))
+      : !(st.progress < 0.74 || (vel > 0.35 && st.progress < 0.9));
+
+    if (st.locked === 'open-left' || st.locked === 'close-left') {
+      state.leftSidebarOpen = shouldBeOpen;
+      if (shouldBeOpen) state.rightSidebarOpen = false;
+      applyThemeAndLayout();
+      persistState();
+    } else if (st.locked === 'open-right' || st.locked === 'close-right') {
+      state.rightSidebarOpen = shouldBeOpen;
+      if (shouldBeOpen) state.leftSidebarOpen = false;
+      applyThemeAndLayout();
+      if (shouldBeOpen && state.appMode === 'workspace') {
+        requestAnimationFrame(() => {
+          if (typeof resizeGraphCanvas === 'function') resizeGraphCanvas();
+          if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
+        });
+      }
+      persistState();
+    }
+  };
+
+  document.addEventListener('touchend', finishTrack, { passive: true });
+  document.addEventListener('touchcancel', finishTrack, { passive: true });
 })();
 
 // Initialize all finger-first widgets, graph touch, and swipe-down sheets

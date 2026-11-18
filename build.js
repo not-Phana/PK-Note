@@ -65,6 +65,18 @@ for (const [src, dst] of jsFiles) {
   console.log(`4. JS minified -> ${dst} (${kb(raw.length)} -> ${kb(out.code.length)})`);
 }
 
+// 4b. Bundle Open-Source AI Memory Engine (Dexie IndexedDB + Orama Hybrid BM25/Vector Search)
+esbuild.buildSync({
+  entryPoints: [path.join(ROOT, 'src/js/ai-memory.js')],
+  outfile: path.join(ROOT, 'js/ai-memory.min.js'),
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  target: 'es2020',
+  legalComments: 'none'
+});
+console.log('4b. AI Memory Engine bundled (Dexie + Orama) -> js/ai-memory.min.js (' + kb(fs.statSync(path.join(ROOT, 'js/ai-memory.min.js')).size) + ')');
+
 // 5. Sync HTML workspace copies & verify ZERO <style> and ZERO inline <script>
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const styleTags = (html.match(/<style\b/gi) || []).length;

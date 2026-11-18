@@ -111,11 +111,31 @@ const PK_NVIDIA_WORKER_SNIPPET = `export default {
   }
 };`;
 
-let pkGroqHistory = []; // { role: 'user'|'assistant', content: string, eventPayloads?: [], isError?: boolean, provider?: string, retryPrompt?: string }
+let pkGroqHistory = []; // { role: 'user'|'assistant', content: string, eventPayloads?: [], savedMemories?: [], isError?: boolean, provider?: string, retryPrompt?: string }
 let pkGroqContextScope = 'note'; // 'note' | 'vault' | 'general'
 let pkGroqAbortController = null;
 let pkGroqIsStreaming = false;
 let pkGroqDrawerOpen = false;
+let pkMemoryChatLoaded = false;
+
+function updateAiMemoryBadge() {
+  const lbl = document.getElementById('pkAiMemoryBtnLabel');
+  if (!lbl) return;
+  const count = window.PKMemory && typeof window.PKMemory.getCount === 'function' ? window.PKMemory.getCount() : 0;
+  lbl.textContent = count > 0 ? `Memory (${count})` : 'Memory';
+}
+
+window.onPKMemoryReady = async function () {
+  updateAiMemoryBadge();
+  if (!pkMemoryChatLoaded && window.PKMemory && typeof window.PKMemory.loadChatHistory === 'function') {
+    pkMemoryChatLoaded = true;
+    const saved = await window.PKMemory.loadChatHistory(40);
+    if (saved.length > 0 && pkGroqHistory.length === 0) {
+      pkGroqHistory = saved;
+      if (pkGroqDrawerOpen) renderGroqMessages();
+    }
+  }
+};
 
 // ============================================================================
 // MULTI-PROVIDER CONFIG STORAGE (WITH AUTOMATIC LEGACY GROQ MIGRATION)
@@ -520,13 +540,26 @@ function setGroqContextScope(scope) {
 
 function openGroqAssistant(autoShowSettings = false) {
   syncGroqHeaderAndSettingsUI();
+  updateAiMemoryBadge();
   const cfg = loadAiConfig();
   const { spec, data } = getActiveProviderSpec(cfg);
   const ready = isProviderReady(spec.id, data);
   const settingsPanel = document.getElementById('pkGroqSettingsPanel');
+  const memPanel = document.getElementById('pkAiMemoryPanel');
+  if (memPanel) memPanel.classList.add('hidden');
   if (settingsPanel) {
     if (autoShowSettings || !ready) settingsPanel.classList.remove('hidden');
     else settingsPanel.classList.add('hidden');
+  }
+  if (!pkMemoryChatLoaded && window.PKMemory && typeof window.PKMemory.loadChatHistory === 'function') {
+    pkMemoryChatLoaded = true;
+    window.PKMemory.loadChatHistory(40).then(saved => {
+      updateAiMemoryBadge();
+      if (saved.length > 0 && pkGroqHistory.length === 0) {
+        pkGroqHistory = saved;
+        renderGroqMessages();
+      }
+    }).catch(() => {});
   }
   renderGroqMessages();
   const backdrop = document.getElementById('pkGroqAssistantBackdrop');
@@ -568,9 +601,162 @@ function closeGroqAssistant() {
 
 function toggleGroqSettingsPanel() {
   const panel = document.getElementById('pkGroqSettingsPanel');
+  const memPanel = document.getElementById('pkAiMemoryPanel');
   if (!panel) return;
+  if (memPanel) memPanel.classList.add('hidden');
   syncGroqHeaderAndSettingsUI();
   panel.classList.toggle('hidden');
+}
+
+async function toggleAiMemoryPanel() {
+  const memPanel = document.getElementById('pkAiMemoryPanel');
+  const settingsPanel = document.getElementById('pkGroqSettingsPanel');
+  if (!memPanel) return;
+  if (settingsPanel) settingsPanel.classList.add('hidden');
+  const willOpen = memPanel.classList.contains('hidden');
+  memPanel.classList.toggle('hidden');
+  if (willOpen) {
+    await renderAiMemoryPanel();
+  }
+}
+
+async function renderAiMemoryPanel() {
+  const listEl = document.getElementById('pkAiMemoryList');
+  const metaEl = document.getElementById('pkAiMemoryCountMeta');
+  const autoBtn = document.getElementById('pkAiAutoMemoryToggle');
+  const searchEl = document.getElementById('pkAiMemorySearchInput');
+  if (!window.PKMemory) return;
+
+  const settings = window.PKMemory.getSettings();
+  if (autoBtn) {
+    autoBtn.textContent = settings.autoSave ? 'Auto: ON' : 'Auto: OFF';
+    autoBtn.className = settings.autoSave
+      ? 'px-2 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9.5px] font-semibold text-[var(--accent-vermilion)] cursor-pointer shrink-0'
+      : 'px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] cursor-pointer shrink-0';
+  }
+
+  const query = searchEl ? searchEl.value.trim() : '';
+  const items = await window.PKMemory.list(query);
+  const totalCount = window.PKMemory.getCount();
+  updateAiMemoryBadge();
+  if (metaEl) {
+    metaEl.textContent = query
+      ? `${items.length} match(es) of ${totalCount} saved`
+      : `${totalCount} saved in IndexedDB`;
+  }
+  if (!listEl) return;
+
+  if (items.length === 0) {
+    listEl.innerHTML = `<div class="py-3 text-center font-mono text-[10px] text-[var(--text-tertiary)]">${
+      query
+        ? 'No memories matched that search.'
+        : 'No memories yet. Tell the AI "remember that..." or add one above.'
+    }</div>`;
+    return;
+  }
+
+  listEl.innerHTML = items.map(m => {
+    const pinCls = m.pinned
+      ? 'px-1.5 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[9px] font-semibold cursor-pointer'
+      : 'px-1.5 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[9px] cursor-pointer';
+    return `
+      <div class="px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-start justify-between gap-2">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
+            <span class="px-1.5 py-0.2 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)]">${escapeHtml(m.category || 'fact')}</span>
+            ${m.pinned ? '<span class="text-[var(--text-primary)] font-semibold">Pinned</span>' : ''}
+          </div>
+          <div class="text-[11.5px] text-[var(--text-primary)] leading-snug break-words">${escapeHtml(m.text)}</div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0 pt-0.5">
+          <button type="button" onclick="togglePinAiMemory('${escapeHtml(m.id)}')" class="${pinCls}">${m.pinned ? 'Pinned' : 'Pin'}</button>
+          <button type="button" onclick="deleteAiMemory('${escapeHtml(m.id)}')" title="Forget" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleAiAutoMemory() {
+  if (!window.PKMemory) return;
+  const cur = window.PKMemory.getSettings();
+  const next = window.PKMemory.saveSettings({ autoSave: !cur.autoSave });
+  renderAiMemoryPanel();
+  if (typeof showToast === 'function') {
+    showToast(next.autoSave ? 'Auto-memory ON — AI will remember key details' : 'Auto-memory OFF — manual memories only', next.autoSave ? undefined : 'ochre');
+  }
+}
+
+async function addManualAiMemory() {
+  if (!window.PKMemory) return;
+  const inp = document.getElementById('pkAiMemoryAddInput');
+  const catSel = document.getElementById('pkAiMemoryCategory');
+  const text = inp ? inp.value.trim() : '';
+  if (!text) return;
+  const category = catSel ? catSel.value : 'fact';
+  await window.PKMemory.add(text, { category, source: 'manual' });
+  if (inp) inp.value = '';
+  await renderAiMemoryPanel();
+  if (typeof showToast === 'function') showToast('Saved to AI memory');
+}
+
+async function togglePinAiMemory(id) {
+  if (!window.PKMemory) return;
+  const updated = await window.PKMemory.togglePin(id);
+  await renderAiMemoryPanel();
+  if (updated && typeof showToast === 'function') {
+    showToast(updated.pinned ? 'Memory pinned (always active)' : 'Memory unpinned');
+  }
+}
+
+async function deleteAiMemory(id) {
+  if (!window.PKMemory) return;
+  await window.PKMemory.remove(id);
+  await renderAiMemoryPanel();
+  if (typeof showToast === 'function') showToast('Removed memory', 'ochre');
+}
+
+async function undoSavedAiMemory(msgIdx, memId) {
+  if (window.PKMemory) await window.PKMemory.remove(memId);
+  const msg = pkGroqHistory[msgIdx];
+  if (msg && Array.isArray(msg.savedMemories)) {
+    msg.savedMemories = msg.savedMemories.filter(m => m.id !== memId);
+  }
+  updateAiMemoryBadge();
+  renderGroqMessages();
+  if (window.PKMemory) window.PKMemory.saveChatHistory(pkGroqHistory);
+  if (typeof showToast === 'function') showToast('Memory removed', 'ochre');
+}
+
+async function rememberGroqReply(msgIdx) {
+  const msg = pkGroqHistory[msgIdx];
+  if (!msg || !msg.content || msg.isError || !window.PKMemory) return;
+  const clean = stripSpecialBlocksForDisplay(msg.content, false).replace(/\s+/g, ' ').slice(0, 320);
+  if (!clean) return;
+  const res = await window.PKMemory.add(clean, { category: 'fact', source: 'reply' });
+  updateAiMemoryBadge();
+  const memPanel = document.getElementById('pkAiMemoryPanel');
+  if (memPanel && !memPanel.classList.contains('hidden')) await renderAiMemoryPanel();
+  if (res && typeof showToast === 'function') showToast('Saved reply to AI memory');
+}
+
+async function exportAiMemories() {
+  if (!window.PKMemory) return;
+  const json = await window.PKMemory.exportJson();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(json).then(() => {
+      if (typeof showToast === 'function') showToast('Copied AI memory JSON backup');
+    }).catch(() => {});
+  }
+}
+
+async function clearAllAiMemoriesUI() {
+  if (!window.PKMemory) return;
+  if (window.PKMemory.getCount() === 0) return;
+  if (typeof window.confirm === 'function' && !window.confirm('Clear all saved AI memories on this device?')) return;
+  await window.PKMemory.clearAll();
+  await renderAiMemoryPanel();
+  if (typeof showToast === 'function') showToast('All AI memories cleared', 'ochre');
 }
 
 function toggleGroqKeyVisibility() {
@@ -979,8 +1165,11 @@ async function testGroqConnection() {
 function clearGroqConversation() {
   abortGroqStream();
   pkGroqHistory = [];
+  if (window.PKMemory && typeof window.PKMemory.clearChatHistory === 'function') {
+    window.PKMemory.clearChatHistory();
+  }
   renderGroqMessages();
-  if (typeof showToast === 'function') showToast('Started new AI conversation');
+  if (typeof showToast === 'function') showToast('Started new chat (memories kept)');
 }
 
 // ============================================================================
@@ -998,8 +1187,9 @@ function pkCleanBlockText(raw) {
     .trim();
 }
 
-function buildGroqSystemPrompt() {
+function buildGroqSystemPrompt(recalledMemories = []) {
   const todayIso = new Date().toISOString().slice(0, 10);
+  const autoMemOn = !window.PKMemory || window.PKMemory.getSettings().autoSave;
   const parts = [
     'You are the built-in AI helper inside PK Note.',
     `Today's date is ${todayIso}.`,
@@ -1007,6 +1197,19 @@ function buildGroqSystemPrompt() {
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
     'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```'
   ];
+
+  if (autoMemOn) {
+    parts.push(
+      'Long-term memory: ONLY when the user shares a durable personal detail worth remembering across future chats (name, preferences, ongoing projects, goals, tools/devices they use, or explicitly asks you to remember something), append one hidden block at the very end like:\n```pk-memory\n{"text":"Short clear fact to remember","category":"preference"}\n```\nValid categories: profile, preference, project, fact. Never save one-off questions or facts already listed in your memories below.'
+    );
+  }
+
+  if (Array.isArray(recalledMemories) && recalledMemories.length > 0) {
+    const memLines = recalledMemories
+      .map(m => `- [${m.category || 'fact'}] ${m.text}`)
+      .join('\n');
+    parts.push(`\nWHAT YOU REMEMBER ABOUT THE USER (use naturally without awkwardly announcing it):\n${memLines}`);
+  }
 
   const activeNote = typeof getActiveNote === 'function' ? getActiveNote() : null;
 
@@ -1071,13 +1274,34 @@ function extractEventPayloadsFromText(text) {
   return events;
 }
 
+function extractMemoryPayloadsFromText(text) {
+  const memories = [];
+  const re = /```pk-memory\s*([\s\S]*?)```/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    try {
+      const parsed = JSON.parse(m[1].trim());
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      items.forEach(obj => {
+        if (obj && typeof obj.text === 'string' && obj.text.trim().length >= 3) {
+          memories.push({ text: obj.text.trim(), category: obj.category || 'fact' });
+        }
+      });
+    } catch (_) {}
+  }
+  return memories;
+}
+
 function stripSpecialBlocksForDisplay(text, isStreaming = false) {
   let out = String(text || '')
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/```pk-event[\s\S]*?```/gi, '');
-  // Hide unclosed <think> block while reasoning models are mid-thought
+    .replace(/```pk-event[\s\S]*?```/gi, '')
+    .replace(/```pk-memory[\s\S]*?```/gi, '');
+  // Hide unclosed <think> or hidden pk-memory / pk-event block while streaming
   if (isStreaming) {
-    out = out.replace(/<think>[\s\S]*$/gi, '');
+    out = out
+      .replace(/<think>[\s\S]*$/gi, '')
+      .replace(/```pk-(?:memory|event)[\s\S]*$/gi, '');
   }
   return out.trim();
 }
@@ -1290,6 +1514,13 @@ function renderGroqMessages() {
       </button>
     `).join('');
 
+    const memoryBadges = (m.savedMemories || []).map(mem => `
+      <div class="mt-2 px-2.5 py-1.5 rounded-[5px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-center justify-between gap-2 font-mono text-[9.5px]">
+        <span class="text-[var(--text-secondary)] truncate"><span class="text-[var(--accent-vermilion)] font-semibold">Remembered:</span> ${escapeHtml(mem.text)}</span>
+        <button type="button" onclick="undoSavedAiMemory(${idx}, '${escapeHtml(mem.id)}')" class="text-[var(--text-tertiary)] hover:text-rose-500 shrink-0 cursor-pointer">Undo</button>
+      </div>
+    `).join('');
+
     let actionsBar = '';
     if (!m.streaming) {
       if (m.isError) {
@@ -1306,6 +1537,7 @@ function renderGroqMessages() {
             <button type="button" onclick="insertGroqReplyIntoNote(${idx}, true)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Replace</button>
             <button type="button" onclick="createNewNoteFromGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">New Note</button>
             ${hasFlashcards ? `<button type="button" onclick="sendGroqFlashcardsToStudyDeck(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Study Deck</button>` : ''}
+            <button type="button" onclick="rememberGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Remember</button>
             <button type="button" onclick="readGroqReplyAloud(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] cursor-pointer">Read</button>
             <button type="button" onclick="copyGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] cursor-pointer">Copy</button>
           </div>
@@ -1320,6 +1552,7 @@ function renderGroqMessages() {
       <div class="flex justify-start">
         <div class="max-w-[94%] w-full px-3 py-2.5 rounded-xl rounded-bl-[3px] border ${bubbleBorder} text-[var(--text-primary)]">
           <div id="pkGroqMsgBody_${idx}" class="text-xs leading-relaxed whitespace-pre-wrap break-words font-sans">${escapeHtml(display || placeholderStatus)}</div>
+          ${memoryBadges}
           ${eventCards}
           ${actionsBar}
         </div>
@@ -1437,6 +1670,12 @@ async function sendGroqPrompt(overrideText) {
   setGroqStreamingButtons(true);
   pkGroqAbortController = new AbortController();
 
+  // Recall relevant long-term memories via Orama Hybrid BM25 + Vector Search
+  let recalledMemories = [];
+  if (window.PKMemory && typeof window.PKMemory.recall === 'function') {
+    try { recalledMemories = await window.PKMemory.recall(userText, { limit: 8 }); } catch (_) {}
+  }
+
   // Keep last 10 clean turns (excluding prior failed error bubbles)
   const recentTurns = pkGroqHistory
     .slice(0, -1)
@@ -1445,7 +1684,7 @@ async function sendGroqPrompt(overrideText) {
     .map(m => ({ role: m.role, content: stripSpecialBlocksForDisplay(m.content, false) || m.content }));
 
   const messages = [
-    { role: 'system', content: buildGroqSystemPrompt() },
+    { role: 'system', content: buildGroqSystemPrompt(recalledMemories) },
     ...recentTurns
   ];
 
@@ -1611,6 +1850,30 @@ async function sendGroqPrompt(overrideText) {
     pkGroqHistory[assistantIdx].eventPayloads = pkGroqHistory[assistantIdx].isError
       ? []
       : extractEventPayloadsFromText(pkGroqHistory[assistantIdx].content);
+
+    // Save extracted AI memories + explicit user "remember that..." statements into Dexie + Orama
+    const savedMemList = [];
+    if (!pkGroqHistory[assistantIdx].isError && window.PKMemory && window.PKMemory.getSettings().autoSave) {
+      const candidates = extractMemoryPayloadsFromText(pkGroqHistory[assistantIdx].content);
+      const explicitMem = window.PKMemory.detectExplicit(userText);
+      if (explicitMem && candidates.length === 0) candidates.push(explicitMem);
+      for (let i = 0; i < candidates.length; i++) {
+        try {
+          const added = await window.PKMemory.add(candidates[i].text, {
+            category: candidates[i].category,
+            source: 'auto'
+          });
+          if (added && added.memory) {
+            savedMemList.push({ id: added.memory.id, text: added.memory.text, category: added.memory.category });
+          }
+        } catch (_) {}
+      }
+      if (savedMemList.length > 0) updateAiMemoryBadge();
+    }
+    pkGroqHistory[assistantIdx].savedMemories = savedMemList;
+    if (window.PKMemory && typeof window.PKMemory.saveChatHistory === 'function') {
+      window.PKMemory.saveChatHistory(pkGroqHistory);
+    }
     renderGroqMessages();
   } catch (err) {
     pkGroqHistory[assistantIdx].streaming = false;

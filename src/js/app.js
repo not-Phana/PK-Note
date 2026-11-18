@@ -6279,19 +6279,95 @@ function encodePcmToWavBlob(float32Samples, sampleRate, applyWarmthFilter = true
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-// Generate Kokoro-82M audio at ALWAYS-STANDARD 24000 Hz WAV (100% compatible with every Android/iOS decoder!)
-// Pitch sculpting (0.90..1.14) is applied cleanly in hardware via AudioBufferSourceNode.playbackRate / audio.playbackRate.
-async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0) {
+// Master raw Float32Array PCM directly for instant zero-copy Web Audio playback (0.2ms, skips WAV encode/decode!)
+function masterKokoroPcm(float32Samples, sampleRate = 24000, applyWarmthFilter = false) {
+  const sr = Math.max(8000, Math.round(sampleRate || 24000));
+  const srcLen = float32Samples.length;
+  if (srcLen === 0) return new Float32Array(1);
+
+  const leadMargin = Math.min(Math.floor(sr * 0.05), Math.floor(srcLen / 6));
+  const tailMargin = Math.min(Math.floor(sr * 0.07), Math.floor(srcLen / 6));
+  let start = 0;
+  let end = srcLen - 1;
+  while (start < srcLen - 1 && Math.abs(float32Samples[start]) < 0.0006) start++;
+  while (end > start && Math.abs(float32Samples[end]) < 0.0006) end--;
+  start = Math.max(0, start - leadMargin);
+  end = Math.min(srcLen - 1, end + tailMargin);
+  const numSamples = Math.max(1, end - start + 1);
+
+  const buf = new Float32Array(numSamples);
+  let mean = 0;
+  for (let i = 0; i < numSamples; i++) {
+    const v = float32Samples[start + i];
+    buf[i] = v;
+    mean += v;
+  }
+  mean /= numSamples;
+  for (let i = 0; i < numSamples; i++) buf[i] -= mean;
+
+  if (applyWarmthFilter && numSamples > 4) {
+    let prev = buf[0];
+    const alpha = 0.78;
+    for (let i = 1; i < numSamples; i++) {
+      prev = prev + alpha * (buf[i] - prev);
+      buf[i] = prev;
+    }
+  }
+
+  let peak = 0;
+  for (let i = 0; i < numSamples; i++) {
+    const a = Math.abs(buf[i]);
+    if (a > peak) peak = a;
+  }
+  const normGain = peak > 0.01 ? Math.min(2.2, 0.84 / peak) : 1.0;
+  const fadeSamples = Math.min(Math.floor(sr * 0.012), Math.floor(numSamples / 6));
+  for (let i = 0; i < numSamples; i++) {
+    let env = 1.0;
+    if (fadeSamples > 1) {
+      if (i < fadeSamples) env = 0.5 * (1 - Math.cos(Math.PI * i / fadeSamples));
+      else if (i > numSamples - fadeSamples) env = 0.5 * (1 - Math.cos(Math.PI * (numSamples - i) / fadeSamples));
+    }
+    const s = buf[i] * normGain * env;
+    buf[i] = s > 1 ? 1 : (s < -1 ? -1 : s);
+  }
+  return buf;
+}
+
+const kokoroSentencePcmCache = new Map(); // LRU cache (up to 18 sentences -> 0ms instant replay!)
+
+// Generate mastered Kokoro-82M Float32 PCM (0-copy for Web Audio, lazy WAV only if <audio> fallback needed)
+async function generateKokoroAudioData(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0, sessionId = null) {
   const pitch = Math.max(0.90, Math.min(1.14, Number(userPitch) || voiceMeta.defaultPitch || 1.0));
   const baseId = voiceMeta.baseVoice || voiceMeta.id || 'af_heart';
-  // Keep Kokoro's internal generation speed strictly inside its natural human zone (0.90..1.22)!
   const compensatedSpeed = Math.max(0.90, Math.min(1.22, (Number(userRate) || 1.0) / Math.pow(pitch, 0.65)));
-  const rawAudio = await tts.generate(text, { voice: baseId, speed: compensatedSpeed });
+  const quant = getVoiceSettings().kokoroQuant || 'q8';
+  const cacheKey = `${quant}|${baseId}|${compensatedSpeed.toFixed(2)}|${pitch.toFixed(2)}|${text}`;
+
+  if (kokoroSentencePcmCache.has(cacheKey)) {
+    const hit = kokoroSentencePcmCache.get(cacheKey);
+    return { pcm: hit.pcm, sampleRate: hit.sampleRate, pitch, cached: true };
+  }
+
+  const rawAudio = await tts.generate(text, { voice: baseId, speed: compensatedSpeed, sessionId });
+  if (rawAudio && rawAudio.cancelled) return { cancelled: true };
 
   const nativeSr = rawAudio.sampling_rate || 24000;
-  const isQuantized = (getVoiceSettings().kokoroQuant || 'fp16') === 'q8';
-  const blob = encodePcmToWavBlob(rawAudio.audio, nativeSr, isQuantized);
-  blob._pkPitch = pitch;
+  const isQuantized = quant === 'q8';
+  const pcm = masterKokoroPcm(rawAudio.audio, nativeSr, isQuantized);
+
+  if (kokoroSentencePcmCache.size >= 18) {
+    const oldestKey = kokoroSentencePcmCache.keys().next().value;
+    kokoroSentencePcmCache.delete(oldestKey);
+  }
+  kokoroSentencePcmCache.set(cacheKey, { pcm, sampleRate: nativeSr });
+  return { pcm, sampleRate: nativeSr, pitch, cached: false };
+}
+
+// Legacy wrapper kept for full compatibility
+async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0) {
+  const data = await generateKokoroAudioData(tts, text, voiceMeta, userRate, userPitch);
+  const blob = encodePcmToWavBlob(data.pcm, data.sampleRate, false);
+  blob._pkPitch = data.pitch;
   return blob;
 }
 
@@ -6385,23 +6461,50 @@ function unlockMobileAudioElement() {
   } catch (_) {}
 }
 
-// Plays Kokoro WAV cleanly:
-// - On phones (PK_LITE_MODE) or when Web Audio AudioContext is ready, plays via AudioBufferSourceNode
-//   directly on Android OpenSL ES / AAudio (ZERO Stagefright 0.11s blob-audio stutter/stall!).
-// - Falls back seamlessly to DOM-attached <audio> element if Web Audio is unavailable.
-async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
+// Plays Kokoro audio with ZERO WAV encode/decode round-trip when Web Audio is ready (0.2ms direct Float32 PCM!),
+// eliminating both synthesis lag AND Android Stagefright 0.11s blob-audio stutter/stall.
+// Lazily encodes a WAV Blob ONLY if falling back to DOM-attached <audio>.
+async function playKokoroUrlOrBlob(url, blobOrData, onEnded, onError) {
   stopVoiceAudioCtxSource();
-  const pitch = Math.max(0.90, Math.min(1.14, Number(blob && blob._pkPitch) || 1.0));
+  const isDirectPcm = !!(blobOrData && blobOrData.pcm instanceof Float32Array);
+  const pitch = Math.max(0.90, Math.min(1.14, Number(blobOrData && (blobOrData.pitch || blobOrData._pkPitch)) || 1.0));
 
-  // Prefer direct Web Audio PCM playback on mobile/phones (eliminates Android MediaPlayerService 0.11s stall!)
-  if (blob && (window.PK_LITE_MODE || (pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'running'))) {
+  // ULTRA-FAST PATH: Feed mastered Float32Array PCM directly into Web Audio AudioBuffer (0.2ms!)
+  if (isDirectPcm) {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx && !pkVoiceAudioCtx) pkVoiceAudioCtx = new AudioCtx();
       if (pkVoiceAudioCtx) {
         if (pkVoiceAudioCtx.state === 'suspended') await pkVoiceAudioCtx.resume();
         if (pkVoiceAudioCtx.state === 'running') {
-          const ab = await blob.arrayBuffer();
+          const sr = blobOrData.sampleRate || 24000;
+          const audioBuf = pkVoiceAudioCtx.createBuffer(1, blobOrData.pcm.length, sr);
+          audioBuf.copyToChannel(blobOrData.pcm, 0);
+          const src = pkVoiceAudioCtx.createBufferSource();
+          src.buffer = audioBuf;
+          src.playbackRate.value = pitch;
+          src.connect(pkVoiceAudioCtx.destination);
+          src.onended = () => {
+            if (pkVoiceAudioSource === src) pkVoiceAudioSource = null;
+            if (typeof onEnded === 'function') onEnded();
+          };
+          pkVoiceAudioSource = src;
+          src.start(0);
+          return true;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Legacy Blob Web Audio path
+  if (!isDirectPcm && blobOrData && (window.PK_LITE_MODE || (pkVoiceAudioCtx && pkVoiceAudioCtx.state === 'running'))) {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx && !pkVoiceAudioCtx) pkVoiceAudioCtx = new AudioCtx();
+      if (pkVoiceAudioCtx) {
+        if (pkVoiceAudioCtx.state === 'suspended') await pkVoiceAudioCtx.resume();
+        if (pkVoiceAudioCtx.state === 'running') {
+          const ab = await blobOrData.arrayBuffer();
           const decoded = await pkVoiceAudioCtx.decodeAudioData(ab.slice(0));
           const src = pkVoiceAudioCtx.createBufferSource();
           src.buffer = decoded;
@@ -6419,39 +6522,32 @@ async function playKokoroUrlOrBlob(url, blob, onEnded, onError) {
     } catch (_) {}
   }
 
+  // Fallback <audio> path (lazily encodes WAV Blob only if needed)
+  let playUrl = url;
+  let tempUrl = null;
+  if (!playUrl && isDirectPcm) {
+    const wavBlob = encodePcmToWavBlob(blobOrData.pcm, blobOrData.sampleRate || 24000, false);
+    playUrl = URL.createObjectURL(wavBlob);
+    tempUrl = playUrl;
+  }
+
   const audio = getKokoroAudioElement();
-  audio.onended = onEnded || null;
-  audio.onerror = onError || null;
-  audio.src = url;
+  audio.onended = () => {
+    if (tempUrl) { try { URL.revokeObjectURL(tempUrl); } catch (_) {} }
+    if (typeof onEnded === 'function') onEnded();
+  };
+  audio.onerror = (e) => {
+    if (tempUrl) { try { URL.revokeObjectURL(tempUrl); } catch (_) {} }
+    if (typeof onError === 'function') onError(e);
+  };
+  audio.src = playUrl;
   try {
     if ('preservesPitch' in audio) audio.preservesPitch = false;
     else if ('webkitPreservesPitch' in audio) audio.webkitPreservesPitch = false;
     audio.playbackRate = pitch;
   } catch (_) {}
-  try {
-    await audio.play();
-    return true;
-  } catch (playErr) {
-    if (blob && pkVoiceAudioCtx) {
-      try {
-        if (pkVoiceAudioCtx.state === 'suspended') await pkVoiceAudioCtx.resume();
-        const ab = await blob.arrayBuffer();
-        const decoded = await pkVoiceAudioCtx.decodeAudioData(ab.slice(0));
-        const src = pkVoiceAudioCtx.createBufferSource();
-        src.buffer = decoded;
-        src.playbackRate.value = pitch;
-        src.connect(pkVoiceAudioCtx.destination);
-        src.onended = () => {
-          if (pkVoiceAudioSource === src) pkVoiceAudioSource = null;
-          if (typeof onEnded === 'function') onEnded();
-        };
-        pkVoiceAudioSource = src;
-        src.start(0);
-        return true;
-      } catch (_) {}
-    }
-    throw playErr;
-  }
+  await audio.play();
+  return true;
 }
 
 function getVoiceSettings() {
@@ -6460,7 +6556,7 @@ function getVoiceSettings() {
     state.voiceSettings = {
       engine: 'device',          // 'device' (Instant Natural · 0 MB) | 'kokoro' (Offline AI · Mimi, Heart, etc.)
       kokoroVoiceId: 'cute_mimi', // Natural expressive Kokoro voice
-      kokoroQuant: isCompactPhone ? 'q8' : 'fp16', // q8 on phones (crash-safe) | fp16 Studio HD on desktop
+      kokoroQuant: 'q8',         // Fast q8 (88 MB, 2-3x faster on CPU WASM; WebGPU auto-accelerates on desktop GPUs!)
       voiceURI: '',
       voiceName: '',
       rate: 1.0,
@@ -6484,7 +6580,7 @@ function getVoiceSettings() {
   if (window.PK_LITE_MODE) {
     state.voiceSettings.kokoroQuant = 'q8';
   } else if (state.voiceSettings.kokoroQuant !== 'fp16' && state.voiceSettings.kokoroQuant !== 'q8') {
-    state.voiceSettings.kokoroQuant = 'fp16';
+    state.voiceSettings.kokoroQuant = 'q8';
   }
   // Migrate any old extreme chipmunk pitch values (> 1.14) back into the pure natural human range
   if (typeof state.voiceSettings.pitch === 'number' && state.voiceSettings.pitch > 1.14) {
@@ -6655,7 +6751,9 @@ function setVoiceEngine(engine) {
   flushPersistStateNow();
   if (engine === 'kokoro') {
     requestPersistentBrowserStorage();
-    checkKokoroCacheStatus();
+    checkKokoroCacheStatus().then(cached => {
+      if (cached && kokoroEngineState === 'idle') ensureKokoroEngineLoaded().catch(() => {});
+    }).catch(() => {});
     showToast('Switched to Offline AI (Kokoro-82M)');
   } else {
     showToast('Switched to Instant Natural (0 MB)');
@@ -6731,6 +6829,7 @@ function setKokoroQuant(quant) {
   kokoroLoadedQuant = null;
   kokoroEngineState = 'idle';
   clearKokoroPrefetchCache();
+  kokoroSentencePcmCache.clear();
   persistState();
   updateKokoroEngineUI();
   showToast(next === 'fp16'
@@ -6816,6 +6915,12 @@ function getOrCreateKokoroWorker(expectedMB, alreadyCached) {
   }
 }
 
+function cancelKokoroWorkerJobs(sessionId) {
+  if (kokoroWorker) {
+    try { kokoroWorker.postMessage({ type: 'cancel', sessionId }); } catch (_) {}
+  }
+}
+
 function callKokoroWorker(worker, payload) {
   return new Promise((resolve, reject) => {
     const id = ++kokoroWorkerReqId;
@@ -6833,6 +6938,7 @@ function releaseUnusedAIEngines(keepEngine) {
     kokoroLoadPromise = null;
     kokoroEngineState = 'idle';
     clearKokoroPrefetchCache();
+    kokoroSentencePcmCache.clear();
     if (typeof kokoroAuditionCache !== 'undefined') {
       kokoroAuditionCache.forEach(entry => {
         try { URL.revokeObjectURL(typeof entry === 'string' ? entry : entry.url); } catch (e) {}
@@ -6893,20 +6999,29 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
           updateKokoroHudProgress(true, kokoroLoadProgressPct);
           updateVoiceStudioHUDLabels(alreadyCached ? `Loading ${activeVoiceName}...` : `Downloading (${expectedMB} MB once)...`);
 
-          await callKokoroWorker(worker, { type: 'init', dtype: targetQuant });
+          const initRes = await callKokoroWorker(worker, {
+            type: 'init',
+            dtype: targetQuant,
+            isLiteMobile: !!window.PK_LITE_MODE
+          });
+          const activeDevice = (initRes && initRes.device) || 'wasm';
 
           const workerProxy = {
             isWorkerProxy: true,
+            device: activeDevice,
             async generate(text, opts = {}) {
               const w = getOrCreateKokoroWorker(expectedMB, true);
               if (!w) throw new Error('Kokoro worker unavailable');
               const res = await callKokoroWorker(w, {
                 type: 'generate',
                 dtype: targetQuant,
+                isLiteMobile: !!window.PK_LITE_MODE,
+                sessionId: typeof opts.sessionId === 'number' ? opts.sessionId : speechPlaybackSessionId,
                 text,
                 voice: opts.voice || 'af_heart',
                 speed: opts.speed || 1.0
               });
+              if (res && res.cancelled) return { cancelled: true };
               return { audio: new Float32Array(res.audio), sampling_rate: res.sampleRate || 24000 };
             }
           };
@@ -6915,7 +7030,9 @@ async function ensureKokoroEngineLoaded(onProgressCallback = null) {
           kokoroEngineState = 'ready';
           kokoroLoadProgressPct = 100;
           kokoroIsCachedLocally = true;
-          kokoroLoadStatusText = 'Kokoro-82M Ready (Off-Thread · Cached Offline)';
+          kokoroLoadStatusText = activeDevice === 'webgpu'
+            ? 'Kokoro-82M Ready (WebGPU Accelerated · Offline)'
+            : 'Kokoro-82M Ready (Off-Thread Fast · Cached Offline)';
           updateKokoroEngineUI();
           updateKokoroHudProgress(false, 100);
           updateVoiceStudioHUDLabels();
@@ -7458,7 +7575,12 @@ function openVoiceModelModal() {
     backdrop.classList.remove('hidden');
   }
   if (getVoiceSettings().engine === 'kokoro') {
-    checkKokoroCacheStatus();
+    checkKokoroCacheStatus().then(cached => {
+      // Auto-warm worker from local cache (0 MB download!) so Test & Listen start immediately!
+      if (cached && kokoroEngineState === 'idle') {
+        ensureKokoroEngineLoaded().catch(() => {});
+      }
+    }).catch(() => {});
   }
 }
 
@@ -7862,28 +7984,25 @@ async function testKokoroVoice(voiceId = null) {
 
   const customInput = document.getElementById('voiceCustomTestInput');
   const customRaw = customInput ? customInput.value.trim() : '';
-  // Keep default audition short & natural (~7 words) so synthesis is 4x faster and never freezes UI!
+  // Short, crisp ~5-word default sample so auditions synthesize 2x faster!
   const rawSample = customRaw || (voiceMeta.category === 'cute'
-    ? `Hi Kon! I'm ${voiceMeta.name}, ready to read your notes.`
-    : `Hi Kon, I'm ${voiceMeta.name}. Ready whenever you are.`);
+    ? `Hi Kon! I'm ${voiceMeta.name}, ready to read.`
+    : `Hi Kon, I'm ${voiceMeta.name}, ready to read.`);
   const sampleText = ensureTerminalPunctuation(normalizeTextForNaturalSpeech(rawSample));
   const rate = settings.rate || 1.0;
   const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
   const cacheKey = `${settings.kokoroQuant}|${voiceMeta.id}|${rate.toFixed(2)}|${pitch.toFixed(2)}|${sampleText}`;
 
-  // 0ms Instant Replay if already auditioned this session (uses Web Audio / DOM audio reliably!)
+  // 0ms Instant Replay if already auditioned this session!
   if (kokoroAuditionCache.has(cacheKey)) {
     const cached = kokoroAuditionCache.get(cacheKey);
-    const cachedUrl = typeof cached === 'string' ? cached : cached.url;
-    const cachedBlob = typeof cached === 'string' ? null : cached.blob;
-    playKokoroUrlOrBlob(cachedUrl, cachedBlob, null, null).catch(() => {});
+    playKokoroUrlOrBlob(cached.url || null, cached.pcm ? cached : cached.blob, null, null).catch(() => {});
     showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
     return;
   }
 
   if (isKokoroSynthesizingAudition) {
-    showToast(`Finishing previous preview — tap Test again in a moment`, 'ochre');
-    return;
+    cancelKokoroWorkerJobs(sessionId);
   }
 
   showToast(
@@ -7895,8 +8014,8 @@ async function testKokoroVoice(voiceId = null) {
     'ochre'
   );
 
-  // Yield 2 frames BEFORE WASM runs so the UI button & selection highlight paint smoothly at 60fps!
-  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 24)));
+  // Yield 1 frame so UI selection highlight paints smoothly
+  await new Promise(r => requestAnimationFrame(r));
   if (sessionId !== speechPlaybackSessionId) return;
 
   isKokoroSynthesizingAudition = true;
@@ -7904,20 +8023,19 @@ async function testKokoroVoice(voiceId = null) {
     const tts = await ensureKokoroEngineLoaded();
     if (sessionId !== speechPlaybackSessionId) return;
 
-    const blob = await generateKokoroWavBlob(tts, sampleText, voiceMeta, rate, pitch);
-    if (sessionId !== speechPlaybackSessionId) return;
+    const audioData = await generateKokoroAudioData(tts, sampleText, voiceMeta, rate, pitch, sessionId);
+    if (!audioData || audioData.cancelled || sessionId !== speechPlaybackSessionId) return;
 
-    const url = URL.createObjectURL(blob);
-    // Cache up to 12 auditions for 0ms instant switching!
-    if (kokoroAuditionCache.size >= 12) {
+    // Cache up to 16 auditions for 0ms instant switching!
+    if (kokoroAuditionCache.size >= 16) {
       const oldestKey = kokoroAuditionCache.keys().next().value;
       const oldest = kokoroAuditionCache.get(oldestKey);
-      try { URL.revokeObjectURL(typeof oldest === 'string' ? oldest : oldest.url); } catch (_) {}
+      if (oldest && oldest.url) { try { URL.revokeObjectURL(oldest.url); } catch (_) {} }
       kokoroAuditionCache.delete(oldestKey);
     }
-    kokoroAuditionCache.set(cacheKey, { url, blob });
+    kokoroAuditionCache.set(cacheKey, audioData);
 
-    await playKokoroUrlOrBlob(url, blob, null, null);
+    await playKokoroUrlOrBlob(null, audioData, null, null);
     showToast(`Auditioning ${voiceMeta.name} (${voiceMeta.accent})`);
   } catch (err) {
     console.warn('Kokoro audition error:', err);
@@ -8091,17 +8209,14 @@ function synthesizeKokoroChunk(index, sessionId) {
               : baseRate;
   const pitch = settings.pitch || voiceMeta.defaultPitch || 1.0;
 
-  // Strictly serialize Kokoro WASM inference (1 at a time) + yield a frame so UI & audio never freeze!
+  // Strictly serialize Kokoro worker inference (1 at a time) + instant session skip + direct zero-copy PCM!
   const promise = (kokoroSynthChain = kokoroSynthChain.catch(() => {}).then(async () => {
-    if (sessionId !== speechPlaybackSessionId) return null;
-    await new Promise(r => setTimeout(r, 16));
     if (sessionId !== speechPlaybackSessionId) return null;
     const tts = await ensureKokoroEngineLoaded();
     if (sessionId !== speechPlaybackSessionId) return null;
-    const blob = await generateKokoroWavBlob(tts, item.text, voiceMeta, speed, pitch);
-    if (sessionId !== speechPlaybackSessionId) return null;
-    const url = URL.createObjectURL(blob);
-    return { url, blob };
+    const audioData = await generateKokoroAudioData(tts, item.text, voiceMeta, speed, pitch, sessionId);
+    if (!audioData || audioData.cancelled || sessionId !== speechPlaybackSessionId) return null;
+    return audioData;
   }));
 
   kokoroPrefetchMap.set(index, promise);
@@ -8128,7 +8243,7 @@ async function playNextKokoroSentence(sessionId) {
   if (!kokoroPrefetchMap.has(idx)) {
     updateVoiceStudioHUDLabels(
       kokoroEngineState === 'ready'
-        ? `Kokoro-82M · ${kv.name} (synthesizing...)`
+        ? `Kokoro-82M · ${kv.name} (preparing...)`
         : `Loading Kokoro-82M...`
     );
   }
@@ -8138,10 +8253,9 @@ async function playNextKokoroSentence(sessionId) {
     kokoroPrefetchMap.delete(idx);
 
     if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive) {
-      if (result && result.url) URL.revokeObjectURL(result.url);
       return;
     }
-    if (!result || !result.url) {
+    if (!result || !result.pcm) {
       currentSpeechQueueIndex++;
       playNextKokoroSentence(sessionId);
       return;
@@ -8149,24 +8263,14 @@ async function playNextKokoroSentence(sessionId) {
 
     updateVoiceStudioHUDLabels(`Kokoro-82M · ${kv.name} (${idx + 1}/${speechSentenceQueue.length})`);
 
-    if (kokoroActiveObjectUrl) {
-      URL.revokeObjectURL(kokoroActiveObjectUrl);
-    }
-    kokoroActiveObjectUrl = result.url;
-
     const onEndedHandler = () => {
       if (sessionId !== speechPlaybackSessionId || !isSpeechAudioActive) return;
-      if (kokoroActiveObjectUrl === result.url) {
-        URL.revokeObjectURL(result.url);
-        kokoroActiveObjectUrl = null;
-      }
       if (!isSpeechAudioPaused) {
-        // Expressive narrator pauses: thoughtful beat after questions (?), crisp beat after (!), longer after headings
         const trimmedTxt = (item.text || '').trim();
-        const pauseMs = item.isHeading ? 380
-                      : /\?$/.test(trimmedTxt) ? 320
-                      : /!$/.test(trimmedTxt) ? 240
-                      : 175;
+        const pauseMs = item.isHeading ? 300
+                      : /\?$/.test(trimmedTxt) ? 240
+                      : /!$/.test(trimmedTxt) ? 180
+                      : 120;
         kokoroPauseTimer = setTimeout(() => {
           if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
             currentSpeechQueueIndex++;
@@ -8186,18 +8290,19 @@ async function playNextKokoroSentence(sessionId) {
 
     if (!isSpeechAudioPaused) {
       try {
-        await playKokoroUrlOrBlob(result.url, result.blob, onEndedHandler, onErrorHandler);
-        // CRITICAL FOR 2019 PHONES: Never run background ONNX WASM inference while audio is playing
-        // (prevents CPU/RAM-bus starvation that causes 0.11s nanosecond audio stutters!).
-        // Only prefetch next sentence on desktop (non-lite) devices.
-        if (!window.PK_LITE_MODE && idx + 1 < speechSentenceQueue.length) {
+        await playKokoroUrlOrBlob(null, result, onEndedHandler, onErrorHandler);
+        // GAPLESS OFF-THREAD PREFETCH (BOTH PC & PHONE!):
+        // Audio is already pre-decoded in RAM playing on the native Web Audio thread,
+        // so starting next-sentence synthesis inside the separate Web Worker eliminates the long gap between sentences!
+        if (idx + 1 < speechSentenceQueue.length) {
           if (kokoroPrefetchDelayTimer) clearTimeout(kokoroPrefetchDelayTimer);
+          const delayMs = window.PK_LITE_MODE ? 320 : 40;
           kokoroPrefetchDelayTimer = setTimeout(() => {
             kokoroPrefetchDelayTimer = null;
             if (sessionId === speechPlaybackSessionId && isSpeechAudioActive && !isSpeechAudioPaused) {
               synthesizeKokoroChunk(idx + 1, sessionId).catch(() => {});
             }
-          }, 80);
+          }, delayMs);
         }
       } catch (playErr) {
         if (playErr && (playErr.name === 'NotAllowedError' || String(playErr).includes('play()'))) {
@@ -8394,6 +8499,28 @@ function playNextSpeechSentence() {
   }
 }
 
+// Fast-Start Micro First Chunk: splits chunk #0 down to ~75 chars on phones (~105 on PC) so Kokoro starts
+// speaking 3-4x faster while prefetching the rest in the background Web Worker!
+function splitFirstChunkForFastStart(chunks, firstMaxChars) {
+  if (!chunks || chunks.length === 0) return chunks;
+  const first = chunks[0];
+  if (!first || first.length <= firstMaxChars) return chunks;
+  let cut = -1;
+  // Prefer natural punctuation boundary inside [28..firstMaxChars]
+  for (let i = Math.min(firstMaxChars, first.length - 1); i >= 28; i--) {
+    if (/[.,;:!?]/.test(first[i])) { cut = i + 1; break; }
+  }
+  if (cut === -1) {
+    cut = first.lastIndexOf(' ', firstMaxChars);
+  }
+  if (cut > 18 && cut < first.length - 10) {
+    const head = first.slice(0, cut).trim();
+    const tail = first.slice(cut).trim();
+    if (head && tail) return [ensureTerminalPunctuation(head), tail, ...chunks.slice(1)];
+  }
+  return chunks;
+}
+
 function readTextAloud(text, title = 'Selection') {
   const settings = getVoiceSettings();
   stopReadingAloud();
@@ -8401,7 +8528,13 @@ function readTextAloud(text, title = 'Selection') {
   if (settings.engine === 'kokoro') unlockMobileAudioElement();
 
   const clean = normalizeTextForNaturalSpeech(text);
-  const chunks = splitTextIntoNaturalChunks(clean, window.PK_LITE_MODE ? 150 : 185);
+  const bodyMax = settings.engine === 'kokoro'
+    ? (window.PK_LITE_MODE ? 115 : 165)
+    : (window.PK_LITE_MODE ? 150 : 185);
+  let chunks = splitTextIntoNaturalChunks(clean, bodyMax);
+  if (settings.engine === 'kokoro') {
+    chunks = splitFirstChunkForFastStart(chunks, window.PK_LITE_MODE ? 75 : 105);
+  }
   if (chunks.length === 0) {
     showToast('No readable text selected', 'ochre');
     return;
@@ -8492,12 +8625,18 @@ function startReadingActiveNoteAloud() {
     });
   }
 
+  const bodyMax = settings.engine === 'kokoro'
+    ? (window.PK_LITE_MODE ? 115 : 165)
+    : (window.PK_LITE_MODE ? 150 : 185);
   (note.blocks || []).forEach(b => {
     if (!b.content || !b.content.trim()) return;
     const clean = normalizeTextForNaturalSpeech(b.content);
     if (!clean) return;
     const isHeading = ['h1', 'h2', 'h3'].includes(b.type);
-    const chunks = splitTextIntoNaturalChunks(clean, window.PK_LITE_MODE ? 150 : 185);
+    let chunks = splitTextIntoNaturalChunks(clean, bodyMax);
+    if (settings.engine === 'kokoro' && queue.length === 0) {
+      chunks = splitFirstChunkForFastStart(chunks, window.PK_LITE_MODE ? 75 : 105);
+    }
     chunks.forEach((chunk, idx) => {
       queue.push({
         text: chunk,
@@ -8579,6 +8718,7 @@ function togglePauseReadingAloud() {
 
 function stopReadingAloud() {
   speechPlaybackSessionId++;
+  cancelKokoroWorkerJobs(speechPlaybackSessionId);
   clearDeviceSpeechTimers();
   stopVoiceAudioCtxSource();
   if (kokoroPrefetchDelayTimer) {

@@ -666,20 +666,8 @@
         <!-- Minimal Linked Notes Strip (Hidden when 0 links — zero clutter!) -->
         <div id="docKnowledgeRadar" class="hidden mt-6 pt-4 border-t border-[var(--border-hairline)] select-none"></div>
 
-        <!-- Bottom Tap-to-Write & Quick Dictate Bar (Effortless Phone Writing — Hidden when note is locked) -->
-        <div id="mobileBottomWriteBar" class="mt-4 flex items-center gap-2 sm:hidden select-none">
-          <button type="button" onclick="appendBlockAtEnd()" class="flex-1 py-2.5 px-3 rounded-lg bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-xs flex items-center justify-center gap-1.5 cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Tap to write</span>
-          </button>
-          <button type="button" onclick="toggleVoiceDictation()" class="py-2.5 px-3.5 rounded-lg bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-[var(--accent-vermilion)] font-mono text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-            <span>Dictate</span>
-          </button>
-        </div>
-
-        <!-- Bottom Click-to-Append Zone (Hidden when note is locked) -->
-        <div id="desktopAppendZone" onclick="appendBlockAtEnd()" class="h-32 cursor-text flex items-start pt-4 group">
+        <!-- Invisible Click/Tap-to-Append Canvas Below Blocks (Hidden when note is locked) -->
+        <div id="desktopAppendZone" onclick="appendBlockAtEnd()" class="min-h-[38vh] cursor-text flex items-start pt-4 group">
           <span class="hidden sm:inline font-mono text-[11px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
             Click to append block · Type <span class="text-[var(--text-secondary)]">/</span> for blocks (<span class="text-[var(--text-secondary)]">/toggle</span>, <span class="text-[var(--text-secondary)]">/table</span>) or <span class="text-[var(--accent-vermilion)]">[[</span> to link
           </span>

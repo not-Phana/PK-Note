@@ -15343,8 +15343,6 @@ function applyNoteLockVisuals(note) {
     folderBtn.classList.toggle('opacity-50', locked);
     folderBtn.classList.toggle('pointer-events-none', locked);
   }
-  const mobWriteBar = document.getElementById('mobileBottomWriteBar');
-  if (mobWriteBar) mobWriteBar.classList.toggle('hidden', locked);
   const deskAppendZone = document.getElementById('desktopAppendZone');
   if (deskAppendZone) deskAppendZone.classList.toggle('hidden', locked);
 }

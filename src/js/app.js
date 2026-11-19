@@ -13440,6 +13440,11 @@ if (window.visualViewport) {
       mobileBaseViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
       isMobileVirtualKeyboardOpen = false;
       syncMobileBottomNavVisibility();
+      const sd = document.getElementById('smartDrawModal');
+      if (sd && !sd.classList.contains('hidden') && typeof initSmartDrawCanvas === 'function') {
+        initSmartDrawCanvas();
+        redrawSmartDrawCanvas();
+      }
     }, 300);
   });
 }
@@ -20319,16 +20324,16 @@ function toggleSmartDrawFullscreen() {
   if (!card || !canvas) return;
 
   if (smartDrawFullscreen) {
-    card.className = 'w-[98vw] max-w-[98vw] h-[96vh] max-h-[96vh] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col transition-all';
-    canvas.className = 'w-full h-[68vh] sm:h-[74vh] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    card.className = 'w-full sm:w-[98vw] max-w-[98vw] h-full sm:h-[96vh] max-h-[100dvh] sm:max-h-[96vh] popover-surface rounded-none sm:rounded-xl border-0 sm:border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col transition-all outline-none';
+    canvas.className = 'w-full h-full sm:h-[68vh] lg:h-[74vh] rounded-md sm:rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all outline-none';
     if (icon) {
       icon.innerHTML = '<path d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7m-7 17v-6m0 0h6m-6 0l7 7M10 4v6m0 0H4m6 0L3 3"/>';
     }
   } else {
-    card.className = 'w-full max-w-5xl lg:max-w-6xl popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card flex flex-col max-h-[94vh] transition-all';
+    card.className = 'w-full h-full sm:h-auto max-w-5xl lg:max-w-6xl popover-surface rounded-none sm:rounded-xl border-0 sm:border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card flex flex-col max-h-[100dvh] sm:max-h-[94vh] transition-all outline-none';
     canvas.className = smartDrawExpanded
-      ? 'w-full h-[540px] sm:h-[640px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all'
-      : 'w-full h-[400px] sm:h-[480px] lg:h-[540px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+      ? 'w-full h-full sm:h-[540px] lg:h-[640px] rounded-md sm:rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all outline-none'
+      : 'w-full h-full sm:h-[480px] lg:h-[540px] rounded-md sm:rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all outline-none';
     if (icon) {
       icon.innerHTML = '<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>';
     }
@@ -20353,10 +20358,10 @@ function toggleSmartDrawExpand() {
   }
 
   if (smartDrawExpanded) {
-    canvas.className = 'w-full h-[540px] sm:h-[640px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    canvas.className = 'w-full h-full sm:h-[540px] lg:h-[640px] rounded-md sm:rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all outline-none';
     if (text) text.textContent = 'Collapse';
   } else {
-    canvas.className = 'w-full h-[400px] sm:h-[480px] lg:h-[540px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    canvas.className = 'w-full h-full sm:h-[480px] lg:h-[540px] rounded-md sm:rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all outline-none';
     if (text) text.textContent = 'Expand';
   }
   setTimeout(() => {
@@ -20371,6 +20376,7 @@ function openSmartDrawModal(targetBlockId) {
   const modal = document.getElementById('smartDrawModal');
   if (!modal) return;
   modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
 
   const badge = document.getElementById('smartDrawTargetBadge');
   if (targetBlockId) {
@@ -20407,6 +20413,7 @@ function closeSmartDrawModal(e) {
   if (e && e.target && e.target !== e.currentTarget) return;
   const modal = document.getElementById('smartDrawModal');
   if (modal) modal.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
 }
 
 function setSmartDrawMode(mode) {
@@ -20416,16 +20423,18 @@ function setSmartDrawMode(mode) {
     const btn = document.getElementById(`sdMode${m.charAt(0).toUpperCase() + m.slice(1)}Btn`);
     if (btn) {
       if (m === mode) {
-        btn.className = 'px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
+        btn.className = 'px-2 sm:px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
       } else {
-        btn.className = 'px-2.5 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+        btn.className = 'px-2 sm:px-2.5 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
       }
     }
   });
 
   const applyBtn = document.getElementById('sdApplyBtn');
   if (applyBtn) {
-    applyBtn.innerHTML = `<span>${mode === 'text' ? 'Apply Text' : (mode === 'sketch' ? 'Apply Sketch' : 'Apply Equation')}</span>`;
+    const label = mode === 'text' ? 'Apply Text' : (mode === 'sketch' ? 'Apply Sketch' : 'Apply Equation');
+    const shortLabel = mode === 'text' ? 'Text' : (mode === 'sketch' ? 'Sketch' : 'Apply');
+    applyBtn.innerHTML = `<span class="sm:hidden">${shortLabel}</span><span class="hidden sm:inline">${label}</span>`;
   }
 
   redrawSmartDrawCanvas();
@@ -20441,18 +20450,18 @@ function setSmartDrawTool(tool) {
   const erBtn = document.getElementById('sdToolEraser');
   if (penBtn) {
     penBtn.className = tool === 'pen'
-      ? 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--accent-vermilion)] text-[11px] text-[var(--accent-vermilion)] font-medium flex items-center gap-1 cursor-pointer'
-      : 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer';
+      ? 'px-2 sm:px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--accent-vermilion)] text-[11px] text-[var(--accent-vermilion)] font-medium flex items-center gap-1 cursor-pointer shrink-0'
+      : 'px-2 sm:px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer shrink-0';
   }
   if (hlBtn) {
     hlBtn.className = tool === 'highlighter'
-      ? 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-amber-500 text-[11px] text-amber-500 font-medium flex items-center gap-1 cursor-pointer'
-      : 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer';
+      ? 'px-2 sm:px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-amber-500 text-[11px] text-amber-500 font-medium flex items-center gap-1 cursor-pointer shrink-0'
+      : 'px-2 sm:px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer shrink-0';
   }
   if (erBtn) {
     erBtn.className = tool === 'eraser'
-      ? 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-rose-500 text-[11px] text-rose-500 font-medium flex items-center gap-1 cursor-pointer'
-      : 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer';
+      ? 'px-2 sm:px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-rose-500 text-[11px] text-rose-500 font-medium flex items-center gap-1 cursor-pointer shrink-0'
+      : 'px-2 sm:px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer shrink-0';
   }
 }
 

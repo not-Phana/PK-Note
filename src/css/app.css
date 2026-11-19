@@ -1091,3 +1091,146 @@ html.pk-lite-gpu .animate-ping {
 
 
 
+
+
+/* =========================================================================
+   ANTI-LAG HARDWARE ACCELERATION & ZERO-DROP-FRAME RENDERING
+   ========================================================================= */
+.block-item {
+  contain: layout style;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 38px;
+}
+
+.kanban-col {
+  contain: layout style;
+}
+
+#documentScrollArea,
+#calendarViewport,
+#kanbanViewport,
+#spatialWhiteboardContainer,
+#knowledgeGraphCanvas,
+#expandedKnowledgeGraphCanvas {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+}
+
+.popover-surface,
+.animate-modal-card {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* -------------------------------------------------------------------------
+   FEATURE 2: INFINITE SPATIAL CANVAS & WHITEBOARD
+   ------------------------------------------------------------------------- */
+.spatial-dot-grid {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, var(--border-strong) 1px, transparent 1px);
+}
+
+.whiteboard-card {
+  user-select: none;
+  touch-action: none;
+  transform: translateZ(0);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.whiteboard-card:active {
+  cursor: grabbing;
+}
+
+/* -------------------------------------------------------------------------
+   FEATURE 3: INTERACTIVE MIND MAP & RADIAL TREE STUDIO
+   ------------------------------------------------------------------------- */
+.mindmap-branch {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.mindmap-node {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
+  transform: translateZ(0);
+}
+
+.mindmap-node:hover {
+  transform: scale(1.04);
+}
+
+/* -------------------------------------------------------------------------
+   FEATURE 5: VAULT ACTIVITY INK HEATMAP & RADIAL PRODUCTIVITY CLOCK
+   ------------------------------------------------------------------------- */
+.heatmap-cell {
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.25);
+  z-index: 10;
+}
+
+/* -------------------------------------------------------------------------
+   FEATURE 6: VISUAL BOOKMARK CARDS & IMAGE LIGHTBOX
+   ------------------------------------------------------------------------- */
+.visual-bookmark-card {
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transform: translateZ(0);
+}
+
+.visual-bookmark-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.lightbox-img-active {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* -------------------------------------------------------------------------
+   FEATURE 7: ARCHITECTURAL COVER BANNERS & BAUHAUS PATTERNS
+   ------------------------------------------------------------------------- */
+.banner-preset-bauhaus {
+  background: linear-gradient(135deg, #111111 0%, #1e1e1e 50%, #C8462B 100%);
+  background-image: 
+    radial-gradient(circle at 80% 20%, rgba(200, 70, 43, 0.45) 0%, transparent 40%),
+    linear-gradient(45deg, rgba(168, 126, 45, 0.3) 0%, transparent 60%);
+}
+
+.banner-preset-vellum {
+  background-color: #F4F1EA;
+  background-size: 20px 20px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+}
+html.dark .banner-preset-vellum {
+  background-color: #191816;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+.banner-preset-blueprint {
+  background-color: #0F2027;
+  background-size: 24px 24px;
+  background-image: linear-gradient(to right, rgba(44, 130, 201, 0.15) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(44, 130, 201, 0.15) 1px, transparent 1px);
+}
+
+.banner-preset-terracotta {
+  background: linear-gradient(135deg, #4A1910 0%, #C8462B 60%, #E27D60 100%);
+}
+
+.banner-preset-emerald {
+  background: linear-gradient(135deg, #092015 0%, #104F34 60%, #2E8B57 100%);
+}
+
+.banner-preset-cosmic {
+  background: linear-gradient(135deg, #0A0A14 0%, #1C1936 50%, #3B2A63 100%);
+}
+
+.banner-preset-kyoto {
+  background: linear-gradient(180deg, #181817 0%, #272725 100%);
+  background-image: radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
+}

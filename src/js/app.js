@@ -4884,6 +4884,7 @@ function reheatGraph() {
       n.y = (h / 2);
     }
   });
+  if (typeof wakeGraphLoop === 'function') wakeGraphLoop();
 }
 
 function resizeGraphCanvas() {
@@ -5127,6 +5128,7 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
   });
 
   canvas.addEventListener('pointerdown', e => {
+    if (typeof wakeGraphLoop === 'function') wakeGraphLoop();
     if (e.button === 2) return; // Right click handled by context menu
 
     const pos = getGraphPointerPos(canvas, e);
@@ -5311,6 +5313,7 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
   // Mouse Wheel Zoom
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
+    if (typeof wakeGraphLoop === 'function') wakeGraphLoop();
     hideGraphNodeHoverCard();
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -5649,6 +5652,12 @@ function ensureGraphLoopRunning() {
   graphLoopRafId = requestAnimationFrame(runGraphLoop);
 }
 
+let isGraphSleeping = false;
+function wakeGraphLoop() {
+  isGraphSleeping = false;
+  ensureGraphLoopRunning();
+}
+
 function runGraphLoop(ts) {
   graphLoopRafId = null;
   if (document.hidden) return;
@@ -5656,10 +5665,10 @@ function runGraphLoop(ts) {
   const isSidebarActive = state.appMode === 'workspace' && state.rightSidebarOpen && state.inspectorTab === 'graph';
   const isExpandedActive = isExpandedGraphOpen;
 
-  // CRITICAL FOR 2019 PHONES: Stop waking up CPU when Graph is closed! (0.0% idle CPU!)
+  // Stop waking up CPU when Graph is closed
   if (!isSidebarActive && !isExpandedActive) return;
 
-  // Throttle graph animation to ~30fps on Lite/Mobile phones to keep SoC cool & fast
+  // Throttle graph animation to ~30fps on Lite/Mobile phones
   if (window.PK_LITE_MODE && ts && (ts - graphLastFrameTs) < 32) {
     graphLoopRafId = requestAnimationFrame(runGraphLoop);
     return;
@@ -5668,6 +5677,8 @@ function runGraphLoop(ts) {
 
   const canvasSidebar = document.getElementById('knowledgeGraphCanvas');
   const canvasExpanded = document.getElementById('expandedKnowledgeGraphCanvas');
+
+  let totalVelocity = 0;
 
   if (graphNodes.length > 0) {
     const refCanvas = isExpandedActive ? canvasExpanded : canvasSidebar;
@@ -5729,7 +5740,10 @@ function runGraphLoop(ts) {
         n.vy *= 0.82;
         n.x += n.vx;
         n.y += n.vy;
+        totalVelocity += Math.abs(n.vx) + Math.abs(n.vy);
       });
+    } else {
+      totalVelocity = wasmEnergy;
     }
 
     // Draw on Active Viewport(s)
@@ -5738,6 +5752,12 @@ function runGraphLoop(ts) {
     }
     if (isExpandedActive && canvasExpanded) {
       drawGraphOnCanvas(canvasExpanded, true);
+    }
+
+    // Anti-Lag Sleep Threshold: If kinetic energy is negligible and user isn't interacting, pause the loop!
+    if (totalVelocity < 0.08 && !draggedNode && !connectingSourceNode && !isCuttingGesture) {
+      isGraphSleeping = true;
+      return; // Sleep until user touches or clicks!
     }
   }
 
@@ -5816,6 +5836,10 @@ function renderCommandPaletteResults(query) {
   const q = query.toLowerCase().trim();
 
   const allActions = [
+    { kind: 'action', label: 'Whiteboard Studio: Infinite Spatial Canvas', hint: 'Infinite 2D visual canvas with notes, cards, SVG links & zoom', glyph: 'grid', shortcut: '⇧⌘W', run: () => openSpatialWhiteboardModal() },
+    { kind: 'action', label: 'Mind Map Studio: Visual Hierarchy Tree', hint: 'Generate organic visual radial tree from active note with SVG export', glyph: 'graph', shortcut: '⇧⌘M', run: () => openMindMapModal() },
+    { kind: 'action', label: 'Vault Activity Ink Heatmap & Diurnal Clock', hint: '365-day ink matrix, 24-hour diurnal writing rhythm & streaks', glyph: 'calendar', shortcut: 'Heatmap', run: () => openVaultHeatmapModal() },
+    { kind: 'action', label: 'Architectural Cover Banners Gallery', hint: 'Curated Bauhaus, Sumi-e, Blueprint, Vellum & custom banners', glyph: 'document', shortcut: 'Cover', run: () => openBannerPickerModal() },
     { kind: 'action', label: 'Kanban Studio: Open Project Board', hint: 'Agile status board, columns & task completion', glyph: 'grid', shortcut: 'Board', run: () => setAppMode('kanban') },
     { kind: 'action', label: 'Deep Vault Search & Replace', hint: 'Full-text vault regex search and in-doc replace', glyph: 'search', shortcut: '⇧⌘F', run: () => openVaultSearchModal() },
     { kind: 'action', label: 'Quick Capture HUD', hint: 'Fleeting thought capture to today’s log or active doc', glyph: 'edit', shortcut: '⇧⌘N', run: () => openQuickCaptureModal() },
@@ -6174,6 +6198,34 @@ document.addEventListener('keydown', e => {
       inPlaceAiPolishWholeNote();
     }
     return;
+  }
+
+  // Cmd/Ctrl + Shift + W: Spatial Whiteboard Studio
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'w') {
+    e.preventDefault();
+    openSpatialWhiteboardModal();
+    return;
+  }
+
+  // Cmd/Ctrl + Shift + M: Interactive Mind Map Studio
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+    e.preventDefault();
+    openMindMapModal();
+    return;
+  }
+
+  // Visual Modals Escape Key Handler
+  if (e.key === 'Escape') {
+    const wb = document.getElementById('spatialWhiteboardModal');
+    if (wb && !wb.classList.contains('hidden')) { closeSpatialWhiteboardModal(); return; }
+    const mm = document.getElementById('mindMapModal');
+    if (mm && !mm.classList.contains('hidden')) { closeMindMapModal(); return; }
+    const hm = document.getElementById('vaultHeatmapModal');
+    if (hm && !hm.classList.contains('hidden')) { closeVaultHeatmapModal(); return; }
+    const lb = document.getElementById('imageLightboxModal');
+    if (lb && !lb.classList.contains('hidden')) { closeImageLightbox(); return; }
+    const bp = document.getElementById('bannerPickerModal');
+    if (bp && !bp.classList.contains('hidden')) { closeBannerPickerModal(); return; }
   }
 
   // Modal Shortcuts
@@ -12959,11 +13011,17 @@ if (window.visualViewport) {
     if (!bannerBg) return;
 
     const banner = note && note.banner;
-    if (banner && banner.value) {
+    if (banner && (banner.value || banner.presetName)) {
+      const isPreset = banner.type === 'preset' || !!banner.presetName;
+      const presetClass = isPreset ? `banner-preset-${banner.presetName || banner.value}` : '';
       const hClass = banner.height === 'compact' ? 'h-32' : (banner.height === 'cinematic' ? 'h-64 sm:h-72' : 'h-48 sm:h-52');
-      bannerBg.className = `w-full ${hClass} border-b border-[var(--border-hairline)] bg-cover bg-center transition-all duration-300 relative overflow-hidden animate-banner-in`;
+      bannerBg.className = `w-full ${hClass} border-b border-[var(--border-hairline)] bg-cover bg-center transition-all duration-300 relative overflow-hidden animate-banner-in ${presetClass}`.trim();
       
-      if (banner.type === 'pattern' || banner.type === 'preset' || banner.type === 'gradient') {
+      if (isPreset) {
+        bannerBg.style.backgroundImage = '';
+        bannerBg.style.backgroundColor = '';
+        bannerBg.style.backgroundSize = '';
+      } else if (banner.type === 'pattern' || banner.type === 'gradient') {
         bannerBg.style.backgroundImage = banner.value;
         bannerBg.style.backgroundColor = banner.bgColor || '';
         bannerBg.style.backgroundSize = banner.patternSize || 'auto';
@@ -12998,6 +13056,8 @@ if (window.visualViewport) {
     renderDocBanner(note);
     persistState();
     showToast('Document banner updated');
+    const bp = document.getElementById('bannerPickerModal');
+    if (bp && !bp.classList.contains('hidden')) bp.classList.add('hidden');
     if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
       switchCustomizerTab('banner');
     }
@@ -13010,6 +13070,8 @@ if (window.visualViewport) {
     renderDocBanner(note);
     persistState();
     showToast('Document banner removed');
+    const bp = document.getElementById('bannerPickerModal');
+    if (bp && !bp.classList.contains('hidden')) bp.classList.add('hidden');
     if (!document.getElementById('workspaceCustomizerModal').classList.contains('hidden')) {
       switchCustomizerTab('banner');
     }
@@ -18145,4 +18207,626 @@ function exportActiveNoteAsStandaloneHtml() {
   if (typeof pkHaptic === 'function') pkHaptic(16);
   closeVaultExportModal();
   showToast(`Exported "${escapeHtml(note.title)}" as standalone HTML`);
+}
+
+
+// =========================================================================
+// 23. VISUAL SYSTEMS SUITE: WHITEBOARD, MIND MAP, HEATMAP, LIGHTBOX & BANNERS
+// =========================================================================
+
+// -------------------------------------------------------------------------
+// 23A. INFINITE SPATIAL CANVAS & WHITEBOARD STUDIO
+// -------------------------------------------------------------------------
+let wbPan = { x: 60, y: 60 };
+let wbZoom = 1.0;
+let wbIsPanning = false;
+let wbPanStart = { x: 0, y: 0 };
+let wbDraggingCardId = null;
+let wbDragOffset = { x: 0, y: 0 };
+let wbEventsInitialized = false;
+
+function openSpatialWhiteboardModal() {
+  const modal = document.getElementById('spatialWhiteboardModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  initWhiteboardEvents();
+  renderWhiteboardCards();
+  renderWhiteboardLinks();
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+  if (typeof playWhooshSound === 'function') playWhooshSound();
+}
+
+function closeSpatialWhiteboardModal() {
+  const modal = document.getElementById('spatialWhiteboardModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function zoomWhiteboard(delta) {
+  wbZoom = Math.min(2.5, Math.max(0.35, wbZoom + delta));
+  applyWhiteboardTransform();
+}
+
+function resetWhiteboardView() {
+  wbZoom = 1.0;
+  wbPan = { x: 60, y: 60 };
+  applyWhiteboardTransform();
+}
+
+function applyWhiteboardTransform() {
+  const layer = document.getElementById('whiteboardTransformLayer');
+  const badge = document.getElementById('whiteboardZoomBadge');
+  if (layer) {
+    layer.style.transform = `translate(${wbPan.x}px, ${wbPan.y}px) scale(${wbZoom})`;
+  }
+  if (badge) {
+    badge.textContent = `${Math.round(wbZoom * 100)}%`;
+  }
+  renderWhiteboardLinks();
+}
+
+function initWhiteboardEvents() {
+  if (wbEventsInitialized) return;
+  wbEventsInitialized = true;
+
+  const container = document.getElementById('spatialWhiteboardContainer');
+  if (!container) return;
+
+  container.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.whiteboard-card')) return;
+    wbIsPanning = true;
+    wbPanStart = { x: e.clientX - wbPan.x, y: e.clientY - wbPan.y };
+    container.setPointerCapture(e.pointerId);
+  });
+
+  container.addEventListener('pointermove', (e) => {
+    if (wbIsPanning) {
+      wbPan.x = e.clientX - wbPanStart.x;
+      wbPan.y = e.clientY - wbPanStart.y;
+      applyWhiteboardTransform();
+    } else if (wbDraggingCardId) {
+      const note = state.notes.find(n => n.id === wbDraggingCardId);
+      if (!note) return;
+      const rect = container.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left - wbPan.x) / wbZoom;
+      const mouseY = (e.clientY - rect.top - wbPan.y) / wbZoom;
+      note.spatialX = Math.round(mouseX - wbDragOffset.x);
+      note.spatialY = Math.round(mouseY - wbDragOffset.y);
+      const cardEl = document.getElementById(`wbCard_${note.id}`);
+      if (cardEl) {
+        cardEl.style.left = `${note.spatialX}px`;
+        cardEl.style.top = `${note.spatialY}px`;
+      }
+      renderWhiteboardLinks();
+    }
+  });
+
+  const stopDrag = () => {
+    if (wbIsPanning) wbIsPanning = false;
+    if (wbDraggingCardId) {
+      wbDraggingCardId = null;
+      persistState();
+    }
+  };
+  container.addEventListener('pointerup', stopDrag);
+  container.addEventListener('pointercancel', stopDrag);
+
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.08 : -0.08;
+    zoomWhiteboard(delta);
+  }, { passive: false });
+}
+
+function handleWhiteboardDblClick(e) {
+  if (e.target.closest('.whiteboard-card')) return;
+  const container = document.getElementById('spatialWhiteboardContainer');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const spawnX = Math.round((e.clientX - rect.left - wbPan.x) / wbZoom);
+  const spawnY = Math.round((e.clientY - rect.top - wbPan.y) / wbZoom);
+  spawnWhiteboardCard(spawnX, spawnY);
+}
+
+function spawnWhiteboardCard(x, y) {
+  const note = createNewNote('General');
+  if (!note) return;
+  note.title = `Thought #${state.notes.length}`;
+  note.spatialX = x !== undefined ? x : Math.round(-wbPan.x + 180 + Math.random() * 80);
+  note.spatialY = y !== undefined ? y : Math.round(-wbPan.y + 140 + Math.random() * 80);
+  persistState();
+  renderWhiteboardCards();
+  renderWhiteboardLinks();
+  if (typeof pkHaptic === 'function') pkHaptic(14);
+}
+
+function reclusterWhiteboardCards() {
+  const cols = Math.max(2, Math.ceil(Math.sqrt(state.notes.length)));
+  state.notes.forEach((note, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    note.spatialX = 60 + col * 280;
+    note.spatialY = 60 + row * 220;
+  });
+  persistState();
+  renderWhiteboardCards();
+  renderWhiteboardLinks();
+  showToast('Re-clustered spatial whiteboard cards');
+}
+
+function renderWhiteboardCards() {
+  const container = document.getElementById('whiteboardCardsContainer');
+  if (!container) return;
+
+  container.innerHTML = state.notes.map((note, idx) => {
+    if (note.spatialX === undefined) note.spatialX = 60 + (idx % 4) * 280;
+    if (note.spatialY === undefined) note.spatialY = 60 + Math.floor(idx / 4) * 220;
+
+    const firstBlockText = (note.blocks && note.blocks[0] && note.blocks[0].content) || 'Empty document';
+    const folder = note.folder || 'General';
+    const isCurrent = note.id === state.activeNoteId;
+
+    return `
+      <div id="wbCard_${note.id}"
+           onpointerdown="startDraggingWbCard(event, '${note.id}')"
+           onclick="openWbNoteInEditor('${note.id}')"
+           style="position: absolute; left: ${note.spatialX}px; top: ${note.spatialY}px; width: 250px;"
+           class="whiteboard-card p-3 rounded-xl bg-[var(--bg-panel)] border ${isCurrent ? 'border-[var(--accent-vermilion)] ring-2 ring-[var(--accent-vermilion)]/20' : 'border-[var(--border-hairline)]'} shadow-md hover:shadow-xl hover:border-[var(--border-strong)] transition-all cursor-grab flex flex-col justify-between">
+        
+        <div>
+          <div class="flex items-start justify-between gap-1.5 mb-1.5">
+            <h4 class="font-serif text-xs font-semibold text-[var(--text-primary)] line-clamp-1">${escapeHtml(note.title || 'Untitled')}</h4>
+            <span class="font-mono text-[9px] px-1 py-0.2 rounded bg-[var(--bg-canvas)] text-[var(--text-tertiary)] border border-[var(--border-hairline)] shrink-0">${escapeHtml(folder)}</span>
+          </div>
+          <p class="font-mono text-[10px] text-[var(--text-secondary)] line-clamp-3 leading-relaxed mb-2">${escapeHtml(firstBlockText)}</p>
+        </div>
+
+        <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between text-[9px] font-mono text-[var(--text-tertiary)]">
+          <span>${(note.blocks || []).length} blocks</span>
+          <span class="hover:text-[var(--accent-vermilion)] font-semibold cursor-pointer">Open →</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function startDraggingWbCard(e, noteId) {
+  if (e.button === 2) return;
+  e.stopPropagation();
+  wbDraggingCardId = noteId;
+  const cardEl = document.getElementById(`wbCard_${noteId}`);
+  if (!cardEl) return;
+  const container = document.getElementById('spatialWhiteboardContainer');
+  const rect = container.getBoundingClientRect();
+  const mouseX = (e.clientX - rect.left - wbPan.x) / wbZoom;
+  const mouseY = (e.clientY - rect.top - wbPan.y) / wbZoom;
+  const note = state.notes.find(n => n.id === noteId);
+  if (note) {
+    wbDragOffset = {
+      x: mouseX - (note.spatialX || 0),
+      y: mouseY - (note.spatialY || 0)
+    };
+  }
+}
+
+function renderWhiteboardLinks() {
+  const svg = document.getElementById('whiteboardLinkSvg');
+  if (!svg) return;
+
+  const links = computeVaultConnections();
+  const nodeMap = new Map(state.notes.map(n => [n.id, n]));
+
+  svg.innerHTML = links.map(link => {
+    const s = nodeMap.get(link.source);
+    const t = nodeMap.get(link.target);
+    if (!s || !t || s.spatialX === undefined || t.spatialX === undefined) return '';
+
+    const x1 = (s.spatialX + 125) * wbZoom + wbPan.x;
+    const y1 = (s.spatialY + 55) * wbZoom + wbPan.y;
+    const x2 = (t.spatialX + 125) * wbZoom + wbPan.x;
+    const y2 = (t.spatialY + 55) * wbZoom + wbPan.y;
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const cx1 = x1 + dx * 0.45;
+    const cy1 = y1;
+    const cx2 = x1 + dx * 0.55;
+    const cy2 = y2;
+
+    return `<path d="M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}" fill="none" stroke="var(--accent-vermilion)" stroke-width="1.8" stroke-dasharray="4 3" opacity="0.45" />`;
+  }).join('');
+}
+
+function openWbNoteInEditor(noteId) {
+  selectNote(noteId);
+  setAppMode('workspace');
+  closeSpatialWhiteboardModal();
+}
+
+// -------------------------------------------------------------------------
+// 23B. INTERACTIVE MIND MAP & RADIAL TREE STUDIO
+// -------------------------------------------------------------------------
+function openMindMapModal() {
+  const modal = document.getElementById('mindMapModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  renderMindMapForActiveNote();
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+  if (typeof playWhooshSound === 'function') playWhooshSound();
+}
+
+function closeMindMapModal() {
+  const modal = document.getElementById('mindMapModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderMindMapForActiveNote() {
+  const note = getActiveNote();
+  if (!note) return;
+
+  const titleEl = document.getElementById('mindMapDocTitle');
+  if (titleEl) titleEl.textContent = `Mind Map: ${note.title || 'Untitled'}`;
+
+  const container = document.getElementById('mindMapContainer');
+  const svgLayer = document.getElementById('mindMapSvgLayer');
+  const nodesLayer = document.getElementById('mindMapNodesLayer');
+  if (!container || !svgLayer || !nodesLayer) return;
+
+  // Build tree from headings and content
+  const root = { id: 'root', text: note.title || 'Central Topic', level: 0, children: [] };
+  let currentH1 = null;
+  let currentH2 = null;
+
+  (note.blocks || []).forEach(b => {
+    const text = (b.content || '').trim();
+    if (!text) return;
+
+    if (b.type === 'h1') {
+      currentH1 = { id: b.id, text, level: 1, children: [] };
+      root.children.push(currentH1);
+      currentH2 = null;
+    } else if (b.type === 'h2') {
+      currentH2 = { id: b.id, text, level: 2, children: [] };
+      if (currentH1) currentH1.children.push(currentH2);
+      else root.children.push(currentH2);
+    } else if (b.type === 'h3' || b.type === 'bullet' || b.type === 'todo') {
+      const leaf = { id: b.id, text: text.substring(0, 48), level: 3, children: [] };
+      if (currentH2) currentH2.children.push(leaf);
+      else if (currentH1) currentH1.children.push(leaf);
+      else root.children.push(leaf);
+    }
+  });
+
+  if (root.children.length === 0) {
+    (note.blocks || []).slice(0, 8).forEach(b => {
+      const t = (b.content || '').trim();
+      if (t) root.children.push({ id: b.id, text: t.substring(0, 40), level: 1, children: [] });
+    });
+  }
+
+  // Layout tree coordinates
+  const levelColors = ['#D95338', '#C49A45', '#10b981', '#6366f1'];
+  const nodes = [];
+  const links = [];
+
+  const rootX = 60;
+  const rootY = Math.max(260, (root.children.length * 64) / 2);
+  root.x = rootX;
+  root.y = rootY;
+  nodes.push(root);
+
+  let currentY = 50;
+  root.children.forEach(c1 => {
+    c1.x = rootX + 220;
+    c1.y = currentY + 30;
+    nodes.push(c1);
+    links.push({ from: root, to: c1, color: levelColors[1] });
+
+    if (c1.children.length > 0) {
+      c1.children.forEach(c2 => {
+        c2.x = c1.x + 200;
+        c2.y = currentY + 16;
+        nodes.push(c2);
+        links.push({ from: c1, to: c2, color: levelColors[2] });
+        currentY += 46;
+      });
+    } else {
+      currentY += 56;
+    }
+  });
+
+  // Render SVG branches with organic Bezier curves
+  svgLayer.innerHTML = links.map(l => {
+    const x1 = l.from.x + 110;
+    const y1 = l.from.y + 16;
+    const x2 = l.to.x;
+    const y2 = l.to.y + 16;
+    const cx1 = x1 + (x2 - x1) * 0.5;
+    const cx2 = x1 + (x2 - x1) * 0.5;
+    return `<path d="M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}" class="mindmap-branch" stroke="${l.color}" stroke-width="2" opacity="0.65" />`;
+  }).join('');
+
+  // Render HTML node pills
+  nodesLayer.innerHTML = nodes.map(n => {
+    const bgClass = n.level === 0
+      ? 'bg-[var(--accent-vermilion)] text-white font-bold shadow-lg text-xs'
+      : (n.level === 1 ? 'bg-[var(--bg-panel)] text-[var(--text-primary)] font-semibold border border-[var(--border-strong)] text-xs' : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border border-[var(--border-hairline)] text-[11px]');
+    
+    return `
+      <div onclick="jumpToMindMapBlock('${n.id}')"
+           style="position: absolute; left: ${n.x}px; top: ${n.y}px; max-width: 180px;"
+           class="mindmap-node px-3 py-1.5 rounded-lg ${bgClass} truncate shadow-sm cursor-pointer select-none">
+        ${escapeHtml(n.text)}
+      </div>
+    `;
+  }).join('');
+}
+
+function jumpToMindMapBlock(blockId) {
+  closeMindMapModal();
+  if (blockId && blockId !== 'root') {
+    setTimeout(() => {
+      const el = document.querySelector(`[data-block-idx="${blockId}"]`) || document.querySelector(`[data-block-id="${blockId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-[var(--accent-vermilion)]');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--accent-vermilion)]'), 2000);
+      }
+    }, 150);
+  }
+}
+
+function fitMindMapView() {
+  const nodesLayer = document.getElementById('mindMapNodesLayer');
+  if (nodesLayer) {
+    nodesLayer.style.transform = 'translate(20px, 20px) scale(1.0)';
+  }
+}
+
+function exportMindMapSvg() {
+  const svg = document.getElementById('mindMapSvgLayer');
+  if (!svg) return;
+  const content = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([content], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `MindMap_${Date.now()}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  showToast('Mind Map exported as SVG vector');
+}
+
+// -------------------------------------------------------------------------
+// 23C. VAULT ACTIVITY INK HEATMAP & RADIAL PRODUCTIVITY CLOCK
+// -------------------------------------------------------------------------
+function openVaultHeatmapModal() {
+  const modal = document.getElementById('vaultHeatmapModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  renderVaultHeatmapAndClock();
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+}
+
+function closeVaultHeatmapModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('vaultHeatmapModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderVaultHeatmapAndClock() {
+  const gridContainer = document.getElementById('activityHeatmapGrid');
+  const clockContainer = document.getElementById('diurnalClockChart');
+  if (!gridContainer) return;
+
+  // 1. Vitality Metrics Calculation
+  let totalWords = 0;
+  let totalBlocks = 0;
+  const dateCounts = {};
+  const hourCounts = new Array(24).fill(0);
+
+  state.notes.forEach(note => {
+    (note.blocks || []).forEach(b => {
+      totalBlocks++;
+      const text = b.content || '';
+      totalWords += text.trim().split(/\s+/).filter(Boolean).length;
+    });
+
+    const dateKey = (note.updated_at || note.created_at || '').slice(0, 10);
+    if (dateKey) dateCounts[dateKey] = (dateCounts[dateKey] || 0) + 1;
+
+    try {
+      const d = new Date(note.updated_at || note.created_at);
+      if (!isNaN(d.getTime())) {
+        hourCounts[d.getHours()]++;
+      }
+    } catch (_) {}
+  });
+
+  const linksCount = computeVaultConnections().length;
+
+  // Streak Calculation
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const cur = new Date(today);
+    cur.setDate(today.getDate() - i);
+    const key = cur.toISOString().slice(0, 10);
+    if (dateCounts[key]) {
+      streak++;
+    } else if (i > 0) {
+      break;
+    }
+  }
+
+  const streakEl = document.getElementById('vitalityStreakVal');
+  const wordsEl = document.getElementById('vitalityWordsVal');
+  const blocksEl = document.getElementById('vitalityBlocksVal');
+  const linksEl = document.getElementById('vitalityLinksVal');
+  if (streakEl) streakEl.textContent = `${streak} Day${streak === 1 ? '' : 's'}`;
+  if (wordsEl) wordsEl.textContent = totalWords.toLocaleString();
+  if (blocksEl) blocksEl.textContent = totalBlocks.toLocaleString();
+  if (linksEl) linksEl.textContent = linksCount.toLocaleString();
+
+  // 2. Render 52-Week SVG Heatmap
+  const weeks = 52;
+  const daysPerWeek = 7;
+  let cellsHtml = '';
+
+  for (let w = 0; w < weeks; w++) {
+    cellsHtml += `<div class="flex flex-col gap-1">`;
+    for (let d = 0; d < daysPerWeek; d++) {
+      const dayOffset = (weeks - 1 - w) * 7 + (6 - d);
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() - dayOffset);
+      const key = targetDate.toISOString().slice(0, 10);
+      const count = dateCounts[key] || 0;
+
+      let bgStyle = 'bg-[var(--bg-canvas)] border border-[var(--border-hairline)]';
+      if (count > 4) bgStyle = 'bg-[var(--accent-vermilion)]';
+      else if (count > 2) bgStyle = 'bg-[var(--accent-vermilion)]/80 text-white';
+      else if (count > 1) bgStyle = 'bg-[var(--accent-vermilion)]/50';
+      else if (count > 0) bgStyle = 'bg-[var(--accent-vermilion)]/25';
+
+      cellsHtml += `
+        <div onmouseenter="showHeatmapDayInfo('${key}', ${count})"
+             class="w-3 h-3 rounded-[2px] ${bgStyle} heatmap-cell cursor-pointer"></div>
+      `;
+    }
+    cellsHtml += `</div>`;
+  }
+  gridContainer.innerHTML = `<div class="flex gap-1">${cellsHtml}</div>`;
+
+  // 3. Render 24-Hour Diurnal Writing Clock
+  if (clockContainer) {
+    const maxHour = Math.max(1, ...hourCounts);
+    let peakHour = 0;
+    hourCounts.forEach((c, h) => { if (c > hourCounts[peakHour]) peakHour = h; });
+
+    const peakBadge = document.getElementById('diurnalPeakBadge');
+    if (peakBadge) {
+      const zoneLabel = peakHour < 6 ? 'Deep Night Owl' : (peakHour < 12 ? 'Morning Focus' : (peakHour < 18 ? 'Afternoon Flow' : 'Evening Sprint'));
+      peakBadge.textContent = `Peak: ${peakHour}:00 (${zoneLabel})`;
+    }
+
+    clockContainer.innerHTML = hourCounts.map((val, hour) => {
+      const pct = Math.max(8, Math.round((val / maxHour) * 100));
+      const isPeak = hour === peakHour && val > 0;
+      return `
+        <div class="flex-1 flex flex-col items-center justify-end h-full group" title="${hour}:00 - ${val} edits">
+          <div class="w-full rounded-t-[2px] ${isPeak ? 'bg-[var(--accent-vermilion)]' : 'bg-[var(--text-tertiary)]/40 hover:bg-[var(--accent-ochre)]'} transition-all"
+               style="height: ${pct}%;"></div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+function showHeatmapDayInfo(dateStr, count) {
+  const tip = document.getElementById('heatmapDayTooltip');
+  if (tip) {
+    tip.textContent = `${dateStr}: ${count} document edit${count === 1 ? '' : 's'} recorded`;
+  }
+}
+
+// -------------------------------------------------------------------------
+// 23D. VISUAL IMAGE LIGHTBOX & BOOKMARK CARDS
+// -------------------------------------------------------------------------
+let lightboxCurrentZoom = 1.0;
+
+function openImageLightbox(src, caption) {
+  const modal = document.getElementById('imageLightboxModal');
+  const img = document.getElementById('lightboxImg');
+  const cap = document.getElementById('lightboxCaption');
+  if (!modal || !img) return;
+
+  lightboxCurrentZoom = 1.0;
+  img.src = src;
+  img.style.transform = 'scale(1.0)';
+  if (cap) cap.textContent = caption || '';
+  modal.classList.remove('hidden');
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+}
+
+function closeImageLightbox(e) {
+  if (e && e.target && e.target !== e.currentTarget && e.target.id !== 'imageLightboxModal') return;
+  const modal = document.getElementById('imageLightboxModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function zoomLightboxImage(delta) {
+  lightboxCurrentZoom = Math.min(3.0, Math.max(0.5, lightboxCurrentZoom + delta));
+  const img = document.getElementById('lightboxImg');
+  if (img) img.style.transform = `scale(${lightboxCurrentZoom})`;
+}
+
+function downloadLightboxImage() {
+  const img = document.getElementById('lightboxImg');
+  if (!img || !img.src) return;
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = `PK_Image_${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Downloaded image');
+}
+
+// Attach image click listener on documents for automatic lightbox view
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('img');
+  if (!img) return;
+  if (img.id === 'lightboxImg' || img.closest('#imageLightboxModal')) return;
+  // If inside editor blocks container
+  if (img.closest('#blocksContainer') || img.closest('.whiteboard-card')) {
+    openImageLightbox(img.src, img.alt || '');
+  }
+});
+
+// -------------------------------------------------------------------------
+// 23E. ARCHITECTURAL COVER BANNERS & BAUHAUS GALLERY
+// -------------------------------------------------------------------------
+function openBannerPickerModal() {
+  const modal = document.getElementById('bannerPickerModal');
+  if (modal) modal.classList.remove('hidden');
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function closeBannerPickerModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('bannerPickerModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function applyBannerPreset(presetName) {
+  const note = getActiveNote();
+  if (!note) return;
+  note.banner = { type: 'preset', value: presetName, presetName: presetName, height: (note.banner && note.banner.height) || 'standard' };
+  note.updated_at = new Date().toISOString();
+  persistState();
+
+  if (typeof renderDocBanner === 'function') {
+    renderDocBanner(note);
+  } else {
+    const band = document.getElementById('ruledHeaderBand');
+    if (band) {
+      band.className = `w-full border-b border-[var(--border-hairline)] bg-cover bg-center relative overflow-hidden banner-preset-${presetName}`;
+      band.style.height = '160px';
+      band.classList.remove('hidden');
+    }
+  }
+
+  const removeBtn = document.getElementById('docBannerRemoveBtn');
+  if (removeBtn) removeBtn.classList.remove('hidden');
+
+  closeBannerPickerModal();
+  if (typeof playChimeSound === 'function') playChimeSound();
+  if (typeof pkHaptic === 'function') pkHaptic(16);
+  showToast(`Applied ${presetName.toUpperCase()} architectural banner`);
+}
+
+function triggerBannerCustomUpload() {
+  const fileInput = document.getElementById('noteBannerFileInput');
+  if (fileInput) fileInput.click();
 }

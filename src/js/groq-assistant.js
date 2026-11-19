@@ -857,9 +857,77 @@ function setGroqContextScope(scope) {
   }
 }
 
+let pkAiTargetSelection = '';
+let pkAiTargetBlockId = null;
+
+function setAiTarget(selectionText = '', blockId = null) {
+  pkAiTargetSelection = (selectionText || '').trim();
+  pkAiTargetBlockId = blockId || null;
+  updateAiTargetBadgeUI();
+}
+
+function clearAiTarget() {
+  pkAiTargetSelection = '';
+  pkAiTargetBlockId = null;
+  updateAiTargetBadgeUI();
+}
+
+function updateAiTargetBadgeUI() {
+  const badge = document.getElementById('pkAiTargetBadge');
+  const label = document.getElementById('pkAiTargetLabel');
+  const input = document.getElementById('pkGroqPromptInput');
+  if (!badge) return;
+
+  if (pkAiTargetSelection) {
+    badge.classList.remove('hidden');
+    if (label) {
+      const preview = pkAiTargetSelection.length > 34
+        ? pkAiTargetSelection.slice(0, 34) + '…'
+        : pkAiTargetSelection;
+      label.textContent = `Target selection: "${preview}"`;
+    }
+    if (input && !input.value) {
+      input.placeholder = `How to replace or fix "${pkAiTargetSelection.slice(0, 22)}..."?`;
+    }
+  } else if (pkAiTargetBlockId) {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    const blk = note && (note.blocks || []).find(b => b.id === pkAiTargetBlockId);
+    if (blk && blk.content && blk.content.trim()) {
+      badge.classList.remove('hidden');
+      const preview = blk.content.length > 30 ? blk.content.slice(0, 30) + '…' : blk.content;
+      if (label) label.textContent = `Focused block: "${preview}"`;
+      if (input && !input.value) {
+        input.placeholder = 'How should AI edit or replace this block?';
+      }
+    } else {
+      badge.classList.add('hidden');
+      if (input && !input.value) {
+        input.placeholder = 'Ask about your note, draft text, create flashcards, or plan your schedule...';
+      }
+    }
+  } else {
+    badge.classList.add('hidden');
+    if (input && !input.value) {
+      input.placeholder = 'Ask about your note, draft text, create flashcards, or plan your schedule...';
+    }
+  }
+}
+
 function openGroqAssistant(autoShowSettings = false) {
   if (typeof closeSpecialStudio === 'function' && typeof pkSpecialDrawerOpen !== 'undefined' && pkSpecialDrawerOpen) {
     closeSpecialStudio();
+  }
+  const currentSel = typeof getReadableSelectedText === 'function' ? getReadableSelectedText(true) : '';
+  if (currentSel && !pkAiTargetSelection) {
+    setAiTarget(currentSel, typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null);
+  } else if (!currentSel && typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId && !pkAiTargetBlockId) {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    const blk = note && (note.blocks || []).find(b => b.id === activeEditingBlockId);
+    if (blk && blk.content && blk.content.trim()) {
+      setAiTarget('', activeEditingBlockId);
+    }
+  } else {
+    updateAiTargetBadgeUI();
   }
   syncGroqHeaderAndSettingsUI();
   updateAiMemoryBadge();
@@ -1668,13 +1736,14 @@ function pkCleanBlockText(raw) {
     .trim();
 }
 
-function buildGroqSystemPrompt(recalledCtx = null) {
+function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetBlockId = null) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const autoMemOn = !window.PKMemory || window.PKMemory.getSettings().autoSave;
   const parts = [
     'You are the built-in AI helper inside PK Note.',
     `Today's date is ${todayIso}.`,
     'Tone: Talk like a smart, chill friend — natural, relaxed, and straightforward. Do NOT sound corporate, overly formal, robotic, or like a textbook. Skip stiff filler phrases like "Certainly!", "I would be happy to assist", or "Here is a comprehensive breakdown". Match the user\'s energy and keep replies simple and conversational. Only use headings or bullet points when they actually make the answer easier to read, not by default. Never use emojis.',
+    'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
     'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```'
   ];
@@ -1756,6 +1825,19 @@ function buildGroqSystemPrompt(recalledCtx = null) {
     parts.push(
       `\nACTIVE NOTE CONTEXT:\nTitle: ${activeNote.title || 'Untitled'}\nFolder: ${activeNote.folder || 'General'}\nTags: ${(activeNote.tags || []).join(', ') || 'none'}\nLocked: ${activeNote.locked ? 'yes' : 'no'}\nEncrypted: ${activeNote.encryptedPayload ? 'yes' : 'no'}\nContent:\n${lines || '(empty note)'}`
     );
+
+    if (targetSelection) {
+      parts.push(
+        `\nCRITICAL TARGET SELECTION (The user specifically highlighted this text in their note to replace/edit):\n"""\n${targetSelection}\n"""\nINSTRUCTION: The user wants to replace, correct, or edit the above text. Return ONLY the exact replacement text for this selection. ZERO conversational fluff, ZERO introduction, ZERO conclusion, NO markdown code block ticks. Return just the replacement.`
+      );
+    } else if (targetBlockId) {
+      const blk = (activeNote.blocks || []).find(b => b.id === targetBlockId);
+      if (blk && blk.content) {
+        parts.push(
+          `\nCRITICAL TARGET BLOCK (The user is focused on this block):\n"""\n${blk.content}\n"""\nINSTRUCTION: The user wants to edit or replace this block. Return ONLY the replacement content with ZERO conversational filler.`
+        );
+      }
+    }
   } else if (pkGroqContextScope === 'vault' && typeof state !== 'undefined') {
     const noteSummaries = (state.notes || []).slice(0, 18).map(n => {
       const preview = n.encryptedPayload
@@ -1840,13 +1922,90 @@ function stripSpecialBlocksForDisplay(text, isStreaming = false) {
   return out.trim();
 }
 
+function cleanAiTextForInsertion(rawText) {
+  if (!rawText) return '';
+  let text = stripSpecialBlocksForDisplay(rawText, false).trim();
+
+  // 1. Unwrap outer markdown/text code blocks if entire response is wrapped
+  const outerBlockMatch = text.match(/^```(?:markdown|md|text|txt)?\r?\n([\s\S]*?)\r?\n```$/i);
+  if (outerBlockMatch) {
+    text = outerBlockMatch[1].trim();
+  }
+
+  // 2. Split lines to inspect preamble and postamble
+  let lines = text.split(/\r?\n/);
+
+  // Common conversational introductory phrases models output before the actual text
+  const introPatterns = [
+    /^(?:sure(?: thing)?|certainly|of course|alright|absolutely|below is|here(?: is|'s)|here are)[^:\n]*:?\s*$/i,
+    /^(?:here is the (?:updated|revised|corrected|new|polished) (?:text|note|version|content|sentence|paragraph)[^:\n]*:?)\s*$/i,
+    /^(?:i(?:'ve| have) (?:updated|replaced|revised|fixed|rewritten|polished|corrected) (?:the |your )?(?:text|note|content|sentence|paragraph|words?)[^:\n]*:?)\s*$/i,
+    /^(?:in your (?:note|text),? [^:\n]*:?)\s*$/i,
+    /^(?:revised (?:text|note|version|content):?)\s*$/i,
+    /^(?:updated (?:text|note|version|content):?)\s*$/i,
+    /^(?:corrected (?:text|note|version|content):?)\s*$/i,
+    /^(?:here (?:is|are) the (?:result|output|changes)[^:\n]*:?)\s*$/i,
+    /^(?:replacement:?)\s*$/i
+  ];
+
+  while (lines.length > 1) {
+    const firstLine = lines[0].trim();
+    if (!firstLine) {
+      lines.shift();
+      continue;
+    }
+    const isFluff = introPatterns.some(rx => rx.test(firstLine));
+    if (isFluff) {
+      lines.shift();
+      if (lines.length > 0 && !lines[0].trim()) lines.shift();
+    } else {
+      break;
+    }
+  }
+
+  // Common conversational outro phrases models output after the actual text
+  const outroPatterns = [
+    /^(?:hope this (?:helps|works)|let me know if you (?:need|want)|feel free to (?:ask|tweak)|is there anything else)[^\n]*$/i,
+    /^(?:i (?:also )?(?:kept|polished|removed|adjusted|rephrased) [^\n]+(?:for you)?\.?)\s*$/i,
+    /^(?:let me know what you think[^\n]*)$/i,
+    /^(?:let me know if that works[^\n]*)$/i
+  ];
+
+  while (lines.length > 1) {
+    const lastLine = lines[lines.length - 1].trim();
+    if (!lastLine) {
+      lines.pop();
+      continue;
+    }
+    const isFluff = outroPatterns.some(rx => rx.test(lastLine));
+    if (isFluff) {
+      lines.pop();
+    } else {
+      break;
+    }
+  }
+
+  let cleaned = lines.join('\n').trim();
+
+  // If after stripping, it still has an outer code block, unwrap it again
+  const secondWrap = cleaned.match(/^```(?:markdown|md|text|txt)?\r?\n([\s\S]*?)\r?\n```$/i);
+  if (secondWrap) cleaned = secondWrap[1].trim();
+
+  // If enclosed in wrapping quotation marks (e.g. "replacement text"), strip them
+  if (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length >= 2 && !cleaned.slice(1, -1).includes('"')) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+
+  return cleaned || text;
+}
+
 function parseMarkdownToPKBlocks(rawText) {
-  const clean = stripSpecialBlocksForDisplay(rawText, false);
+  const clean = cleanAiTextForInsertion(rawText);
   const lines = clean.split(/\r?\n/);
   const blocks = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line || line === '```') continue;
+    if (!line || line.startsWith('```')) continue;
     if (/^---+$/.test(line)) {
       blocks.push({ id: generateId('b'), type: 'divider', content: '' });
     } else if (/^###\s+/.test(line)) {
@@ -1869,17 +2028,159 @@ function parseMarkdownToPKBlocks(rawText) {
   return blocks;
 }
 
+function replaceTargetSelectionWithGroqReply(msgIdx) {
+  const msg = pkGroqHistory[msgIdx];
+  if (!msg || !msg.content || msg.isError) return;
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : null;
+  if (!note) return;
+
+  const targetText = msg.targetSelection || pkAiTargetSelection || '';
+  const cleanReplacement = cleanAiTextForInsertion(msg.content);
+  if (!cleanReplacement) return;
+
+  if (typeof stampNoteSnapshot === 'function') {
+    stampNoteSnapshot(false, 'Pre-AI Text Replace');
+  }
+  if (typeof takeSnapshot === 'function') takeSnapshot('aiReplaceSelection');
+
+  let replaced = false;
+
+  // 1. Try finding in the specified target block first
+  if (msg.targetBlockId) {
+    const block = (note.blocks || []).find(b => b.id === msg.targetBlockId);
+    if (block && typeof block.content === 'string') {
+      if (targetText && block.content.includes(targetText)) {
+        block.content = block.content.replace(targetText, cleanReplacement);
+        replaced = true;
+      } else if (!targetText) {
+        block.content = cleanReplacement;
+        replaced = true;
+      }
+    }
+  }
+
+  // 2. Search across all blocks for exact match of targetText
+  if (!replaced && targetText) {
+    for (const b of (note.blocks || [])) {
+      if (b && typeof b.content === 'string' && b.content.includes(targetText)) {
+        b.content = b.content.replace(targetText, cleanReplacement);
+        replaced = true;
+        break;
+      }
+    }
+  }
+
+  // 3. Search case-insensitively or trimmed
+  if (!replaced && targetText) {
+    const norm = targetText.trim().toLowerCase();
+    for (const b of (note.blocks || [])) {
+      if (b && typeof b.content === 'string' && b.content.toLowerCase().includes(norm)) {
+        const lower = b.content.toLowerCase();
+        const start = lower.indexOf(norm);
+        b.content = b.content.slice(0, start) + cleanReplacement + b.content.slice(start + targetText.trim().length);
+        replaced = true;
+        break;
+      }
+    }
+  }
+
+  // 4. If target was multi-line or spanned blocks, replace with parsed blocks
+  if (!replaced && targetText.includes('\n')) {
+    const targetLines = targetText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (targetLines.length > 0) {
+      const startIdx = (note.blocks || []).findIndex(b => b && b.content && b.content.includes(targetLines[0]));
+      if (startIdx !== -1) {
+        const newBlocks = parseMarkdownToPKBlocks(msg.content);
+        note.blocks.splice(startIdx, Math.min(targetLines.length, note.blocks.length - startIdx), ...newBlocks);
+        replaced = true;
+      }
+    }
+  }
+
+  // 5. If still not replaced but activeEditingBlockId is set, replace in that block
+  if (!replaced && typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
+    const block = (note.blocks || []).find(b => b.id === activeEditingBlockId);
+    if (block) {
+      block.content = cleanReplacement;
+      replaced = true;
+    }
+  }
+
+  if (replaced) {
+    note.updatedAt = new Date().toISOString();
+    if (typeof setAppMode === 'function') setAppMode('workspace');
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast('Replaced text with AI correction (0 fluff)');
+  } else {
+    insertGroqReplyIntoNote(msgIdx, false);
+    if (typeof showToast === 'function') showToast('Target text not found in note — inserted at bottom of note', 'ochre');
+  }
+}
+
+function replaceTargetBlockWithGroqReply(msgIdx) {
+  const msg = pkGroqHistory[msgIdx];
+  if (!msg || !msg.content || msg.isError) return;
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : null;
+  if (!note) return;
+
+  const targetBlockId = msg.targetBlockId || pkAiTargetBlockId;
+  const newBlocks = parseMarkdownToPKBlocks(msg.content);
+  if (newBlocks.length === 0) return;
+
+  if (typeof stampNoteSnapshot === 'function') {
+    stampNoteSnapshot(false, 'Pre-AI Block Replace');
+  }
+  if (typeof takeSnapshot === 'function') takeSnapshot('aiReplaceBlock');
+
+  let replaced = false;
+  if (targetBlockId) {
+    const idx = (note.blocks || []).findIndex(b => b.id === targetBlockId);
+    if (idx !== -1) {
+      if (newBlocks.length === 1) {
+        note.blocks[idx].content = newBlocks[0].content;
+        note.blocks[idx].type = newBlocks[0].type;
+      } else {
+        note.blocks.splice(idx, 1, ...newBlocks);
+      }
+      replaced = true;
+    }
+  }
+
+  if (replaced) {
+    note.updatedAt = new Date().toISOString();
+    if (typeof setAppMode === 'function') setAppMode('workspace');
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast('Replaced target block with AI correction');
+  } else {
+    insertGroqReplyIntoNote(msgIdx, true);
+  }
+}
+
 function insertGroqReplyIntoNote(msgIdx, replaceExisting = false) {
   const msg = pkGroqHistory[msgIdx];
   if (!msg || !msg.content || msg.isError) return;
   const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : null;
   if (!note) return;
 
+  // Safe routing: if this message targeted a selection or block, do not wipe out the whole note!
+  if (replaceExisting) {
+    if (msg.targetSelection) {
+      replaceTargetSelectionWithGroqReply(msgIdx);
+      return;
+    }
+    if (msg.targetBlockId && (note.blocks || []).length > 1) {
+      replaceTargetBlockWithGroqReply(msgIdx);
+      return;
+    }
+  }
+
   const newBlocks = parseMarkdownToPKBlocks(msg.content);
   if (newBlocks.length === 0) return;
 
   if (replaceExisting && typeof stampNoteSnapshot === 'function') {
-    stampNoteSnapshot(false, 'Pre-AI Rewrite');
+    stampNoteSnapshot(false, 'Pre-AI Note Rewrite');
   }
   if (typeof takeSnapshot === 'function') takeSnapshot(replaceExisting ? 'groqReplace' : 'groqAppend');
 
@@ -1894,7 +2195,7 @@ function insertGroqReplyIntoNote(msgIdx, replaceExisting = false) {
   if (typeof persistState === 'function') persistState();
   if (typeof showToast === 'function') {
     showToast(replaceExisting
-      ? 'Replaced note (previous version saved in Time-Capsule)'
+      ? 'Replaced note with cleaned AI text (previous version saved in Time-Capsule)'
       : `Inserted ${newBlocks.length} block(s) into note`);
   }
 }
@@ -1984,10 +2285,15 @@ function retryLastAiPrompt(msgIdx) {
   const msg = pkGroqHistory[msgIdx];
   const promptText = msg && msg.retryPrompt ? msg.retryPrompt : '';
   if (!promptText) return;
+  const targetSel = msg.targetSelection || '';
+  const targetBlk = msg.targetBlockId || null;
   // Remove the failed assistant message (and duplicate preceding user message) before retrying
   pkGroqHistory.splice(msgIdx, 1);
   if (msgIdx > 0 && pkGroqHistory[msgIdx - 1] && pkGroqHistory[msgIdx - 1].role === 'user' && pkGroqHistory[msgIdx - 1].content === promptText) {
     pkGroqHistory.splice(msgIdx - 1, 1);
+  }
+  if (targetSel || targetBlk) {
+    setAiTarget(targetSel, targetBlk);
   }
   sendGroqPrompt(promptText);
 }
@@ -2065,10 +2371,22 @@ function renderGroqMessages() {
           </div>
         `;
       } else {
+        const hasSelectionTarget = !!m.targetSelection;
+        const hasBlockTarget = !!m.targetBlockId;
+
         actionsBar = `
           <div class="flex flex-wrap items-center gap-1 pt-2 mt-2 border-t border-[var(--border-hairline)] font-mono text-[9.5px]">
-            <button type="button" onclick="insertGroqReplyIntoNote(${idx}, false)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Insert</button>
-            <button type="button" onclick="insertGroqReplyIntoNote(${idx}, true)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Replace</button>
+            ${hasSelectionTarget ? `
+              <button type="button" onclick="replaceTargetSelectionWithGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold cursor-pointer shadow-xs">Replace Selection</button>
+            ` : hasBlockTarget ? `
+              <button type="button" onclick="replaceTargetBlockWithGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold cursor-pointer shadow-xs">Replace Block</button>
+            ` : `
+              <button type="button" onclick="insertGroqReplyIntoNote(${idx}, true)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer" title="Replace note with cleaned AI text">Replace</button>
+            `}
+            <button type="button" onclick="insertGroqReplyIntoNote(${idx}, false)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Insert Below</button>
+            ${hasSelectionTarget || hasBlockTarget ? `
+              <button type="button" onclick="insertGroqReplyIntoNote(${idx}, true)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] cursor-pointer" title="Replace entire note with AI text">Replace Note</button>
+            ` : ''}
             <button type="button" onclick="createNewNoteFromGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">New Note</button>
             ${hasFlashcards ? `<button type="button" onclick="sendGroqFlashcardsToStudyDeck(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Study Deck</button>` : ''}
             <button type="button" onclick="rememberGroqReply(${idx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Remember</button>
@@ -2126,6 +2444,15 @@ function handleGroqPromptKeydown(e) {
 }
 
 function runGroqQuickAction(kind) {
+  const currentSel = typeof getReadableSelectedText === 'function' ? getReadableSelectedText(true) : '';
+  const currentBlockId = typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null;
+
+  if (kind === 'polish' && currentSel) {
+    setAiTarget(currentSel, currentBlockId);
+    sendGroqPrompt('Polish and improve the selected text so it reads smoothly, clearly, and naturally without stiff jargon. Return ONLY the polished replacement text.');
+    return;
+  }
+
   const prompts = {
     summarize: 'Give me a quick, easy-to-read summary of my note in plain language.',
     polish: 'Clean up my note so it reads smoothly and naturally, without making it sound stiff or overly formal. Keep my voice and return just the updated text.',
@@ -2192,6 +2519,19 @@ async function sendGroqPrompt(overrideText) {
   if (!userText) return;
   if (!overrideText && promptEl) promptEl.value = '';
 
+  let promptTargetSelection = pkAiTargetSelection;
+  let promptTargetBlockId = pkAiTargetBlockId;
+
+  // If user typed a natural replace query like: replace "foo" with "bar"
+  if (!promptTargetSelection) {
+    const replaceMatch = userText.match(/(?:replace|change|swap)\s+["'“]([^"'”]+)["'”]\s+(?:with|to)\s+["'“]([^"'”]+)["'”]/i);
+    if (replaceMatch) {
+      promptTargetSelection = replaceMatch[1].trim();
+    }
+  }
+  // Clear target badge from input bar so future unrelated prompts don't inherit it
+  clearAiTarget();
+
   pkGroqHistory.push({ role: 'user', content: userText });
   const assistantIdx = pkGroqHistory.length;
   pkGroqHistory.push({
@@ -2202,6 +2542,8 @@ async function sendGroqPrompt(overrideText) {
     isError: false,
     provider: spec.id,
     retryPrompt: userText,
+    targetSelection: promptTargetSelection,
+    targetBlockId: promptTargetBlockId,
     eventPayloads: []
   });
   renderGroqMessages();
@@ -2238,7 +2580,7 @@ async function sendGroqPrompt(overrideText) {
     .map(m => ({ role: m.role, content: stripSpecialBlocksForDisplay(m.content, false) || m.content }));
 
   const messages = [
-    { role: 'system', content: buildGroqSystemPrompt(recalledCtx) },
+    { role: 'system', content: buildGroqSystemPrompt(recalledCtx, promptTargetSelection, promptTargetBlockId) },
     ...recentTurns
   ];
 

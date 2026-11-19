@@ -1508,11 +1508,15 @@
     </div>
   </div>
 
-  <!-- Floating Selection-Only Read Aloud Pill (Appears automatically whenever text is highlighted on PC or phone) -->
+  <!-- Floating Selection-Only Read Aloud & AI Action Pill (Appears automatically whenever text is highlighted on PC or phone) -->
   <div id="pkSelectionReadBar" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" class="hidden fixed bottom-[80px] sm:bottom-6 inset-x-0 mx-auto w-fit max-w-[92vw] z-[997] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/60 shadow-xl select-none">
     <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="readCurrentSelectionOnly()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-vermilion)] hover:opacity-95 text-white font-mono text-[11px] font-semibold cursor-pointer">
       <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       <span id="pkSelectionReadLabel">Read Selected</span>
+    </button>
+    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="openAiForSelection()" title="Ask AI to fix or replace selected text" class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-mono text-[11px] font-semibold cursor-pointer transition-colors">
+      <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      <span>AI Fix</span>
     </button>
     <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="dismissSelectionReadBar()" title="Dismiss" class="w-6 h-6 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] font-mono text-[11px] flex items-center justify-center cursor-pointer">✕</button>
   </div>
@@ -2984,11 +2988,19 @@
         <!-- Rendered by renderGroqMessages() -->
       </div>
 
-      <!-- Prompt Input Composer (Includes 1-Tap Key/Provider + Model Quick Switcher) -->
+      <!-- Prompt Input Composer (Includes 1-Tap Key/Provider + Model Quick Switcher & Active Selection Target) -->
       <div class="p-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0 space-y-2">
         <div class="flex items-center gap-1.5 font-mono text-[10px]">
           <select id="pkAiQuickKeySelect" onchange="handleQuickAiKeySwitch(this.value)" title="Switch active API key / provider instantly" class="w-[44%] min-w-0 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] cursor-pointer truncate"></select>
           <select id="pkAiQuickModelSelect" onchange="handleQuickAiModelSwitch(this.value)" title="Switch AI model instantly" class="flex-1 min-w-0 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-vermilion)] cursor-pointer truncate"></select>
+        </div>
+        <!-- Active Target Selection / Block Indicator Pill -->
+        <div id="pkAiTargetBadge" class="hidden px-2.5 py-1 rounded-[4px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 flex items-center justify-between gap-1.5 font-mono text-[10px]">
+          <div class="flex items-center gap-1.5 truncate text-[var(--accent-vermilion)] font-semibold">
+            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <span id="pkAiTargetLabel" class="truncate">Target: "..."</span>
+          </div>
+          <button type="button" onclick="clearAiTarget()" title="Clear target selection" class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer font-bold px-1">✕</button>
         </div>
         <div class="flex items-end gap-2">
           <textarea id="pkGroqPromptInput"

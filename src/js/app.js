@@ -9200,6 +9200,18 @@ function readCurrentSelectionOnly() {
   readTextAloud(sel, 'Selected Part');
 }
 
+function openAiForSelection() {
+  const sel = getReadableSelectedText(true);
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (bar) bar.classList.add('hidden');
+  if (typeof setAiTarget === 'function') {
+    setAiTarget(sel || '', typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null);
+  }
+  if (typeof openGroqAssistant === 'function') {
+    openGroqAssistant();
+  }
+}
+
 function readSingleBlockAloud(blockId) {
   const note = getActiveNote();
   if (!note) return;
@@ -9642,6 +9654,7 @@ document.addEventListener('contextmenu', e => {
       headerText = `SELECTION (${selText.length} CHARS)`;
       badgeIcon = 'quote';
       menuItems.push(
+        { label: 'AI: Fix / Replace Selection', shortcut: 'AI', icon: 'sparkles', action: () => openAiForSelection() },
         { label: 'Bold', shortcut: '⌘B', icon: 'hash', action: () => document.execCommand('bold') },
         { label: 'Italic', shortcut: '⌘I', icon: 'quote', action: () => document.execCommand('italic') },
         { label: 'Inline Code', shortcut: '`', icon: 'terminal', action: () => formatSelectionWithCode() },
@@ -9683,6 +9696,7 @@ document.addEventListener('contextmenu', e => {
         { label: 'Move Block Down', shortcut: 'Alt+↓', icon: 'chevronDown', action: () => moveBlockRelative(block.id, 1) },
         { label: 'Insert Block Above', shortcut: '⇧↵', icon: 'document', action: () => insertBlockBefore(block.id) },
         { label: 'Insert Block Below', shortcut: '↵', icon: 'document', action: () => insertBlockAfter(block.id) },
+        { label: 'AI: Edit / Polish Block', shortcut: 'AI', icon: 'sparkles', action: () => { if (typeof setAiTarget === 'function') setAiTarget('', block.id); openGroqAssistant(); } },
         { label: 'Read This Block Only', icon: 'volume', action: () => readSingleBlockAloud(block.id) },
         { label: 'Duplicate Block', shortcut: '⌘D', icon: 'layers', action: () => duplicateBlock(block.id) },
         { label: 'Copy Markdown', icon: 'copy', action: () => copyBlockMarkdown(block.id) },

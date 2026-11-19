@@ -639,6 +639,7 @@ function naturalMathToLatex(raw) {
        .replace(/¹/g, '^{1}')
        .replace(/⁴/g, '^{4}')
        .replace(/⁵/g, '^{5}')
+       .replace(/ⁿ/g, '^{n}')
        .replace(/⁻¹/g, '^{-1}')
        .replace(/⁻⁵/g, '^{-5}')
        .replace(/₀/g, '_{0}')
@@ -646,14 +647,36 @@ function naturalMathToLatex(raw) {
        .replace(/₂/g, '_{2}')
        .replace(/₃/g, '_{3}')
        .replace(/₄/g, '_{4}')
-       .replace(/₅/g, '_{5}');
+       .replace(/₅/g, '_{5}')
+       .replace(/ᵢ/g, '_{i}')
+       .replace(/ⱼ/g, '_{j}');
+
+  // 2b. Unicode common fractions
+  s = s.replace(/½/g, '\\frac{1}{2}')
+       .replace(/¼/g, '\\frac{1}{4}')
+       .replace(/¾/g, '\\frac{3}{4}')
+       .replace(/⅓/g, '\\frac{1}{3}')
+       .replace(/⅔/g, '\\frac{2}{3}');
 
   // 3. Roots:
-  // Degree roots e.g. ^2sqrt(x), ^3sqrt(x), root(n, x), cbrt(x), sqrt(x)
-  s = s.replace(/\^([0-9a-zA-Z]+)\s*sqrt\(([^()]+)\)/gi, '\\sqrt[$1]{$2}');
-  s = s.replace(/\broot\(([^,]+),\s*([^()]+)\)/gi, '\\sqrt[$1]{$2}');
-  s = s.replace(/\bcbrt\(([^()]+)\)/gi, '\\sqrt[3]{$1}');
-  s = s.replace(/\bsqrt\(([^()]+)\)/gi, '\\sqrt{$1}');
+  // Clean broken typo/legacy ^2sqrt(x) or ^2√x to clean square root
+  s = s.replace(/\^2\s*sqrt\(([^()]+)\)/gi, (m, p) => `\\sqrt{${p}}`);
+  s = s.replace(/\^2\s*√\(([^()]+)\)/gi, (m, p) => `\\sqrt{${p}}`);
+  s = s.replace(/\^2\s*√([a-zA-Z0-9]+)/gi, (m, p) => `\\sqrt{${p}}`);
+
+  // Degree roots e.g. root(n, x), cbrt(x), ^3sqrt(x)
+  s = s.replace(/\^([0-9a-zA-Z]+)\s*sqrt\(([^()]+)\)/gi, (m, p1, p2) => `\\sqrt[${p1}]{${p2}}`);
+  s = s.replace(/\broot\(([^,]+),\s*([^()]+)\)/gi, (m, p1, p2) => `\\sqrt[${p1}]{${p2}}`);
+  s = s.replace(/\bcbrt\(([^()]+)\)/gi, (m, p1) => `\\sqrt[3]{${p1}}`);
+  s = s.replace(/\bsqrt\(([^()]+)\)/gi, (m, p1) => `\\sqrt{${p1}}`);
+
+  // Unicode root symbol e.g. √x, √(x), √(x + 1), ³√x
+  s = s.replace(/³√\(([^()]+)\)/g, (m, p1) => `\\sqrt[3]{${p1}}`);
+  s = s.replace(/³√([a-zA-Z0-9]+)/g, (m, p1) => `\\sqrt[3]{${p1}}`);
+  s = s.replace(/√\(([^()]+)\)/g, (m, p1) => `\\sqrt{${p1}}`);
+  s = s.replace(/√\{([^{}]+)\}/g, (m, p1) => `\\sqrt{${p1}}`);
+  s = s.replace(/√([a-zA-Z0-9]+)/g, (m, p1) => `\\sqrt{${p1}}`);
+  s = s.replace(/√/g, '\\sqrt{}');
 
   // 4. Fractions with balanced parenthesis matching (supports nested sqrt, funcs, etc.)
   let fracChanged = true;
@@ -710,9 +733,8 @@ function naturalMathToLatex(raw) {
     }
   }
 
-  // Simple A / B (e.g. 1/2, 3/4, x/2, y/x)
-  s = s.replace(/\b([a-zA-Z0-9_\.\-]+)\s*\/\s*([a-zA-Z0-9_\.\-]+)\b/g, (m, a, b) => {
-    if (a.startsWith('\\') || b.startsWith('\\')) return m;
+  // Simple A / B (e.g. 1/2, 3/4, x/2, y/x, \sqrt{x}/b, \sqrt{x}/\sqrt{y})
+  s = s.replace(/(\\sqrt\{[^{}]+\}|[a-zA-Z0-9_\.\-]+(?:\^\{[^{}]+\}|_[a-zA-Z0-9_]+)?)\s*\/\s*(\\sqrt\{[^{}]+\}|[a-zA-Z0-9_\.\-]+(?:\^\{[^{}]+\}|_[a-zA-Z0-9_]+)?)/g, (m, a, b) => {
     return `\\frac{${a}}{${b}}`;
   });
 
@@ -19847,54 +19869,50 @@ function insertEasyMathToken(blockId, token) {
       break;
     case 'pow2':
       if (sel) {
-        insertion = `${sel}^2`;
+        insertion = `${sel}²`;
         selOffset = insertion.length;
       } else {
         const prev = start > 0 ? val[start - 1] : '';
         if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
-          insertion = `^2`;
-          selOffset = 2;
+          insertion = `²`;
+          selOffset = 1;
         } else {
-          insertion = `x^2`;
-          selOffset = 3;
+          insertion = `x²`;
+          selOffset = 2;
         }
       }
       break;
     case 'powN':
       if (sel) {
-        insertion = `${sel}^(n)`;
-        selOffset = insertion.length - 2;
-        selLen = 1;
-      } else {
-        const prev = start > 0 ? val[start - 1] : '';
-        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
-          insertion = `^(n)`;
-          selOffset = 2;
-          selLen = 1;
-        } else {
-          insertion = `x^(n)`;
-          selOffset = 3;
-          selLen = 1;
-        }
-      }
-      break;
-    case 'sqrt':
-      insertion = sel ? `sqrt(${sel})` : `sqrt(x)`;
-      selOffset = sel ? sel.length + 6 : 5;
-      selLen = sel ? 0 : 1;
-      break;
-    case 'sub':
-      if (sel) {
-        insertion = `_${sel}`;
+        insertion = `${sel}ⁿ`;
         selOffset = insertion.length;
       } else {
         const prev = start > 0 ? val[start - 1] : '';
         if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
-          insertion = `_0`;
-          selOffset = 2;
+          insertion = `ⁿ`;
+          selOffset = 1;
         } else {
-          insertion = `x_0`;
-          selOffset = 3;
+          insertion = `xⁿ`;
+          selOffset = 2;
+        }
+      }
+      break;
+    case 'sqrt':
+      insertion = sel ? `√(${sel})` : `√x`;
+      selOffset = insertion.length;
+      break;
+    case 'sub':
+      if (sel) {
+        insertion = `${sel}₀`;
+        selOffset = insertion.length;
+      } else {
+        const prev = start > 0 ? val[start - 1] : '';
+        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
+          insertion = `₀`;
+          selOffset = 1;
+        } else {
+          insertion = `x₀`;
+          selOffset = 2;
         }
       }
       break;
@@ -19912,19 +19930,19 @@ function insertEasyMathToken(blockId, token) {
       selOffset = insertion.length;
       break;
     case 'int':
-      insertion = sel ? `int ${sel} dx` : `int f(x) dx`;
+      insertion = sel ? `∫ ${sel} dx` : `∫ f(x) dx`;
       selOffset = insertion.length;
       break;
     case 'int_ab':
-      insertion = sel ? `int from a to b ${sel} dx` : `int from 0 to 1 x dx`;
+      insertion = sel ? `∫₀¹ ${sel} dx` : `∫₀¹ x dx`;
       selOffset = insertion.length;
       break;
     case 'sum':
-      insertion = sel ? `sum from i=1 to n ${sel}` : `sum from i=1 to n x_i`;
+      insertion = sel ? `∑ ${sel}` : `∑ xᵢ`;
       selOffset = insertion.length;
       break;
     case 'lim':
-      insertion = `lim x->0 `;
+      insertion = `lim x→0 `;
       selOffset = insertion.length;
       break;
     case 'sin':

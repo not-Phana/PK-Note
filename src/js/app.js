@@ -10828,6 +10828,11 @@ document.addEventListener('keydown', e => {
 window.addEventListener('resize', () => {
   const m = document.getElementById('pkContextMenu');
   if (m && !m.classList.contains('hidden')) closeContextMenu();
+  const sd = document.getElementById('smartDrawModal');
+  if (sd && !sd.classList.contains('hidden')) {
+    initSmartDrawCanvas();
+    redrawSmartDrawCanvas();
+  }
 });
 window.addEventListener('scroll', () => {
   const m = document.getElementById('pkContextMenu');
@@ -20153,21 +20158,58 @@ let smartDrawRecognizedFormula = 'x² + ½ = 4';
 let smartDrawCtx = null;
 let smartDrawCanvasInitialized = false;
 let smartDrawExpanded = false;
+let smartDrawFullscreen = false;
 let smartDrawGlyphs = [];
 let smartDrawFractionBar = null;
 let smartDrawNeuralAbortController = null;
 let smartDrawNeuralSuggestions = [];
+
+function toggleSmartDrawFullscreen() {
+  smartDrawFullscreen = !smartDrawFullscreen;
+  const card = document.getElementById('smartDrawCard');
+  const canvas = document.getElementById('smartDrawCanvas');
+  const icon = document.getElementById('sdFullscreenIcon');
+  if (!card || !canvas) return;
+
+  if (smartDrawFullscreen) {
+    card.className = 'w-[98vw] max-w-[98vw] h-[96vh] max-h-[96vh] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col transition-all';
+    canvas.className = 'w-full h-[68vh] sm:h-[74vh] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    if (icon) {
+      icon.innerHTML = '<path d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7m-7 17v-6m0 0h6m-6 0l7 7M10 4v6m0 0H4m6 0L3 3"/>';
+    }
+  } else {
+    card.className = 'w-full max-w-5xl lg:max-w-6xl popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card flex flex-col max-h-[94vh] transition-all';
+    canvas.className = smartDrawExpanded
+      ? 'w-full h-[540px] sm:h-[640px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all'
+      : 'w-full h-[400px] sm:h-[480px] lg:h-[540px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    if (icon) {
+      icon.innerHTML = '<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>';
+    }
+  }
+
+  setTimeout(() => {
+    initSmartDrawCanvas();
+    redrawSmartDrawCanvas();
+  }, 50);
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+}
 
 function toggleSmartDrawExpand() {
   smartDrawExpanded = !smartDrawExpanded;
   const canvas = document.getElementById('smartDrawCanvas');
   const text = document.getElementById('sdExpandText');
   if (!canvas) return;
+
+  if (smartDrawFullscreen) {
+    toggleSmartDrawFullscreen();
+    return;
+  }
+
   if (smartDrawExpanded) {
-    canvas.className = 'w-full h-[460px] sm:h-[520px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    canvas.className = 'w-full h-[540px] sm:h-[640px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
     if (text) text.textContent = 'Collapse';
   } else {
-    canvas.className = 'w-full h-[260px] sm:h-[300px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
+    canvas.className = 'w-full h-[400px] sm:h-[480px] lg:h-[540px] rounded-lg border border-[var(--border-hairline)] touch-none shadow-inner transition-all';
     if (text) text.textContent = 'Expand';
   }
   setTimeout(() => {
@@ -20224,12 +20266,19 @@ function setSmartDrawMode(mode) {
     const btn = document.getElementById(`sdMode${m.charAt(0).toUpperCase() + m.slice(1)}Btn`);
     if (btn) {
       if (m === mode) {
-        btn.className = 'px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
+        btn.className = 'px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
       } else {
-        btn.className = 'px-2 py-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+        btn.className = 'px-2.5 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
       }
     }
   });
+
+  const applyBtn = document.getElementById('sdApplyBtn');
+  if (applyBtn) {
+    applyBtn.innerHTML = `<span>${mode === 'text' ? 'Apply Text' : (mode === 'sketch' ? 'Apply Sketch' : 'Apply Equation')}</span>`;
+  }
+
+  redrawSmartDrawCanvas();
   if (smartDrawStrokes.length > 0) {
     recognizeSmartDrawStrokes();
   }
@@ -20312,12 +20361,13 @@ function initSmartDrawCanvas() {
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  const w = Math.floor(rect.width) || 480;
-  const h = Math.floor(rect.height) || 280;
+  const w = Math.floor(rect.width) || 960;
+  const h = Math.floor(rect.height) || 480;
 
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   smartDrawCtx = canvas.getContext('2d');
+  smartDrawCtx.setTransform(1, 0, 0, 1, 0, 0);
   smartDrawCtx.scale(dpr, dpr);
 
   if (smartDrawCanvasInitialized) return;
@@ -20411,11 +20461,44 @@ function redrawSmartDrawCanvas() {
   smartDrawCtx.fillStyle = bg;
   smartDrawCtx.fillRect(0, 0, w, h);
 
-  // Math Grid Dots
-  smartDrawCtx.fillStyle = gridDot;
-  for (let x = 18; x < w; x += 22) {
-    for (let y = 18; y < h; y += 22) {
-      smartDrawCtx.fillRect(x, y, 1.5, 1.5);
+  // Background Grid / Ruled Lines based on Smart Draw Mode
+  if (smartDrawMode === 'text') {
+    // Ruled notebook lines (horizontal) + margin line (vertical)
+    const lineCol = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+    const marginCol = isDark ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.28)';
+
+    smartDrawCtx.save();
+    smartDrawCtx.strokeStyle = lineCol;
+    smartDrawCtx.lineWidth = 1;
+    for (let y = 44; y < h; y += 38) {
+      smartDrawCtx.beginPath();
+      smartDrawCtx.moveTo(0, y + 0.5);
+      smartDrawCtx.lineTo(w, y + 0.5);
+      smartDrawCtx.stroke();
+    }
+    // Margin line
+    smartDrawCtx.strokeStyle = marginCol;
+    smartDrawCtx.lineWidth = 1.2;
+    smartDrawCtx.beginPath();
+    smartDrawCtx.moveTo(56.5, 0);
+    smartDrawCtx.lineTo(56.5, h);
+    smartDrawCtx.stroke();
+    smartDrawCtx.restore();
+  } else if (smartDrawMode === 'math') {
+    // Math Grid Dots
+    smartDrawCtx.fillStyle = gridDot;
+    for (let x = 18; x < w; x += 22) {
+      for (let y = 18; y < h; y += 22) {
+        smartDrawCtx.fillRect(x, y, 1.5, 1.5);
+      }
+    }
+  } else {
+    // Freehand / Sketch - very light subtle dots
+    smartDrawCtx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+    for (let x = 24; x < w; x += 32) {
+      for (let y = 24; y < h; y += 32) {
+        smartDrawCtx.fillRect(x, y, 1.2, 1.2);
+      }
     }
   }
 
@@ -21141,29 +21224,51 @@ function updateSmartDrawPreview() {
 
 function applySmartDrawToActiveBlock() {
   if (!smartDrawRecognizedFormula) {
-    showToast('Draw or write an equation first', 'ochre');
+    showToast('Draw or write something first', 'ochre');
     return;
   }
 
-  const formulaToApply = autoFormatMathInput(smartDrawRecognizedFormula);
+  const contentToApply = smartDrawMode === 'text'
+    ? smartDrawRecognizedFormula
+    : autoFormatMathInput(smartDrawRecognizedFormula);
 
   if (smartDrawTargetBlockId) {
     const note = guardActiveNoteEditable();
     if (note) {
       const block = note.blocks.find(b => b.id === smartDrawTargetBlockId);
       if (block) {
-        block.content = formulaToApply;
-        const input = document.getElementById(`mathInput_${block.id}`);
-        if (input) input.value = naturalMathCleanDisplay(formulaToApply);
-        const display = document.getElementById(`mathDisplay_${block.id}`);
-        if (display) display.innerHTML = renderLatexToHtml(formulaToApply, true);
+        if (block.type === 'math') {
+          block.content = contentToApply;
+          const input = document.getElementById(`mathInput_${block.id}`);
+          if (input) input.value = naturalMathCleanDisplay(contentToApply);
+          const display = document.getElementById(`mathDisplay_${block.id}`);
+          if (display) display.innerHTML = renderLatexToHtml(contentToApply, true);
+        } else {
+          block.content = contentToApply;
+        }
         persistState();
-        showToast('Updated equation from Smart Draw!');
+        showToast(smartDrawMode === 'text' ? 'Updated text from Smart Draw!' : 'Updated equation from Smart Draw!');
       }
     }
   } else {
-    insertNewMathBlockIntoNote(formulaToApply);
-    showToast('Inserted math equation into note');
+    if (smartDrawMode === 'text') {
+      const note = guardActiveNoteEditable();
+      if (note) {
+        const newBlock = {
+          id: generateId('b'),
+          type: 'paragraph',
+          content: contentToApply
+        };
+        note.blocks.push(newBlock);
+        note.updatedAt = TODAY_KEY;
+        renderBlocks(note);
+        persistState();
+        showToast('Inserted text into note');
+      }
+    } else {
+      insertNewMathBlockIntoNote(contentToApply);
+      showToast('Inserted math equation into note');
+    }
   }
 
   closeSmartDrawModal();
@@ -21178,22 +21283,24 @@ function insertSmartDrawAsNoteText() {
   const note = guardActiveNoteEditable();
   if (!note) return;
 
-  const formulaToApply = autoFormatMathInput(smartDrawRecognizedFormula);
+  const contentToApply = smartDrawMode === 'math'
+    ? autoFormatMathInput(smartDrawRecognizedFormula)
+    : smartDrawRecognizedFormula;
 
   if (smartDrawTargetBlockId) {
     const block = note.blocks.find(b => b.id === smartDrawTargetBlockId);
     if (block) {
       if (block.type === 'math') {
-        block.content = formulaToApply;
+        block.content = contentToApply;
       } else {
-        block.content = block.content ? `${block.content} ${formulaToApply}` : formulaToApply;
+        block.content = block.content ? `${block.content} ${contentToApply}` : contentToApply;
       }
     }
   } else {
     const newBlock = {
       id: generateId('b'),
       type: 'paragraph',
-      content: formulaToApply
+      content: contentToApply
     };
     note.blocks.push(newBlock);
   }
@@ -21201,7 +21308,7 @@ function insertSmartDrawAsNoteText() {
   note.updatedAt = TODAY_KEY;
   renderBlocks(note);
   persistState();
-  showToast('Inserted formula text into note');
+  showToast(smartDrawMode === 'text' ? 'Inserted text into note' : 'Inserted formula text into note');
   closeSmartDrawModal();
   if (typeof pkHaptic === 'function') pkHaptic(10);
 }

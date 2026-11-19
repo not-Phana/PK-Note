@@ -20155,6 +20155,8 @@ let smartDrawCanvasInitialized = false;
 let smartDrawExpanded = false;
 let smartDrawGlyphs = [];
 let smartDrawFractionBar = null;
+let smartDrawNeuralAbortController = null;
+let smartDrawNeuralSuggestions = [];
 
 function toggleSmartDrawExpand() {
   smartDrawExpanded = !smartDrawExpanded;
@@ -20266,11 +20268,15 @@ function setSmartDrawColor(color) {
 }
 
 function undoSmartDrawStroke() {
+  if (smartDrawNeuralAbortController) {
+    try { smartDrawNeuralAbortController.abort(); } catch (err) {}
+  }
   if (smartDrawStrokes.length > 0) {
     smartDrawStrokes.pop();
     if (smartDrawStrokes.length === 0) {
       smartDrawGlyphs = [];
       smartDrawFractionBar = null;
+      smartDrawNeuralSuggestions = [];
       smartDrawRecognizedFormula = '';
       const recInp = document.getElementById('smartDrawRecognizedFormula');
       if (recInp) recInp.value = '';
@@ -20285,9 +20291,13 @@ function undoSmartDrawStroke() {
 }
 
 function clearSmartDrawCanvas() {
+  if (smartDrawNeuralAbortController) {
+    try { smartDrawNeuralAbortController.abort(); } catch (err) {}
+  }
   smartDrawStrokes = [];
   smartDrawGlyphs = [];
   smartDrawFractionBar = null;
+  smartDrawNeuralSuggestions = [];
   redrawSmartDrawCanvas();
   smartDrawRecognizedFormula = '';
   const recInp = document.getElementById('smartDrawRecognizedFormula');
@@ -20857,6 +20867,111 @@ function recognizeSmartDrawStrokes() {
   rebuildFormulaFromGlyphs();
   renderSmartDrawAlternatives();
   redrawSmartDrawCanvas();
+
+  // Run cloud / neural handwriting recognition in parallel for high-precision word, letter & math understanding
+  runNeuralHandwritingRecognition(validStrokes);
+}
+
+async function runNeuralHandwritingRecognition(validStrokes) {
+  if (!validStrokes || validStrokes.length === 0) return;
+
+  if (smartDrawNeuralAbortController) {
+    try { smartDrawNeuralAbortController.abort(); } catch (e) {}
+  }
+  smartDrawNeuralAbortController = new AbortController();
+  const signal = smartDrawNeuralAbortController.signal;
+
+  const canvas = document.getElementById('smartDrawCanvas');
+  const w = canvas ? canvas.width : 800;
+  const h = canvas ? canvas.height : 400;
+
+  const engineBadge = document.getElementById('sdEngineBadge');
+  if (engineBadge) {
+    engineBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span><span>Neural AI...</span>';
+    engineBadge.className = 'px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 font-mono text-[9px] text-amber-400 flex items-center gap-1';
+  }
+
+  const ink = validStrokes.map(s => {
+    const xs = [], ys = [], ts = [];
+    const t0 = s.points[0]?.t || 0;
+    s.points.forEach((p, idx) => {
+      xs.push(Math.round(p.x));
+      ys.push(Math.round(p.y));
+      ts.push(Math.round(p.t ? Math.max(0, p.t - t0) : idx * 20));
+    });
+    return [xs, ys, ts];
+  });
+
+  const payload = {
+    options: 'enable_pre_space',
+    requests: [{
+      writing_guide: { writing_area_width: Math.round(w), writing_area_height: Math.round(h) },
+      ink: ink,
+      language: 'en'
+    }]
+  };
+
+  try {
+    const res = await fetch('https://www.google.com/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (signal.aborted) return;
+
+    if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) {
+      const candidates = data[1][0][1];
+      if (candidates && candidates.length > 0) {
+        smartDrawNeuralSuggestions = candidates;
+
+        const rawTop = candidates[0];
+        const formattedTop = smartDrawMode === 'math' ? autoFormatMathInput(rawTop) : rawTop;
+        smartDrawRecognizedFormula = formattedTop;
+
+        const recInp = document.getElementById('smartDrawRecognizedFormula');
+        if (recInp) recInp.value = smartDrawRecognizedFormula;
+        updateSmartDrawPreview();
+
+        // Assign characters to glyph badges if glyph count matches character count
+        const cleanChars = rawTop.replace(/\s+/g, '').split('');
+        if (smartDrawGlyphs && smartDrawGlyphs.length === cleanChars.length) {
+          for (let i = 0; i < smartDrawGlyphs.length; i++) {
+            smartDrawGlyphs[i].char = cleanChars[i];
+            const letterCands = [cleanChars[i]];
+            for (const cand of candidates.slice(1, 6)) {
+              const candClean = cand.replace(/\s+/g, '').split('');
+              if (candClean[i] && !letterCands.includes(candClean[i])) {
+                letterCands.push(candClean[i]);
+              }
+            }
+            smartDrawGlyphs[i].candidates = letterCands;
+            smartDrawGlyphs[i].candidateIndex = 0;
+          }
+        }
+
+        renderSmartDrawAlternatives();
+        redrawSmartDrawCanvas();
+
+        if (engineBadge) {
+          engineBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>Neural AI</span>';
+          engineBadge.className = 'px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 flex items-center gap-1';
+        }
+        return;
+      }
+    }
+  } catch (err) {
+    if (signal.aborted) return;
+    console.warn('Neural handwriting recognition fallback to local:', err);
+  }
+
+  if (engineBadge) {
+    engineBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span><span>Local AI</span>';
+    engineBadge.className = 'px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 font-mono text-[9px] text-blue-400 flex items-center gap-1';
+  }
 }
 
 function rebuildFormulaFromGlyphs() {
@@ -20933,30 +21048,38 @@ function renderSmartDrawAlternatives() {
   const container = document.getElementById('smartDrawAlternativesChips');
   if (!row || !container) return;
 
-  if (!smartDrawGlyphs || smartDrawGlyphs.length === 0) {
-    row.classList.add('hidden');
-    container.innerHTML = '';
-    return;
+  const currentFormula = smartDrawRecognizedFormula;
+  const alternatives = [];
+
+  // Prioritize Neural Engine suggestions if available
+  if (smartDrawNeuralSuggestions && smartDrawNeuralSuggestions.length > 0) {
+    for (const rawCand of smartDrawNeuralSuggestions) {
+      const formatted = smartDrawMode === 'math' ? autoFormatMathInput(rawCand) : rawCand;
+      if (formatted && formatted !== currentFormula && !alternatives.includes(formatted)) {
+        alternatives.push(formatted);
+      }
+      if (alternatives.length >= 6) break;
+    }
   }
 
-  const alternatives = [];
-  const currentFormula = smartDrawRecognizedFormula;
-
-  for (let i = 0; i < smartDrawGlyphs.length; i++) {
-    const g = smartDrawGlyphs[i];
-    if (g.candidates && g.candidates.length > 1) {
-      for (let c = 0; c < g.candidates.length; c++) {
-        const cand = g.candidates[c];
-        if (cand === g.char) continue;
-        const modifiedList = smartDrawGlyphs.map((item, idx) => idx === i ? { ...item, char: cand } : item);
-        const altStr = autoFormatMathInput(formatGlyphsSequence(modifiedList).replace(/\s+/g, ' ').trim());
-        if (altStr && altStr !== currentFormula && !alternatives.includes(altStr)) {
-          alternatives.push(altStr);
+  // Supplement with local glyph permutations
+  if (alternatives.length < 4 && smartDrawGlyphs && smartDrawGlyphs.length > 0) {
+    for (let i = 0; i < smartDrawGlyphs.length; i++) {
+      const g = smartDrawGlyphs[i];
+      if (g.candidates && g.candidates.length > 1) {
+        for (let c = 0; c < g.candidates.length; c++) {
+          const cand = g.candidates[c];
+          if (cand === g.char) continue;
+          const modifiedList = smartDrawGlyphs.map((item, idx) => idx === i ? { ...item, char: cand } : item);
+          const altStr = autoFormatMathInput(formatGlyphsSequence(modifiedList).replace(/\s+/g, ' ').trim());
+          if (altStr && altStr !== currentFormula && !alternatives.includes(altStr)) {
+            alternatives.push(altStr);
+          }
+          if (alternatives.length >= 6) break;
         }
-        if (alternatives.length >= 4) break;
       }
+      if (alternatives.length >= 6) break;
     }
-    if (alternatives.length >= 4) break;
   }
 
   if (alternatives.length === 0) {

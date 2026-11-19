@@ -20403,7 +20403,11 @@ function openSmartDrawModal(targetBlockId) {
     redrawSmartDrawCanvas();
     const card = document.getElementById('smartDrawCard');
     if (card) { card.focus(); }
-  }, 40);
+  }, 50);
+  setTimeout(() => {
+    resizeSmartDrawCanvas();
+    redrawSmartDrawCanvas();
+  }, 260);
 
   if (typeof pkHaptic === 'function') pkHaptic(10);
   if (typeof playWhooshSound === 'function') playWhooshSound();
@@ -20414,6 +20418,11 @@ function closeSmartDrawModal(e) {
   const modal = document.getElementById('smartDrawModal');
   if (modal) modal.classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
+  smartDrawCanvasRect = null;
+  clearTimeout(smartDrawRecognizeTimer);
+  if (smartDrawNeuralAbortController) {
+    try { smartDrawNeuralAbortController.abort(); } catch (err) {}
+  }
 }
 
 function setSmartDrawMode(mode) {
@@ -20558,18 +20567,25 @@ function clearSmartDrawCanvas() {
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
+let smartDrawCanvasRect = null;
+let smartDrawRecognizeTimer = null;
+
 function resizeSmartDrawCanvas() {
   const canvas = document.getElementById('smartDrawCanvas');
   const wrapper = document.getElementById('sdCanvasWrapper');
   if (!canvas || !wrapper) return;
-  const rect = wrapper.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.floor(rect.width) || 800;
-  const h = Math.floor(rect.height) || 450;
 
-  if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
+  const w = wrapper.clientWidth || 800;
+  const h = wrapper.clientHeight || 450;
+  if (w <= 0 || h <= 0) return;
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const targetW = Math.round(w * dpr);
+  const targetH = Math.round(h * dpr);
+
+  if (canvas.width !== targetW || canvas.height !== targetH) {
+    canvas.width = targetW;
+    canvas.height = targetH;
   }
   smartDrawCtx = canvas.getContext('2d');
   smartDrawCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -20581,36 +20597,47 @@ function initSmartDrawCanvas() {
   const wrapper = document.getElementById('sdCanvasWrapper');
   if (!canvas || !wrapper) return;
 
-  resizeSmartDrawCanvas();
-
-  if (!window._smartDrawResizeObserver && typeof ResizeObserver !== 'undefined') {
-    window._smartDrawResizeObserver = new ResizeObserver(() => {
-      const modal = document.getElementById('smartDrawModal');
-      if (modal && !modal.classList.contains('hidden')) {
-        resizeSmartDrawCanvas();
-        redrawSmartDrawCanvas();
-      }
-    });
-    window._smartDrawResizeObserver.observe(wrapper);
+  // Clean up any rogue resize observer
+  if (window._smartDrawResizeObserver) {
+    try { window._smartDrawResizeObserver.disconnect(); } catch (e) {}
+    window._smartDrawResizeObserver = null;
   }
+
+  resizeSmartDrawCanvas();
 
   if (smartDrawCanvasInitialized) return;
   smartDrawCanvasInitialized = true;
 
+  // Safe window resize handler (debounced, zero loop)
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    const modal = document.getElementById('smartDrawModal');
+    if (modal && !modal.classList.contains('hidden')) {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        resizeSmartDrawCanvas();
+        redrawSmartDrawCanvas();
+      }, 100);
+    }
+  });
+
   const getPos = (e) => {
-    const r = canvas.getBoundingClientRect();
+    if (!smartDrawCanvasRect) {
+      smartDrawCanvasRect = canvas.getBoundingClientRect();
+    }
     return {
-      x: e.clientX - r.left,
-      y: e.clientY - r.top,
+      x: e.clientX - smartDrawCanvasRect.left,
+      y: e.clientY - smartDrawCanvasRect.top,
       t: Date.now()
     };
   };
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    canvas.setPointerCapture(e.pointerId);
-    const pt = getPos(e);
+    smartDrawCanvasRect = canvas.getBoundingClientRect();
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
 
+    const pt = getPos(e);
     const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
     let color = smartDrawColor;
     if (smartDrawTool === 'eraser') {
@@ -20630,6 +20657,21 @@ function initSmartDrawCanvas() {
     };
     smartDrawRedoStrokes = [];
     smartDrawStrokes.push(smartDrawCurrentStroke);
+
+    // Render initial dot immediately for instant touch feedback
+    smartDrawCtx.save();
+    smartDrawCtx.lineCap = 'round';
+    if (smartDrawCurrentStroke.tool === 'highlighter') {
+      smartDrawCtx.globalAlpha = 0.35;
+      smartDrawCtx.fillStyle = smartDrawCurrentStroke.color;
+    } else {
+      smartDrawCtx.globalAlpha = 1.0;
+      smartDrawCtx.fillStyle = smartDrawCurrentStroke.color === '__erase__' ? (isDark ? '#141417' : '#ffffff') : smartDrawCurrentStroke.color;
+    }
+    smartDrawCtx.beginPath();
+    smartDrawCtx.arc(pt.x, pt.y, Math.max(1.5, smartDrawCurrentStroke.size / 2), 0, Math.PI * 2);
+    smartDrawCtx.fill();
+    smartDrawCtx.restore();
 
     const hint = document.getElementById('smartDrawEmptyHint');
     if (hint) hint.classList.add('hidden');
@@ -20678,8 +20720,13 @@ function initSmartDrawCanvas() {
   const finishStroke = (e) => {
     if (smartDrawCurrentStroke) {
       smartDrawCurrentStroke = null;
+      smartDrawCanvasRect = null;
+      try { if (e && e.pointerId) canvas.releasePointerCapture(e.pointerId); } catch (err) {}
       redrawSmartDrawCanvas();
-      recognizeSmartDrawStrokes();
+      clearTimeout(smartDrawRecognizeTimer);
+      smartDrawRecognizeTimer = setTimeout(() => {
+        recognizeSmartDrawStrokes();
+      }, 80);
       if (typeof pkHaptic === 'function') pkHaptic(5);
     }
   };
@@ -20690,10 +20737,11 @@ function initSmartDrawCanvas() {
 
 function redrawSmartDrawCanvas() {
   const canvas = document.getElementById('smartDrawCanvas');
+  const wrapper = document.getElementById('sdCanvasWrapper');
   if (!canvas || !smartDrawCtx) return;
-  const rect = canvas.getBoundingClientRect();
-  const w = rect.width;
-  const h = rect.height;
+
+  const w = wrapper ? wrapper.clientWidth : (canvas.width / (window.devicePixelRatio || 1));
+  const h = wrapper ? wrapper.clientHeight : (canvas.height / (window.devicePixelRatio || 1));
 
   const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
   const bg = isDark ? '#141417' : '#ffffff';
@@ -21262,6 +21310,10 @@ async function runNeuralHandwritingRecognition(validStrokes) {
     }]
   };
 
+  const timeoutId = setTimeout(() => {
+    try { smartDrawNeuralAbortController.abort(); } catch (e) {}
+  }, 1200);
+
   try {
     const res = await fetch('https://www.google.com/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8', {
       method: 'POST',
@@ -21270,6 +21322,7 @@ async function runNeuralHandwritingRecognition(validStrokes) {
       signal
     });
 
+    clearTimeout(timeoutId);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (signal.aborted) return;
@@ -21287,7 +21340,7 @@ async function runNeuralHandwritingRecognition(validStrokes) {
         if (recInp) recInp.value = smartDrawRecognizedFormula;
         updateSmartDrawPreview();
 
-        // Assign characters to glyph badges if glyph count matches character count
+        // Assign characters to glyphs if glyph count matches character count
         const cleanChars = rawTop.replace(/\s+/g, '').split('');
         if (smartDrawGlyphs && smartDrawGlyphs.length === cleanChars.length) {
           for (let i = 0; i < smartDrawGlyphs.length; i++) {
@@ -21315,8 +21368,8 @@ async function runNeuralHandwritingRecognition(validStrokes) {
       }
     }
   } catch (err) {
+    clearTimeout(timeoutId);
     if (signal.aborted) return;
-    console.warn('Neural handwriting recognition fallback to local:', err);
   }
 
   if (engineBadge) {

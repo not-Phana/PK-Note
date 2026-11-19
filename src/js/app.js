@@ -6549,6 +6549,32 @@ function executeCommandItem(idx) {
 // 16. GLOBAL KEYBOARD SHORTCUTS & INITIALIZATION
 // =========================================================================
 document.addEventListener('keydown', e => {
+  // 0. Smart Draw Modal Active Shortcuts (Ctrl+Z stroke undo, Ctrl+Y redo, Escape)
+  const smartDrawModalEl = document.getElementById('smartDrawModal');
+  const isSmartDrawOpen = smartDrawModalEl && !smartDrawModalEl.classList.contains('hidden');
+  if (isSmartDrawOpen) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeSmartDrawModal();
+      return;
+    }
+    // Cmd/Ctrl + Z: Undo last drawn stroke in Smart Draw
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      e.stopPropagation();
+      undoSmartDrawStroke();
+      return;
+    }
+    // Cmd/Ctrl + Y or Cmd/Ctrl + Shift + Z: Redo drawn stroke
+    if (((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'z') ||
+        ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y')) {
+      e.preventDefault();
+      e.stopPropagation();
+      redoSmartDrawStroke();
+      return;
+    }
+  }
+
   // Cmd/Ctrl + Z: Undo & Redo (Universal document & mobile shortcut)
   if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
     const tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -20269,6 +20295,7 @@ function closeMathSymbolsModal(e) {
 
 let smartDrawTargetBlockId = null;
 let smartDrawStrokes = [];
+let smartDrawRedoStrokes = [];
 let smartDrawCurrentStroke = null;
 let smartDrawTool = 'pen'; // 'pen' | 'highlighter' | 'eraser'
 let smartDrawSize = 3.5;
@@ -20364,9 +20391,12 @@ function openSmartDrawModal(targetBlockId) {
   if (recInp) recInp.value = smartDrawRecognizedFormula;
   updateSmartDrawPreview();
 
+  smartDrawRedoStrokes = [];
   setTimeout(() => {
     initSmartDrawCanvas();
     redrawSmartDrawCanvas();
+    const card = document.getElementById('smartDrawCard');
+    if (card) { card.focus(); }
   }, 40);
 
   if (typeof pkHaptic === 'function') pkHaptic(10);
@@ -20441,7 +20471,8 @@ function undoSmartDrawStroke() {
     try { smartDrawNeuralAbortController.abort(); } catch (err) {}
   }
   if (smartDrawStrokes.length > 0) {
-    smartDrawStrokes.pop();
+    const popped = smartDrawStrokes.pop();
+    if (popped) smartDrawRedoStrokes.push(popped);
     if (smartDrawStrokes.length === 0) {
       smartDrawGlyphs = [];
       smartDrawFractionBar = null;
@@ -20451,6 +20482,8 @@ function undoSmartDrawStroke() {
       if (recInp) recInp.value = '';
       updateSmartDrawPreview();
       renderSmartDrawAlternatives();
+      const hint = document.getElementById('smartDrawEmptyHint');
+      if (hint) hint.classList.remove('hidden');
     } else {
       recognizeSmartDrawStrokes();
     }
@@ -20459,11 +20492,51 @@ function undoSmartDrawStroke() {
   }
 }
 
+function redoSmartDrawStroke() {
+  if (smartDrawNeuralAbortController) {
+    try { smartDrawNeuralAbortController.abort(); } catch (err) {}
+  }
+  if (smartDrawRedoStrokes && smartDrawRedoStrokes.length > 0) {
+    const stroke = smartDrawRedoStrokes.pop();
+    if (stroke) smartDrawStrokes.push(stroke);
+    const hint = document.getElementById('smartDrawEmptyHint');
+    if (hint) hint.classList.add('hidden');
+    recognizeSmartDrawStrokes();
+    redrawSmartDrawCanvas();
+    if (typeof pkHaptic === 'function') pkHaptic(6);
+  }
+}
+
+function handleSmartDrawKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    closeSmartDrawModal();
+    return;
+  }
+  // Cmd/Ctrl + Z: Undo last drawn stroke
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    e.stopPropagation();
+    undoSmartDrawStroke();
+    return;
+  }
+  // Cmd/Ctrl + Y or Cmd/Ctrl + Shift + Z: Redo drawn stroke
+  if (((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'z') ||
+      ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y')) {
+    e.preventDefault();
+    e.stopPropagation();
+    redoSmartDrawStroke();
+    return;
+  }
+}
+
 function clearSmartDrawCanvas() {
   if (smartDrawNeuralAbortController) {
     try { smartDrawNeuralAbortController.abort(); } catch (err) {}
   }
   smartDrawStrokes = [];
+  smartDrawRedoStrokes = [];
   smartDrawGlyphs = [];
   smartDrawFractionBar = null;
   smartDrawNeuralSuggestions = [];
@@ -20473,6 +20546,8 @@ function clearSmartDrawCanvas() {
   if (recInp) recInp.value = '';
   updateSmartDrawPreview();
   renderSmartDrawAlternatives();
+  const hint = document.getElementById('smartDrawEmptyHint');
+  if (hint) hint.classList.remove('hidden');
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
@@ -20537,6 +20612,7 @@ function initSmartDrawCanvas() {
       size: smartDrawSize,
       points: [pt]
     };
+    smartDrawRedoStrokes = [];
     smartDrawStrokes.push(smartDrawCurrentStroke);
     redrawSmartDrawCanvas();
     const hint = document.getElementById('smartDrawEmptyHint');

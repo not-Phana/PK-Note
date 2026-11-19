@@ -1819,7 +1819,7 @@
         <div id="smartDrawEmptyHint" class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-[var(--text-tertiary)] opacity-60">
           <svg class="w-8 h-8 mb-1 opacity-50" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
           <span class="font-serif text-sm">Spacious Canvas · Draw math, numbers, words or notes freely</span>
-          <span class="font-mono text-[10px] mt-0.5">e.g. KON · 3x + 7 = 22 · x² + ½ = 4 · Newton's law</span>
+          <span class="font-mono text-[10px] mt-0.5">e.g. KON · 3x + 7 = 22 · x² + 1/2 = 4 · Newton's law</span>
         </div>
       </div>
 
@@ -1827,7 +1827,7 @@
       <div class="px-4 py-2.5 bg-[var(--bg-panel)] border-t border-[var(--border-hairline)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
         <div class="flex items-center gap-2 min-w-0 flex-1">
           <span class="font-mono text-[10px] text-[var(--accent-vermilion)] uppercase font-semibold shrink-0">Recognized:</span>
-          <input type="text" id="smartDrawRecognizedFormula" spellcheck="false" value="x² + ½ = 4" oninput="handleSmartDrawManualEdit(event)" class="font-serif text-sm px-2.5 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-medium min-w-[160px] max-w-md w-full focus:outline-none focus:border-[var(--accent-vermilion)]" />
+          <input type="text" id="smartDrawRecognizedFormula" spellcheck="false" value="x² + 1/2 = 4" oninput="handleSmartDrawManualEdit(event)" class="font-serif text-sm px-2.5 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-medium min-w-[160px] max-w-md w-full focus:outline-none focus:border-[var(--accent-vermilion)]" />
           <div id="smartDrawKatexPreview" class="hidden sm:inline-block pl-2 border-l border-[var(--border-hairline)] text-sm"></div>
         </div>
         <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
@@ -1867,8 +1867,8 @@
         <button type="button" onclick="appendSmartDrawToken('x')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif text-[11px]">x</button>
         <button type="button" onclick="appendSmartDrawToken('y')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-serif text-[11px]">y</button>
         <button type="button" onclick="appendSmartDrawToken('x²')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">x²</button>
-        <button type="button" onclick="appendSmartDrawToken('½')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">½</button>
-        <button type="button" onclick="appendSmartDrawToken('¼')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">¼</button>
+        <button type="button" onclick="appendSmartDrawToken('1/2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">1/2</button>
+        <button type="button" onclick="appendSmartDrawToken('1/4')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">1/4</button>
         <button type="button" onclick="appendSmartDrawToken('√x')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">√x</button>
         <button type="button" onclick="appendSmartDrawToken('+')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">+</button>
         <button type="button" onclick="appendSmartDrawToken('-')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px]">-</button>

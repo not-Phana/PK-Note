@@ -3331,25 +3331,24 @@ function renderSingleBlockHTML(block) {
               </div>
             </div>
 
-            <!-- Single Clean Input with Serif Math Font & Live Formatting -->
-            <input
-              type="text"
-              id="mathInput_${block.id}"
+            <!-- Unified Visual Math Box (Stacked Fractions & KaTeX Match) -->
+            <div
+              id="mathBox_${block.id}"
               data-block-id="${block.id}"
-              spellcheck="false"
-              value="${escapeHtml(naturalMathCleanDisplay(block.content || 'x² + ½ = 4'))}"
-              oninput="handleMathBlockInput(event, '${block.id}')"
-              onkeydown="handleMathBlockKeydown(event, '${block.id}')"
-              placeholder="e.g. x² + ½ = 4 or √x / b"
-              class="w-full px-3.5 py-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[16px] font-serif text-[var(--text-primary)] tracking-wide text-center focus:outline-none focus:border-[var(--accent-vermilion)] focus:ring-1 focus:ring-[var(--accent-vermilion)]/25 transition-all shadow-sm"
-            />
+              class="w-full min-h-[58px] px-3.5 py-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] focus-within:border-[var(--accent-vermilion)] focus-within:ring-1 focus-within:ring-[var(--accent-vermilion)]/25 transition-all shadow-sm flex items-center justify-center flex-wrap gap-1 text-[17px] text-[var(--text-primary)]"
+              style="font-family: 'KaTeX_Main', 'Times New Roman', Georgia, serif;"
+            >
+              ${renderVisualMathInputHtml(block.id, block.content || 'x² + \\frac{1}{2} = 4')}
+            </div>
 
             <!-- 1-Tap Keypad Buttons (ZERO EMOJIS) -->
             <div class="space-y-1.5 pt-0.5 select-none">
               <!-- Row 1: Structures -->
               <div class="flex flex-wrap items-center gap-1">
                 <span class="text-[9.5px] font-mono text-[var(--text-tertiary)] uppercase mr-1">Structure:</span>
-                <button type="button" onclick="insertEasyMathToken('${block.id}', 'frac')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">a/b</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'frac')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center justify-center" title="Fraction (Numerator ÷ Denominator)">
+                  <span class="inline-flex flex-col items-center leading-none text-[9.5px]"><span class="border-b border-current px-0.5">a</span><span class="px-0.5">b</span></span>
+                </button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'pow2')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">x²</button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'powN')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">xⁿ</button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'sqrt')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">√x</button>
@@ -19457,11 +19456,11 @@ function autoFormatMathInput(val) {
        .replace(/_0/g, '₀')
        .replace(/_1/g, '₁')
        .replace(/_i/g, 'ᵢ')
-       .replace(/\b1\/2\b/g, '½')
-       .replace(/\b1\/4\b/g, '¼')
-       .replace(/\b3\/4\b/g, '¾')
-       .replace(/\b1\/3\b/g, '⅓')
-       .replace(/\b2\/3\b/g, '⅔')
+       .replace(/½/g, '1/2')
+       .replace(/¼/g, '1/4')
+       .replace(/¾/g, '3/4')
+       .replace(/⅓/g, '1/3')
+       .replace(/⅔/g, '2/3')
        .replace(/\bsqrt\b/gi, '√')
        .replace(/\+\-/g, '±')
        .replace(/\-\+/g, '∓')
@@ -19474,17 +19473,19 @@ function autoFormatMathInput(val) {
 }
 
 function naturalMathCleanDisplay(formula) {
-  if (!formula) return 'x² + ½ = 4';
+  if (!formula) return 'x² + 1/2 = 4';
   let s = String(formula).trim();
   if (s.startsWith('\\begin{aligned}') && s.endsWith('\\end{aligned}')) {
     s = s.replace(/^\\begin\{aligned\}\s*/, '').replace(/\s*\\end\{aligned\}$/, '').trim();
   }
-  // \frac{1}{2} -> ½, \frac{1}{4} -> ¼, etc.
-  s = s.replace(/\\frac\{1\}\{2\}|\b1\/2\b/g, '½')
-       .replace(/\\frac\{1\}\{4\}|\b1\/4\b/g, '¼')
-       .replace(/\\frac\{3\}\{4\}|\b3\/4\b/g, '¾')
-       .replace(/\\frac\{1\}\{3\}|\b1\/3\b/g, '⅓')
-       .replace(/\\frac\{2\}\{3\}|\b2\/3\b/g, '⅔');
+  // Convert legacy unicode fractions to standard 1/2
+  s = s.replace(/½/g, '1/2')
+       .replace(/¼/g, '1/4')
+       .replace(/¾/g, '3/4')
+       .replace(/⅓/g, '1/3')
+       .replace(/⅔/g, '2/3');
+  // Simple fractions: \frac{a}{b} -> a/b
+  s = s.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '$1/$2');
   // \sqrt{x} or sqrt(x) -> √x
   s = s.replace(/\\sqrt\{([a-zA-Z0-9])\}|\bsqrt\(([a-zA-Z0-9])\)/g, '√$1')
        .replace(/\\sqrt\{([^{}]+)\}|\bsqrt\(([^()]+)\)/g, '√($1)');
@@ -19512,8 +19513,6 @@ function naturalMathCleanDisplay(formula) {
        .replace(/\\infty/g, '∞')
        .replace(/\\to|->/g, '→')
        .replace(/\\implies|=>/g, '⟹');
-  // Simple fractions: \frac{a}{b} -> (a)/(b) or a/b
-  s = s.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)');
   return s;
 }
 
@@ -19524,6 +19523,20 @@ function handleMathBlockInput(e, blockId) {
   if (!block) return;
 
   const rawVal = e.target.value;
+
+  // If user typed a slash fraction e.g. 1/2, upgrade to visual stacked fraction
+  if (rawVal.includes('/') && parseFractionParts(rawVal)) {
+    block.content = rawVal;
+    block.isEditing = true;
+    renderBlocks(note);
+    persistState();
+    setTimeout(() => {
+      const topInp = document.getElementById(`vTop_${blockId}`);
+      if (topInp) { topInp.focus(); }
+    }, 40);
+    return;
+  }
+
   const formattedVal = autoFormatMathInput(rawVal);
   if (formattedVal !== rawVal) {
     const curPos = e.target.selectionStart;
@@ -19540,9 +19553,6 @@ function handleMathBlockInput(e, blockId) {
   const displayEl = document.getElementById(`mathDisplay_${blockId}`);
   if (displayEl) {
     displayEl.innerHTML = renderLatexToHtml(block.content || '\\dots', true);
-  }
-  if (typeof syncVisualFromInput === 'function') {
-    syncVisualFromInput(blockId);
   }
   persistState();
 }
@@ -19583,10 +19593,12 @@ function toggleMathBlockEditMode(blockId, forceEdit) {
 
   if (shouldEdit) {
     editorEl.classList.remove('hidden');
-    const textarea = document.getElementById(`mathInput_${blockId}`);
-    if (textarea) {
-      textarea.focus();
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    const target = document.getElementById(`vTop_${blockId}`) ||
+                   document.getElementById(`vPrefix_${blockId}`) ||
+                   document.getElementById(`mathInput_${blockId}`);
+    if (target) {
+      target.focus();
+      if (typeof target.select === 'function') target.select();
     }
   } else {
     editorEl.classList.add('hidden');
@@ -19596,11 +19608,13 @@ function toggleMathBlockEditMode(blockId, forceEdit) {
 
 function focusMathBlock(blockId) {
   setTimeout(() => {
-    const textarea = document.getElementById(`mathInput_${blockId}`);
-    if (textarea) {
-      textarea.focus();
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const target = document.getElementById(`vTop_${blockId}`) ||
+                   document.getElementById(`vPrefix_${blockId}`) ||
+                   document.getElementById(`mathInput_${blockId}`);
+    if (target) {
+      target.focus();
+      if (typeof target.select === 'function') target.select();
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 100);
 }
@@ -19820,269 +19834,375 @@ async function copyMathBlockAsImage(blockId) {
 }
 
 // =========================================================================
-// ZERO-CODE EASY MATH BUILDER HELPERS
+// ZERO-CODE EASY MATH BUILDER HELPERS (STACKED FRACTIONS & VISUAL MATCH)
 // =========================================================================
+let lastFocusedMathInput = null;
+
 function parseFractionParts(formula) {
   let s = String(formula || '').trim();
   if (!s) return null;
+  if (s.startsWith('\\begin{aligned}') && s.endsWith('\\end{aligned}')) {
+    s = s.replace(/^\\begin\{aligned\}\s*/, '').replace(/\s*\\end\{aligned\}$/, '').trim();
+  }
+
+  // 0. Unicode fraction characters
+  const fracMap = { '½': ['1', '2'], '¼': ['1', '4'], '¾': ['3', '4'], '⅓': ['1', '3'], '⅔': ['2', '3'] };
+  for (const [sym, [fn, fd]] of Object.entries(fracMap)) {
+    if (s.includes(sym)) {
+      const idx = s.indexOf(sym);
+      return {
+        prefix: naturalMathCleanDisplay(s.slice(0, idx)).trim(),
+        num: fn,
+        den: fd,
+        suffix: naturalMathCleanDisplay(s.slice(idx + sym.length)).trim()
+      };
+    }
+  }
+
   // 1. \frac{num}{den}
   let m = s.match(/^(.*?)\\frac\{([^{}]+)\}\{([^{}]+)\}(.*)$/);
-  if (m) return { prefix: m[1].trim(), num: m[2].trim(), den: m[3].trim(), suffix: m[4].trim() };
+  if (m) {
+    return {
+      prefix: naturalMathCleanDisplay(m[1]).trim(),
+      num: naturalMathCleanDisplay(m[2]).trim(),
+      den: naturalMathCleanDisplay(m[3]).trim(),
+      suffix: naturalMathCleanDisplay(m[4]).trim()
+    };
+  }
+
   // 2. (num) / (den) or (num) / den
-  m = s.match(/^(.*?)\((.+?)\)\s*\/\s*\(?([a-zA-Z0-9_\.\-]+)\)?(.*)$/);
-  if (m) return { prefix: m[1].trim(), num: m[2].trim(), den: m[3].trim(), suffix: m[4].trim() };
+  m = s.match(/^(.*?)\((.+?)\)\s*\/\s*\(?([a-zA-Z0-9_\.\-²³ⁿ√]+)\)?(.*)$/);
+  if (m) {
+    return {
+      prefix: naturalMathCleanDisplay(m[1]).trim(),
+      num: naturalMathCleanDisplay(m[2]).trim(),
+      den: naturalMathCleanDisplay(m[3]).trim(),
+      suffix: naturalMathCleanDisplay(m[4]).trim()
+    };
+  }
+
   // 3. num / den
-  m = s.match(/^(.*?)([a-zA-Z0-9_\.\-]+)\s*\/\s*([a-zA-Z0-9_\.\-]+)(.*)$/);
-  if (m) return { prefix: m[1].trim(), num: m[2].trim(), den: m[3].trim(), suffix: m[4].trim() };
+  m = s.match(/^(.*?)([a-zA-Z0-9_\.\-²³ⁿ√]+)\s*\/\s*([a-zA-Z0-9_\.\-²³ⁿ√]+)(.*)$/);
+  if (m) {
+    return {
+      prefix: naturalMathCleanDisplay(m[1]).trim(),
+      num: naturalMathCleanDisplay(m[2]).trim(),
+      den: naturalMathCleanDisplay(m[3]).trim(),
+      suffix: naturalMathCleanDisplay(m[4]).trim()
+    };
+  }
   return null;
 }
 
-function syncVisualFromInput(blockId) {
-  const input = document.getElementById(`mathInput_${blockId}`);
-  if (!input) return;
-  const parts = parseFractionParts(input.value);
+function renderVisualMathInputHtml(blockId, content) {
+  const parts = parseFractionParts(content || 'x² + \\frac{1}{2} = 4');
   if (parts) {
-    const topInput = document.getElementById(`vTop_${blockId}`);
-    const bottomInput = document.getElementById(`vBottom_${blockId}`);
-    const prefixInput = document.getElementById(`vPrefix_${blockId}`);
-    const suffixInput = document.getElementById(`vSuffix_${blockId}`);
-    if (topInput && document.activeElement !== topInput) topInput.value = parts.num;
-    if (bottomInput && document.activeElement !== bottomInput) bottomInput.value = parts.den;
-    if (prefixInput && document.activeElement !== prefixInput) prefixInput.value = parts.prefix;
-    if (suffixInput && document.activeElement !== suffixInput) suffixInput.value = parts.suffix;
+    const pfx = escapeHtml(parts.prefix || '');
+    const num = escapeHtml(parts.num || '1');
+    const den = escapeHtml(parts.den || '2');
+    const sfx = escapeHtml(parts.suffix || '');
+    const pfxLen = Math.max(34, (pfx.length + 1) * 11);
+    const numLen = Math.max(28, Math.max(num.length, den.length) * 11 + 10);
+    const sfxLen = Math.max(34, (sfx.length + 1) * 11);
+
+    return `
+      <div class="flex items-center justify-center gap-1 select-none flex-wrap w-full">
+        <!-- Before Fraction (e.g. x² + ) -->
+        <input
+          type="text"
+          id="vPrefix_${blockId}"
+          data-field="prefix"
+          spellcheck="false"
+          value="${pfx}"
+          placeholder="e.g. x² +"
+          class="bg-transparent text-right outline-none text-[17px] text-[var(--text-primary)] border-b border-transparent focus:border-[var(--accent-vermilion)] transition-colors px-1"
+          style="font-family: inherit; width: ${pfxLen}px;"
+          onfocus="lastFocusedMathInput = this"
+          oninput="handleVisualMathInput('${blockId}')"
+          onkeydown="handleVisualMathKeydown(event, '${blockId}', 'prefix')"
+        />
+
+        <!-- Stacked Fraction: 1 over 2 with horizontal dividing line -->
+        <div class="inline-flex flex-col items-center justify-center mx-1 align-middle leading-none shrink-0">
+          <input
+            type="text"
+            id="vTop_${blockId}"
+            data-field="top"
+            spellcheck="false"
+            value="${num}"
+            placeholder="1"
+            class="bg-transparent text-center outline-none text-[15px] font-semibold text-[var(--text-primary)] border-b-[1.5px] border-[var(--text-primary)] px-2 py-0.5 focus:bg-[var(--accent-vermilion)]/15 focus:border-[var(--accent-vermilion)] rounded-t-[2px] transition-colors"
+            style="font-family: inherit; width: ${numLen}px;"
+            onfocus="lastFocusedMathInput = this"
+            oninput="handleVisualMathInput('${blockId}')"
+            onkeydown="handleVisualMathKeydown(event, '${blockId}', 'top')"
+          />
+          <input
+            type="text"
+            id="vBottom_${blockId}"
+            data-field="bottom"
+            spellcheck="false"
+            value="${den}"
+            placeholder="2"
+            class="bg-transparent text-center outline-none text-[15px] font-semibold text-[var(--text-primary)] px-2 py-0.5 focus:bg-[var(--accent-vermilion)]/15 focus:border-[var(--accent-vermilion)] rounded-b-[2px] transition-colors"
+            style="font-family: inherit; width: ${numLen}px;"
+            onfocus="lastFocusedMathInput = this"
+            oninput="handleVisualMathInput('${blockId}')"
+            onkeydown="handleVisualMathKeydown(event, '${blockId}', 'bottom')"
+          />
+        </div>
+
+        <!-- After Fraction (e.g.  = 4) -->
+        <input
+          type="text"
+          id="vSuffix_${blockId}"
+          data-field="suffix"
+          spellcheck="false"
+          value="${sfx}"
+          placeholder="= 4"
+          class="bg-transparent text-left outline-none text-[17px] text-[var(--text-primary)] border-b border-transparent focus:border-[var(--accent-vermilion)] transition-colors px-1"
+          style="font-family: inherit; width: ${sfxLen}px;"
+          onfocus="lastFocusedMathInput = this"
+          oninput="handleVisualMathInput('${blockId}')"
+          onkeydown="handleVisualMathKeydown(event, '${blockId}', 'suffix')"
+        />
+
+        <input type="hidden" id="mathInput_${blockId}" value="${escapeHtml(content)}" />
+      </div>
+    `;
   }
+
+  // Linear mode when no fraction is present
+  const val = naturalMathCleanDisplay(content || '');
+  return `
+    <input
+      type="text"
+      id="mathInput_${blockId}"
+      data-block-id="${blockId}"
+      spellcheck="false"
+      value="${escapeHtml(val)}"
+      placeholder="e.g. x² + 1/2 = 4 or √x / b"
+      class="w-full bg-transparent text-center outline-none text-[17px] text-[var(--text-primary)] px-2 py-1"
+      style="font-family: inherit;"
+      onfocus="lastFocusedMathInput = this"
+      oninput="handleMathBlockInput(event, '${blockId}')"
+      onkeydown="handleMathBlockKeydown(event, '${blockId}')"
+    />
+  `;
 }
 
-function updateMathFromVisual(blockId) {
-  const topInput = document.getElementById(`vTop_${blockId}`);
-  const bottomInput = document.getElementById(`vBottom_${blockId}`);
-  const prefixInput = document.getElementById(`vPrefix_${blockId}`);
-  const suffixInput = document.getElementById(`vSuffix_${blockId}`);
-  const mathInput = document.getElementById(`mathInput_${blockId}`);
-  if (!topInput || !bottomInput || !mathInput) return;
-
-  let top = topInput.value.trim() || '1';
-  let bottom = bottomInput.value.trim() || '2';
-  const prefix = prefixInput ? prefixInput.value.trim() : '';
-  const suffix = suffixInput ? suffixInput.value.trim() : '';
-
-  // Clean any ^2sqrt(x) to \sqrt{x} or \sqrt[2]{x}
-  top = top.replace(/\^2sqrt\(([^()]+)\)/gi, 'sqrt($1)');
-  if (top === '^2sqrt(x)') top = 'sqrt(x)';
-
-  const fracStr = `\\frac{${top}}{${bottom}}`;
-  const fullFormula = (prefix ? prefix + ' ' : '') + fracStr + (suffix ? ' ' + suffix : '');
-
-  mathInput.value = fullFormula;
+function handleVisualMathInput(blockId) {
   const note = guardActiveNoteEditable();
-  if (note) {
-    const block = note.blocks.find(b => b.id === blockId);
-    if (block) {
-      block.content = fullFormula;
-      block.isEditing = true;
-      const displayEl = document.getElementById(`mathDisplay_${blockId}`);
-      if (displayEl) {
-        displayEl.innerHTML = renderLatexToHtml(fullFormula, true);
-      }
-      persistState();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  const vPrefix = document.getElementById(`vPrefix_${blockId}`);
+  const vTop = document.getElementById(`vTop_${blockId}`);
+  const vBottom = document.getElementById(`vBottom_${blockId}`);
+  const vSuffix = document.getElementById(`vSuffix_${blockId}`);
+  if (!vTop || !vBottom) return;
+
+  // Auto adjust field widths
+  const numLen = Math.max(28, Math.max((vTop.value || '1').length, (vBottom.value || '2').length) * 11 + 10);
+  vTop.style.width = `${numLen}px`;
+  vBottom.style.width = `${numLen}px`;
+  if (vPrefix) vPrefix.style.width = `${Math.max(34, (vPrefix.value.length + 1) * 11)}px`;
+  if (vSuffix) vSuffix.style.width = `${Math.max(34, (vSuffix.value.length + 1) * 11)}px`;
+
+  let prefix = vPrefix ? vPrefix.value : '';
+  let num = vTop.value || '1';
+  let den = vBottom.value || '2';
+  let suffix = vSuffix ? vSuffix.value : '';
+
+  // Clean superscripts without turning 1/2 to ½
+  const cleanPfx = autoFormatMathInput(prefix);
+  if (cleanPfx !== prefix && vPrefix) {
+    const pos = vPrefix.selectionStart;
+    vPrefix.value = cleanPfx;
+    if (pos !== null) vPrefix.setSelectionRange(pos, pos);
+    prefix = cleanPfx;
+  }
+  const cleanSfx = autoFormatMathInput(suffix);
+  if (cleanSfx !== suffix && vSuffix) {
+    const pos = vSuffix.selectionStart;
+    vSuffix.value = cleanSfx;
+    if (pos !== null) vSuffix.setSelectionRange(pos, pos);
+    suffix = cleanSfx;
+  }
+
+  // Build clean formula
+  let formula = '';
+  if (prefix.trim()) formula += prefix.trim() + ' ';
+  formula += `\\frac{${num.trim()}}{${den.trim()}}`;
+  if (suffix.trim()) formula += ' ' + suffix.trim();
+
+  block.content = formula.trim();
+  block.isEditing = true;
+
+  const hiddenInp = document.getElementById(`mathInput_${blockId}`);
+  if (hiddenInp) hiddenInp.value = block.content;
+
+  const displayEl = document.getElementById(`mathDisplay_${blockId}`);
+  if (displayEl) {
+    displayEl.innerHTML = renderLatexToHtml(block.content || '\\dots', true);
+  }
+  persistState();
+}
+
+function handleVisualMathKeydown(e, blockId, field) {
+  if ((e.key === 'Enter' && (e.metaKey || e.ctrlKey || e.shiftKey)) || e.key === 'Escape') {
+    e.preventDefault();
+    toggleMathBlockEditMode(blockId, false);
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (field === 'top') {
+      const bot = document.getElementById(`vBottom_${blockId}`);
+      if (bot) { bot.focus(); bot.select(); }
+    } else if (field === 'bottom') {
+      const sfx = document.getElementById(`vSuffix_${blockId}`);
+      if (sfx) { sfx.focus(); sfx.select(); }
+    } else {
+      toggleMathBlockEditMode(blockId, false);
+    }
+    return;
+  }
+  if (e.key === 'ArrowDown' && field === 'top') {
+    e.preventDefault();
+    const bot = document.getElementById(`vBottom_${blockId}`);
+    if (bot) { bot.focus(); bot.select(); }
+    return;
+  }
+  if (e.key === 'ArrowUp' && field === 'bottom') {
+    e.preventDefault();
+    const top = document.getElementById(`vTop_${blockId}`);
+    if (top) { top.focus(); top.select(); }
+    return;
+  }
+  if (e.key === 'ArrowRight') {
+    if (field === 'prefix' && e.target.selectionStart === e.target.value.length) {
+      e.preventDefault();
+      const top = document.getElementById(`vTop_${blockId}`);
+      if (top) { top.focus(); top.select(); }
+    } else if ((field === 'top' || field === 'bottom') && e.target.selectionStart === e.target.value.length) {
+      e.preventDefault();
+      const sfx = document.getElementById(`vSuffix_${blockId}`);
+      if (sfx) { sfx.focus(); sfx.setSelectionRange(0, 0); }
     }
   }
-}
-
-function setVisualFractionSample(blockId, top, den) {
-  const topInput = document.getElementById(`vTop_${blockId}`);
-  const bottomInput = document.getElementById(`vBottom_${blockId}`);
-  if (topInput) topInput.value = top;
-  if (bottomInput) bottomInput.value = den;
-  updateMathFromVisual(blockId);
-  if (typeof pkHaptic === 'function') pkHaptic(8);
-}
-
-function insertIntoVisualField(blockId, fieldId, text) {
-  const input = document.getElementById(`${fieldId}_${blockId}`);
-  if (!input) return;
-  input.value = text;
-  input.focus();
-  updateMathFromVisual(blockId);
-  if (typeof pkHaptic === 'function') pkHaptic(8);
-}
-
-function openMathVisualFraction(blockId) {
-  const wiz = document.getElementById(`mathWizard_${blockId}`);
-  if (wiz && wiz.classList.contains('hidden')) {
-    wiz.classList.remove('hidden');
-  }
-  const topInput = document.getElementById(`vTop_${blockId}`);
-  if (topInput) {
-    topInput.focus();
-    topInput.select();
-  }
-}
-
-function toggleMathWizard(blockId) {
-  const wiz = document.getElementById(`mathWizard_${blockId}`);
-  if (wiz) {
-    wiz.classList.toggle('hidden');
-    if (!wiz.classList.contains('hidden')) {
-      const topInput = document.getElementById(`vTop_${blockId}`);
-      if (topInput) topInput.focus();
+  if (e.key === 'ArrowLeft') {
+    if (field === 'suffix' && e.target.selectionStart === 0) {
+      e.preventDefault();
+      const bot = document.getElementById(`vBottom_${blockId}`);
+      if (bot) { bot.focus(); bot.select(); }
+    } else if ((field === 'top' || field === 'bottom') && e.target.selectionStart === 0) {
+      e.preventDefault();
+      const pfx = document.getElementById(`vPrefix_${blockId}`);
+      if (pfx) { pfx.focus(); pfx.setSelectionRange(pfx.value.length, pfx.value.length); }
     }
   }
 }
 
 function clearMathBlock(blockId) {
-  const input = document.getElementById(`mathInput_${blockId}`);
-  const topInput = document.getElementById(`vTop_${blockId}`);
-  const bottomInput = document.getElementById(`vBottom_${blockId}`);
-  const prefixInput = document.getElementById(`vPrefix_${blockId}`);
-  const suffixInput = document.getElementById(`vSuffix_${blockId}`);
-  if (input) input.value = '';
-  if (topInput) topInput.value = '';
-  if (bottomInput) bottomInput.value = '';
-  if (prefixInput) prefixInput.value = '';
-  if (suffixInput) suffixInput.value = '';
-  if (input) {
-    input.focus();
-    handleMathBlockInput({ target: input }, blockId);
-  }
-}
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
 
-function insertAtMathInput(blockId, text) {
-  const input = document.getElementById(`mathInput_${blockId}`);
-  if (!input) return;
-  const start = input.selectionStart || input.value.length;
-  const end = input.selectionEnd || input.value.length;
-  const cur = input.value;
-  const before = cur.substring(0, start);
-  const after = cur.substring(end);
-  const needsSpace = before.length > 0 && !before.endsWith(' ') && !before.endsWith('+') && !before.endsWith('-');
-  const insertStr = (needsSpace ? ' ' : '') + text + ' ';
-  input.value = before + insertStr + after;
-  input.focus();
-  input.setSelectionRange(before.length + insertStr.length, before.length + insertStr.length);
-  handleMathBlockInput({ target: input }, blockId);
+  block.content = '';
+  const vPrefix = document.getElementById(`vPrefix_${blockId}`);
+  const vTop = document.getElementById(`vTop_${blockId}`);
+  const vBottom = document.getElementById(`vBottom_${blockId}`);
+  const vSuffix = document.getElementById(`vSuffix_${blockId}`);
+  const mathInput = document.getElementById(`mathInput_${blockId}`);
+  if (vPrefix) vPrefix.value = '';
+  if (vTop) vTop.value = '';
+  if (vBottom) vBottom.value = '';
+  if (vSuffix) vSuffix.value = '';
+  if (mathInput) mathInput.value = '';
+
+  const displayEl = document.getElementById(`mathDisplay_${blockId}`);
+  if (displayEl) {
+    displayEl.innerHTML = renderLatexToHtml('\\dots', true);
+  }
+  persistState();
+  if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
 function insertEasyMathToken(blockId, token) {
-  const input = document.getElementById(`mathInput_${blockId}`);
-  if (!input) return;
-  const start = input.selectionStart || 0;
-  const end = input.selectionEnd || 0;
-  const val = input.value || '';
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  if (token === 'frac') {
+    const parts = parseFractionParts(block.content);
+    if (!parts) {
+      block.content = block.content ? `${block.content.trim()} + \\frac{1}{2}` : '\\frac{1}{2}';
+      renderBlocks(note);
+      persistState();
+      setTimeout(() => {
+        const topInp = document.getElementById(`vTop_${blockId}`);
+        if (topInp) { topInp.focus(); topInp.select(); }
+      }, 40);
+    } else {
+      const topInp = document.getElementById(`vTop_${blockId}`);
+      if (topInp) { topInp.focus(); topInp.select(); }
+    }
+    return;
+  }
+
+  // Target active input
+  let targetInp = lastFocusedMathInput;
+  if (!targetInp || !document.body.contains(targetInp)) {
+    targetInp = document.getElementById(`vTop_${blockId}`) ||
+                document.getElementById(`vPrefix_${blockId}`) ||
+                document.getElementById(`mathInput_${blockId}`);
+  }
+  if (!targetInp) return;
+
+  const start = targetInp.selectionStart || 0;
+  const end = targetInp.selectionEnd || 0;
+  const val = targetInp.value || '';
   const sel = val.substring(start, end);
 
   let insertion = '';
-  let selOffset = 0;
-  let selLen = 0;
-
   switch (token) {
-    case 'frac':
-      if (sel) {
-        insertion = `(${sel})/2`;
-        selOffset = insertion.length;
-      } else {
-        insertion = `1/2`;
-        selOffset = 3;
-      }
-      break;
-    case 'pow2':
-      if (sel) {
-        insertion = `${sel}²`;
-        selOffset = insertion.length;
-      } else {
-        const prev = start > 0 ? val[start - 1] : '';
-        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
-          insertion = `²`;
-          selOffset = 1;
-        } else {
-          insertion = `x²`;
-          selOffset = 2;
-        }
-      }
-      break;
-    case 'powN':
-      if (sel) {
-        insertion = `${sel}ⁿ`;
-        selOffset = insertion.length;
-      } else {
-        const prev = start > 0 ? val[start - 1] : '';
-        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
-          insertion = `ⁿ`;
-          selOffset = 1;
-        } else {
-          insertion = `xⁿ`;
-          selOffset = 2;
-        }
-      }
-      break;
-    case 'sqrt':
-      insertion = sel ? `√(${sel})` : `√x`;
-      selOffset = insertion.length;
-      break;
-    case 'sub':
-      if (sel) {
-        insertion = `${sel}₀`;
-        selOffset = insertion.length;
-      } else {
-        const prev = start > 0 ? val[start - 1] : '';
-        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
-          insertion = `₀`;
-          selOffset = 1;
-        } else {
-          insertion = `x₀`;
-          selOffset = 2;
-        }
-      }
-      break;
-    case 'parens':
-      insertion = sel ? `(${sel})` : `()`;
-      selOffset = sel ? sel.length + 2 : 1;
-      break;
-    case 'abs':
-      insertion = sel ? `|${sel}|` : `|x|`;
-      selOffset = sel ? sel.length + 2 : 1;
-      selLen = sel ? 0 : 1;
-      break;
-    case 'd/dx':
-      insertion = sel ? `d/dx(${sel})` : `d/dx(x)`;
-      selOffset = insertion.length;
-      break;
-    case 'int':
-      insertion = sel ? `∫ ${sel} dx` : `∫ f(x) dx`;
-      selOffset = insertion.length;
-      break;
-    case 'int_ab':
-      insertion = sel ? `∫₀¹ ${sel} dx` : `∫₀¹ x dx`;
-      selOffset = insertion.length;
-      break;
-    case 'sum':
-      insertion = sel ? `∑ ${sel}` : `∑ xᵢ`;
-      selOffset = insertion.length;
-      break;
-    case 'lim':
-      insertion = `lim x→0 `;
-      selOffset = insertion.length;
-      break;
+    case 'pow2': insertion = sel ? `${sel}²` : '²'; break;
+    case 'powN': insertion = sel ? `${sel}ⁿ` : 'ⁿ'; break;
+    case 'sqrt': insertion = sel ? `√(${sel})` : '√x'; break;
+    case 'sub': insertion = sel ? `${sel}₀` : '₀'; break;
+    case 'parens': insertion = sel ? `(${sel})` : '()'; break;
+    case 'abs': insertion = sel ? `|${sel}|` : '|x|'; break;
+    case 'd/dx': insertion = sel ? `d/dx(${sel})` : 'd/dx(x)'; break;
+    case 'int': insertion = sel ? `∫ ${sel} dx` : '∫ f(x) dx'; break;
+    case 'int_ab': insertion = sel ? `∫₀¹ ${sel} dx` : '∫₀¹ x dx'; break;
+    case 'sum': insertion = sel ? `∑ ${sel}` : '∑ xᵢ'; break;
+    case 'lim': insertion = 'lim x→0 '; break;
     case 'sin':
     case 'cos':
     case 'tan':
     case 'log':
     case 'ln':
       insertion = sel ? `${token}(${sel})` : `${token}(x)`;
-      selOffset = insertion.length;
       break;
     default:
-      // Direct symbols: ±, ×, ÷, ·, ≠, ≈, ≤, ≥, π, ∞, °, →, ⟹, θ, α, β, Δ
-      insertion = ` ${token} `;
-      selOffset = insertion.length;
+      insertion = token;
       break;
   }
 
-  input.value = val.substring(0, start) + insertion + val.substring(end);
-  input.focus();
-  input.setSelectionRange(start + selOffset, start + selOffset + selLen);
+  targetInp.value = val.substring(0, start) + insertion + val.substring(end);
+  const nextPos = start + insertion.length;
+  targetInp.setSelectionRange(nextPos, nextPos);
+  targetInp.focus();
 
-  handleMathBlockInput({ target: input }, blockId);
+  if (targetInp.id.startsWith('v')) {
+    handleVisualMathInput(blockId);
+  } else {
+    handleMathBlockInput({ target: targetInp }, blockId);
+  }
   if (typeof pkHaptic === 'function') pkHaptic(6);
 }
 
@@ -20154,7 +20274,7 @@ let smartDrawTool = 'pen'; // 'pen' | 'highlighter' | 'eraser'
 let smartDrawSize = 3.5;
 let smartDrawColor = 'default';
 let smartDrawMode = 'math'; // 'math' | 'text' | 'sketch'
-let smartDrawRecognizedFormula = 'x² + ½ = 4';
+let smartDrawRecognizedFormula = 'x² + 1/2 = 4';
 let smartDrawCtx = null;
 let smartDrawCanvasInitialized = false;
 let smartDrawExpanded = false;
@@ -20232,7 +20352,7 @@ function openSmartDrawModal(targetBlockId) {
     if (block && block.content) {
       smartDrawRecognizedFormula = naturalMathCleanDisplay(block.content);
     } else {
-      smartDrawRecognizedFormula = 'x² + ½ = 4';
+      smartDrawRecognizedFormula = 'x² + 1/2 = 4';
     }
     if (badge) badge.textContent = 'Editing Math Block';
   } else {

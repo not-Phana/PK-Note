@@ -3283,6 +3283,10 @@ function renderSingleBlockHTML(block) {
               <span>MATH EQUATION</span>
             </div>
             <div class="flex items-center gap-1.5">
+              <button type="button" onclick="openSmartDrawModal('${block.id}')" title="Smart Draw: Handwrite numbers, math, and text with finger/mouse" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)]/15 hover:bg-[var(--accent-vermilion)]/25 text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/30 text-[10px] font-medium cursor-pointer flex items-center gap-1 transition-colors">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+                <span>Draw</span>
+              </button>
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
@@ -3309,7 +3313,13 @@ function renderSingleBlockHTML(block) {
           <!-- Clean & Simple Math Editor -->
           <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-3 space-y-2.5">
             <div class="flex items-center justify-between text-[11px] pb-1 border-b border-[var(--border-hairline)]">
-              <span class="font-medium text-[var(--text-secondary)]">Formula</span>
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-[var(--text-secondary)]">Formula</span>
+                <button type="button" onclick="openSmartDrawModal('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)]/15 hover:bg-[var(--accent-vermilion)]/25 text-[var(--accent-vermilion)] font-medium text-[10px] flex items-center gap-1 cursor-pointer border border-[var(--accent-vermilion)]/30 transition-colors">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+                  <span>Smart Draw</span>
+                </button>
+              </div>
               <div class="flex items-center gap-1.5">
                 <button type="button" onclick="clearMathBlock('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Clear</button>
                 <button type="button" onclick="deleteBlock('${block.id}')" class="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-[10px] text-rose-400 hover:text-rose-300 font-semibold cursor-pointer flex items-center gap-1" title="Delete block from note">
@@ -3320,17 +3330,17 @@ function renderSingleBlockHTML(block) {
               </div>
             </div>
 
-            <!-- Single Clean Input -->
+            <!-- Single Clean Input with Serif Math Font & Live Formatting -->
             <input
               type="text"
               id="mathInput_${block.id}"
               data-block-id="${block.id}"
               spellcheck="false"
-              value="${escapeHtml(block.content || '')}"
+              value="${escapeHtml(naturalMathCleanDisplay(block.content || 'x² + ½ = 4'))}"
               oninput="handleMathBlockInput(event, '${block.id}')"
               onkeydown="handleMathBlockKeydown(event, '${block.id}')"
-              placeholder="e.g. x^2 + 1/2 = 4 or (sqrt(x))/b"
-              class="w-full px-3 py-2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] transition-all"
+              placeholder="e.g. x² + ½ = 4 or √x / b"
+              class="w-full px-3.5 py-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[16px] font-serif text-[var(--text-primary)] tracking-wide text-center focus:outline-none focus:border-[var(--accent-vermilion)] focus:ring-1 focus:ring-[var(--accent-vermilion)]/25 transition-all shadow-sm"
             />
 
             <!-- 1-Tap Keypad Buttons (ZERO EMOJIS) -->
@@ -19411,12 +19421,95 @@ const MATH_SNIPPETS_DATABASE = [
   { cat: 'chemistry', label: 'Precipitation Reaction', latex: '\\ce{Ag+ (aq) + Cl- (aq) -> AgCl (s) v}', desc: 'Silver chloride precipitation' }
 ];
 
+function autoFormatMathInput(val) {
+  if (!val) return '';
+  let s = val;
+  s = s.replace(/\^2/g, '²')
+       .replace(/\^3/g, '³')
+       .replace(/\^n/g, 'ⁿ')
+       .replace(/\^0/g, '⁰')
+       .replace(/\^1/g, '¹')
+       .replace(/_0/g, '₀')
+       .replace(/_1/g, '₁')
+       .replace(/_i/g, 'ᵢ')
+       .replace(/\b1\/2\b/g, '½')
+       .replace(/\b1\/4\b/g, '¼')
+       .replace(/\b3\/4\b/g, '¾')
+       .replace(/\b1\/3\b/g, '⅓')
+       .replace(/\b2\/3\b/g, '⅔')
+       .replace(/\bsqrt\b/gi, '√')
+       .replace(/\+\-/g, '±')
+       .replace(/\-\+/g, '∓')
+       .replace(/!=/g, '≠')
+       .replace(/<=/g, '≤')
+       .replace(/>=/g, '≥')
+       .replace(/->/g, '→')
+       .replace(/=>/g, '⟹');
+  return s;
+}
+
+function naturalMathCleanDisplay(formula) {
+  if (!formula) return 'x² + ½ = 4';
+  let s = String(formula).trim();
+  if (s.startsWith('\\begin{aligned}') && s.endsWith('\\end{aligned}')) {
+    s = s.replace(/^\\begin\{aligned\}\s*/, '').replace(/\s*\\end\{aligned\}$/, '').trim();
+  }
+  // \frac{1}{2} -> ½, \frac{1}{4} -> ¼, etc.
+  s = s.replace(/\\frac\{1\}\{2\}|\b1\/2\b/g, '½')
+       .replace(/\\frac\{1\}\{4\}|\b1\/4\b/g, '¼')
+       .replace(/\\frac\{3\}\{4\}|\b3\/4\b/g, '¾')
+       .replace(/\\frac\{1\}\{3\}|\b1\/3\b/g, '⅓')
+       .replace(/\\frac\{2\}\{3\}|\b2\/3\b/g, '⅔');
+  // \sqrt{x} or sqrt(x) -> √x
+  s = s.replace(/\\sqrt\{([a-zA-Z0-9])\}|\bsqrt\(([a-zA-Z0-9])\)/g, '√$1')
+       .replace(/\\sqrt\{([^{}]+)\}|\bsqrt\(([^()]+)\)/g, '√($1)');
+  // Clean broken ^2sqrt
+  s = s.replace(/\^2\s*√/g, '√');
+  // Caret exponents -> real unicode superscripts
+  s = s.replace(/\^2|\^\{2\}/g, '²')
+       .replace(/\^3|\^\{3\}/g, '³')
+       .replace(/\^n|\^\{n\}/g, 'ⁿ')
+       .replace(/\^0|\^\{0\}/g, '⁰')
+       .replace(/\^1|\^\{1\}/g, '¹');
+  // Subscripts
+  s = s.replace(/_0|_\{0\}/g, '₀')
+       .replace(/_1|_\{1\}/g, '₁')
+       .replace(/_i|_\{i\}/g, 'ᵢ');
+  // Symbols
+  s = s.replace(/\\pm|\+\-/g, '±')
+       .replace(/\\times|\*/g, '×')
+       .replace(/\\div/g, '÷')
+       .replace(/\\neq|!=/g, '≠')
+       .replace(/\\approx|~=/g, '≈')
+       .replace(/\\le|<=/g, '≤')
+       .replace(/\\ge|>=/g, '≥')
+       .replace(/\\pi/g, 'π')
+       .replace(/\\infty/g, '∞')
+       .replace(/\\to|->/g, '→')
+       .replace(/\\implies|=>/g, '⟹');
+  // Simple fractions: \frac{a}{b} -> (a)/(b) or a/b
+  s = s.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)');
+  return s;
+}
+
 function handleMathBlockInput(e, blockId) {
   const note = guardActiveNoteEditable();
   if (!note) return;
   const block = note.blocks.find(b => b.id === blockId);
   if (!block) return;
-  block.content = e.target.value;
+
+  const rawVal = e.target.value;
+  const formattedVal = autoFormatMathInput(rawVal);
+  if (formattedVal !== rawVal) {
+    const curPos = e.target.selectionStart;
+    const diff = formattedVal.length - rawVal.length;
+    e.target.value = formattedVal;
+    if (curPos !== null) {
+      e.target.setSelectionRange(curPos + diff, curPos + diff);
+    }
+  }
+
+  block.content = formattedVal;
   block.isEditing = true;
 
   const displayEl = document.getElementById(`mathDisplay_${blockId}`);
@@ -20023,6 +20116,519 @@ function closeMathSymbolsModal(e) {
   if (e && e.target && e.target !== e.currentTarget) return;
   const modal = document.getElementById('mathSymbolsModal');
   if (modal) modal.classList.add('hidden');
+}
+
+// =========================================================================
+// SMART DRAW: HANDWRITING RECOGNITION (NUMBERS, MATH, TEXT & SHAPES)
+// =========================================================================
+
+let smartDrawTargetBlockId = null;
+let smartDrawStrokes = [];
+let smartDrawCurrentStroke = null;
+let smartDrawTool = 'pen'; // 'pen' | 'eraser'
+let smartDrawSize = 3.5;
+let smartDrawColor = 'default';
+let smartDrawMode = 'math'; // 'math' | 'text' | 'sketch'
+let smartDrawRecognizedFormula = 'x² + ½ = 4';
+let smartDrawCtx = null;
+let smartDrawCanvasInitialized = false;
+
+function openSmartDrawModal(targetBlockId) {
+  smartDrawTargetBlockId = targetBlockId || null;
+  const modal = document.getElementById('smartDrawModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  if (targetBlockId) {
+    const note = getActiveNote();
+    const block = note?.blocks?.find(b => b.id === targetBlockId);
+    if (block && block.content) {
+      smartDrawRecognizedFormula = naturalMathCleanDisplay(block.content);
+    } else {
+      smartDrawRecognizedFormula = 'x² + ½ = 4';
+    }
+  }
+
+  const recInp = document.getElementById('smartDrawRecognizedFormula');
+  if (recInp) recInp.value = smartDrawRecognizedFormula;
+  updateSmartDrawPreview();
+
+  setTimeout(() => {
+    initSmartDrawCanvas();
+    redrawSmartDrawCanvas();
+  }, 40);
+
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+}
+
+function closeSmartDrawModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('smartDrawModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setSmartDrawMode(mode) {
+  smartDrawMode = mode;
+  const modes = ['math', 'text', 'sketch'];
+  modes.forEach(m => {
+    const btn = document.getElementById(`sdMode${m.charAt(0).toUpperCase() + m.slice(1)}Btn`);
+    if (btn) {
+      if (m === mode) {
+        btn.className = 'px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
+      } else {
+        btn.className = 'px-2 py-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      }
+    }
+  });
+  if (smartDrawStrokes.length > 0) {
+    recognizeSmartDrawStrokes();
+  }
+}
+
+function setSmartDrawTool(tool) {
+  smartDrawTool = tool;
+  const penBtn = document.getElementById('sdToolPen');
+  const erBtn = document.getElementById('sdToolEraser');
+  if (penBtn) {
+    penBtn.className = tool === 'pen'
+      ? 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--accent-vermilion)] text-[11px] text-[var(--text-primary)] font-medium flex items-center gap-1 cursor-pointer'
+      : 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer';
+  }
+  if (erBtn) {
+    erBtn.className = tool === 'eraser'
+      ? 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--accent-vermilion)] text-[11px] text-[var(--text-primary)] font-medium flex items-center gap-1 cursor-pointer'
+      : 'px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer';
+  }
+}
+
+function setSmartDrawSize(sz) {
+  smartDrawSize = Number(sz) || 3.5;
+  setSmartDrawTool('pen');
+}
+
+function setSmartDrawColor(color) {
+  smartDrawColor = color;
+  setSmartDrawTool('pen');
+}
+
+function undoSmartDrawStroke() {
+  if (smartDrawStrokes.length > 0) {
+    smartDrawStrokes.pop();
+    redrawSmartDrawCanvas();
+    recognizeSmartDrawStrokes();
+    if (typeof pkHaptic === 'function') pkHaptic(6);
+  }
+}
+
+function clearSmartDrawCanvas() {
+  smartDrawStrokes = [];
+  redrawSmartDrawCanvas();
+  smartDrawRecognizedFormula = '';
+  const recInp = document.getElementById('smartDrawRecognizedFormula');
+  if (recInp) recInp.value = '';
+  updateSmartDrawPreview();
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function initSmartDrawCanvas() {
+  const canvas = document.getElementById('smartDrawCanvas');
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.floor(rect.width) || 480;
+  const h = Math.floor(rect.height) || 280;
+
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  smartDrawCtx = canvas.getContext('2d');
+  smartDrawCtx.scale(dpr, dpr);
+
+  if (smartDrawCanvasInitialized) return;
+  smartDrawCanvasInitialized = true;
+
+  const getPos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - r.left,
+      y: e.clientY - r.top,
+      t: Date.now()
+    };
+  };
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    const pt = getPos(e);
+    const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+    let color = smartDrawColor;
+    if (smartDrawTool === 'eraser') {
+      color = '__erase__';
+    } else if (color === 'default') {
+      color = isDark ? '#ffffff' : '#18181b';
+    }
+
+    smartDrawCurrentStroke = {
+      color,
+      size: smartDrawSize,
+      points: [pt]
+    };
+    smartDrawStrokes.push(smartDrawCurrentStroke);
+    redrawSmartDrawCanvas();
+    const hint = document.getElementById('smartDrawEmptyHint');
+    if (hint) hint.classList.add('hidden');
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!smartDrawCurrentStroke) return;
+    e.preventDefault();
+    const pt = getPos(e);
+    const pts = smartDrawCurrentStroke.points;
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot(pt.x - last.x, pt.y - last.y) >= 2) {
+      pts.push(pt);
+      redrawSmartDrawCanvas();
+    }
+  });
+
+  const finishStroke = (e) => {
+    if (smartDrawCurrentStroke) {
+      smartDrawCurrentStroke = null;
+      recognizeSmartDrawStrokes();
+      if (typeof pkHaptic === 'function') pkHaptic(5);
+    }
+  };
+
+  canvas.addEventListener('pointerup', finishStroke);
+  canvas.addEventListener('pointercancel', finishStroke);
+}
+
+function redrawSmartDrawCanvas() {
+  const canvas = document.getElementById('smartDrawCanvas');
+  if (!canvas || !smartDrawCtx) return;
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+  const bg = isDark ? '#141417' : '#ffffff';
+  const gridDot = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+  smartDrawCtx.fillStyle = bg;
+  smartDrawCtx.fillRect(0, 0, w, h);
+
+  // Math Grid Dots
+  smartDrawCtx.fillStyle = gridDot;
+  for (let x = 18; x < w; x += 22) {
+    for (let y = 18; y < h; y += 22) {
+      smartDrawCtx.fillRect(x, y, 1.5, 1.5);
+    }
+  }
+
+  // Draw Strokes
+  smartDrawCtx.lineCap = 'round';
+  smartDrawCtx.lineJoin = 'round';
+
+  for (let i = 0; i < smartDrawStrokes.length; i++) {
+    const s = smartDrawStrokes[i];
+    if (!s.points || s.points.length === 0) continue;
+    smartDrawCtx.strokeStyle = s.color === '__erase__' ? bg : s.color;
+    smartDrawCtx.lineWidth = s.color === '__erase__' ? s.size * 3.5 : s.size;
+    smartDrawCtx.beginPath();
+    smartDrawCtx.moveTo(s.points[0].x, s.points[0].y);
+    if (s.points.length === 1) {
+      smartDrawCtx.lineTo(s.points[0].x + 0.1, s.points[0].y + 0.1);
+    } else {
+      for (let j = 1; j < s.points.length; j++) {
+        smartDrawCtx.lineTo(s.points[j].x, s.points[j].y);
+      }
+    }
+    smartDrawCtx.stroke();
+  }
+
+  const hint = document.getElementById('smartDrawEmptyHint');
+  if (hint) {
+    hint.classList.toggle('hidden', smartDrawStrokes.length > 0);
+  }
+}
+
+// Intelligent Stroke Recognition Engine (Numbers, Math, Text, Shapes)
+function recognizeSmartDrawStrokes() {
+  if (smartDrawStrokes.length === 0) return;
+
+  const validStrokes = smartDrawStrokes.filter(s => s.color !== '__erase__' && s.points.length > 1);
+  if (validStrokes.length === 0) return;
+
+  // Compute bounding boxes for each stroke
+  const strokeBoxes = validStrokes.map((s, idx) => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let pathLen = 0;
+    for (let i = 0; i < s.points.length; i++) {
+      const p = s.points[i];
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+      if (i > 0) pathLen += Math.hypot(p.x - s.points[i-1].x, p.y - s.points[i-1].y);
+    }
+    const w = Math.max(maxX - minX, 1);
+    const h = Math.max(maxY - minY, 1);
+    const start = s.points[0];
+    const end = s.points[s.points.length - 1];
+    const directDist = Math.hypot(end.x - start.x, end.y - start.y);
+    return {
+      idx,
+      stroke: s,
+      minX, maxX, minY, maxY,
+      w, h,
+      cx: (minX + maxX) / 2,
+      cy: (minY + maxY) / 2,
+      pathLen,
+      directDist,
+      isClosed: directDist < Math.max(w, h) * 0.35,
+      isHoriz: w > h * 2.2,
+      isVert: h > w * 2.2
+    };
+  });
+
+  // Cluster strokes into glyphs from left to right
+  const visited = new Set();
+  const glyphs = [];
+
+  for (let i = 0; i < strokeBoxes.length; i++) {
+    if (visited.has(i)) continue;
+    const group = [strokeBoxes[i]];
+    visited.add(i);
+
+    for (let j = i + 1; j < strokeBoxes.length; j++) {
+      if (visited.has(j)) continue;
+      const b1 = strokeBoxes[i];
+      const b2 = strokeBoxes[j];
+      const xOverlap = Math.min(b1.maxX, b2.maxX) - Math.max(b1.minX, b2.minX);
+      const yDist = Math.abs(b1.cy - b2.cy);
+      const spanH = Math.max(b1.h, b2.h, 24);
+
+      if (xOverlap > -12 && yDist < spanH * 1.4) {
+        group.push(b2);
+        visited.add(j);
+      }
+    }
+
+    let gMinX = Infinity, gMaxX = -Infinity, gMinY = Infinity, gMaxY = -Infinity;
+    group.forEach(b => {
+      gMinX = Math.min(gMinX, b.minX);
+      gMaxX = Math.max(gMaxX, b.maxX);
+      gMinY = Math.min(gMinY, b.minY);
+      gMaxY = Math.max(gMaxY, b.maxY);
+    });
+
+    glyphs.push({
+      strokes: group,
+      minX: gMinX, maxX: gMaxX, minY: gMinY, maxY: gMaxY,
+      w: gMaxX - gMinX,
+      h: gMaxY - gMinY,
+      cx: (gMinX + gMaxX) / 2,
+      cy: (gMinY + gMaxY) / 2
+    });
+  }
+
+  glyphs.sort((a, b) => a.minX - b.minX);
+
+  // Check for stacked fraction
+  let fractionBar = null;
+  for (let i = 0; i < glyphs.length; i++) {
+    const g = glyphs[i];
+    if (g.strokes.length === 1 && g.strokes[0].isHoriz && g.w > 20) {
+      const above = glyphs.filter(other => other !== g && other.maxY < g.cy && Math.min(other.maxX, g.maxX) - Math.max(other.minX, g.minX) > -8);
+      const below = glyphs.filter(other => other !== g && other.minY > g.cy && Math.min(other.maxX, g.maxX) - Math.max(other.minX, g.minX) > -8);
+      if (above.length > 0 && below.length > 0) {
+        fractionBar = { bar: g, above, below };
+        break;
+      }
+    }
+  }
+
+  function classifyGlyph(g) {
+    const sCount = g.strokes.length;
+
+    if (sCount === 2) {
+      const s1 = g.strokes[0];
+      const s2 = g.strokes[1];
+
+      if (s1.isHoriz && s2.isHoriz && Math.abs(s1.w - s2.w) < Math.max(s1.w, s2.w) * 0.5) {
+        return '=';
+      }
+      if ((s1.isHoriz && s2.isVert) || (s1.isVert && s2.isHoriz)) {
+        return '+';
+      }
+      if (!s1.isHoriz && !s1.isVert && !s2.isHoriz && !s2.isVert) {
+        return 'x';
+      }
+      if (s1.isVert || s2.isVert) {
+        return '4';
+      }
+      return '+';
+    }
+
+    const s = g.strokes[0];
+    if (s.isClosed) return '0';
+    if (s.isHoriz) return '-';
+    if (s.isVert) return '1';
+
+    const pts = s.stroke.points;
+    const start = pts[0];
+    const end = pts[pts.length - 1];
+    let lowestPt = pts[0];
+    pts.forEach(p => { if (p.y > lowestPt.y) lowestPt = p; });
+
+    if (lowestPt.x > start.x && lowestPt.x < end.x && lowestPt.y - start.y > 10 && lowestPt.y - end.y > 15) {
+      return '√';
+    }
+
+    if (pts.length > 12 && start.y < lowestPt.y - 12 && end.y >= lowestPt.y - 8 && pts[Math.floor(pts.length / 2)].x < end.x) {
+      return '9';
+    }
+    if (pts.length > 6 && start.y < lowestPt.y - 15 && end.y > lowestPt.y - 8 && start.x < lowestPt.x) {
+      return '7';
+    }
+    if (start.y < end.y && g.h > 18) {
+      if (end.x > start.x && Math.abs(end.y - lowestPt.y) < 8) return '2';
+      return '3';
+    }
+
+    return 'x';
+  }
+
+  let result = '';
+
+  if (fractionBar) {
+    const beforeFrac = glyphs.filter(g => g.maxX < fractionBar.bar.minX && !fractionBar.above.includes(g) && !fractionBar.below.includes(g));
+    const afterFrac = glyphs.filter(g => g.minX > fractionBar.bar.maxX && !fractionBar.above.includes(g) && !fractionBar.below.includes(g));
+
+    const beforeText = beforeFrac.map(classifyGlyph).join(' ');
+    const numText = fractionBar.above.map(classifyGlyph).join('');
+    const denText = fractionBar.below.map(classifyGlyph).join('');
+    const afterText = afterFrac.map(classifyGlyph).join(' ');
+
+    const fracStr = (numText === '1' && denText === '2') ? '½' : (numText === '1' && denText === '4') ? '¼' : (numText === '3' && denText === '4') ? '¾' : `(${numText})/(${denText})`;
+
+    result = [beforeText, fracStr, afterText].filter(Boolean).join(' ');
+  } else {
+    for (let i = 0; i < glyphs.length; i++) {
+      const g = glyphs[i];
+      const char = classifyGlyph(g);
+
+      if (i > 0) {
+        const prev = glyphs[i - 1];
+        if (g.cy < prev.minY + prev.h * 0.45 && g.w < prev.w * 0.85) {
+          if (char === '2') { result += '²'; continue; }
+          if (char === '3') { result += '³'; continue; }
+          if (char === '0') { result += '⁰'; continue; }
+          if (char === 'x' || char === 'n') { result += 'ⁿ'; continue; }
+        }
+      }
+
+      if (['+', '-', '=', '×', '÷'].includes(char)) {
+        result += ` ${char} `;
+      } else {
+        result += char;
+      }
+    }
+  }
+
+  result = result.replace(/\s+/g, ' ').trim();
+  result = autoFormatMathInput(result);
+
+  if (result) {
+    smartDrawRecognizedFormula = result;
+    const recInp = document.getElementById('smartDrawRecognizedFormula');
+    if (recInp) recInp.value = smartDrawRecognizedFormula;
+    updateSmartDrawPreview();
+  }
+}
+
+function handleSmartDrawManualEdit(e) {
+  smartDrawRecognizedFormula = autoFormatMathInput(e.target.value);
+  e.target.value = smartDrawRecognizedFormula;
+  updateSmartDrawPreview();
+}
+
+function appendSmartDrawToken(tok) {
+  smartDrawRecognizedFormula = (smartDrawRecognizedFormula ? smartDrawRecognizedFormula + ' ' : '') + tok;
+  const recInp = document.getElementById('smartDrawRecognizedFormula');
+  if (recInp) recInp.value = smartDrawRecognizedFormula;
+  updateSmartDrawPreview();
+  if (typeof pkHaptic === 'function') pkHaptic(6);
+}
+
+function updateSmartDrawPreview() {
+  const preview = document.getElementById('smartDrawKatexPreview');
+  if (!preview) return;
+  if (!smartDrawRecognizedFormula) {
+    preview.innerHTML = '';
+    return;
+  }
+  try {
+    preview.innerHTML = renderLatexToHtml(smartDrawRecognizedFormula, false);
+  } catch (e) {
+    preview.textContent = smartDrawRecognizedFormula;
+  }
+}
+
+function applySmartDrawToActiveBlock() {
+  if (!smartDrawRecognizedFormula) {
+    showToast('Draw or write an equation first', 'ochre');
+    return;
+  }
+
+  const formulaToApply = autoFormatMathInput(smartDrawRecognizedFormula);
+
+  if (smartDrawTargetBlockId) {
+    const note = guardActiveNoteEditable();
+    if (note) {
+      const block = note.blocks.find(b => b.id === smartDrawTargetBlockId);
+      if (block) {
+        block.content = formulaToApply;
+        const input = document.getElementById(`mathInput_${block.id}`);
+        if (input) input.value = naturalMathCleanDisplay(formulaToApply);
+        const display = document.getElementById(`mathDisplay_${block.id}`);
+        if (display) display.innerHTML = renderLatexToHtml(formulaToApply, true);
+        persistState();
+        showToast('Updated equation from Smart Draw!');
+      }
+    }
+  } else {
+    insertNewMathBlockIntoNote(formulaToApply);
+  }
+
+  closeSmartDrawModal();
+  if (typeof pkHaptic === 'function') pkHaptic(12);
+}
+
+function insertSmartDrawAsSketchBlock() {
+  const canvas = document.getElementById('smartDrawCanvas');
+  if (!canvas || smartDrawStrokes.length === 0) {
+    showToast('Draw something on the canvas first', 'ochre');
+    return;
+  }
+
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const newBlock = {
+    id: generateId('b'),
+    type: 'sketch',
+    content: smartDrawRecognizedFormula ? `Smart Draw · ${smartDrawRecognizedFormula}` : `Drawing · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    imageData: dataUrl
+  };
+
+  note.blocks.push(newBlock);
+  note.updatedAt = TODAY_KEY;
+  renderBlocks(note);
+  persistState();
+  showToast('Inserted drawing into active note');
+  closeSmartDrawModal();
+  if (typeof pkHaptic === 'function') pkHaptic(12);
 }
 
 function switchMathTab(tabId) {

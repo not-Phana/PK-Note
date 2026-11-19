@@ -13,24 +13,18 @@ const PK_AI_PROVIDERS = {
     name: 'Gemini AI',
     shortName: 'Gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-3-flash-preview',
+    defaultModel: 'gemini-2.0-flash',
     requiresKey: true,
-    keyPlaceholder: 'AIza... or AQ....',
+    keyPlaceholder: 'AIzaSy... or AQ....',
     keyLabel: 'Gemini API Key (Saved Locally)',
     keyUrl: 'https://aistudio.google.com/apikey',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'gemini-3-flash-preview', label: '#1 gemini-3-flash-preview (Best Free · Fastest Flash)' },
-      { id: 'gemini-3.8-flash', label: '#2 gemini-3.8-flash (Top Quality · Latest Flash)' },
-      { id: 'gemini-3.5-flash-lite', label: '#3 gemini-3.5-flash-lite (Rock-Solid Free Lite)' },
-      { id: 'gemini-3.1-flash-lite', label: '#4 gemini-3.1-flash-lite (Fast Stable Lite)' },
-      { id: 'gemini-flash-lite-latest', label: '#5 gemini-flash-lite-latest (Auto-Latest Lite)' },
-      { id: 'gemini-4-hydrogen', label: '#6 gemini-4-hydrogen (Gemini 4 Free Tier)' },
-      { id: 'gemma-4-31b-it', label: '#7 gemma-4-31b-it (Gemma 4 · 31B Open)' },
-      { id: 'gemma-4-26b-a4b-it', label: '#8 gemma-4-26b-a4b-it (Gemma 4 · 26B MoE)' },
-      { id: 'gemini-flash-latest', label: '#9 gemini-flash-latest (Auto-Latest Flash)' },
-      { id: 'gemini-3.7-flash', label: '#10 gemini-3.7-flash (3.7 Flash)' },
-      { id: 'gemini-3.1-flash-lite-preview', label: '#11 gemini-3.1-flash-lite-preview (3.1 Lite)' }
+      { id: 'gemini-2.0-flash', label: '#1 gemini-2.0-flash (Fast & Multimodal · 1M Ctx · Best Free)' },
+      { id: 'gemini-2.0-flash-lite', label: '#2 gemini-2.0-flash-lite (Lowest Latency · Fast Lite)' },
+      { id: 'gemini-1.5-flash', label: '#3 gemini-1.5-flash (Stable Production Flash · 1M Ctx)' },
+      { id: 'gemini-1.5-pro', label: '#4 gemini-1.5-pro (Deep Reasoning & Analysis · 2M Ctx)' },
+      { id: 'gemini-2.0-pro-exp-02-05', label: '#5 gemini-2.0-pro-exp-02-05 (Experimental Pro)' }
     ]
   },
   openrouter: {
@@ -38,28 +32,22 @@ const PK_AI_PROVIDERS = {
     name: 'OpenRouter Free',
     shortName: 'Free OR',
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
-    defaultModel: 'openrouter/free',
+    defaultModel: 'openrouter/auto',
     requiresKey: true,
     keyPlaceholder: 'sk-or-v1-...',
     keyLabel: 'OpenRouter Key (Free $0 Models Only)',
     keyUrl: 'https://openrouter.ai/keys',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'openrouter/free', label: '#1 openrouter/free (Auto-Router · Always Working Free)' },
-      { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: '#2 nemotron-3-ultra-550b (550B Flagship · 1M Ctx · Free)' },
-      { id: 'nvidia/nemotron-3.5-super-vl:free', label: '#3 nemotron-3.5-super-vl (120B Super · 1M Ctx · Free)' },
-      { id: 'google/gemma-4-31b-it:free', label: '#4 gemma-4-31b-it (Gemma 4 · 31B · 262K Ctx · Free)' },
-      { id: 'nvidia/nemotron-3.5-lightning:free', label: '#5 nemotron-3.5-lightning (Fast 30B · 1M Ctx · Free)' },
-      { id: 'google/gemma-4-26b-a4b-it:free', label: '#6 gemma-4-26b-a4b-it (Gemma 4 · 26B MoE · Free)' },
-      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', label: '#7 nemotron-3-nano-omni (Reasoning 30B · Free)' },
-      { id: 'baidu/ernie-5.5-flash-preview:free', label: '#8 ernie-5.5-flash (ERNIE 5.5 · 1M Ctx · Free)' },
-      { id: 'inclusionai/ling-3.2-flash:free', label: '#9 ling-3.2-flash (Ling 3.2 · 1M Ctx · Free)' },
-      { id: 'cohere/north-mini-code:free', label: '#10 north-mini-code (Coding Specialist · Free)' },
-      { id: 'dots-studio/dots-3-note-preview:free', label: '#11 dots-3-note (Notes Specialist · 512K Ctx · Free)' },
-      { id: 'thinkingmachines/inkling-2-small:free', label: '#12 inkling-2-small (Inkling 2 · 1M Ctx · Free)' },
-      { id: 'particle-ai/particle-1:free', label: '#13 particle-1 (Particle-1 · 1M Ctx · Free)' },
-      { id: 'recursive/flint-v1.0:free', label: '#14 flint-v1.0 (Flint · 262K Ctx · Free)' },
-      { id: 'liquid/lfm-3-1.7b:free', label: '#15 lfm-3-1.7b (Ultra-Fast 1.7B · Free)' }
+      { id: 'openrouter/auto', label: '#1 openrouter/auto (Auto-Route to Best Available Model)' },
+      { id: 'deepseek/deepseek-r1:free', label: '#2 deepseek/deepseek-r1:free (DeepSeek R1 Flagship Reasoning · Free)' },
+      { id: 'deepseek/deepseek-chat:free', label: '#3 deepseek/deepseek-chat:free (DeepSeek V3 Chat · Free)' },
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', label: '#4 meta-llama/llama-3.3-70b-instruct:free (Llama 3.3 70B · Free)' },
+      { id: 'google/gemini-2.0-flash-exp:free', label: '#5 google/gemini-2.0-flash-exp:free (Gemini 2.0 Flash · Free)' },
+      { id: 'google/gemini-2.0-flash-thinking-exp:free', label: '#6 google/gemini-2.0-flash-thinking-exp:free (Gemini 2.0 Thinking · Free)' },
+      { id: 'qwen/qwen-2.5-coder-32b-instruct:free', label: '#7 qwen/qwen-2.5-coder-32b-instruct:free (Qwen 2.5 Coder 32B · Free)' },
+      { id: 'mistralai/mistral-small-24b-instruct-2501:free', label: '#8 mistralai/mistral-small-24b-instruct-2501:free (Mistral Small 24B · Free)' },
+      { id: 'meta-llama/llama-3.1-8b-instruct:free', label: '#9 meta-llama/llama-3.1-8b-instruct:free (Llama 3.1 8B · Free)' }
     ]
   },
   groq: {
@@ -67,17 +55,22 @@ const PK_AI_PROVIDERS = {
     name: 'Groq Cloud',
     shortName: 'Groq',
     defaultBaseUrl: 'https://api.groq.com/openai/v1',
-    defaultModel: 'openai/gpt-oss-120b',
+    defaultModel: 'llama-3.3-70b-versatile',
     requiresKey: true,
     keyPlaceholder: 'gsk_...',
     keyLabel: 'Groq API Key (Saved Locally)',
     keyUrl: 'https://console.groq.com/keys',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'openai/gpt-oss-120b', label: '#1 openai/gpt-oss-120b (Best Overall · 120B Reasoning)' },
-      { id: 'qwen/qwen3.8-27b', label: '#2 qwen/qwen3.8-27b (Best Writing & Code · 27B)' },
-      { id: 'openai/gpt-oss-20b', label: '#3 openai/gpt-oss-20b (Ultra-Fast · 20B)' },
-      { id: 'allam-2-7b', label: '#4 allam-2-7b (Compact Fast · 7B)' }
+      { id: 'llama-3.3-70b-versatile', label: '#1 llama-3.3-70b-versatile (Flagship 70B · 128K Ctx · Blazing Fast)' },
+      { id: 'llama-3.1-8b-instant', label: '#2 llama-3.1-8b-instant (Fastest Instant · 128K Ctx)' },
+      { id: 'deepseek-r1-distill-llama-70b', label: '#3 deepseek-r1-distill-llama-70b (DeepSeek R1 Reasoning · 128K Ctx)' },
+      { id: 'qwen-2.5-32b', label: '#4 qwen-2.5-32b (Qwen 2.5 32B · Coding & Math)' },
+      { id: 'qwen-2.5-coder-32b', label: '#5 qwen-2.5-coder-32b (Qwen Specialist Coder)' },
+      { id: 'gemma2-9b-it', label: '#6 gemma2-9b-it (Google Gemma 2 9B)' },
+      { id: 'llama-3.2-1b-preview', label: '#7 llama-3.2-1b-preview (Ultra-Light 1B)' },
+      { id: 'llama-3.2-3b-preview', label: '#8 llama-3.2-3b-preview (Compact 3B)' },
+      { id: 'llama-3.2-11b-vision-preview', label: '#9 llama-3.2-11b-vision-preview (Vision Multimodal)' }
     ]
   },
   nvidia: {
@@ -85,23 +78,19 @@ const PK_AI_PROVIDERS = {
     name: 'NVIDIA AI',
     shortName: 'NVIDIA',
     defaultBaseUrl: 'https://integrate.api.nvidia.com/v1',
-    defaultModel: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+    defaultModel: 'meta/llama-3.3-70b-instruct',
     requiresKey: true,
     keyPlaceholder: 'nvapi-...',
     keyLabel: 'NVIDIA API Key (Saved Locally)',
     keyUrl: 'https://build.nvidia.com/explore/discover',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: '#1 nemotron-3-ultra-550b (Flagship 550B Ultra)' },
-      { id: 'mistralai/mistral-large-4-1t-a52b', label: '#2 mistral-large-4-1t (Mistral Large 4 · 1T MoE)' },
-      { id: 'moonshotai/kimi-k3.1-pro', label: '#3 kimi-k3.1-pro (Kimi K3.1 Pro · Long Ctx)' },
-      { id: 'nvidia/nemotron-3.5-super-vl-120b-a12b', label: '#4 nemotron-3.5-super-vl (Super 120B)' },
-      { id: 'google/gemma-4-31b-it', label: '#5 gemma-4-31b-it (Gemma 4 · 31B Balanced)' },
-      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: '#6 nemotron-3.5-lightning (Fast 30B)' },
-      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: '#7 nemotron-3-nano-omni (Reasoning 30B)' },
-      { id: 'minimaxai/minimax-m3.1-flash', label: '#8 minimax-m3.1-flash (MiniMax Flash)' },
-      { id: 'z-ai/glm-5.3-flash', label: '#9 glm-5.3-flash (GLM 5.3 Flash)' },
-      { id: 'google/gemma-3-12b-it', label: '#10 gemma-3-12b-it (Gemma 3 · 12B Compact)' }
+      { id: 'meta/llama-3.3-70b-instruct', label: '#1 meta/llama-3.3-70b-instruct (Llama 3.3 70B Flagship)' },
+      { id: 'deepseek-ai/deepseek-r1', label: '#2 deepseek-ai/deepseek-r1 (DeepSeek R1 Reasoning)' },
+      { id: 'mistralai/mistral-large-2-instruct', label: '#3 mistralai/mistral-large-2-instruct (Mistral Large 2)' },
+      { id: 'nvidia/llama-3.1-nemotron-70b-instruct', label: '#4 nvidia/llama-3.1-nemotron-70b-instruct (Nemotron 70B)' },
+      { id: 'google/gemma-2-27b-it', label: '#5 google/gemma-2-27b-it (Gemma 2 27B)' },
+      { id: 'qwen/qwen2.5-72b-instruct', label: '#6 qwen/qwen2.5-72b-instruct (Qwen 2.5 72B)' }
     ]
   },
   local: {
@@ -109,27 +98,19 @@ const PK_AI_PROVIDERS = {
     name: 'Local Model',
     shortName: 'Local',
     defaultBaseUrl: 'http://localhost:1234/v1',
-    defaultModel: 'google/gemma-4-e4b',
+    defaultModel: 'llama3.2:latest',
     requiresKey: false,
     keyPlaceholder: 'Optional — leave blank for LM Studio / Ollama',
     keyLabel: 'Local Token / Key (Optional)',
     keyUrl: '',
     keyLinkText: '',
     models: [
-      { id: 'kimi-k3.1-pro:cloud', label: '#1 kimi-k3.1-pro:cloud (Cloud-Scale · Ollama :11434)' },
-      { id: 'prism-ml/bonsai-27b', label: '#2 prism-ml/bonsai-27b (Largest Local · 27B)' },
-      { id: 'liquid/lfm2-24b-a2b', label: '#3 liquid/lfm2-24b-a2b (Fast MoE · 24B)' },
-      { id: 'google/gemma-4-12b', label: '#4 google/gemma-4-12b (Top Quality · 12B)' },
-      { id: 'gemma-4-12b-it-qat', label: '#5 gemma-4-12b-it-qat (High Accuracy · 12B QAT)' },
-      { id: 'gemma-4-12b-it-qat-deepseek-distill', label: '#6 gemma-4-12b-deepseek-distill (Reasoning · 12B)' },
-      { id: 'gemma-4-12b-coder-fable5-composer2.5-v1', label: '#7 gemma-4-12b-coder (Coding · 12B)' },
-      { id: 'qwen/qwen3.5-9b', label: '#8 qwen/qwen3.5-9b (Strong All-Rounder · 9B)' },
-      { id: 'google/gemma-4-e4b', label: '#9 google/gemma-4-e4b (Best Speed/Quality · 7.5B)' },
-      { id: 'google/gemma-4-e2b', label: '#10 google/gemma-4-e2b (Fast Light · 4.6B)' },
-      { id: 'nvidia/nemotron-3-nano-4b', label: '#11 nvidia/nemotron-3-nano-4b (Fast · 4B)' },
-      { id: 'gemma-4-e4b-uncensored-hauhaucs-aggressive', label: '#12 gemma-4-e4b-uncensored (7.5B)' },
-      { id: 'gemma-4-e2b-uncensored-hauhaucs-aggressive', label: '#13 gemma-4-e2b-uncensored (4.6B)' },
-      { id: 'gemma-3-270m-it', label: '#14 gemma-3-270m-it (Instant Tiny · 270M)' }
+      { id: 'llama3.2:latest', label: '#1 llama3.2:latest (Llama 3.2 · Local Default)' },
+      { id: 'deepseek-r1:latest', label: '#2 deepseek-r1:latest (DeepSeek R1 Local)' },
+      { id: 'qwen2.5:latest', label: '#3 qwen2.5:latest (Qwen 2.5 Local)' },
+      { id: 'mistral:latest', label: '#4 mistral:latest (Mistral Local)' },
+      { id: 'gemma2:latest', label: '#5 gemma2:latest (Gemma 2 Local)' },
+      { id: 'llama3.1:latest', label: '#6 llama3.1:latest (Llama 3.1 Local)' }
     ]
   }
 };
@@ -258,16 +239,22 @@ function getDefaultAiConfig() {
 }
 
 const PK_RETIRED_GROQ_MODELS = new Set([
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'qwen/qwen3-32b'
+  'mixtral-8x7b-32768',
+  'llama2-70b-4096',
+  'gemma-7b-it',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b',
+  'allam-2-7b'
 ]);
 
 const PK_RETIRED_GEMINI_MODELS = new Set([
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-pro'
+  'gemini-1.0-pro',
+  'gemini-1.0-pro-vision',
+  'gemini-3-flash-preview',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-4-hydrogen'
 ]);
 
 function loadAiConfig() {
@@ -296,9 +283,14 @@ function loadAiConfig() {
         def.groq.model = PK_AI_PROVIDERS.groq.defaultModel;
         migrated = true;
       }
-      // Upgrade retired Gemini 2.5 presets automatically to live active Gemini 3.5 Flash-Lite
+      // Upgrade retired Gemini presets automatically to live active default
       if (PK_RETIRED_GEMINI_MODELS.has(def.gemini.model)) {
         def.gemini.model = PK_AI_PROVIDERS.gemini.defaultModel;
+        migrated = true;
+      }
+      // Upgrade OpenRouter legacy preset to openrouter/auto
+      if (def.openrouter.model === 'openrouter/free' || !def.openrouter.model) {
+        def.openrouter.model = PK_AI_PROVIDERS.openrouter.defaultModel;
         migrated = true;
       }
       // Upgrade untouched v2.3.0 generic local default (llama3.2) to user's installed LM Studio library

@@ -494,6 +494,8 @@ const SLASH_COMMANDS = [
   { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
   { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
   { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
+  { type: 'fix', label: 'Quick Fix Block (No AI)', desc: 'Fix typos, punctuation & spacing instantly', glyph: 'sparkles', shortcut: '/fix' },
+  { type: 'polish', label: '1-Tap AI Polish Block', desc: 'In-place AI rewrite & polish without opening chat', glyph: 'sparkles', shortcut: '/polish' },
 ];
 
 let pendingStateDirty = false;
@@ -3844,11 +3846,26 @@ function confirmSlashSelection() {
 
 function applySlashCommand(newType) {
   if (!activeSlashBlockId) return;
+  const targetId = activeSlashBlockId;
   const note = guardActiveNoteEditable();
   if (!note) return;
-  const block = note.blocks.find(b => b.id === activeSlashBlockId);
+  const block = note.blocks.find(b => b.id === targetId);
   if (block) {
     block.content = (block.content || '').replace(/(?:^|\s)\/[a-zA-Z0-9]*$/, '').trim();
+  }
+
+  if (newType === 'fix') {
+    closeSlashMenu();
+    quickFixBlockOffline(targetId);
+    return;
+  }
+  if (newType === 'polish') {
+    closeSlashMenu();
+    inPlaceAiPolishBlock(targetId);
+    return;
+  }
+
+  if (block) {
     block.type = newType;
     if (newType === 'code' && !block.language) block.language = 'typescript';
     if (newType === 'toggle') { block.open = true; if (typeof block.body !== 'string') block.body = ''; }
@@ -3856,7 +3873,6 @@ function applySlashCommand(newType) {
       block.rows = [['Column 1', 'Column 2', 'Column 3'], ['', '', ''], ['', '', '']];
     }
   }
-  const targetId = activeSlashBlockId;
   closeSlashMenu();
   renderBlocks(note);
   if (newType !== 'divider' && newType !== 'table') {
@@ -6094,6 +6110,34 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
     e.preventDefault();
     toggleLeftSidebar();
+    return;
+  }
+
+  // Cmd/Ctrl + Shift + F: Quick Fix Text (No AI · 0ms)
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    const sel = typeof getReadableSelectedText === 'function' ? getReadableSelectedText(true) : '';
+    if (sel && sel.trim()) {
+      quickFixSelectionOffline();
+    } else if (typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
+      quickFixBlockOffline(activeEditingBlockId);
+    } else {
+      quickFixWholeNoteOffline();
+    }
+    return;
+  }
+
+  // Cmd/Ctrl + Shift + P: 1-Tap In-Place AI Polish
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+    const sel = typeof getReadableSelectedText === 'function' ? getReadableSelectedText(true) : '';
+    if (sel && sel.trim()) {
+      inPlaceAiPolishSelection();
+    } else if (typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
+      inPlaceAiPolishBlock(activeEditingBlockId);
+    } else {
+      inPlaceAiPolishWholeNote();
+    }
     return;
   }
 

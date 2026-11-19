@@ -3,6 +3,12 @@ setlocal
 cd /d "%~dp0"
 title Launching PK Note...
 
+:: Start Local NVIDIA Proxy in background if node is installed
+where node >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    start "" /b node nvidia-proxy.js >nul 2>&1
+)
+
 :: Try Edge in App mode (Native standalone window)
 where msedge >nul 2>&1
 if %ERRORLEVEL% equ 0 (

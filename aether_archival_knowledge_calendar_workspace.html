@@ -3801,8 +3801,11 @@
           </div>
           <!-- NVIDIA CORS Note + 1-Click Self-Hosted Worker Snippet -->
           <div id="pkAiNvidiaCorsHint" class="hidden px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed space-y-1.5">
-            <div>NVIDIA NIM blocks direct browser CORS on web pages. If Test fails with a CORS error, deploy your own free 10-line Cloudflare Worker relay and paste its URL above.</div>
-            <button type="button" onclick="copyNvidiaProxySnippet()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] font-semibold cursor-pointer">Copy Cloudflare Worker Code</button>
+            <div>NVIDIA NIM blocks direct browser CORS. Use the included zero-setup local proxy or your own Cloudflare Worker relay.</div>
+            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <button type="button" onclick="useNvidiaLocalProxy()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] font-semibold cursor-pointer">Use Local Proxy (Port 4000)</button>
+              <button type="button" onclick="copyNvidiaProxySnippet()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold cursor-pointer">Copy Cloudflare Worker Code</button>
+            </div>
           </div>
           <!-- Local CORS Hint -->
           <div id="pkAiLocalCorsHint" class="hidden px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed">

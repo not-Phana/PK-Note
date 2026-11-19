@@ -77,20 +77,22 @@ const PK_AI_PROVIDERS = {
     id: 'nvidia',
     name: 'NVIDIA AI',
     shortName: 'NVIDIA',
-    defaultBaseUrl: 'https://integrate.api.nvidia.com/v1',
-    defaultModel: 'meta/llama-3.3-70b-instruct',
+    defaultBaseUrl: 'http://127.0.0.1:4000/v1',
+    defaultModel: 'nvidia/nemotron-3.5-bolt-e4b',
     requiresKey: true,
     keyPlaceholder: 'nvapi-...',
     keyLabel: 'NVIDIA API Key (Saved Locally)',
     keyUrl: 'https://build.nvidia.com/explore/discover',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'meta/llama-3.3-70b-instruct', label: '#1 meta/llama-3.3-70b-instruct (Llama 3.3 70B Flagship)' },
-      { id: 'deepseek-ai/deepseek-r1', label: '#2 deepseek-ai/deepseek-r1 (DeepSeek R1 Reasoning)' },
-      { id: 'mistralai/mistral-large-2-instruct', label: '#3 mistralai/mistral-large-2-instruct (Mistral Large 2)' },
-      { id: 'nvidia/llama-3.1-nemotron-70b-instruct', label: '#4 nvidia/llama-3.1-nemotron-70b-instruct (Nemotron 70B)' },
-      { id: 'google/gemma-2-27b-it', label: '#5 google/gemma-2-27b-it (Gemma 2 27B)' },
-      { id: 'qwen/qwen2.5-72b-instruct', label: '#6 qwen/qwen2.5-72b-instruct (Qwen 2.5 72B)' }
+      { id: 'nvidia/nemotron-3.5-bolt-e4b', label: '#1 nvidia/nemotron-3.5-bolt-e4b (Ultra-Fast Flagship · 128K Ctx)' },
+      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: '#2 nvidia/nemotron-3.5-lightning-30b-a3b (30B Deep Reasoning)' },
+      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: '#3 nvidia/nemotron-3-nano-omni-30b-a3b-reasoning (Omni Reasoning)' },
+      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: '#4 nvidia/nemotron-3-ultra-550b-a55b (550B Frontier)' },
+      { id: 'mistralai/mistral-large-4-1t-a52b', label: '#5 mistralai/mistral-large-4-1t-a52b (Mistral Large 4)' },
+      { id: 'z-ai/glm-5.3-flash', label: '#6 z-ai/glm-5.3-flash (GLM 5.3 Flash)' },
+      { id: 'moonshotai/kimi-k3.1-pro', label: '#7 moonshotai/kimi-k3.1-pro (Kimi K3.1 Pro)' },
+      { id: 'minimaxai/minimax-m3.1-flash', label: '#8 minimaxai/minimax-m3.1-flash (MiniMax M3.1 Flash)' }
     ]
   },
   local: {
@@ -257,6 +259,15 @@ const PK_RETIRED_GEMINI_MODELS = new Set([
   'gemini-4-hydrogen'
 ]);
 
+const PK_RETIRED_NVIDIA_MODELS = new Set([
+  'meta/llama-3.3-70b-instruct',
+  'deepseek-ai/deepseek-r1',
+  'mistralai/mistral-large-2-instruct',
+  'nvidia/llama-3.1-nemotron-70b-instruct',
+  'google/gemma-2-27b-it',
+  'qwen/qwen2.5-72b-instruct'
+]);
+
 function loadAiConfig() {
   const def = getDefaultAiConfig();
   try {
@@ -286,6 +297,15 @@ function loadAiConfig() {
       // Upgrade retired Gemini presets automatically to live active default
       if (PK_RETIRED_GEMINI_MODELS.has(def.gemini.model)) {
         def.gemini.model = PK_AI_PROVIDERS.gemini.defaultModel;
+        migrated = true;
+      }
+      // Upgrade retired NVIDIA models and default URL automatically
+      if (PK_RETIRED_NVIDIA_MODELS.has(def.nvidia.model) || !def.nvidia.model) {
+        def.nvidia.model = PK_AI_PROVIDERS.nvidia.defaultModel;
+        migrated = true;
+      }
+      if (def.nvidia.baseUrl === 'https://integrate.api.nvidia.com/v1') {
+        def.nvidia.baseUrl = PK_AI_PROVIDERS.nvidia.defaultBaseUrl;
         migrated = true;
       }
       // Upgrade OpenRouter legacy preset to openrouter/auto
@@ -823,6 +843,17 @@ function copyNvidiaProxySnippet() {
     }).catch(() => {
       if (typeof showToast === 'function') showToast('Could not access clipboard', 'ochre');
     });
+  }
+}
+
+function useNvidiaLocalProxy() {
+  const cfg = loadAiConfig();
+  cfg.nvidia.baseUrl = 'http://127.0.0.1:4000/v1';
+  saveAiConfig(cfg);
+  const input = document.getElementById('pkAiBaseUrlInput');
+  if (input) input.value = cfg.nvidia.baseUrl;
+  if (typeof showToast === 'function') {
+    showToast('Switched to local proxy (http://127.0.0.1:4000/v1). Ensure "Start NVIDIA Proxy.bat" is running.');
   }
 }
 
@@ -1438,9 +1469,9 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
     if (pid === 'nvidia') {
       const isDefaultNvidia = /integrate\.api\.nvidia\.com/i.test(baseUrl || '');
       if (isDefaultNvidia) {
-        return 'NVIDIA NIM blocks direct browser CORS requests. Open Settings -> NVIDIA AI, tap "Copy Cloudflare Worker Code", deploy a free Worker, and paste its URL into NVIDIA Endpoint (or switch to Groq / Local Model).';
+        return 'NVIDIA NIM blocks direct browser CORS requests. Start the local proxy with "Start NVIDIA Proxy.bat" and use http://127.0.0.1:4000/v1, or deploy a free Cloudflare Worker.';
       }
-      return `Could not reach NVIDIA proxy (${baseUrl}). Check the URL and ensure it sends Access-Control-Allow-Origin headers.`;
+      return `Could not reach NVIDIA proxy (${baseUrl}). If using the local proxy, run "Start NVIDIA Proxy.bat" or launch via "PK Note.bat".`;
     }
     if (pid === 'local') {
       const isHttpsPage = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';

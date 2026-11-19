@@ -3214,8 +3214,13 @@ function renderSingleBlockHTML(block) {
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
-              <button type="button" onclick="copyMathSnippetToClipboard('${escapeHtml(mathFormula).replace(/'/g, "\\'")}', true)" title="Copy as Clean Readable Text" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">TEXT</button>
-              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy Real Math Formula" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">COPY</button>
+              <button type="button" onclick="copyMathBlockAsImage('${block.id}')" title="Copy exact math picture (PNG for Discord/Chat/Docs)" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>IMAGE</span>
+              </button>
+              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy visual math (x² + ½ = 4) and rich MathML" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
+                <span>COPY</span>
+              </button>
               <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula Without Code" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
               <button type="button" onclick="deleteBlock('${block.id}')" title="Delete this equation block" class="hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded text-[var(--text-tertiary)] transition-colors cursor-pointer text-[10px] flex items-center gap-0.5">
                 <svg class="w-3 h-3 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -19457,12 +19462,142 @@ function copyMathLatex(blockId) {
   if (raw.startsWith('\\begin{aligned}') && raw.endsWith('\\end{aligned}')) {
     raw = raw.replace(/^\\begin\{aligned\}\s*/, '').replace(/\s*\\end\{aligned\}$/, '').trim();
   }
-  const toCopy = raw.startsWith('$') ? raw : (raw.includes('\n') ? `$$\n${raw}\n$$` : `$${raw}$`);
-  navigator.clipboard.writeText(toCopy).then(() => {
-    showToast('Copied real math formula to clipboard');
-  }).catch(() => {
-    copyMathSnippetToClipboard(raw, false);
-  });
+
+  // 1. Clean visual Unicode text (e.g. "x² + ½ = 4") with NO dollar signs
+  const visualText = latexToCleanText(raw);
+
+  // 2. Rich HTML with MathML (for Word, Google Docs, Apple Notes)
+  const mathHtml = renderLatexToHtml(raw, true);
+  const richHtml = `<div style="font-family:'Cambria Math','Times New Roman',serif; font-size:16px;">${mathHtml}</div>`;
+
+  // 3. Multi-mime clipboard if supported
+  if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+    try {
+      const textBlob = new Blob([visualText], { type: 'text/plain' });
+      const htmlBlob = new Blob([richHtml], { type: 'text/html' });
+      navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': textBlob,
+          'text/html': htmlBlob
+        })
+      ]).then(() => {
+        showToast(`Copied visual math: ${visualText.slice(0, 36)}`);
+        if (typeof pkHaptic === 'function') pkHaptic(10);
+      }).catch(() => {
+        copyMathSnippetToClipboard(raw, true);
+      });
+      return;
+    } catch (e) {
+      // Fallback below
+    }
+  }
+
+  copyMathSnippetToClipboard(raw, true);
+}
+
+// Copy rendered math equation as exact PNG picture (for Discord, WhatsApp, Word, Slack)
+async function copyMathBlockAsImage(blockId) {
+  try {
+    const el = document.getElementById(`mathDisplay_${blockId}`);
+    if (!el) {
+      showToast('Math element not found');
+      return;
+    }
+
+    const rect = el.getBoundingClientRect();
+    const padX = 28;
+    const padY = 20;
+    const width = Math.max(Math.ceil(rect.width) + padX * 2, 260);
+    const height = Math.max(Math.ceil(rect.height) + padY * 2, 70);
+    const scale = 2; // high-DPI retina crispness
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+    const bgColor = isDark ? '#141417' : '#ffffff';
+    const textColor = isDark ? '#f4f4f5' : '#18181b';
+    const borderColor = isDark ? '#27272a' : '#e4e4e7';
+
+    // Draw card background
+    ctx.fillStyle = bgColor;
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(0, 0, width, height, 8);
+      ctx.fill();
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    // Clone rendered math HTML
+    const clone = el.cloneNode(true);
+    const htmlContent = clone.innerHTML;
+
+    // Build SVG foreignObject
+    const svgData = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+        <foreignObject width="100%" height="100%">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: ${textColor}; font-family: 'KaTeX_Main', 'Cambria Math', 'Times New Roman', serif; font-size: 18px; box-sizing: border-box; padding: ${padY}px ${padX}px;">
+            <style>
+              .katex { font-size: 1.25em; text-rendering: geometricPrecision; }
+              .katex .katex-mathml { clip: rect(1px, 1px, 1px, 1px); border: 0; height: 1px; width: 1px; overflow: hidden; position: absolute; }
+              .katex-display { margin: 0; }
+              .frac-line { border-bottom-width: 1.5px !important; }
+            </style>
+            ${htmlContent}
+          </div>
+        </foreignObject>
+      </svg>
+    `;
+
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+
+    await new Promise((resolve, reject) => {
+      img.onload = () => {
+        try {
+          ctx.drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve();
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('SVG load error'));
+      };
+      img.src = url;
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Failed to generate image blob');
+
+    if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      showToast('Copied exact math image (PNG) to clipboard!');
+      if (typeof pkHaptic === 'function') pkHaptic(12);
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `math-${Date.now()}.png`;
+      a.click();
+      showToast('Downloaded math PNG image');
+    }
+  } catch (err) {
+    console.warn('Canvas image copy fallback to visual text:', err);
+    copyMathLatex(blockId);
+  }
 }
 
 // =========================================================================
@@ -20491,6 +20626,9 @@ function latexToCleanText(latex) {
   if (!latex) return '';
   let str = String(latex).trim();
 
+  // Strip wrapping $ or $$
+  str = str.replace(/^\$\$([\s\S]*)\$\$$/m, '$1').replace(/^\$([\s\S]*)\$$/m, '$1').trim();
+
   // Strip environments like \begin{aligned}, \end{aligned}, \begin{matrix}, etc.
   str = str.replace(/\\begin\{[a-zA-Z*]+\}/g, '')
            .replace(/\\end\{[a-zA-Z*]+\}/g, '');
@@ -20508,12 +20646,30 @@ function latexToCleanText(latex) {
            .replace(/\\vec\{([^}]+)\}/g, '$1')
            .replace(/\\overline\{([^}]+)\}/g, '$1');
 
-  // Arrows and relations
-  str = str.replace(/\\implies/g, '⟹')
-           .replace(/\\iff/g, '⟺')
-           .replace(/\\to|\\rightarrow/g, '→')
-           .replace(/\\leftarrow/g, '←')
-           .replace(/\\approx/g, '≈')
+  // Unicode common fractions mapping
+  const fracMap = {
+    '1/2': '½', '1/3': '⅓', '2/3': '⅔', '1/4': '¼', '3/4': '¾',
+    '1/5': '⅕', '2/5': '⅖', '3/5': '⅗', '4/5': '⅘',
+    '1/6': '⅙', '5/6': '⅚', '1/7': '⅐', '1/8': '⅛',
+    '3/8': '⅜', '5/8': '⅝', '7/8': '⅞', '1/9': '⅑', '1/10': '⅒'
+  };
+
+  // Convert \frac{num}{den}
+  str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => {
+    const key = a.trim() + '/' + b.trim();
+    if (fracMap[key]) return fracMap[key];
+    return `(${a})/(${b})`;
+  });
+
+  // Convert raw fractions e.g. 1/2 -> ½
+  str = str.replace(/\b([0-9]+)\s*\/\s*([0-9]+)\b/g, (m, a, b) => {
+    const key = a + '/' + b;
+    if (fracMap[key]) return fracMap[key];
+    return m;
+  });
+
+  // Math symbols & relations
+  str = str.replace(/\\approx/g, '≈')
            .replace(/\\neq/g, '≠')
            .replace(/\\le|\\leq/g, '≤')
            .replace(/\\ge|\\geq/g, '≥')
@@ -20522,28 +20678,26 @@ function latexToCleanText(latex) {
            .replace(/\\cdot/g, '·')
            .replace(/\\times/g, '×')
            .replace(/\\div/g, '÷')
+           .replace(/\\implies/g, '⟹')
+           .replace(/\\iff/g, '⟺')
+           .replace(/\\to|\\rightarrow/g, '→')
+           .replace(/\\leftarrow/g, '←')
            .replace(/\\in/g, '∈')
            .replace(/\\notin/g, '∉')
-           .replace(/\\infty/g, '∞');
-
-  // Fractions (nested up to 2 levels)
-  str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)');
-  str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)');
-  str = str.replace(/\\sqrt\{([^{}]+)\}/g, '√($1)');
+           .replace(/\\infty/g, '∞')
+           .replace(/\\sqrt\{([^{}]+)\}/g, '√($1)')
+           .replace(/\\sqrt\[3\]\{([^{}]+)\}/g, '∛($1)');
 
   // Greek letters
-  str = str.replace(/\\alpha/g, 'α')
-           .replace(/\\beta/g, 'β')
-           .replace(/\\gamma/g, 'γ')
-           .replace(/\\delta/g, 'δ')
-           .replace(/\\sigma/g, 'σ')
-           .replace(/\\lambda/g, 'λ')
-           .replace(/\\mu/g, 'μ')
-           .replace(/\\pi/g, 'π')
-           .replace(/\\theta/g, 'θ')
-           .replace(/\\omega/g, 'ω')
-           .replace(/\\Delta/g, 'Δ')
-           .replace(/\\Sigma/g, 'Σ');
+  const greek = {
+    'alpha': 'α', 'beta': 'β', 'gamma': 'γ', 'delta': 'δ', 'epsilon': 'ε',
+    'theta': 'θ', 'lambda': 'λ', 'mu': 'μ', 'pi': 'π', 'rho': 'ρ',
+    'sigma': 'σ', 'tau': 'τ', 'phi': 'φ', 'omega': 'ω',
+    'Delta': 'Δ', 'Gamma': 'Γ', 'Lambda': 'Λ', 'Sigma': 'Σ', 'Omega': 'Ω'
+  };
+  for (const [name, sym] of Object.entries(greek)) {
+    str = str.replace(new RegExp('\\\\' + name + '\\b', 'g'), sym);
+  }
 
   // Integrals & Summations
   str = str.replace(/\\int_\{([^}]+)\}\^\{([^}]+)\}/g, '∫[$1 to $2]')
@@ -20551,18 +20705,27 @@ function latexToCleanText(latex) {
            .replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '∑[$1 to $2]')
            .replace(/\\sum/g, '∑');
 
-  // Common superscript/subscript conversions for clean text
-  str = str.replace(/\^2\b/g, '²')
-           .replace(/\^3\b/g, '³')
-           .replace(/\^\{2\}/g, '²')
-           .replace(/\^\{3\}/g, '³')
-           .replace(/\^\{-1\}/g, '⁻¹')
-           .replace(/\^\{-5\}/g, '⁻⁵')
-           .replace(/\^\{([^}]+)\}/g, '^($1)')
-           .replace(/_0\b|_\{0\}/g, '₀')
-           .replace(/_1\b|_\{1\}/g, '₁')
-           .replace(/_2\b|_\{2\}/g, '₂')
-           .replace(/_\{([^}]+)\}/g, '_($1)');
+  // Superscripts map (supports full 0-9, +, -, =, (), n, i, x, y)
+  const supMap = {
+    '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+    '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', 'n': 'ⁿ', 'i': 'ⁱ', 'x': 'ˣ', 'y': 'ʸ'
+  };
+  str = str.replace(/\^\{([0-9+\-=()nixy]+)\}/g, (m, p) => p.split('').map(c => supMap[c] || c).join(''));
+  str = str.replace(/\^([0-9nixy])/g, (m, p) => supMap[p] || m);
+  str = str.replace(/\^\{([^}]+)\}/g, '^($1)');
+
+  // Subscripts map (supports full 0-9, +, -, =, (), a-x)
+  const subMap = {
+    '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+    '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎', 'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ⱼ',
+    'k': 'ₖ', 'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ', 'p': 'ₚ', 'r': 'ᵣ', 's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ', 'v': 'ᵥ', 'x': 'ₓ'
+  };
+  str = str.replace(/_\{([0-9+\-=()aehijklmnoprstuvx]+)\}/g, (m, p) => p.split('').map(c => subMap[c] || c).join(''));
+  str = str.replace(/_([0-9aehijklmnoprstuvx])/g, (m, p) => subMap[p] || m);
+  str = str.replace(/_\{([^}]+)\}/g, '_($1)');
+
+  // Derivatives / Primes
+  str = str.replace(/'/g, '′');
 
   // Delimiters & Spacing
   str = str.replace(/\\left[\[\(\{]/g, '(')
@@ -20579,7 +20742,7 @@ function latexToCleanText(latex) {
   return str;
 }
 
-function copyMathSnippetToClipboard(latex, asCleanText = false) {
+function copyMathSnippetToClipboard(latex, asCleanText = true) {
   if (!latex) return;
   const raw = String(latex).trim();
   const textToCopy = asCleanText
@@ -20588,7 +20751,7 @@ function copyMathSnippetToClipboard(latex, asCleanText = false) {
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(textToCopy).then(() => {
-      showToast(`Copied Real Math: ${textToCopy.slice(0, 36)}...`);
+      showToast(`Copied Visual Math: ${textToCopy.slice(0, 36)}...`);
       if (typeof pkHaptic === 'function') pkHaptic(10);
     }).catch(() => fallbackCopy(textToCopy));
   } else {
@@ -20604,7 +20767,7 @@ function copyMathSnippetToClipboard(latex, asCleanText = false) {
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    showToast(`Copied Real Math: ${str.slice(0, 36)}...`);
+    showToast(`Copied Visual Math: ${str.slice(0, 36)}...`);
   }
 }
 
@@ -20614,11 +20777,11 @@ function renderSolverStepItem(s) {
     <div class="group relative flex items-center justify-between p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto select-text" data-math-raw="${escaped}">
       <div class="flex-1 min-w-0 pr-4">${renderLatexToHtml(s, false)}</div>
       <div class="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
-        <button type="button" onclick="copyMathSnippetToClipboard('${escaped.replace(/'/g, "\\'")}', false)" title="Copy Real LaTeX Math ($...$)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
+        <button type="button" onclick="copyMathSnippetToClipboard('${escaped.replace(/'/g, "\\'")}', true)" title="Copy Visual Math (x² + ½ = 4)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
           Copy
         </button>
-        <button type="button" onclick="copyMathSnippetToClipboard('${escaped.replace(/'/g, "\\'")}', true)" title="Copy as Clean Readable Text" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">
-          Text
+        <button type="button" onclick="copyMathSnippetToClipboard('${escaped.replace(/'/g, "\\'")}', false)" title="Copy raw LaTeX ($...$)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">
+          LaTeX
         </button>
       </div>
     </div>
@@ -20655,9 +20818,9 @@ if (typeof document !== 'undefined') {
                        .replace(/\\\\/g, '\n')
                        .trim();
         }
-        const isDisplay = el.classList.contains('math-display-render') || el.classList.contains('math-rendered-display');
-        const formatted = isDisplay ? `\n$$${clean}$$\n` : `$${clean}$`;
-        const textNode = document.createTextNode(formatted);
+        // Format as visual math without dollar signs
+        const visualMath = latexToCleanText(clean);
+        const textNode = document.createTextNode(visualMath);
         if (el.parentNode) el.parentNode.replaceChild(textNode, el);
       }
     });
@@ -20667,7 +20830,7 @@ if (typeof document !== 'undefined') {
       e.clipboardData.setData('text/plain', plainText);
       e.preventDefault();
       if (typeof pkHaptic === 'function') pkHaptic(8);
-      showToast('Copied real math formula to clipboard');
+      showToast(`Copied math: ${plainText.slice(0, 32)}`);
     }
   });
 }

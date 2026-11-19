@@ -1248,6 +1248,42 @@ async function clearAllAiMemoriesUI() {
   if (typeof showToast === 'function') showToast('All AI memories cleared', 'ochre');
 }
 
+function copyCurrentAiApiKey() {
+  const cfg = loadAiConfig();
+  const { spec, data } = getActiveProviderSpec(cfg);
+  const inp = document.getElementById('pkGroqApiKeyInput');
+  const key = (inp && inp.value ? inp.value.trim() : (data && data.apiKey ? data.apiKey.trim() : ''));
+
+  if (!key) {
+    if (typeof showToast === 'function') showToast(`No ${spec.shortName} API key saved to copy`, 'ochre');
+    return;
+  }
+
+  const btn = document.getElementById('pkAiCopyKeyBtn');
+  const doFeedback = () => {
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.classList.add('text-[var(--accent-vermilion)]');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('text-[var(--accent-vermilion)]');
+      }, 1500);
+    }
+    if (typeof showToast === 'function') showToast(`Copied ${spec.shortName} API key (${maskAiKeyTail(key)}) to clipboard`);
+  };
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(key).then(doFeedback).catch(() => {
+      copyKeyFallbackText(key);
+      doFeedback();
+    });
+  } else {
+    copyKeyFallbackText(key);
+    doFeedback();
+  }
+}
+
 function toggleGroqKeyVisibility() {
   const inp = document.getElementById('pkGroqApiKeyInput');
   const btn = document.getElementById('pkGroqRevealBtn');
@@ -1746,7 +1782,8 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
     'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```',
-    'API KEYS & CREDENTIAL SCANNING (EXPERT CAPABILITY): When asked to scan text or notes for API keys, identify providers, remove duplicates, organize into clean lists, or check security: You are an expert at detecting and categorizing API keys. Accurately identify providers by their format: Google Gemini (AIzaSy... or AQ....), Groq (gsk_...), OpenRouter (sk-or-v1-... or sk-or-...), NVIDIA NIM (nvapi-...), OpenAI Project (sk-proj-...), OpenAI Standard (sk-...), Anthropic Claude (sk-ant-api03-... or sk-ant-...), DeepSeek (sk-... followed by exactly 32 hex characters), Perplexity (pplx-...), Cerebras (csk-...), Hugging Face (hf_...), GitHub (ghp_... or github_pat_...), Mistral, Cohere, etc. Automatically deduplicate identical keys. Format your response with clean Markdown code blocks (```) grouped by provider for instant 1-click copying. Perform a security & formatting health check: flag if any key is truncated, contains accidental trailing punctuation (commas, quotes) or internal whitespace, or looks like an insecure dummy/placeholder value, and explain how to fix it.'
+    'API KEYS & CREDENTIAL SCANNING (EXPERT CAPABILITY): When asked to scan text or notes for API keys, identify providers, remove duplicates, organize into clean lists, or check security: You are an expert at detecting and categorizing API keys. Accurately identify providers by their format: Google Gemini (AIzaSy... or AQ....), Groq (gsk_...), OpenRouter (sk-or-v1-... or sk-or-...), NVIDIA NIM (nvapi-...), OpenAI Project (sk-proj-...), OpenAI Standard (sk-...), Anthropic Claude (sk-ant-api03-... or sk-ant-...), DeepSeek (sk-... followed by exactly 32 hex characters), Perplexity (pplx-...), Cerebras (csk-...), Hugging Face (hf_...), GitHub (ghp_... or github_pat_...), Mistral, Cohere, etc. Automatically deduplicate identical keys. Format your response with clean Markdown code blocks (```) grouped by provider for instant 1-click copying. Perform a security & formatting health check: flag if any key is truncated, contains accidental trailing punctuation (commas, quotes) or internal whitespace, or looks like an insecure dummy/placeholder value, and explain how to fix it.',
+    'API KEY PROTECTION & ZERO RANDOM EDITS (CRITICAL): Always recognize when text contains an API key (e.g. gsk_..., AIzaSy..., sk-or-v1-..., sk-proj-..., sk-ant-..., nvapi-..., pplx-..., hf_..., csk-..., or hex secrets). When editing, rewriting, summarizing, or polishing notes or code: DO NOT touch, modify, truncate, censor, obfuscate, or alter any API key randomly! Keep every character of an API key 100% intact and verbatim. Never replace real API keys with placeholder text like "your-key-here" or fake strings unless the user explicitly asks to replace that specific key.'
   ];
 
   if (autoMemOn) {
@@ -2029,6 +2066,35 @@ function parseMarkdownToPKBlocks(rawText) {
   return blocks;
 }
 
+function preserveApiKeysInReplacement(originalText, replacementText, userPrompt = '') {
+  if (!originalText || !replacementText) return replacementText;
+  const isExplicitKeyReplacement = /replace\s+(?:the\s+)?(?:api\s+)?key|new\s+(?:api\s+)?key|change\s+(?:the\s+)?(?:api\s+)?key/i.test(userPrompt);
+  if (isExplicitKeyReplacement) return replacementText;
+
+  const keyRegex = /\b(gsk_[A-Za-z0-9]{45,64}|AIzaSy[A-Za-z0-9_-]{33}|AQ\.[A-Za-z0-9_-]{20,}|sk-or-v1-[a-f0-9]{64}|sk-or-[A-Za-z0-9_-]{32,}|nvapi-[A-Za-z0-9_-]{40,}|sk-proj-[A-Za-z0-9_-]{48,}|sk-ant-api03-[A-Za-z0-9_-]{80,}|sk-[a-f0-9]{32}|pplx-[a-f0-9]{48}|hf_[A-Za-z0-9]{34,}|csk-[a-zA-Z0-9_-]{32,})\b/g;
+  let m;
+  const origKeys = [];
+  while ((m = keyRegex.exec(originalText)) !== null) {
+    origKeys.push(m[0]);
+  }
+
+  if (origKeys.length === 0) return replacementText;
+
+  let protectedText = replacementText;
+  origKeys.forEach(origKey => {
+    if (!protectedText.includes(origKey)) {
+      const prefix = origKey.slice(0, 7);
+      const safePrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const placeholderRegex = new RegExp(`\\b(?:${safePrefix}[A-Za-z0-9_.-]*|your[_-]?(?:api[_-]?)?key|replace[_-]?with[_-]?key)\\b`, 'gi');
+      if (placeholderRegex.test(protectedText)) {
+        protectedText = protectedText.replace(placeholderRegex, origKey);
+      }
+    }
+  });
+
+  return protectedText;
+}
+
 function replaceTargetSelectionWithGroqReply(msgIdx) {
   const msg = pkGroqHistory[msgIdx];
   if (!msg || !msg.content || msg.isError) return;
@@ -2036,7 +2102,7 @@ function replaceTargetSelectionWithGroqReply(msgIdx) {
   if (!note) return;
 
   const targetText = msg.targetSelection || pkAiTargetSelection || '';
-  const cleanReplacement = cleanAiTextForInsertion(msg.content);
+  const cleanReplacement = preserveApiKeysInReplacement(targetText, cleanAiTextForInsertion(msg.content), msg.retryPrompt || '');
   if (!cleanReplacement) return;
 
   if (typeof stampNoteSnapshot === 'function') {
@@ -2126,7 +2192,10 @@ function replaceTargetBlockWithGroqReply(msgIdx) {
   if (!note) return;
 
   const targetBlockId = msg.targetBlockId || pkAiTargetBlockId;
-  const newBlocks = parseMarkdownToPKBlocks(msg.content);
+  const targetBlock = targetBlockId ? (note.blocks || []).find(b => b.id === targetBlockId) : null;
+  const origContent = targetBlock && typeof targetBlock.content === 'string' ? targetBlock.content : '';
+  const protectedContent = preserveApiKeysInReplacement(origContent, msg.content, msg.retryPrompt || '');
+  const newBlocks = parseMarkdownToPKBlocks(protectedContent);
   if (newBlocks.length === 0) return;
 
   if (typeof stampNoteSnapshot === 'function') {

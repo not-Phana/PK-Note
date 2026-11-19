@@ -9171,6 +9171,14 @@ function syncSelectionReadBar() {
   if (lbl) {
     lbl.textContent = wordCount === 1 ? 'Read Selected (1 word)' : `Read Selected (${wordCount} words)`;
   }
+  const keyBtn = document.getElementById('pkSelectionCopyKeyBtn');
+  const isKey = sel && (
+    /^(?:gsk_|AIzaSy|AQ\.|sk-or-|sk-proj-|sk-ant-|nvapi-|pplx-|csk-|hf_|ghp_|github_pat_)/.test(sel.trim()) ||
+    (sel.trim().length >= 32 && sel.trim().length <= 128 && /^[a-zA-Z0-9_\-\.]{32,128}$/.test(sel.trim()))
+  );
+  if (keyBtn) {
+    keyBtn.classList.toggle('hidden', !isKey);
+  }
   // Shift cleanly above the audio reader HUD if it is currently visible
   const hud = document.getElementById('pkAudioReaderHUD');
   const hudVisible = hud && !hud.classList.contains('hidden');
@@ -9188,6 +9196,19 @@ function dismissSelectionReadBar() {
   if (sel) pkSelectionBarDismissedText = sel;
   const bar = document.getElementById('pkSelectionReadBar');
   if (bar) bar.classList.add('hidden');
+}
+
+function copySelectionApiKey() {
+  const sel = getReadableSelectedText(true);
+  const cleaned = (sel || '').replace(/[.,;:"')\]}>]+$/, '').replace(/^[.,;:"'(\[{<]+/, '').trim();
+  if (!cleaned) return;
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(cleaned);
+  } else if (typeof copyKeyFallbackText === 'function') {
+    copyKeyFallbackText(cleaned);
+  }
+  dismissSelectionReadBar();
+  if (typeof showToast === 'function') showToast('Copied API key to clipboard');
 }
 
 function readCurrentSelectionOnly() {
@@ -9654,6 +9675,14 @@ document.addEventListener('contextmenu', e => {
       const selText = window.getSelection().toString().trim();
       headerText = `SELECTION (${selText.length} CHARS)`;
       badgeIcon = 'quote';
+      const isApiKeySelection = /^(?:gsk_|AIzaSy|AQ\.|sk-or-|sk-proj-|sk-ant-|nvapi-|pplx-|csk-|hf_|ghp_|github_pat_)/.test(selText) ||
+        (selText.length >= 32 && selText.length <= 128 && /^[a-zA-Z0-9_\-\.]{32,128}$/.test(selText));
+      if (isApiKeySelection) {
+        menuItems.push(
+          { label: 'Copy API Key', shortcut: 'Key', icon: 'copy', action: () => copySelectionApiKey() },
+          { type: 'divider' }
+        );
+      }
       menuItems.push(
         { label: 'AI: Fix / Replace Selection', shortcut: 'AI', icon: 'sparkles', action: () => openAiForSelection() },
         { label: 'Bold', shortcut: '⌘B', icon: 'hash', action: () => document.execCommand('bold') },
@@ -9674,6 +9703,25 @@ document.addEventListener('contextmenu', e => {
     }
 
     if (block) {
+      const blockKeyMatch = block.content && block.content.match(/\b(gsk_[A-Za-z0-9]{45,64}|AIzaSy[A-Za-z0-9_-]{33}|AQ\.[A-Za-z0-9_-]{20,}|sk-or-v1-[a-f0-9]{64}|sk-or-[A-Za-z0-9_-]{32,}|nvapi-[A-Za-z0-9_-]{40,}|sk-proj-[A-Za-z0-9_-]{48,}|sk-ant-api03-[A-Za-z0-9_-]{80,}|sk-[a-f0-9]{32}|pplx-[a-f0-9]{48}|hf_[A-Za-z0-9]{34,}|csk-[a-zA-Z0-9_-]{32,})\b/);
+      if (blockKeyMatch) {
+        menuItems.push(
+          {
+            label: `Copy API Key (${blockKeyMatch[0].slice(0, 8)}...)`,
+            shortcut: 'Key',
+            icon: 'copy',
+            action: () => {
+              if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(blockKeyMatch[0]);
+              } else if (typeof copyKeyFallbackText === 'function') {
+                copyKeyFallbackText(blockKeyMatch[0]);
+              }
+              if (typeof showToast === 'function') showToast('Copied API key from block to clipboard');
+            }
+          },
+          { type: 'divider' }
+        );
+      }
       menuItems.push(
         {
           label: 'Turn Into',

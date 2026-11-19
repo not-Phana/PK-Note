@@ -1819,7 +1819,10 @@
         <button type="button" onclick="applyInlineMathPopoverEdit()" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Update</button>
         <button type="button" onclick="removeInlineMathWrapper()" class="px-2 py-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Unwrap</button>
       </div>
-      <button type="button" onclick="copyInlineMathLatex()" class="px-2 py-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-pointer">Copy</button>
+      <div class="flex items-center gap-1">
+        <button type="button" onclick="copyInlineMathLatex()" title="Copy real LaTeX ($...$)" class="px-2 py-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">Copy LaTeX</button>
+        <button type="button" onclick="copyInlineMathText()" title="Copy clean readable text" class="px-2 py-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Text</button>
+      </div>
     </div>
   </div>
 

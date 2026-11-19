@@ -3100,7 +3100,7 @@ function renderSingleBlockHTML(block) {
           </div>
           
           <div onclick="toggleMathBlockEditMode('${block.id}', true)" title="Click to edit LaTeX" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-pointer hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center">
-            <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full">${renderedHtml}</div>
+            <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full" data-math-raw="${escapeHtml(mathFormula)}">${renderedHtml}</div>
           </div>
 
           <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--code-bg)] p-3">
@@ -19064,8 +19064,14 @@ let currentInlineMathTarget = null;
 
 const MATH_SNIPPETS_DATABASE = [
   // --- CALCULUS & ANALYSIS ---
+  { cat: 'calculus', label: '5-Point Numerical Derivative', latex: "f'(x_0) \\approx \\frac{-f(x_0+2h) + 8f(x_0+h) - 8f(x_0-h) + f(x_0-2h)}{12h}", desc: '4th-order central difference numerical stencil' },
+  { cat: 'calculus', label: "Simpson's 1/3 Rule Integral", latex: "\\int_{a}^{b} f(x)\\,dx \\approx \\frac{h}{3} \\left[ f(x_0) + 4\\sum f(x_{\\text{odd}}) + 2\\sum f(x_{\\text{even}}) + f(x_n) \\right]", desc: 'Parabolic composite numerical integration' },
   { cat: 'calculus', label: 'Definite Integral', latex: '\\int_{a}^{b} f(x)\\,dx', desc: 'Area under curve from a to b' },
   { cat: 'calculus', label: 'Indefinite Integral', latex: '\\int f(x)\\,dx', desc: 'Antiderivative of f(x)' },
+  { cat: 'calculus', label: 'Integration by Parts', latex: '\\int u \\, dv = uv - \\int v \\, du', desc: 'Product integration formula' },
+  { cat: 'calculus', label: 'Quotient Rule Derivative', latex: '\\frac{d}{dx}\\left(\\frac{u}{v}\\right) = \\frac{u\'v - uv\'}{v^2}', desc: 'Ratio differentiation rule' },
+  { cat: 'calculus', label: 'Chain Rule Derivative', latex: '\\frac{df}{dx} = \\frac{df}{du} \\cdot \\frac{du}{dx}', desc: 'Composite function differentiation' },
+  { cat: 'calculus', label: "L'Hôpital's Rule", latex: '\\lim_{x \\to c} \\frac{f(x)}{g(x)} = \\lim_{x \\to c} \\frac{f\'(x)}{g\'(x)}', desc: 'Indeterminate limit evaluation' },
   { cat: 'calculus', label: 'Double Integral', latex: '\\iint_{D} f(x, y)\\,dA', desc: 'Volume over 2D region D' },
   { cat: 'calculus', label: 'Triple Integral', latex: '\\iiint_{V} f(x, y, z)\\,dV', desc: 'Volume integral over space V' },
   { cat: 'calculus', label: 'Contour Line Integral', latex: '\\oint_{C} \\vec{F} \\cdot d\\vec{r}', desc: 'Closed circulation integral' },
@@ -19076,6 +19082,9 @@ const MATH_SNIPPETS_DATABASE = [
   { cat: 'calculus', label: 'Divergence', latex: '\\nabla \\cdot \\vec{F} = \\frac{\\partial F_x}{\\partial x} + \\frac{\\partial F_y}{\\partial y}', desc: 'Flux expansion per unit volume' },
   { cat: 'calculus', label: 'Curl', latex: '\\nabla \\times \\vec{F}', desc: 'Microscopic rotational circulation' },
   { cat: 'calculus', label: 'Laplacian', latex: '\\nabla^2 f = \\Delta f', desc: 'Divergence of gradient' },
+  { cat: 'calculus', label: 'Fundamental Theorem of Calculus', latex: '\\frac{d}{dx}\\int_{a}^{x} f(t)\\,dt = f(x)', desc: 'Link between differentiation & integration' },
+  { cat: 'calculus', label: 'Fourier Transform', latex: '\\hat{f}(\\xi) = \\int_{-\\infty}^{\\infty} f(x) e^{-2\\pi i x \\xi}\\,dx', desc: 'Frequency domain representation' },
+  { cat: 'calculus', label: 'Euler-Lagrange Equation', latex: '\\frac{\\partial L}{\\partial q} - \\frac{d}{dt}\\left( \\frac{\\partial L}{\\partial \\dot{q}} \\right) = 0', desc: 'Principle of stationary action' },
   { cat: 'calculus', label: 'Limit to Infinity', latex: '\\lim_{x \\to \\infty} f(x) = L', desc: 'Asymptotic limit of f(x)' },
   { cat: 'calculus', label: 'Limit to Zero', latex: '\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1', desc: 'Fundamental trig limit' },
   { cat: 'calculus', label: 'Infinite Summation', latex: '\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}', desc: 'Basel problem sum' },
@@ -19089,12 +19098,17 @@ const MATH_SNIPPETS_DATABASE = [
   { cat: 'algebra', label: 'Square Root', latex: '\\sqrt{x}', desc: 'Principal square root' },
   { cat: 'algebra', label: 'N-th Root', latex: '\\sqrt[n]{x}', desc: 'General n-th root' },
   { cat: 'algebra', label: 'Quadratic Formula', latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}', desc: 'Roots of ax^2 + bx + c = 0' },
+  { cat: 'algebra', label: 'Cubic Cardan Formula', latex: 'x = \\sqrt[3]{-\\frac{q}{2} + \\sqrt{\\frac{q^2}{4} + \\frac{p^3}{27}}} + \\sqrt[3]{-\\frac{q}{2} - \\sqrt{\\frac{q^2}{4} + \\frac{p^3}{27}}}', desc: 'Roots of depressed cubic x^3 + px + q = 0' },
   { cat: 'algebra', label: 'Exponent & Power', latex: 'x^{n}', desc: 'Term raised to exponent' },
   { cat: 'algebra', label: 'Subscript Index', latex: 'x_{i}', desc: 'Indexed sequence element' },
   { cat: 'algebra', label: 'Binomial Coefficient', latex: '\\binom{n}{k} = \\frac{n!}{k!(n-k)!}', desc: 'Combinations of n choose k' },
+  { cat: 'algebra', label: 'Binomial Theorem', latex: '(x + y)^n = \\sum_{k=0}^{n} \\binom{n}{k} x^{n-k} y^k', desc: 'Polynomial binomial expansion' },
   { cat: 'algebra', label: 'Piecewise Cases', latex: 'f(x) = \\begin{cases} x & x \\ge 0 \\\\ -x & x < 0 \\end{cases}', desc: 'Conditional function branches' },
   { cat: 'algebra', label: 'Logarithm Base B', latex: '\\log_{b}(x)', desc: 'Inverse of exponential base b' },
   { cat: 'algebra', label: 'Natural Logarithm', latex: '\\ln(x)', desc: 'Base-e natural logarithm' },
+  { cat: 'algebra', label: 'Logarithm Change of Base', latex: '\\log_{b}(x) = \\frac{\\ln(x)}{\\ln(b)}', desc: 'Base transformation identity' },
+  { cat: 'algebra', label: 'Compound Interest Formula', latex: 'A = P \\left(1 + \\frac{r}{n}\\right)^{nt}', desc: 'Compound financial growth' },
+  { cat: 'algebra', label: 'Euclidean Distance 2D', latex: 'd = \\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}', desc: 'Pythagorean metric distance' },
   { cat: 'algebra', label: 'Plus-Minus', latex: '\\pm', desc: 'Plus or minus operator' },
   { cat: 'algebra', label: 'Multiplication Dot', latex: '\\cdot', desc: 'Centered scalar product dot' },
   { cat: 'algebra', label: 'Multiplication Cross', latex: '\\times', desc: 'Cartesian or cross product' },
@@ -19117,9 +19131,13 @@ const MATH_SNIPPETS_DATABASE = [
   { cat: 'matrices', label: 'Bracket Matrix (3x3)', latex: '\\begin{bmatrix} 1 & 0 & 0 \\\\ 0 & 1 & 0 \\\\ 0 & 0 & 1 \\end{bmatrix}', desc: 'Identity square matrix' },
   { cat: 'matrices', label: 'Column Vector', latex: '\\begin{bmatrix} x \\\\ y \\\\ z \\end{bmatrix}', desc: '3D coordinate column vector' },
   { cat: 'matrices', label: 'Determinant', latex: '\\det(\\mathbf{A}) = \\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix} = ad - bc', desc: 'Determinant of 2x2 matrix' },
+  { cat: 'matrices', label: "Cramer's Rule for Systems", latex: 'x_i = \\frac{\\det(\\mathbf{A}_i)}{\\det(\\mathbf{A})}', desc: 'Exact algebraic linear system solution' },
+  { cat: 'matrices', label: '2x2 Matrix Inverse', latex: '\\mathbf{A}^{-1} = \\frac{1}{ad-bc}\\begin{pmatrix} d & -b \\\\ -c & a \\end{pmatrix}', desc: 'Closed-form inverse of 2x2 matrix' },
+  { cat: 'matrices', label: 'Eigenvalue Equation', latex: '\\det(\\mathbf{A} - \\lambda \\mathbf{I}) = 0', desc: 'Matrix spectrum & characteristic equation' },
   { cat: 'matrices', label: 'Vector Arrow', latex: '\\vec{v} = \\langle v_x, v_y, v_z \\rangle', desc: 'Euclidean vector notation' },
   { cat: 'matrices', label: 'Vector Euclidean Norm', latex: '\\|\\vec{v}\\| = \\sqrt{v_1^2 + v_2^2 + \\dots + v_n^2}', desc: 'Magnitude of vector' },
   { cat: 'matrices', label: 'Dot Product', latex: '\\vec{u} \\cdot \\vec{v} = \\|\\vec{u}\\| \\|\\vec{v}\\| \\cos\\theta', desc: 'Inner product of two vectors' },
+  { cat: 'matrices', label: '3D Vector Cross Product', latex: '\\vec{u} \\times \\vec{v} = \\begin{vmatrix} \\mathbf{i} & \\mathbf{j} & \\mathbf{k} \\\\ u_1 & u_2 & u_3 \\\\ v_1 & v_2 & v_3 \\end{vmatrix}', desc: 'Orthogonal pseudovector determinant' },
   { cat: 'matrices', label: 'Matrix Transpose & Inverse', latex: '\\mathbf{A}^T \\quad \\mathbf{A}^{-1}', desc: 'Transposed and inverse matrix' },
 
   // --- GREEK ALPHABET ---
@@ -19349,15 +19367,19 @@ function renderMathTabContent() {
   container.innerHTML = `
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 font-mono">
       ${items.map(item => `
-        <div onclick="insertMathFormulaFromWorkbench('${escapeHtml(item.latex).replace(/'/g, "\\'")}')"
-             title="Click to insert into document"
-             class="math-symbol-card p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] cursor-pointer flex flex-col justify-between select-none">
-          <div class="min-h-[44px] flex items-center justify-center overflow-x-auto p-1 text-center">
+        <div class="math-symbol-card p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] flex flex-col justify-between select-none">
+          <div class="min-h-[46px] flex items-center justify-center overflow-x-auto p-1 text-center select-text cursor-pointer hover:bg-[var(--bg-canvas)]/50 rounded transition-colors"
+               data-math-raw="${escapeHtml(item.latex)}"
+               onclick="insertMathFormulaFromWorkbench('${escapeHtml(item.latex).replace(/'/g, "\\'")}')"
+               title="Click to insert into document">
             ${renderLatexToHtml(item.latex, false)}
           </div>
           <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between gap-1 text-[10px]">
-            <span class="font-semibold text-[var(--text-primary)] truncate">${escapeHtml(item.label)}</span>
-            <span class="text-[var(--accent-vermilion)] shrink-0 font-bold hover:underline">Insert →</span>
+            <span class="font-semibold text-[var(--text-primary)] truncate" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</span>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="copyMathSnippetToClipboard('${escapeHtml(item.latex).replace(/'/g, "\\'")}', false)" title="Copy real LaTeX ($...$)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">Copy</button>
+              <button type="button" onclick="insertMathFormulaFromWorkbench('${escapeHtml(item.latex).replace(/'/g, "\\'")}')" title="Insert into active note" class="px-1.5 py-0.5 rounded bg-[var(--accent-vermilion)] text-white font-medium hover:opacity-90 cursor-pointer">Insert →</button>
+            </div>
           </div>
         </div>
       `).join('')}
@@ -20096,6 +20118,138 @@ function renderMathSolverTab(container) {
   }, 10);
 }
 
+// =========================================================================
+// SMART MATH CLIPBOARD & REAL LATEX PRESERVATION ENGINE
+// =========================================================================
+function latexToCleanText(latex) {
+  if (!latex) return '';
+  return String(latex)
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
+    .replace(/\\sqrt\{([^{}]+)\}/g, '√($1)')
+    .replace(/\\approx/g, '≈')
+    .replace(/\\neq/g, '≠')
+    .replace(/\\le/g, '≤')
+    .replace(/\\ge/g, '≥')
+    .replace(/\\pm/g, '±')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\times/g, '×')
+    .replace(/\\div/g, '÷')
+    .replace(/\\pi/g, 'π')
+    .replace(/\\theta/g, 'θ')
+    .replace(/\\alpha/g, 'α')
+    .replace(/\\beta/g, 'β')
+    .replace(/\\gamma/g, 'γ')
+    .replace(/\\delta/g, 'δ')
+    .replace(/\\sigma/g, 'σ')
+    .replace(/\\lambda/g, 'λ')
+    .replace(/\\mu/g, 'μ')
+    .replace(/\\int_\{([^}]+)\}\^\{([^}]+)\}/g, '∫[$1 to $2]')
+    .replace(/\\int/g, '∫')
+    .replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '∑[$1 to $2]')
+    .replace(/\\sum/g, '∑')
+    .replace(/\\infty/g, '∞')
+    .replace(/\\left[\[\(\{]/g, '(')
+    .replace(/\\right[\]\)\}]/g, ')')
+    .replace(/\\quad/g, ' ')
+    .replace(/\\,/g, ' ')
+    .replace(/\\text\{([^}]+)\}/g, '$1')
+    .replace(/\^\{([^}]+)\}/g, '^($1)')
+    .replace(/_\{([^}]+)\}/g, '_($1)')
+    .replace(/\\mathbf\{([^}]+)\}/g, '$1')
+    .replace(/\\vec\{([^}]+)\}/g, '$1')
+    .replace(/\\[a-zA-Z]+/g, '')
+    .replace(/[{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function copyMathSnippetToClipboard(latex, asCleanText = false) {
+  if (!latex) return;
+  const raw = String(latex).trim();
+  const textToCopy = asCleanText
+    ? latexToCleanText(raw)
+    : (raw.startsWith('$') ? raw : `$${raw}$`);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      showToast(`Copied Real Math: ${textToCopy.slice(0, 36)}...`);
+      if (typeof pkHaptic === 'function') pkHaptic(10);
+    }).catch(() => fallbackCopy(textToCopy));
+  } else {
+    fallbackCopy(textToCopy);
+  }
+
+  function fallbackCopy(str) {
+    const ta = document.createElement('textarea');
+    ta.value = str;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(`Copied Real Math: ${str.slice(0, 36)}...`);
+  }
+}
+
+function renderSolverStepItem(s) {
+  const escaped = escapeHtml(s);
+  return `
+    <div class="group relative flex items-center justify-between p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto select-text" data-math-raw="${escaped}">
+      <div class="flex-1 min-w-0 pr-4">${renderLatexToHtml(s, false)}</div>
+      <div class="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+        <button type="button" onclick="copyMathSnippetToClipboard('${escaped.replace(/'/g, "\\'")}', false)" title="Copy Real LaTeX Math ($...$)" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
+          Copy
+        </button>
+        <button type="button" onclick="copyMathSnippetToClipboard('${escaped.replace(/'/g, "\\'")}', true)" title="Copy as Clean Readable Text" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">
+          Text
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Global copy event listener: intercepts clipboard copy when user highlights KaTeX math
+if (typeof document !== 'undefined') {
+  document.addEventListener('copy', (e) => {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      return;
+    }
+
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    const frag = range.cloneContents();
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(frag);
+
+    const mathEls = tempDiv.querySelectorAll('[data-math-raw], .math-inline-render, .math-display-render, .katex');
+    if (mathEls.length === 0) return;
+
+    mathEls.forEach(el => {
+      const raw = el.getAttribute('data-math-raw') ||
+                  el.closest('[data-math-raw]')?.getAttribute('data-math-raw');
+      if (raw) {
+        const isDisplay = el.classList.contains('math-display-render') || el.classList.contains('math-rendered-display');
+        const formatted = isDisplay ? `\n$$${raw}$$\n` : `$${raw}$`;
+        const textNode = document.createTextNode(formatted);
+        if (el.parentNode) el.parentNode.replaceChild(textNode, el);
+      }
+    });
+
+    const plainText = tempDiv.innerText || tempDiv.textContent;
+    if (plainText && e.clipboardData) {
+      e.clipboardData.setData('text/plain', plainText);
+      e.preventDefault();
+      if (typeof pkHaptic === 'function') pkHaptic(8);
+      showToast('Copied real math formula to clipboard');
+    }
+  });
+}
+
 function runSolverQuadratic() {
   const container = document.getElementById('solverQuadResult');
   if (!container) return;
@@ -20115,7 +20269,7 @@ function runSolverQuadratic() {
         </div>
         <div class="space-y-1 pt-1">
           <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Step-by-Step Derivation:</span>
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20143,7 +20297,7 @@ function runSolverLinear() {
         </div>
         <div class="space-y-1 pt-1">
           <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Step-by-Step Derivation:</span>
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20170,7 +20324,7 @@ function runSolverDerivative() {
         </div>
         <div class="space-y-1 pt-1">
           <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Calculus Derivation:</span>
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20200,7 +20354,7 @@ function runSolverIntegral() {
         </div>
         <div class="space-y-1 pt-1">
           <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Simpson's 1/3 Rule Steps:</span>
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20231,7 +20385,7 @@ function runSolverSystem2x2() {
         </div>
         <div class="space-y-1 pt-1">
           <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Cramer's Rule Determinants:</span>
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20259,7 +20413,7 @@ function runSolverMatrix2x2() {
           <button type="button" onclick="insertStoredSolverSteps('mat2')" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
         </div>
         <div class="space-y-1 pt-1">
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20289,7 +20443,7 @@ function runSolverVectors3D() {
           <button type="button" onclick="insertStoredSolverSteps('vec')" class="px-2.5 py-1 rounded bg-[var(--accent-ochre)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
         </div>
         <div class="space-y-1 pt-1">
-          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+          ${res.steps.map(s => renderSolverStepItem(s)).join('')}
         </div>
       </div>
     `;
@@ -20607,9 +20761,15 @@ function removeInlineMathWrapper() {
 function copyInlineMathLatex() {
   const input = document.getElementById('inlineMathPopoverInput');
   if (!input) return;
-  navigator.clipboard.writeText(input.value).then(() => {
-    showToast('Copied LaTeX to clipboard');
-  });
+  const val = input.value.trim();
+  const latex = val.startsWith('$') ? val : `$${val}$`;
+  copyMathSnippetToClipboard(latex, false);
+}
+
+function copyInlineMathText() {
+  const input = document.getElementById('inlineMathPopoverInput');
+  if (!input) return;
+  copyMathSnippetToClipboard(input.value.trim(), true);
 }
 
 function insertSymbolIntoInlineMath(snippet) {

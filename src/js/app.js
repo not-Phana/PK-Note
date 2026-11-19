@@ -17503,7 +17503,23 @@ function renderKanbanBoard() {
   if (!container) return;
   
   const filterSelect = document.getElementById('kanbanFolderFilter');
-  const filterFolder = filterSelect ? filterSelect.value : 'ALL';
+  let filterFolder = filterSelect ? filterSelect.value : 'ALL';
+  
+  // Dynamically synchronize all folders from user vault notes into filter dropdown
+  if (filterSelect && state && Array.isArray(state.notes)) {
+    const existingFolders = Array.from(new Set(state.notes.map(n => n.folder || 'General'))).filter(Boolean);
+    const standardFolders = ['General', 'Projects', 'Daily Logs', 'Reading'];
+    const allFolders = Array.from(new Set([...standardFolders, ...existingFolders]));
+    const folderKey = allFolders.slice().sort().join('|');
+    if (filterSelect.dataset.foldersLoaded !== folderKey) {
+      const prevVal = filterSelect.value || 'ALL';
+      filterSelect.innerHTML = `<option value="ALL">All Vault Notes</option>` +
+        allFolders.map(f => `<option value="${escapeHtml(f)}" ${f === prevVal ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
+      filterSelect.dataset.foldersLoaded = folderKey;
+      if (prevVal) filterSelect.value = prevVal;
+    }
+    filterFolder = filterSelect.value || 'ALL';
+  }
   
   const filteredNotes = filterFolder === 'ALL'
     ? state.notes

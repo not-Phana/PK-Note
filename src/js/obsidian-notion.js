@@ -97,8 +97,12 @@ function openNewTabNote() {
 }
 
 // ============================================================================
-// 2. OBSIDIAN SIDE-BY-SIDE SPLIT VIEW (DUAL LIVE NOTE EDITOR)
+// 2. OBSIDIAN SIDE-BY-SIDE SPLIT VIEW (DUAL LIVE NOTE EDITOR & MOBILE DUAL STUDIO)
 // ============================================================================
+let pkMobileSplitMode = 'tabs'; // 'tabs' (single active focused tab) or 'dual' (vertical 50/50 stacked)
+let pkMobileSplitActiveTab = 'primary'; // 'primary' or 'split'
+let pkSplitPreviewMode = false; // false = edit textarea, true = rendered rich markdown & math
+
 function toggleSplitNotePane(targetNoteId) {
   if (targetNoteId) {
     pkSplitNoteId = targetNoteId;
@@ -127,6 +131,33 @@ function setSplitPaneNote(noteId) {
   pkSplitNoteId = noteId;
   renderSplitNotePane();
   renderNoteTabsBar();
+  updateMobileSplitTitles();
+}
+
+function setMobileSplitTab(tab) {
+  pkMobileSplitActiveTab = tab;
+  applySplitPaneLayout();
+}
+
+function toggleMobileSplitDualMode() {
+  pkMobileSplitMode = pkMobileSplitMode === 'dual' ? 'tabs' : 'dual';
+  applySplitPaneLayout();
+}
+
+function setSplitPreviewMode(preview) {
+  pkSplitPreviewMode = !!preview;
+  const editBtn = document.getElementById('pkSplitModeEditBtn');
+  const prevBtn = document.getElementById('pkSplitModePrevBtn');
+  if (editBtn && prevBtn) {
+    if (pkSplitPreviewMode) {
+      prevBtn.className = 'px-2 py-0.5 font-mono text-[9.5px] bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
+      editBtn.className = 'px-2 py-0.5 font-mono text-[9.5px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer';
+    } else {
+      editBtn.className = 'px-2 py-0.5 font-mono text-[9.5px] bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
+      prevBtn.className = 'px-2 py-0.5 font-mono text-[9.5px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer';
+    }
+  }
+  renderSplitNotePane();
 }
 
 function swapSplitPaneNotes() {
@@ -134,6 +165,19 @@ function swapSplitPaneNotes() {
   const oldActive = state.activeNoteId;
   const nextActive = pkSplitNoteId;
   pkSplitNoteId = oldActive;
+
+  // Visual swap flash feedback
+  const docContainer = document.getElementById('documentContentContainer');
+  const splitPane = document.getElementById('pkSplitNotePane');
+  if (docContainer) {
+    docContainer.classList.add('split-swap-active');
+    setTimeout(() => docContainer.classList.remove('split-swap-active'), 260);
+  }
+  if (splitPane) {
+    splitPane.classList.add('split-swap-active');
+    setTimeout(() => splitPane.classList.remove('split-swap-active'), 260);
+  }
+
   if (typeof selectNote === 'function') selectNote(nextActive);
   applySplitPaneLayout();
 }
@@ -145,18 +189,125 @@ function focusSplitPaneAsPrimary() {
   if (typeof selectNote === 'function') selectNote(target);
 }
 
+function updateMobileSplitTitles() {
+  const pTitle = document.getElementById('pkMobileTabPrimaryTitle');
+  const sTitle = document.getElementById('pkMobileTabSplitTitle');
+  const primNote = (state && state.notes) ? state.notes.find(n => n.id === state.activeNoteId) : null;
+  const splitNote = (state && state.notes) ? state.notes.find(n => n.id === pkSplitNoteId) : null;
+  if (pTitle) pTitle.textContent = primNote ? (primNote.title || 'Untitled') : 'Primary';
+  if (sTitle) sTitle.textContent = splitNote ? (splitNote.title || 'Untitled') : 'Split Note';
+}
+
 function applySplitPaneLayout() {
   const layout = document.getElementById('pkEditorSplitGrid');
   const pane = document.getElementById('pkSplitNotePane');
-  if (!layout || !pane) return;
+  const docContainer = document.getElementById('documentContentContainer');
+  const mobileStrip = document.getElementById('pkMobileSplitStrip');
+  const dividerHandle = document.getElementById('pkSplitDividerHandle');
+  const tabPrimBtn = document.getElementById('pkMobileTabPrimary');
+  const tabSplitBtn = document.getElementById('pkMobileTabSplit');
+  const dualBtn = document.getElementById('pkMobileDualModeBtn');
+  const dualLabel = document.getElementById('pkMobileDualModeLabel');
+
+  if (!layout || !pane || !docContainer) return;
+
+  const isDesktop = window.innerWidth >= 1024;
+
   if (pkSplitPaneOpen) {
-    layout.classList.add('lg:grid', 'lg:grid-cols-2');
-    pane.classList.remove('hidden');
+    updateMobileSplitTitles();
+
+    if (isDesktop) {
+      // Desktop: Side-by-side 2-column grid
+      layout.classList.add('lg:grid', 'lg:grid-cols-2');
+      docContainer.classList.remove('hidden', 'pk-mobile-dual-pane');
+      pane.classList.remove('hidden', 'pk-mobile-dual-pane');
+      pane.classList.add('split-pane-anim-enter');
+      if (dividerHandle) dividerHandle.classList.remove('lg:hidden');
+      if (mobileStrip) mobileStrip.classList.add('hidden');
+    } else {
+      // Mobile / Tablet: Responsive Dual-Note Studio
+      layout.classList.remove('lg:grid', 'lg:grid-cols-2');
+      if (dividerHandle) dividerHandle.classList.add('lg:hidden');
+      if (mobileStrip) mobileStrip.classList.remove('hidden');
+
+      if (pkMobileSplitMode === 'tabs') {
+        // Solo Tab Mode (100% viewport width per note)
+        docContainer.classList.remove('pk-mobile-dual-pane');
+        pane.classList.remove('pk-mobile-dual-pane');
+
+        if (pkMobileSplitActiveTab === 'primary') {
+          docContainer.classList.remove('hidden');
+          pane.classList.add('hidden');
+        } else {
+          docContainer.classList.add('hidden');
+          pane.classList.remove('hidden');
+          pane.classList.add('split-pane-anim-enter');
+        }
+
+        if (tabPrimBtn && tabSplitBtn) {
+          if (pkMobileSplitActiveTab === 'primary') {
+            tabPrimBtn.className = 'flex-1 min-w-0 px-2 py-1 rounded-[4px] font-mono text-[10.5px] truncate text-center transition-all bg-[var(--accent-vermilion)] text-white font-medium shadow-xs flex items-center justify-center gap-1 cursor-pointer';
+            tabSplitBtn.className = 'flex-1 min-w-0 px-2 py-1 rounded-[4px] font-mono text-[10.5px] truncate text-center transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1 cursor-pointer';
+          } else {
+            tabSplitBtn.className = 'flex-1 min-w-0 px-2 py-1 rounded-[4px] font-mono text-[10.5px] truncate text-center transition-all bg-[var(--accent-vermilion)] text-white font-medium shadow-xs flex items-center justify-center gap-1 cursor-pointer';
+            tabPrimBtn.className = 'flex-1 min-w-0 px-2 py-1 rounded-[4px] font-mono text-[10.5px] truncate text-center transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1 cursor-pointer';
+          }
+        }
+        if (dualLabel) dualLabel.textContent = 'Dual';
+        if (dualBtn) dualBtn.className = 'px-2 py-1 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1';
+      } else {
+        // Vertical 50/50 Dual Stack Mode on mobile
+        docContainer.classList.remove('hidden');
+        docContainer.classList.add('pk-mobile-dual-pane');
+        pane.classList.remove('hidden');
+        pane.classList.add('pk-mobile-dual-pane', 'split-pane-anim-enter');
+
+        if (dualLabel) dualLabel.textContent = 'Solo';
+        if (dualBtn) dualBtn.className = 'px-2 py-1 rounded-[4px] bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer flex items-center gap-1';
+      }
+    }
     renderSplitNotePane();
   } else {
     layout.classList.remove('lg:grid', 'lg:grid-cols-2');
-    pane.classList.add('hidden');
+    docContainer.classList.remove('hidden', 'pk-mobile-dual-pane');
+    pane.classList.add('hidden', 'pk-mobile-dual-pane');
+    pane.classList.remove('split-pane-anim-enter');
+    if (dividerHandle) dividerHandle.classList.add('lg:hidden');
+    if (mobileStrip) mobileStrip.classList.add('hidden');
   }
+}
+
+// Window resize listener to keep split layout synchronized across mobile & desktop
+if (typeof window !== 'undefined') {
+  let pkSplitResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(pkSplitResizeTimer);
+    pkSplitResizeTimer = setTimeout(() => {
+      if (pkSplitPaneOpen) applySplitPaneLayout();
+    }, 150);
+  });
+}
+
+function renderSplitPreviewHTML(note) {
+  if (!note || !Array.isArray(note.blocks) || note.blocks.length === 0) {
+    return '<div class="text-[var(--text-tertiary)] font-mono text-xs italic py-6 text-center">Empty note · Click Edit to add content</div>';
+  }
+  return note.blocks.map(b => {
+    const rawContent = b.content || '';
+    const rich = typeof renderRichBlockHTML === 'function' ? renderRichBlockHTML(rawContent) : escapeHtml(rawContent);
+    if (b.type === 'h1') return `<h1 class="font-serif text-2xl font-bold text-[var(--text-primary)] mt-4 mb-2 leading-tight">${rich}</h1>`;
+    if (b.type === 'h2') return `<h2 class="font-serif text-xl font-semibold text-[var(--text-primary)] mt-3 mb-1.5 leading-snug">${rich}</h2>`;
+    if (b.type === 'h3') return `<h3 class="font-serif text-lg font-medium text-[var(--text-primary)] mt-2.5 mb-1 leading-snug">${rich}</h3>`;
+    if (b.type === 'todo') {
+      const checked = !!b.checked;
+      return `<div class="flex items-start gap-2 my-1 text-[var(--text-primary)]"><span class="font-mono text-xs ${checked ? 'text-emerald-500' : 'text-[var(--text-tertiary)]'} shrink-0">[${checked ? '✓' : ' '}]</span><span class="${checked ? 'line-through opacity-70' : ''}">${rich}</span></div>`;
+    }
+    if (b.type === 'bullet') return `<div class="flex items-start gap-2 my-1 text-[var(--text-primary)]"><span class="text-[var(--accent-vermilion)] shrink-0">•</span><span>${rich}</span></div>`;
+    if (b.type === 'quote') return `<blockquote class="border-l-2 border-[var(--accent-vermilion)] pl-3 my-2 text-[var(--text-secondary)] italic">${rich}</blockquote>`;
+    if (b.type === 'callout') return `<div class="p-2.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] my-2 text-[var(--text-primary)] text-xs">${rich}</div>`;
+    if (b.type === 'divider') return `<hr class="my-3 border-[var(--border-hairline)]" />`;
+    return `<p class="my-1.5 text-[14px] leading-relaxed text-[var(--text-primary)]">${rich || '&nbsp;'}</p>`;
+  }).join('');
 }
 
 function noteBlocksToEditableText(note) {
@@ -228,14 +379,26 @@ function renderSplitNotePane() {
     metaEl.textContent = `${activeSplitNote.folder || 'General'}${status} · ${(activeSplitNote.tags || []).map(t => '#' + t).join(' ') || 'No tags'}`;
   }
 
+  const previewEl = document.getElementById('pkSplitPreviewArea');
+
   if (activeSplitNote.encryptedPayload) {
     bodyEl.classList.add('hidden');
+    if (previewEl) previewEl.classList.add('hidden');
     if (lockMsg) lockMsg.classList.remove('hidden');
   } else {
-    bodyEl.classList.remove('hidden');
     if (lockMsg) lockMsg.classList.add('hidden');
-    if (document.activeElement !== bodyEl) {
-      bodyEl.value = noteBlocksToEditableText(activeSplitNote);
+    if (pkSplitPreviewMode) {
+      bodyEl.classList.add('hidden');
+      if (previewEl) {
+        previewEl.classList.remove('hidden');
+        previewEl.innerHTML = renderSplitPreviewHTML(activeSplitNote);
+      }
+    } else {
+      if (previewEl) previewEl.classList.add('hidden');
+      bodyEl.classList.remove('hidden');
+      if (document.activeElement !== bodyEl) {
+        bodyEl.value = noteBlocksToEditableText(activeSplitNote);
+      }
     }
   }
 }

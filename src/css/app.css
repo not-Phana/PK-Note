@@ -420,6 +420,16 @@ body {
   user-select: text !important;
 }
 
+/* =========================================================================
+   FORM CONTROLS & NATIVE SELECT THEME HARMONIZATION (CONTRAST & ERGONOMICS)
+   ========================================================================= */
+:root, html.dark {
+  color-scheme: dark;
+}
+html:not(.dark) {
+  color-scheme: light;
+}
+
 /* Native date/time picker theme harmonization */
 html.dark input[type="date"],
 html.dark input[type="datetime-local"] {
@@ -428,6 +438,66 @@ html.dark input[type="datetime-local"] {
 html:not(.dark) input[type="date"],
 html:not(.dark) input[type="datetime-local"] {
   color-scheme: light;
+}
+
+/* Universal Select Harmonization — Eliminates unreadable white-on-white popups */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hairline);
+  border-radius: 4px;
+  padding: 4px 24px 4px 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888894' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 11px 11px;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  outline: none !important;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+select:hover {
+  border-color: var(--border-strong);
+}
+
+select:focus, select:focus-visible {
+  outline: none !important;
+  border-color: var(--accent-vermilion) !important;
+  box-shadow: 0 0 0 1.5px var(--accent-vermilion-tint, rgba(217, 79, 44, 0.25)) !important;
+}
+
+/* Explicit OS Dropdown Popup Theme, Background & High Contrast for Options */
+html.dark select,
+html.dark select option,
+html.dark select optgroup {
+  color-scheme: dark !important;
+  background-color: #1a1a1f !important;
+  color: #f4f4f7 !important;
+}
+
+html:not(.dark) select,
+html:not(.dark) select option,
+html:not(.dark) select optgroup {
+  color-scheme: light !important;
+  background-color: #ffffff !important;
+  color: #18181b !important;
+}
+
+select option {
+  padding: 8px 12px;
+  background-color: var(--bg-panel) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans);
+}
+
+select option:checked {
+  background-color: var(--accent-vermilion) !important;
+  color: #ffffff !important;
 }
 
 /* =========================================================================
@@ -1335,4 +1405,73 @@ html.dark .banner-preset-vellum {
 .math-subtab-btn:not(.active):hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+/* =========================================================================
+   SPLIT SCREEN DUAL-NOTE WORKSPACE & ANIMATIONS
+   ========================================================================= */
+
+@keyframes splitSlideInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(24px, 0, 0) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes splitSlideInUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes splitSwapFlash {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.split-pane-anim-enter {
+  animation: splitSlideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@media (max-width: 1023px) {
+  .split-pane-anim-enter {
+    animation: splitSlideInUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+.split-swap-active {
+  animation: splitSwapFlash 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Mobile Dual-Note Vertical Split Mode */
+.pk-mobile-dual-pane {
+  max-height: 48vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Kanban Mobile Touch Snapping */
+#kanbanColumnsContainer {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+#kanbanColumnsContainer > div {
+  scroll-snap-align: start;
 }

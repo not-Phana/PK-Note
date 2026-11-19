@@ -1,3 +1,23 @@
+// Global Resilience & Anti-Crash Safety Net
+window.addEventListener('error', (e) => {
+  if (e && e.message && (
+    e.message.includes('ResizeObserver') ||
+    e.message.includes('Script error') ||
+    e.message.includes('AudioContext') ||
+    e.message.includes('extension')
+  )) {
+    e.preventDefault();
+  }
+});
+window.addEventListener('unhandledrejection', (e) => {
+  if (e && e.reason) {
+    const reasonStr = String(e.reason?.message || e.reason || '');
+    if (reasonStr.includes('Failed to fetch') || reasonStr.includes('NetworkError') || reasonStr.includes('AbortError')) {
+      e.preventDefault();
+    }
+  }
+});
+
 // =========================================================================
 // 1. UNIFORM 1.5PX STROKE MONOCHROME SVG ICON REGISTRY (ZERO EMOJIS)
 // =========================================================================
@@ -20038,8 +20058,8 @@ function handleVisualMathInput(blockId) {
   const numLen = Math.max(28, Math.max((vTop.value || '1').length, (vBottom.value || '2').length) * 11 + 10);
   vTop.style.width = `${numLen}px`;
   vBottom.style.width = `${numLen}px`;
-  if (vPrefix) vPrefix.style.width = `${Math.max(34, (vPrefix.value.length + 1) * 11)}px`;
-  if (vSuffix) vSuffix.style.width = `${Math.max(34, (vSuffix.value.length + 1) * 11)}px`;
+  if (vPrefix) vPrefix.style.width = `${Math.max(34, ((vPrefix.value || '').length + 1) * 11)}px`;
+  if (vSuffix) vSuffix.style.width = `${Math.max(34, ((vSuffix.value || '').length + 1) * 11)}px`;
 
   let prefix = vPrefix ? vPrefix.value : '';
   let num = vTop.value || '1';
@@ -20418,6 +20438,8 @@ function closeSmartDrawModal(e) {
   const modal = document.getElementById('smartDrawModal');
   if (modal) modal.classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
+  smartDrawCurrentStroke = null;
+  smartDrawActivePointerId = null;
   smartDrawCanvasRect = null;
   clearTimeout(smartDrawRecognizeTimer);
   if (smartDrawNeuralAbortController) {
@@ -20570,13 +20592,15 @@ function clearSmartDrawCanvas() {
 let smartDrawCanvasRect = null;
 let smartDrawRecognizeTimer = null;
 
+let smartDrawActivePointerId = null;
+
 function resizeSmartDrawCanvas() {
   const canvas = document.getElementById('smartDrawCanvas');
   const wrapper = document.getElementById('sdCanvasWrapper');
   if (!canvas || !wrapper) return;
 
-  const w = wrapper.clientWidth || 800;
-  const h = wrapper.clientHeight || 450;
+  const w = Math.max(100, Math.min(wrapper.clientWidth || 800, 4000));
+  const h = Math.max(100, Math.min(wrapper.clientHeight || 450, 4000));
   if (w <= 0 || h <= 0) return;
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -20625,15 +20649,20 @@ function initSmartDrawCanvas() {
     if (!smartDrawCanvasRect) {
       smartDrawCanvasRect = canvas.getBoundingClientRect();
     }
+    const clientX = e.clientX !== undefined ? e.clientX : 0;
+    const clientY = e.clientY !== undefined ? e.clientY : 0;
     return {
-      x: e.clientX - smartDrawCanvasRect.left,
-      y: e.clientY - smartDrawCanvasRect.top,
+      x: clientX - (smartDrawCanvasRect?.left || 0),
+      y: clientY - (smartDrawCanvasRect?.top || 0),
       t: Date.now()
     };
   };
 
   canvas.addEventListener('pointerdown', (e) => {
+    if (smartDrawActivePointerId !== null && e.pointerId !== smartDrawActivePointerId) return;
+    if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
+    smartDrawActivePointerId = e.pointerId;
     smartDrawCanvasRect = canvas.getBoundingClientRect();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
 
@@ -20678,12 +20707,19 @@ function initSmartDrawCanvas() {
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!smartDrawCurrentStroke) return;
+    if (!smartDrawCurrentStroke || (smartDrawActivePointerId !== null && e.pointerId !== smartDrawActivePointerId)) return;
     e.preventDefault();
     const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
     const bg = isDark ? '#141417' : '#ffffff';
 
-    const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
+    let events = [e];
+    try {
+      if (typeof e.getCoalescedEvents === 'function') {
+        const coalesced = e.getCoalescedEvents();
+        if (coalesced && coalesced.length > 0) events = coalesced;
+      }
+    } catch (err) {}
+
     const pts = smartDrawCurrentStroke.points;
 
     smartDrawCtx.save();
@@ -20718,6 +20754,8 @@ function initSmartDrawCanvas() {
   });
 
   const finishStroke = (e) => {
+    if (e && e.pointerId !== undefined && smartDrawActivePointerId !== null && e.pointerId !== smartDrawActivePointerId) return;
+    smartDrawActivePointerId = null;
     if (smartDrawCurrentStroke) {
       smartDrawCurrentStroke = null;
       smartDrawCanvasRect = null;
@@ -20733,6 +20771,8 @@ function initSmartDrawCanvas() {
 
   canvas.addEventListener('pointerup', finishStroke);
   canvas.addEventListener('pointercancel', finishStroke);
+  window.addEventListener('pointerup', finishStroke);
+  window.addEventListener('blur', finishStroke);
 }
 
 function redrawSmartDrawCanvas() {
@@ -20843,11 +20883,12 @@ function detectLoops(points) {
   let hasClosedStartEnd = false;
   let hasSelfIntersection = false;
   let loopCenter = null;
+  if (!points || !Array.isArray(points) || points.length < 6) return { hasLoop: false };
   const n = points.length;
-  if (n < 6) return { hasLoop: false };
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of points) {
+    if (!p) continue;
     minX = Math.min(minX, p.x);
     maxX = Math.max(maxX, p.x);
     minY = Math.min(minY, p.y);
@@ -20858,6 +20899,7 @@ function detectLoops(points) {
 
   const start = points[0];
   const end = points[n - 1];
+  if (!start || !end) return { hasLoop: false };
   const seDist = Math.hypot(end.x - start.x, end.y - start.y);
 
   if (seDist < Math.max(w, h) * 0.32 && n > 8) {
@@ -20866,9 +20908,11 @@ function detectLoops(points) {
   }
 
   function ccw(A, B, C) {
+    if (!A || !B || !C || typeof A.x !== 'number' || typeof B.x !== 'number' || typeof C.x !== 'number') return false;
     return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
   }
   function intersect(A, B, C, D) {
+    if (!A || !B || !C || !D) return false;
     return ccw(A, C, D) !== ccw(B, C, D) && ccw(A, B, C) !== ccw(A, B, D);
   }
 
@@ -20878,12 +20922,14 @@ function detectLoops(points) {
       if (intersect(points[i], points[i + step] || points[n-1], points[j], points[j + step] || points[n-1])) {
         hasSelfIntersection = true;
         let lx = 0, ly = 0, count = 0;
-        for (let k = i; k <= j; k++) {
-          lx += points[k].x;
-          ly += points[k].y;
-          count++;
+        for (let k = i; k <= j && k < n; k++) {
+          if (points[k]) {
+            lx += points[k].x;
+            ly += points[k].y;
+            count++;
+          }
         }
-        loopCenter = { x: lx / count, y: ly / count };
+        loopCenter = count > 0 ? { x: lx / count, y: ly / count } : null;
         break;
       }
     }
@@ -20901,7 +20947,15 @@ function detectLoops(points) {
 }
 
 function classifyGlyph(g) {
+  if (!g || !g.strokes || g.strokes.length === 0) return { char: '?', candidates: ['?'] };
   const sCount = g.strokes.length;
+
+  if (sCount >= 4) {
+    if (smartDrawMode === 'text') {
+      return { char: 'W', candidates: ['W', 'M', 'B', '#'] };
+    }
+    return { char: '#', candidates: ['#', '*', '8', 'B'] };
+  }
 
   // 3-Stroke Characters (K, N, H, A, π, ÷, etc.)
   if (sCount === 3) {
@@ -20910,16 +20964,16 @@ function classifyGlyph(g) {
     const s3 = g.strokes[2];
 
     // Letter K: one stroke is vertical (left stem), other two are diagonal arms meeting near center
-    const hasVertStem = g.strokes.some(s => s.isVert || s.h > s.w * 1.3);
+    const hasVertStem = g.strokes.some(s => s && (s.isVert || s.h > s.w * 1.3));
     if (hasVertStem) {
-      const vert = g.strokes.find(s => s.isVert || s.h > s.w * 1.3);
+      const vert = g.strokes.find(s => s && (s.isVert || s.h > s.w * 1.3));
       const others = g.strokes.filter(s => s !== vert);
-      if (others.length === 2 && others.every(s => s.minX >= vert.minX - 6)) {
+      if (others.length === 2 && others.every(s => s && s.minX >= vert.minX - 6)) {
         return { char: 'K', candidates: ['K', 'k', 'X', '1<'] };
       }
       // Letter H: two vertical stems + one horizontal crossbar between them
-      const verts = g.strokes.filter(s => s.isVert || s.h > s.w * 1.3);
-      const horiz = g.strokes.find(s => s.isHoriz || s.w > s.h * 1.2);
+      const verts = g.strokes.filter(s => s && (s.isVert || s.h > s.w * 1.3));
+      const horiz = g.strokes.find(s => s && (s.isHoriz || s.w > s.h * 1.2));
       if (verts.length >= 2 && horiz) {
         return { char: 'H', candidates: ['H', 'h', 'n', '#'] };
       }
@@ -20933,10 +20987,10 @@ function classifyGlyph(g) {
     }
 
     // Letter A: 2 diagonal strokes meeting near top apex + 1 horizontal crossbar
-    const horizBar = g.strokes.find(s => s.isHoriz || s.w > s.h * 1.2);
+    const horizBar = g.strokes.find(s => s && (s.isHoriz || s.w > s.h * 1.2));
     if (horizBar) {
       const others = g.strokes.filter(s => s !== horizBar);
-      if (others.length === 2 && Math.abs(others[0].start.x - others[1].start.x) < g.w * 0.45 && Math.abs(others[0].start.y - others[1].start.y) < 15) {
+      if (others.length === 2 && others[0]?.start && others[1]?.start && Math.abs(others[0].start.x - others[1].start.x) < g.w * 0.45 && Math.abs(others[0].start.y - others[1].start.y) < 15) {
         return { char: 'A', candidates: ['A', 'a', '4'] };
       }
     }
@@ -21083,12 +21137,12 @@ function classifyGlyph(g) {
     let topMaxIdx = -1;
     const searchLimit = Math.floor(n * 0.7);
     for (let i = 0; i < searchLimit; i++) {
-      if (pts[i].x > topMaxX) {
+      if (pts[i] && pts[i].x > topMaxX) {
         topMaxX = pts[i].x;
         topMaxIdx = i;
       }
     }
-    if (topMaxX > g.minX + g.w * 0.52 && pts[topMaxIdx].y < g.minY + g.h * 0.5) {
+    if (topMaxIdx >= 0 && pts[topMaxIdx] && topMaxX > g.minX + g.w * 0.52 && pts[topMaxIdx].y < g.minY + g.h * 0.5) {
       return { char: '7', candidates: ['7', '1', '>', 'z'] };
     }
   }
@@ -21099,7 +21153,7 @@ function classifyGlyph(g) {
   }
 
   // Square Root (√): starts with small dip/hook, sharp descent to lowest point, sharp ascent to top-right
-  if (lowestPt.x > start.x && lowestPt.x < end.x && lowestPt.y - start.y > 8 && lowestPt.y - end.y > 10) {
+  if (lowestPt && start && end && lowestPt.x > start.x && lowestPt.x < end.x && lowestPt.y - start.y > 8 && lowestPt.y - end.y > 10) {
     return { char: '√', candidates: ['√', 'v', 'r'] };
   }
 
@@ -21114,10 +21168,12 @@ function classifyGlyph(g) {
   }
 
   // Parentheses ( )
-  if (s.h > s.w * 1.5) {
+  if (s.h > s.w * 1.5 && start && end) {
     const midPt = pts[Math.floor(n / 2)];
-    if (midPt.x < start.x - 3 && midPt.x < end.x - 3) return { char: '(', candidates: ['(', '<', 'c'] };
-    if (midPt.x > start.x + 3 && midPt.x > end.x + 3) return { char: ')', candidates: [')', '>', ']'] };
+    if (midPt) {
+      if (midPt.x < start.x - 3 && midPt.x < end.x - 3) return { char: '(', candidates: ['(', '<', 'c'] };
+      if (midPt.x > start.x + 3 && midPt.x > end.x + 3) return { char: ')', candidates: [')', '>', ']'] };
+    }
   }
 
   // Variable y: descends below start and ends with leftward or downward tail
@@ -21369,10 +21425,12 @@ async function runNeuralHandwritingRecognition(validStrokes) {
     }
   } catch (err) {
     clearTimeout(timeoutId);
-    if (signal.aborted) return;
+    if (smartDrawNeuralAbortController && smartDrawNeuralAbortController.signal !== signal) return;
+  } finally {
+    clearTimeout(timeoutId);
   }
 
-  if (engineBadge) {
+  if (engineBadge && (!smartDrawNeuralAbortController || smartDrawNeuralAbortController.signal === signal)) {
     engineBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span><span>Local AI</span>';
     engineBadge.className = 'px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 font-mono text-[9px] text-blue-400 flex items-center gap-1';
   }
@@ -21390,12 +21448,7 @@ function rebuildFormulaFromGlyphs() {
     const denText = smartDrawFractionBar.below.map(g => g.char).join('');
     const afterText = formatGlyphsSequence(afterFrac);
 
-    const fracStr = (numText === '1' && denText === '2') ? '½'
-      : (numText === '1' && denText === '4') ? '¼'
-      : (numText === '3' && denText === '4') ? '¾'
-      : (numText === '1' && denText === '3') ? '⅓'
-      : (numText === '2' && denText === '3') ? '⅔'
-      : `(${numText})/(${denText})`;
+    const fracStr = (numText && denText) ? `${numText}/${denText}` : (numText || denText || '');
 
     smartDrawRecognizedFormula = [beforeText, fracStr, afterText].filter(Boolean).join(' ');
   } else {

@@ -3252,7 +3252,6 @@ function renderSingleBlockHTML(block) {
       const isEditing = block.isEditing === true;
       const mathFormula = block.content || 'x^2 + 1/2 = 4';
       const renderedHtml = renderLatexToHtml(mathFormula, true);
-      const fracParts = parseFractionParts(mathFormula) || { prefix: '', num: '1', den: '2', suffix: '' };
       innerBlock = `
         <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden group/math">
           <!-- Top Header -->
@@ -3265,10 +3264,14 @@ function renderSingleBlockHTML(block) {
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
-              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy Math Formula" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              <button type="button" onclick="copyMathBlockAsImage('${block.id}')" title="Copy exact visual equation as PNG image" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white hover:opacity-90 text-[10px] font-semibold cursor-pointer flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span>COPY</span>
               </button>
-              <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula Without Code" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
+              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy math text" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                <span>TEXT</span>
+              </button>
+              <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
               <button type="button" onclick="deleteBlock('${block.id}')" title="Delete this equation block" class="hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded text-[var(--text-tertiary)] transition-colors cursor-pointer text-[10px] flex items-center gap-0.5">
                 <svg class="w-3 h-3 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 <span class="text-rose-400 font-medium">REMOVE</span>
@@ -3277,135 +3280,43 @@ function renderSingleBlockHTML(block) {
           </div>
           
           <!-- Rendered Formula View -->
-          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit formula (no code needed)" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/20 transition-colors min-h-[56px] flex items-center justify-center">
+          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit formula" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/20 transition-colors min-h-[56px] flex items-center justify-center">
             <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full" data-math-raw="${escapeHtml(mathFormula)}">${renderedHtml}</div>
           </div>
 
-          <!-- Easy Visual Math Editor (Zero Code Needed!) -->
+          <!-- Clean & Simple Math Editor -->
           <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-3 space-y-2.5">
             <div class="flex items-center justify-between text-[11px] pb-1 border-b border-[var(--border-hairline)]">
-              <span class="font-medium text-[var(--text-secondary)]">Fill in boxes or tap buttons (zero code needed)</span>
+              <span class="font-medium text-[var(--text-secondary)]">Formula</span>
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="toggleMathWizard('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--accent-ochre)] font-semibold cursor-pointer flex items-center gap-1">
-                  <span>✨ Fill-in Box</span>
-                </button>
                 <button type="button" onclick="clearMathBlock('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Clear</button>
                 <button type="button" onclick="deleteBlock('${block.id}')" class="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-[10px] text-rose-400 hover:text-rose-300 font-semibold cursor-pointer flex items-center gap-1" title="Delete block from note">
-                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   <span>Delete</span>
                 </button>
                 <button type="button" onclick="toggleMathBlockEditMode('${block.id}', false)" class="px-2.5 py-0.5 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Done</button>
               </div>
             </div>
 
-            <!-- Visual Fill-in Fraction & Math Builder (Clean & Easy!) -->
-            <div id="mathWizard_${block.id}" class="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2">
-              <div class="flex items-center justify-between text-[11px]">
-                <div class="flex items-center gap-1.5 font-semibold text-[var(--accent-vermilion)]">
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16"/></svg>
-                  <span>Fill-in Fraction (Top ÷ Bottom)</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <button type="button" onclick="setVisualFractionSample('${block.id}', 'sqrt(x)', 'b')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">√x / b</button>
-                  <button type="button" onclick="setVisualFractionSample('${block.id}', '1', '2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">1 / 2</button>
-                  <button type="button" onclick="setVisualFractionSample('${block.id}', 'x^2', '2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">x² / 2</button>
-                </div>
-              </div>
-
-              <!-- Interactive Stacked Fraction Box -->
-              <div class="p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col items-center gap-1.5 shadow-sm">
-                <!-- Top Box (Numerator) -->
-                <div class="w-full flex items-center gap-2">
-                  <span class="text-[11px] font-mono font-medium text-[var(--accent-vermilion)] w-14 text-right shrink-0">Top:</span>
-                  <input
-                    type="text"
-                    id="vTop_${block.id}"
-                    oninput="updateMathFromVisual('${block.id}')"
-                    value="${escapeHtml(fracParts.num || '1')}"
-                    placeholder="e.g. sqrt(x), 1, x^2"
-                    class="flex-1 px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs font-mono text-[var(--text-primary)] focus:border-[var(--accent-vermilion)] focus:outline-none"
-                  />
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vTop', 'sqrt(x)')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">√x</button>
-                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vTop', 'x^2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">x²</button>
-                  </div>
-                </div>
-
-                <!-- Fraction Line -->
-                <div class="w-full h-[2px] bg-[var(--accent-vermilion)] rounded my-0.5"></div>
-
-                <!-- Bottom Box (Denominator) -->
-                <div class="w-full flex items-center gap-2">
-                  <span class="text-[11px] font-mono font-medium text-[var(--text-secondary)] w-14 text-right shrink-0">Bottom:</span>
-                  <input
-                    type="text"
-                    id="vBottom_${block.id}"
-                    oninput="updateMathFromVisual('${block.id}')"
-                    value="${escapeHtml(fracParts.den || '2')}"
-                    placeholder="e.g. b, 2, 2a, x"
-                    class="flex-1 px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs font-mono text-[var(--text-primary)] focus:border-[var(--accent-vermilion)] focus:outline-none"
-                  />
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vBottom', 'b')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">b</button>
-                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vBottom', '2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">2</button>
-                  </div>
-                </div>
-
-                <!-- Before & After Expression -->
-                <div class="w-full pt-1.5 mt-0.5 border-t border-[var(--border-hairline)] flex items-center gap-2">
-                  <input
-                    type="text"
-                    id="vPrefix_${block.id}"
-                    oninput="updateMathFromVisual('${block.id}')"
-                    value="${escapeHtml(fracParts.prefix || '')}"
-                    placeholder="Before (e.g. x^2 + )"
-                    class="w-1/2 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-[10.5px] text-[var(--text-secondary)] focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    id="vSuffix_${block.id}"
-                    oninput="updateMathFromVisual('${block.id}')"
-                    value="${escapeHtml(fracParts.suffix || '')}"
-                    placeholder="After (e.g. = 4)"
-                    class="w-1/2 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-[10.5px] text-[var(--text-secondary)] focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Natural Math Input Box -->
-            <div class="space-y-1">
-              <div class="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
-                <span>Direct formula expression:</span>
-              </div>
-              <input
-                type="text"
-                id="mathInput_${block.id}"
-                data-block-id="${block.id}"
-                spellcheck="false"
-                value="${escapeHtml(block.content || '')}"
-                oninput="handleMathBlockInput(event, '${block.id}')"
-                onkeydown="handleMathBlockKeydown(event, '${block.id}')"
-                placeholder="e.g. 1/2 + x^2 = 5 or sqrt(x) + 3 or (-b +- sqrt(D))/(2a)"
-                class="w-full px-3 py-1.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] transition-all"
-              />
-            </div>
+            <!-- Single Clean Input -->
+            <input
+              type="text"
               id="mathInput_${block.id}"
               data-block-id="${block.id}"
               spellcheck="false"
               value="${escapeHtml(block.content || '')}"
               oninput="handleMathBlockInput(event, '${block.id}')"
               onkeydown="handleMathBlockKeydown(event, '${block.id}')"
-              placeholder="e.g. 1/2 + x^2 = 5 or sqrt(x) + 3 or (-b +- sqrt(D))/(2a)"
+              placeholder="e.g. x^2 + 1/2 = 4 or (sqrt(x))/b"
               class="w-full px-3 py-2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] transition-all"
             />
 
-            <!-- Visual Math Keypad (1-Tap Buttons) -->
+            <!-- 1-Tap Keypad Buttons (ZERO EMOJIS) -->
             <div class="space-y-1.5 pt-0.5 select-none">
               <!-- Row 1: Structures -->
               <div class="flex flex-wrap items-center gap-1">
                 <span class="text-[9.5px] font-mono text-[var(--text-tertiary)] uppercase mr-1">Structure:</span>
-                <button type="button" onclick="insertEasyMathToken('${block.id}', 'frac')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">➗ a/b</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'frac')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">a/b</button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'pow2')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">x²</button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'powN')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">xⁿ</button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'sqrt')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">√x</button>
@@ -19926,16 +19837,14 @@ function insertEasyMathToken(blockId, token) {
 
   switch (token) {
     case 'frac':
-      openMathVisualFraction(blockId);
       if (sel) {
-        const topInput = document.getElementById(`vTop_${blockId}`);
-        if (topInput) {
-          topInput.value = sel;
-          updateMathFromVisual(blockId);
-        }
+        insertion = `(${sel})/2`;
+        selOffset = insertion.length;
+      } else {
+        insertion = `1/2`;
+        selOffset = 3;
       }
-      showToast('Type Top & Bottom of fraction');
-      return;
+      break;
     case 'pow2':
       if (sel) {
         insertion = `${sel}^2`;

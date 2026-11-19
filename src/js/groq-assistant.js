@@ -1742,8 +1742,8 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
   const parts = [
     'You are the built-in AI helper inside PK Note.',
     `Today's date is ${todayIso}.`,
-    'Tone: Talk like a smart, chill friend — natural, relaxed, and straightforward. Do NOT sound corporate, overly formal, robotic, or like a textbook. Skip stiff filler phrases like "Certainly!", "I would be happy to assist", or "Here is a comprehensive breakdown". Match the user\'s energy and keep replies simple and conversational. Only use headings or bullet points when they actually make the answer easier to read, not by default. Never use emojis.',
-    'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
+    'Tone & Persona: Communicate naturally and directly, like a sharp, professional colleague in a focused conversation. Avoid sounding like a formulaic AI chatbot: do not use robotic greetings, canned flattery, repetitive filler, or rigid textbook structures. Write with clarity, nuance, and professional substance without being stiff, corporate, or overly academic. Use formatting only when it genuinely improves readability. Never use emojis.',
+    'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
     'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```'
   ];
@@ -2449,17 +2449,17 @@ function runGroqQuickAction(kind) {
 
   if (kind === 'polish' && currentSel) {
     setAiTarget(currentSel, currentBlockId);
-    sendGroqPrompt('Polish and improve the selected text so it reads smoothly, clearly, and naturally without stiff jargon. Return ONLY the polished replacement text.');
+    sendGroqPrompt('Polish and refine the selected text so it reads naturally, clearly, and professionally, like authentic human prose. Eliminate awkward phrasing and stiff clichés while preserving the original intent. Return ONLY the polished replacement text.');
     return;
   }
 
   const prompts = {
-    summarize: 'Give me a quick, easy-to-read summary of my note in plain language.',
-    polish: 'Clean up my note so it reads smoothly and naturally, without making it sound stiff or overly formal. Keep my voice and return just the updated text.',
-    todos: 'Pull out the things I need to do from my note as a simple checkbox list (- [ ] ...).',
-    flashcards: 'Turn the main ideas from my note into 5 clear study flashcards. Put each one on its own line as: Question :: Answer',
-    continue: 'Keep writing the next 1-2 paragraphs of my note in the same natural voice and direction.',
-    schedule: 'Look over my upcoming schedule and notes, and help me lay out a realistic, chill plan for today.'
+    summarize: 'Provide a concise, thoughtful summary of this note. Focus on the core ideas directly and clearly, without generic AI boilerplate.',
+    polish: 'Polish this note so it reads naturally, clearly, and professionally. Smooth out awkward sentences and eliminate stiff phrasing while keeping the original voice and meaning intact. Return ONLY the updated text.',
+    todos: 'Extract actionable items from this note as a clean checkbox list (- [ ] ...). Keep each task clear and concise.',
+    flashcards: 'Extract key concepts from this note into clear, effective study flashcards. Format each on its own line as: Question :: Answer',
+    continue: 'Continue writing the next 1-2 paragraphs seamlessly in the same natural, professional voice and train of thought.',
+    schedule: 'Review my schedule and notes, and synthesize a clear, realistic plan for today.'
   };
   if (kind === 'schedule') setGroqContextScope('vault');
   else if (pkGroqContextScope === 'general') setGroqContextScope('note');

@@ -493,6 +493,7 @@ const SLASH_COMMANDS = [
   { type: 'callout', label: 'Callout Block', desc: 'Left-ruled emphasis note', glyph: 'alert', shortcut: '>' },
   { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
   { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
+  { type: 'math', label: 'Math Formula (LaTeX)', desc: 'KaTeX display equation & chemistry formula', glyph: 'terminal', shortcut: '$$' },
   { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
   { type: 'fix', label: 'Quick Fix Block (No AI)', desc: 'Fix typos, punctuation & spacing instantly', glyph: 'sparkles', shortcut: '/fix' },
   { type: 'polish', label: '1-Tap AI Polish Block', desc: 'In-place AI rewrite & polish without opening chat', glyph: 'sparkles', shortcut: '/polish' },
@@ -581,6 +582,33 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function unescapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function renderLatexToHtml(latex, displayMode = false) {
+  if (!latex || !String(latex).trim()) return '';
+  const cleanLatex = String(latex).trim();
+  if (typeof katex !== 'undefined' && katex.renderToString) {
+    try {
+      return katex.renderToString(cleanLatex, {
+        displayMode: displayMode,
+        throwOnError: false,
+        trust: true,
+        strict: false
+      });
+    } catch (e) {
+      return `<code class="text-rose-500 font-mono text-xs">${escapeHtml(cleanLatex)}</code>`;
+    }
+  }
+  return `<span class="katex-fallback font-mono text-[13px] bg-[var(--bg-panel)] px-1.5 py-0.5 rounded border border-[var(--border-hairline)]">${escapeHtml(cleanLatex)}</span>`;
 }
 
 // =========================================================================
@@ -743,12 +771,32 @@ function renderDocKnowledgeRadar(note) {
 function renderRichBlockHTML(rawText) {
   if (!rawText) return '';
   const escaped = escapeHtml(rawText);
-  return escaped.replace(/\[\[([^\]]+)\]\]/g, (match, title) => {
+
+  // 1. Display math equations inside text blocks: $$ ... $$
+  let res = escaped.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+    const unescaped = unescapeHtml(formula).trim();
+    const rendered = renderLatexToHtml(unescaped, true);
+    return `<span class="math-display-render block my-1.5 text-center select-text" data-math-raw="${escapeHtml(unescaped)}" contenteditable="false">${rendered}</span>`;
+  });
+
+  // 2. Inline math formulas: $ ... $ (skips single dollar currency like $100)
+  res = res.replace(/(^|[^\\])\$([^\$\n]+?)\$(?!\$)/g, (match, prefix, formula) => {
+    const trimmed = formula.trim();
+    if (!trimmed || /^\d+(\.\d+)?$/.test(trimmed)) return match;
+    const unescaped = unescapeHtml(trimmed);
+    const rendered = renderLatexToHtml(unescaped, false);
+    return `${prefix}<span class="math-inline-render select-text" data-math-raw="${escapeHtml(unescaped)}" contenteditable="false">${rendered}</span>`;
+  });
+
+  // 3. Wiki links: [[ ... ]]
+  res = res.replace(/\[\[([^\]]+)\]\]/g, (match, title) => {
     const cleanTitle = title.trim();
     const target = state.notes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
     const statusClass = target ? '' : 'uncreated';
     return `<span class="wiki-link-ref ${statusClass}" contenteditable="false" data-wiki-target="${escapeHtml(cleanTitle)}" onmouseenter="showWikiLinkPreview(event, '${escapeHtml(cleanTitle).replace(/'/g, "\\'")}')" onmouseleave="scheduleHideWikiLinkPreview()" onclick="navigateToWikiTitle(event, '${escapeHtml(cleanTitle).replace(/'/g, "\\'")}')">[[${escapeHtml(cleanTitle)}]]</span>`;
   });
+
+  return res;
 }
 
 function serializeEditableBlock(el) {
@@ -762,6 +810,10 @@ function serializeEditableBlock(el) {
       if (node.classList && node.classList.contains('wiki-link-ref')) {
         const targetTitle = node.getAttribute('data-wiki-target') || node.innerText.replace(/^\[\[|\]\]$/g, '').trim();
         result += `[[${targetTitle}]]`;
+      } else if (node.classList && (node.classList.contains('math-inline-render') || node.classList.contains('math-display-render'))) {
+        const rawMath = node.getAttribute('data-math-raw') || '';
+        const isDisplay = node.classList.contains('math-display-render');
+        result += isDisplay ? `$$${rawMath}$$` : `$${rawMath}$`;
       } else if (node.tagName === 'BR') {
         // Ignore browser's trailing placeholder <br> at the very end of an empty block
         if (i < nodes.length - 1 || result.length > 0) {
@@ -3027,6 +3079,60 @@ function renderSingleBlockHTML(block) {
       `;
       break;
 
+    case 'math': {
+      const isEditing = block.isEditing !== false;
+      const mathFormula = block.content || '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
+      const renderedHtml = renderLatexToHtml(mathFormula, true);
+      innerBlock = `
+        <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden font-mono group/math">
+          <div class="px-3 py-1.5 bg-[var(--bg-canvas)] border-b border-[var(--border-hairline)] flex items-center justify-between text-[11px] text-[var(--text-tertiary)] select-none">
+            <div class="flex items-center gap-1.5 font-semibold text-[var(--text-secondary)]">
+              <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 18h16M14 6l-4 12"/></svg>
+              <span>MATH FORMULA</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Insert Math & Chemistry Symbols" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
+                <span>∑ Symbols</span>
+              </button>
+              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy LaTeX Formula" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">COPY</button>
+              <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Toggle LaTeX Editor" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE CODE' : 'EDIT'}</button>
+            </div>
+          </div>
+          
+          <div onclick="toggleMathBlockEditMode('${block.id}', true)" title="Click to edit LaTeX" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-pointer hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center">
+            <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full">${renderedHtml}</div>
+          </div>
+
+          <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--code-bg)] p-3">
+            <div class="flex items-center justify-between text-[10px] text-[var(--text-tertiary)] mb-1.5 font-mono">
+              <span>LaTeX Input (KaTeX &amp; mhchem Chemistry supported)</span>
+              <span class="text-[var(--accent-vermilion)]">Live preview above · Shift+Enter to close</span>
+            </div>
+            <textarea
+              id="mathInput_${block.id}"
+              data-block-id="${block.id}"
+              spellcheck="false"
+              rows="2"
+              oninput="handleMathBlockInput(event, '${block.id}')"
+              onkeydown="handleMathBlockKeydown(event, '${block.id}')"
+              placeholder="e.g. \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} or \\ce{H2O}"
+              class="w-full p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--code-text)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y">${escapeHtml(block.content || '')}</textarea>
+            
+            <div class="flex flex-wrap items-center gap-1 pt-2">
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\frac{a}{b}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">a/b</button>
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\sqrt{x}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">√x</button>
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\int_{a}^{b} f(x) dx')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">∫ dx</button>
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\sum_{i=1}^{n} x_i')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">∑</button>
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\lim_{x \\\\to \\\\infty}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">lim</button>
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\begin{pmatrix} a & b \\\\\\\\ c & d \\\\end{pmatrix}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">Matrix</button>
+              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\ce{2H2 + O2 -> 2H2O}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">Chemistry</button>
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
     case 'toggle': {
       const isOpen = block.open !== false;
       innerBlock = `
@@ -3267,7 +3373,7 @@ function splitBlockAtCaret(el, blockId) {
   const idx = note.blocks.findIndex(b => b.id === blockId);
   if (idx === -1) return false;
   const block = note.blocks[idx];
-  if (block.type === 'code' || block.type === 'table' || block.type === 'sketch') return false;
+  if (block.type === 'code' || block.type === 'table' || block.type === 'sketch' || block.type === 'math') return false;
 
   const fullText = el ? serializeEditableBlock(el) : (block.content || '');
   const caretPos = el ? getBlockCaretOffset(el) : fullText.length;
@@ -3317,7 +3423,7 @@ function handleBlockStartBackspace(el, blockId) {
   const idx = note.blocks.findIndex(b => b.id === blockId);
   if (idx === -1) return false;
   const block = note.blocks[idx];
-  if (block.type === 'code' || block.type === 'table' || block.type === 'sketch') return false;
+  if (block.type === 'code' || block.type === 'table' || block.type === 'sketch' || block.type === 'math') return false;
 
   const sel = window.getSelection();
   if (sel && sel.rangeCount && !sel.getRangeAt(0).collapsed) return false;
@@ -3401,7 +3507,7 @@ document.addEventListener('beforeinput', (e) => {
     return;
   }
   const block = note && note.blocks ? note.blocks.find(b => b.id === blockId) : null;
-  if (!block || block.type === 'code' || block.type === 'table' || block.type === 'sketch') return;
+  if (!block || block.type === 'code' || block.type === 'table' || block.type === 'sketch' || block.type === 'math') return;
 
   // Mobile/Desktop Enter via beforeinput (insertParagraph)
   if (e.inputType === 'insertParagraph') {
@@ -3524,6 +3630,15 @@ function handleBlockInput(e, blockId) {
       block.content = '';
       renderBlocks(note);
       focusBlock(block.id, false, true);
+      persistState();
+      return;
+    }
+    if (/^\$\$$/.test(plainText.trim()) || /^\$\$\s+/.test(plainText)) {
+      block.type = 'math';
+      block.content = plainText.replace(/^\$\$\s*/, '');
+      block.isEditing = true;
+      renderBlocks(note);
+      focusMathBlock(block.id);
       persistState();
       return;
     }
@@ -3884,6 +3999,10 @@ function applySlashCommand(newType) {
   if (block) {
     block.type = newType;
     if (newType === 'code' && !block.language) block.language = 'typescript';
+    if (newType === 'math') {
+      block.isEditing = true;
+      if (!block.content) block.content = '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
+    }
     if (newType === 'toggle') { block.open = true; if (typeof block.body !== 'string') block.body = ''; }
     if (newType === 'table' && !Array.isArray(block.rows)) {
       block.rows = [['Column 1', 'Column 2', 'Column 3'], ['', '', ''], ['', '', '']];
@@ -3891,7 +4010,9 @@ function applySlashCommand(newType) {
   }
   closeSlashMenu();
   renderBlocks(note);
-  if (newType !== 'divider' && newType !== 'table') {
+  if (newType === 'math') {
+    focusMathBlock(targetId);
+  } else if (newType !== 'divider' && newType !== 'table') {
     focusBlock(targetId, false);
   }
   renderInspector();
@@ -5836,6 +5957,8 @@ function renderCommandPaletteResults(query) {
   const q = query.toLowerCase().trim();
 
   const allActions = [
+    { kind: 'action', label: 'Math Studio: LaTeX Equation & Symbols Workbench', hint: 'Formulas, Greek symbols, chemistry & live calculator (Alt+M)', glyph: 'terminal', shortcut: 'Alt+M', run: () => openMathSymbolsModal() },
+    { kind: 'action', label: 'Insert Math Formula Block ($$)', hint: 'Add dedicated KaTeX display equation block', glyph: 'terminal', shortcut: '$$', run: () => insertNewMathBlockIntoNote() },
     { kind: 'action', label: 'Whiteboard Studio: Infinite Spatial Canvas', hint: 'Infinite 2D visual canvas with notes, cards, SVG links & zoom', glyph: 'grid', shortcut: '⇧⌘W', run: () => openSpatialWhiteboardModal() },
     { kind: 'action', label: 'Mind Map Studio: Visual Hierarchy Tree', hint: 'Generate organic visual radial tree from active note with SVG export', glyph: 'graph', shortcut: '⇧⌘M', run: () => openMindMapModal() },
     { kind: 'action', label: 'Vault Activity Ink Heatmap & Diurnal Clock', hint: '365-day ink matrix, 24-hour diurnal writing rhythm & streaks', glyph: 'calendar', shortcut: 'Heatmap', run: () => openVaultHeatmapModal() },
@@ -6214,8 +6337,17 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // Alt + M: Math & Science Studio Workbench
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'm') {
+    e.preventDefault();
+    openMathSymbolsModal();
+    return;
+  }
+
   // Visual Modals Escape Key Handler
   if (e.key === 'Escape') {
+    const ms = document.getElementById('mathSymbolsModal');
+    if (ms && !ms.classList.contains('hidden')) { closeMathSymbolsModal(); return; }
     const wb = document.getElementById('spatialWhiteboardModal');
     if (wb && !wb.classList.contains('hidden')) { closeSpatialWhiteboardModal(); return; }
     const mm = document.getElementById('mindMapModal');
@@ -11819,6 +11951,7 @@ function exportCurrentNoteMarkdown() {
       case 'quote': lines.push('> ' + c, ''); break;
       case 'callout': lines.push('> [!NOTE]', '> ' + c, ''); break;
       case 'code': lines.push('```' + (b.language || ''), c, '```', ''); break;
+      case 'math': lines.push('$$', c, '$$', ''); break;
       case 'sketch': lines.push(`![${c || 'Sketch'}](${b.imageData || ''})`, ''); break;
       case 'divider': lines.push('---', ''); break;
       default: lines.push(c, ''); break;
@@ -16102,6 +16235,8 @@ function parseMarkdownToBlocks(mdText) {
   const blocks = [];
   let inCode = false;
   let codeLines = [];
+  let inMath = false;
+  let mathLines = [];
 
   for (; i < lines.length; i++) {
     const line = lines[i];
@@ -16117,6 +16252,21 @@ function parseMarkdownToBlocks(mdText) {
     }
     if (inCode) {
       codeLines.push(line);
+      continue;
+    }
+
+    if (line.trim().startsWith('$$')) {
+      if (inMath) {
+        blocks.push({ id: generateId('b'), type: 'math', content: mathLines.join('\n'), isEditing: false });
+        mathLines = [];
+        inMath = false;
+      } else {
+        inMath = true;
+      }
+      continue;
+    }
+    if (inMath) {
+      mathLines.push(line);
       continue;
     }
 
@@ -16147,6 +16297,9 @@ function parseMarkdownToBlocks(mdText) {
 
   if (inCode && codeLines.length > 0) {
     blocks.push({ id: generateId('b'), type: 'code', content: codeLines.join('\n') });
+  }
+  if (inMath && mathLines.length > 0) {
+    blocks.push({ id: generateId('b'), type: 'math', content: mathLines.join('\n'), isEditing: false });
   }
   if (blocks.length === 0) {
     blocks.push({ id: generateId('b'), type: 'paragraph', content: '' });
@@ -18103,6 +18256,7 @@ function noteToMarkdown(note) {
       case 'bullet': return `- ${b.content}\n`;
       case 'quote': return `> ${b.content}\n`;
       case 'code': return `\`\`\`${b.language || ''}\n${b.content}\n\`\`\`\n`;
+      case 'math': return `$$\n${b.content || ''}\n$$\n`;
       case 'divider': return `---\n`;
       case 'callout': return `> [!NOTE]\n> ${b.content}\n`;
       default: return `${b.content}\n`;
@@ -18159,6 +18313,7 @@ function exportActiveNoteAsStandaloneHtml() {
       case 'bullet': return `<li style="margin:4px 0;">${text}</li>`;
       case 'quote': return `<blockquote style="border-left:3px solid #D95338;padding-left:12px;margin:12px 0;color:#666;font-style:italic;">${text}</blockquote>`;
       case 'code': return `<pre style="background:#1e1e1e;color:#f8f8f2;padding:12px;border-radius:6px;overflow-x:auto;font-family:monospace;font-size:12px;"><code>${text}</code></pre>`;
+      case 'math': return `<div style="text-align:center;margin:16px 0;padding:12px;background:#f4f1ea;border-radius:6px;overflow-x:auto;">${renderLatexToHtml(b.content, true)}</div>`;
       case 'divider': return `<hr style="border:0;border-top:1px solid #ddd;margin:20px 0;" />`;
       default: return `<p style="margin:8px 0;line-height:1.7;">${text}</p>`;
     }
@@ -18829,4 +18984,505 @@ function applyBannerPreset(presetName) {
 function triggerBannerCustomUpload() {
   const fileInput = document.getElementById('noteBannerFileInput');
   if (fileInput) fileInput.click();
+}
+
+// =========================================================================
+// 24. MATH & SCIENCE STUDIO SUITE (KATEX, MHCHEM, WORKBENCH & CALCULATOR)
+// =========================================================================
+let mathTargetBlockId = null;
+let mathActiveTab = 'playground';
+let mathFilterQuery = '';
+
+const MATH_SNIPPETS_DATABASE = [
+  // --- CALCULUS & ANALYSIS ---
+  { cat: 'calculus', label: 'Definite Integral', latex: '\\int_{a}^{b} f(x)\\,dx', desc: 'Area under curve from a to b' },
+  { cat: 'calculus', label: 'Indefinite Integral', latex: '\\int f(x)\\,dx', desc: 'Antiderivative of f(x)' },
+  { cat: 'calculus', label: 'Double Integral', latex: '\\iint_{D} f(x, y)\\,dA', desc: 'Volume over 2D region D' },
+  { cat: 'calculus', label: 'Triple Integral', latex: '\\iiint_{V} f(x, y, z)\\,dV', desc: 'Volume integral over space V' },
+  { cat: 'calculus', label: 'Contour Line Integral', latex: '\\oint_{C} \\vec{F} \\cdot d\\vec{r}', desc: 'Closed circulation integral' },
+  { cat: 'calculus', label: 'Derivative', latex: '\\frac{df}{dx}', desc: 'First derivative of function f' },
+  { cat: 'calculus', label: 'Second Derivative', latex: '\\frac{d^2 f}{dx^2}', desc: 'Second order rate of change' },
+  { cat: 'calculus', label: 'Partial Derivative', latex: '\\frac{\\partial f}{\\partial x}', desc: 'Rate with respect to variable x' },
+  { cat: 'calculus', label: 'Gradient Vector', latex: '\\nabla f = \\left( \\frac{\\partial f}{\\partial x}, \\frac{\\partial f}{\\partial y} \\right)', desc: 'Direction of steepest ascent' },
+  { cat: 'calculus', label: 'Divergence', latex: '\\nabla \\cdot \\vec{F} = \\frac{\\partial F_x}{\\partial x} + \\frac{\\partial F_y}{\\partial y}', desc: 'Flux expansion per unit volume' },
+  { cat: 'calculus', label: 'Curl', latex: '\\nabla \\times \\vec{F}', desc: 'Microscopic rotational circulation' },
+  { cat: 'calculus', label: 'Laplacian', latex: '\\nabla^2 f = \\Delta f', desc: 'Divergence of gradient' },
+  { cat: 'calculus', label: 'Limit to Infinity', latex: '\\lim_{x \\to \\infty} f(x) = L', desc: 'Asymptotic limit of f(x)' },
+  { cat: 'calculus', label: 'Limit to Zero', latex: '\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1', desc: 'Fundamental trig limit' },
+  { cat: 'calculus', label: 'Infinite Summation', latex: '\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}', desc: 'Basel problem sum' },
+  { cat: 'calculus', label: 'Summation Series', latex: '\\sum_{i=1}^{n} a_i', desc: 'Finite summation series' },
+  { cat: 'calculus', label: 'Product Operator', latex: '\\prod_{i=1}^{n} x_i', desc: 'Finite sequence product' },
+  { cat: 'calculus', label: 'Taylor Series Expansion', latex: 'f(x) = \\sum_{n=0}^{\\infty} \\frac{f^{(n)}(a)}{n!} (x - a)^n', desc: 'Polynomial series approximation' },
+  { cat: 'calculus', label: 'Gaussian Normal Distribution', latex: 'f(x) = \\frac{1}{\\sigma \\sqrt{2\\pi}} e^{-\\frac{(x - \\mu)^2}{2\\sigma^2}}', desc: 'Standard bell curve' },
+
+  // --- ALGEBRA & LOGIC ---
+  { cat: 'algebra', label: 'Fraction', latex: '\\frac{a}{b}', desc: 'Ratio of two terms' },
+  { cat: 'algebra', label: 'Square Root', latex: '\\sqrt{x}', desc: 'Principal square root' },
+  { cat: 'algebra', label: 'N-th Root', latex: '\\sqrt[n]{x}', desc: 'General n-th root' },
+  { cat: 'algebra', label: 'Quadratic Formula', latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}', desc: 'Roots of ax^2 + bx + c = 0' },
+  { cat: 'algebra', label: 'Exponent & Power', latex: 'x^{n}', desc: 'Term raised to exponent' },
+  { cat: 'algebra', label: 'Subscript Index', latex: 'x_{i}', desc: 'Indexed sequence element' },
+  { cat: 'algebra', label: 'Binomial Coefficient', latex: '\\binom{n}{k} = \\frac{n!}{k!(n-k)!}', desc: 'Combinations of n choose k' },
+  { cat: 'algebra', label: 'Piecewise Cases', latex: 'f(x) = \\begin{cases} x & x \\ge 0 \\\\ -x & x < 0 \\end{cases}', desc: 'Conditional function branches' },
+  { cat: 'algebra', label: 'Logarithm Base B', latex: '\\log_{b}(x)', desc: 'Inverse of exponential base b' },
+  { cat: 'algebra', label: 'Natural Logarithm', latex: '\\ln(x)', desc: 'Base-e natural logarithm' },
+  { cat: 'algebra', label: 'Plus-Minus', latex: '\\pm', desc: 'Plus or minus operator' },
+  { cat: 'algebra', label: 'Multiplication Dot', latex: '\\cdot', desc: 'Centered scalar product dot' },
+  { cat: 'algebra', label: 'Multiplication Cross', latex: '\\times', desc: 'Cartesian or cross product' },
+  { cat: 'algebra', label: 'Division Symbol', latex: '\\div', desc: 'Division symbol' },
+  { cat: 'algebra', label: 'Not Equal', latex: '\\neq', desc: 'Inequality relation' },
+  { cat: 'algebra', label: 'Approximately Equal', latex: '\\approx', desc: 'Numerical approximation' },
+  { cat: 'algebra', label: 'Less Than or Equal', latex: '\\le', desc: 'Non-strict lower bound' },
+  { cat: 'algebra', label: 'Greater Than or Equal', latex: '\\ge', desc: 'Non-strict upper bound' },
+  { cat: 'algebra', label: 'Set Membership', latex: 'x \\in A', desc: 'Element belongs to set A' },
+  { cat: 'algebra', label: 'Subset Relation', latex: 'A \\subset B', desc: 'Set A is contained in B' },
+  { cat: 'algebra', label: 'Union and Intersection', latex: 'A \\cup B \\quad A \\cap B', desc: 'Set union and intersection' },
+  { cat: 'algebra', label: 'For All Quantifier', latex: '\\forall x \\in \\mathbb{R}', desc: 'Universal quantification' },
+  { cat: 'algebra', label: 'Exists Quantifier', latex: '\\exists x > 0', desc: 'Existential quantification' },
+  { cat: 'algebra', label: 'Logical Implication', latex: 'P \\implies Q', desc: 'Conditional logical implication' },
+  { cat: 'algebra', label: 'If and Only If', latex: 'P \\iff Q', desc: 'Biconditional equivalence' },
+
+  // --- MATRICES & VECTORS ---
+  { cat: 'matrices', label: '2x2 Matrix', latex: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}', desc: 'Two-dimensional matrix' },
+  { cat: 'matrices', label: '3x3 Matrix', latex: '\\begin{pmatrix} a_{11} & a_{12} & a_{13} \\\\ a_{21} & a_{22} & a_{23} \\\\ a_{31} & a_{32} & a_{33} \\end{pmatrix}', desc: 'Three-dimensional matrix' },
+  { cat: 'matrices', label: 'Bracket Matrix (3x3)', latex: '\\begin{bmatrix} 1 & 0 & 0 \\\\ 0 & 1 & 0 \\\\ 0 & 0 & 1 \\end{bmatrix}', desc: 'Identity square matrix' },
+  { cat: 'matrices', label: 'Column Vector', latex: '\\begin{bmatrix} x \\\\ y \\\\ z \\end{bmatrix}', desc: '3D coordinate column vector' },
+  { cat: 'matrices', label: 'Determinant', latex: '\\det(\\mathbf{A}) = \\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix} = ad - bc', desc: 'Determinant of 2x2 matrix' },
+  { cat: 'matrices', label: 'Vector Arrow', latex: '\\vec{v} = \\langle v_x, v_y, v_z \\rangle', desc: 'Euclidean vector notation' },
+  { cat: 'matrices', label: 'Vector Euclidean Norm', latex: '\\|\\vec{v}\\| = \\sqrt{v_1^2 + v_2^2 + \\dots + v_n^2}', desc: 'Magnitude of vector' },
+  { cat: 'matrices', label: 'Dot Product', latex: '\\vec{u} \\cdot \\vec{v} = \\|\\vec{u}\\| \\|\\vec{v}\\| \\cos\\theta', desc: 'Inner product of two vectors' },
+  { cat: 'matrices', label: 'Matrix Transpose & Inverse', latex: '\\mathbf{A}^T \\quad \\mathbf{A}^{-1}', desc: 'Transposed and inverse matrix' },
+
+  // --- GREEK ALPHABET ---
+  { cat: 'greek', label: 'Alpha (α, Α)', latex: '\\alpha \\quad \\text{A}', desc: 'First letter, angles, acceleration' },
+  { cat: 'greek', label: 'Beta (β, Β)', latex: '\\beta \\quad \\text{B}', desc: 'Beta decay, sound intensity' },
+  { cat: 'greek', label: 'Gamma (γ, Γ)', latex: '\\gamma \\quad \\Gamma', desc: 'Lorentz factor, photon, Gamma function' },
+  { cat: 'greek', label: 'Delta (δ, Δ)', latex: '\\delta \\quad \\Delta', desc: 'Kronecker delta, finite difference' },
+  { cat: 'greek', label: 'Epsilon (ε, Ε)', latex: '\\epsilon \\quad \\varepsilon', desc: 'Permittivity, small positive quantity' },
+  { cat: 'greek', label: 'Theta (θ, Θ)', latex: '\\theta \\quad \\Theta', desc: 'Angle, temperature, rotation' },
+  { cat: 'greek', label: 'Lambda (λ, Λ)', latex: '\\lambda \\quad \\Lambda', desc: 'Wavelength, eigenvalue, cosmological' },
+  { cat: 'greek', label: 'Mu (μ, Μ)', latex: '\\mu \\quad \\text{M}', desc: 'Friction coefficient, micro, mean' },
+  { cat: 'greek', label: 'Pi (π, Π)', latex: '\\pi \\quad \\Pi', desc: 'Circumference ratio, product operator' },
+  { cat: 'greek', label: 'Sigma (σ, Σ)', latex: '\\sigma \\quad \\Sigma', desc: 'Standard deviation, surface tension, sum' },
+  { cat: 'greek', label: 'Tau (τ, Τ)', latex: '\\tau \\quad \\text{T}', desc: 'Torque, time constant, circle constant' },
+  { cat: 'greek', label: 'Phi (φ, Φ)', latex: '\\phi \\quad \\Phi', desc: 'Golden ratio, magnetic flux, wave phase' },
+  { cat: 'greek', label: 'Psi (ψ, Ψ)', latex: '\\psi \\quad \\Psi', desc: 'Quantum wavefunction' },
+  { cat: 'greek', label: 'Omega (ω, Ω)', latex: '\\omega \\quad \\Omega', desc: 'Angular frequency, Ohm resistance' },
+
+  // --- CHEMISTRY (MHCHEM) ---
+  { cat: 'chemistry', label: 'Water Synthesis', latex: '\\ce{2H2 + O2 -> 2H2O}', desc: 'Hydrogen combustion reaction' },
+  { cat: 'chemistry', label: 'Photosynthesis', latex: '\\ce{6CO2 + 6H2O -> C6H12O6 + 6O2}', desc: 'Solar glucose synthesis' },
+  { cat: 'chemistry', label: 'Respiration', latex: '\\ce{C6H12O6 + 6O2 -> 6CO2 + 6H2O}', desc: 'Aerobic cellular respiration' },
+  { cat: 'chemistry', label: 'Acid-Base Equilibrium', latex: '\\ce{HCl + NaOH -> NaCl + H2O}', desc: 'Neutralization reaction' },
+  { cat: 'chemistry', label: 'Water Autoionization', latex: '\\ce{2H2O <=> H3O+ + OH-}', desc: 'Dynamic aqueous proton exchange' },
+  { cat: 'chemistry', label: 'Ammonia Synthesis (Haber)', latex: '\\ce{N2 + 3H2 <=>[Fe] 2NH3}', desc: 'Catalyzed Haber-Bosch process' },
+  { cat: 'chemistry', label: 'Sulfate Ion', latex: '\\ce{SO4^2-}', desc: 'Polyatomic sulfate anion' },
+  { cat: 'chemistry', label: 'Hydrated Copper Sulfate', latex: '\\ce{CuSO4 . 5H2O}', desc: 'Blue crystalline copper hydrate' },
+  { cat: 'chemistry', label: 'Nuclear Alpha Decay', latex: '\\ce{^{238}_{92}U -> ^{234}_{90}Th + ^4_2\\alpha}', desc: 'Uranium-238 alpha emission' },
+  { cat: 'chemistry', label: 'Precipitation Reaction', latex: '\\ce{Ag+ (aq) + Cl- (aq) -> AgCl (s) v}', desc: 'Silver chloride precipitation' }
+];
+
+function handleMathBlockInput(e, blockId) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  block.content = e.target.value;
+  block.isEditing = true;
+
+  const displayEl = document.getElementById(`mathDisplay_${blockId}`);
+  if (displayEl) {
+    displayEl.innerHTML = renderLatexToHtml(block.content || '\\dots', true);
+  }
+  persistState();
+}
+
+function handleMathBlockKeydown(e, blockId) {
+  if ((e.key === 'Enter' && (e.metaKey || e.ctrlKey || e.shiftKey)) || e.key === 'Escape') {
+    e.preventDefault();
+    toggleMathBlockEditMode(blockId, false);
+    return;
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const textarea = e.target;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + 2;
+    handleMathBlockInput({ target: textarea }, blockId);
+  }
+}
+
+function toggleMathBlockEditMode(blockId, forceEdit) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  const editorEl = document.getElementById(`mathEditor_${blockId}`);
+  if (!editorEl) return;
+
+  const shouldEdit = forceEdit !== undefined ? forceEdit : editorEl.classList.contains('hidden');
+  block.isEditing = shouldEdit;
+
+  if (shouldEdit) {
+    editorEl.classList.remove('hidden');
+    const textarea = document.getElementById(`mathInput_${blockId}`);
+    if (textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  } else {
+    editorEl.classList.add('hidden');
+  }
+  persistState();
+}
+
+function focusMathBlock(blockId) {
+  setTimeout(() => {
+    const textarea = document.getElementById(`mathInput_${blockId}`);
+    if (textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+}
+
+function copyMathLatex(blockId) {
+  const note = getActiveNote();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block || !block.content) return;
+  navigator.clipboard.writeText(block.content).then(() => {
+    showToast('Copied LaTeX formula to clipboard');
+  });
+}
+
+function insertMathSnippet(blockId, snippet) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  const textarea = document.getElementById(`mathInput_${blockId}`);
+  if (textarea) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const cur = textarea.value;
+    textarea.value = cur.substring(0, start) + snippet + cur.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
+    textarea.focus();
+    handleMathBlockInput({ target: textarea }, blockId);
+  } else {
+    block.content = (block.content ? block.content + ' ' : '') + snippet;
+    renderBlocks(note);
+    persistState();
+  }
+  showToast('Inserted math snippet');
+}
+
+function insertNewMathBlockIntoNote(latexContent) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const formula = latexContent || '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
+  const newBlock = {
+    id: generateId('b'),
+    type: 'math',
+    content: formula,
+    isEditing: true
+  };
+  note.blocks.push(newBlock);
+  note.updatedAt = TODAY_KEY;
+  renderBlocks(note);
+  focusMathBlock(newBlock.id);
+  persistState();
+  showToast('Added Math Formula block ($$)');
+  closeMathSymbolsModal();
+}
+
+function openMathSymbolsModal(targetBlockId) {
+  mathTargetBlockId = targetBlockId || null;
+  const modal = document.getElementById('mathSymbolsModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  renderMathTabContent();
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+  if (typeof playWhooshSound === 'function') playWhooshSound();
+}
+
+function closeMathSymbolsModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('mathSymbolsModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function switchMathTab(tabId) {
+  mathActiveTab = tabId;
+  const tabs = ['playground', 'calculus', 'algebra', 'matrices', 'greek', 'chemistry'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`mathTab_${t}`);
+    if (btn) {
+      if (t === tabId) {
+        btn.className = 'px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0';
+      } else {
+        btn.className = 'px-2.5 py-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-transparent cursor-pointer shrink-0';
+      }
+    }
+  });
+  renderMathTabContent();
+  if (typeof pkHaptic === 'function') pkHaptic(6);
+}
+
+function filterMathSnippets(e) {
+  mathFilterQuery = (e.target.value || '').toLowerCase().trim();
+  renderMathTabContent();
+}
+
+function renderMathTabContent() {
+  const container = document.getElementById('mathTabBody');
+  if (!container) return;
+
+  if (mathActiveTab === 'playground') {
+    container.innerHTML = `
+      <div class="space-y-4">
+        <!-- Interactive Formula Sandbox -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs font-semibold text-[var(--text-primary)]">Interactive Formula Playground</span>
+            <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Live KaTeX & mhchem preview</span>
+          </div>
+          
+          <div class="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] min-h-[72px] flex items-center justify-center overflow-x-auto text-center">
+            <div id="playgroundRenderedFormula" class="select-text">${renderLatexToHtml('\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}', true)}</div>
+          </div>
+
+          <div class="space-y-1.5 font-mono">
+            <div class="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+              <span>LaTeX Input:</span>
+              <button type="button" onclick="document.getElementById('playgroundLatexInput').value = '\\\\ce{2H2 + O2 -> 2H2O}'; updatePlaygroundLivePreview();" class="text-[var(--accent-vermilion)] hover:underline cursor-pointer">Try Chemistry</button>
+            </div>
+            <textarea
+              id="playgroundLatexInput"
+              rows="2"
+              oninput="updatePlaygroundLivePreview()"
+              class="w-full p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y">\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}</textarea>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div class="flex items-center gap-1.5 font-mono text-[11px]">
+              <button type="button" onclick="insertPlaygroundFormulaIntoNote(false)" class="px-3 py-1.5 rounded bg-[var(--accent-vermilion)] text-white font-semibold hover:opacity-90 cursor-pointer">+ Insert as Block</button>
+              <button type="button" onclick="insertPlaygroundFormulaIntoNote(true)" class="px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Insert Inline $...$</button>
+            </div>
+            <button type="button" onclick="copyPlaygroundLatex()" class="px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-[11px] cursor-pointer">Copy LaTeX</button>
+          </div>
+        </div>
+
+        <!-- Expression Calculator -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3 font-mono">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Math Expression Solver & Calculator</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">Arithmetic, radicals, trig, logs</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="calcExpressionInput"
+              placeholder="e.g. sqrt(144) + 5^2 or sin(pi/2) * 10"
+              value="sqrt(144) + 5^2"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();runMathCalculator();}"
+              class="flex-1 px-3 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="runMathCalculator()" class="px-3 py-1.5 rounded bg-[var(--accent-ochre)] text-white font-semibold text-xs cursor-pointer">Calculate</button>
+          </div>
+
+          <div id="calcResultContainer" class="p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between text-xs">
+            <span class="text-[var(--text-tertiary)]">Result: <strong id="calcResultValue" class="text-[var(--accent-vermilion)] font-bold">37</strong></span>
+            <button type="button" onclick="insertEvaluatedResultIntoNote()" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline cursor-pointer">Insert into Note →</button>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Symbol Grid Tabs
+  let items = MATH_SNIPPETS_DATABASE.filter(s => s.cat === mathActiveTab);
+  if (mathFilterQuery) {
+    items = MATH_SNIPPETS_DATABASE.filter(s =>
+      s.label.toLowerCase().includes(mathFilterQuery) ||
+      s.latex.toLowerCase().includes(mathFilterQuery) ||
+      (s.desc && s.desc.toLowerCase().includes(mathFilterQuery))
+    );
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-12 text-[var(--text-tertiary)] font-mono text-xs">
+        No math symbols matched "${escapeHtml(mathFilterQuery)}".
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 font-mono">
+      ${items.map(item => `
+        <div onclick="insertMathFormulaFromWorkbench('${escapeHtml(item.latex).replace(/'/g, "\\'")}')"
+             title="Click to insert into document"
+             class="math-symbol-card p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] cursor-pointer flex flex-col justify-between select-none">
+          <div class="min-h-[44px] flex items-center justify-center overflow-x-auto p-1 text-center">
+            ${renderLatexToHtml(item.latex, false)}
+          </div>
+          <div class="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between gap-1 text-[10px]">
+            <span class="font-semibold text-[var(--text-primary)] truncate">${escapeHtml(item.label)}</span>
+            <span class="text-[var(--accent-vermilion)] shrink-0 font-bold hover:underline">Insert →</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function updatePlaygroundLivePreview() {
+  const input = document.getElementById('playgroundLatexInput');
+  const preview = document.getElementById('playgroundRenderedFormula');
+  if (input && preview) {
+    preview.innerHTML = renderLatexToHtml(input.value || '\\dots', true);
+  }
+}
+
+function copyPlaygroundLatex() {
+  const input = document.getElementById('playgroundLatexInput');
+  if (!input) return;
+  navigator.clipboard.writeText(input.value).then(() => {
+    showToast('Copied LaTeX formula to clipboard');
+  });
+}
+
+function insertPlaygroundFormulaIntoNote(isInline) {
+  const input = document.getElementById('playgroundLatexInput');
+  if (!input || !input.value.trim()) return;
+  const formula = input.value.trim();
+
+  if (mathTargetBlockId) {
+    const note = guardActiveNoteEditable();
+    if (note) {
+      const block = note.blocks.find(b => b.id === mathTargetBlockId);
+      if (block) {
+        if (block.type === 'math') {
+          block.content = formula;
+          renderBlocks(note);
+          showToast('Updated active Math block');
+          closeMathSymbolsModal();
+          return;
+        }
+      }
+    }
+  }
+
+  if (isInline) {
+    const activeNote = guardActiveNoteEditable();
+    if (activeNote) {
+      const curBlock = activeNote.blocks.find(b => b.id === state.activeBlockId) || activeNote.blocks[activeNote.blocks.length - 1];
+      if (curBlock && curBlock.type !== 'math') {
+        curBlock.content = (curBlock.content ? curBlock.content + ' ' : '') + `$${formula}$`;
+        renderBlocks(activeNote);
+        persistState();
+        showToast('Inserted inline formula ($...$)');
+        closeMathSymbolsModal();
+        return;
+      }
+    }
+  }
+
+  insertNewMathBlockIntoNote(formula);
+}
+
+function insertMathFormulaFromWorkbench(latex) {
+  if (mathTargetBlockId) {
+    insertMathSnippet(mathTargetBlockId, latex);
+    closeMathSymbolsModal();
+    return;
+  }
+  const note = guardActiveNoteEditable();
+  if (note && note.blocks && note.blocks.length > 0) {
+    const lastBlock = note.blocks[note.blocks.length - 1];
+    if (lastBlock.type === 'math') {
+      insertMathSnippet(lastBlock.id, latex);
+      closeMathSymbolsModal();
+      return;
+    }
+  }
+  insertNewMathBlockIntoNote(latex);
+}
+
+function evaluateMathExpression(rawExpr) {
+  if (!rawExpr || !rawExpr.trim()) return null;
+  let s = rawExpr.trim();
+  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '(($1)/($2))');
+  s = s.replace(/\\sqrt\{([^}]+)\}/g, 'Math.sqrt($1)');
+  s = s.replace(/\\sqrt\[([^\]]+)\]\{([^}]+)\}/g, 'Math.pow($2, 1/($1))');
+  s = s.replace(/\\times|\\cdot/g, '*');
+  s = s.replace(/\\div/g, '/');
+  s = s.replace(/\\pm/g, '+');
+  s = s.replace(/\\pi/g, 'Math.PI');
+  s = s.replace(/\\tau/g, '(2 * Math.PI)');
+  s = s.replace(/\\e\b/g, 'Math.E');
+  s = s.replace(/\\ln\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.log($1)');
+  s = s.replace(/\\log_\{10\}\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.log10($1)');
+  s = s.replace(/\\log\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.log10($1)');
+  s = s.replace(/\\sin\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.sin($1)');
+  s = s.replace(/\\cos\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.cos($1)');
+  s = s.replace(/\\tan\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.tan($1)');
+  s = s.replace(/\^\{([^}]+)\}/g, '**($1)');
+  s = s.replace(/\^([0-9a-zA-Z]+)/g, '**$1');
+  s = s.replace(/\\left|\\right/g, '');
+  s = s.replace(/\{/g, '(').replace(/\}/g, ')');
+  const safeRegex = /^[0-9\s.+\-*\/%()Math,PIEpowsqrtsincostanlogabsminmax]+$/;
+  if (!safeRegex.test(s)) {
+    throw new Error('Unsupported or non-numerical expression');
+  }
+  const result = Function(`"use strict"; return (${s})`)();
+  if (typeof result !== 'number' || isNaN(result)) throw new Error('Could not evaluate expression');
+  return Math.round(result * 1e8) / 1e8;
+}
+
+function runMathCalculator() {
+  const input = document.getElementById('calcExpressionInput');
+  const resVal = document.getElementById('calcResultValue');
+  if (!input || !resVal) return;
+  try {
+    const evaluated = evaluateMathExpression(input.value);
+    resVal.textContent = evaluated;
+    if (typeof pkHaptic === 'function') pkHaptic(12);
+  } catch (err) {
+    resVal.textContent = 'Syntax error';
+    showToast(err.message, 'vermilion');
+  }
+}
+
+function insertEvaluatedResultIntoNote() {
+  const input = document.getElementById('calcExpressionInput');
+  const resVal = document.getElementById('calcResultValue');
+  if (!input || !resVal) return;
+  const expr = input.value.trim();
+  const val = resVal.textContent;
+  const fullEquation = `${expr} = ${val}`;
+
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const newBlock = {
+    id: generateId('b'),
+    type: 'paragraph',
+    content: fullEquation
+  };
+  note.blocks.push(newBlock);
+  note.updatedAt = TODAY_KEY;
+  renderBlocks(note);
+  persistState();
+  showToast(`Inserted "${fullEquation}" into note`);
+  closeMathSymbolsModal();
 }

@@ -42,6 +42,30 @@ esbuild.buildSync({
 });
 console.log('3. App CSS minified -> css/app.min.css (' + kb(fs.statSync(path.join(ROOT, 'css/app.min.css')).size) + ')');
 
+// 3b. Sync KaTeX Math & mhchem Chemistry Static Assets for 100% Offline Math
+try {
+  const katexDist = path.join(ROOT, 'node_modules/katex/dist');
+  if (fs.existsSync(katexDist)) {
+    fs.mkdirSync(path.join(ROOT, 'css/fonts'), { recursive: true });
+    fs.mkdirSync(path.join(ROOT, 'js'), { recursive: true });
+    fs.copyFileSync(path.join(katexDist, 'katex.min.css'), path.join(ROOT, 'css/katex.min.css'));
+    fs.copyFileSync(path.join(katexDist, 'katex.min.js'), path.join(ROOT, 'js/katex.min.js'));
+    const mhchemSrc = path.join(katexDist, 'contrib/mhchem.min.js');
+    if (fs.existsSync(mhchemSrc)) {
+      fs.copyFileSync(mhchemSrc, path.join(ROOT, 'js/mhchem.min.js'));
+    }
+    const fontDir = path.join(katexDist, 'fonts');
+    if (fs.existsSync(fontDir)) {
+      fs.readdirSync(fontDir).forEach(f => {
+        fs.copyFileSync(path.join(fontDir, f), path.join(ROOT, 'css/fonts', f));
+      });
+    }
+    console.log('3b. KaTeX & mhchem static assets synced for offline math');
+  }
+} catch (err) {
+  console.warn('KaTeX asset sync skipped:', err.message);
+}
+
 // 4. Minify JS modules (preserve top-level global functions for HTML onclick handlers; strip all comments & dead whitespace)
 fs.mkdirSync(path.join(ROOT, 'js'), { recursive: true });
 const jsFiles = [

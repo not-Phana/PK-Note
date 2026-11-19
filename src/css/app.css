@@ -1234,3 +1234,52 @@ html.dark .banner-preset-vellum {
   background: linear-gradient(180deg, #181817 0%, #272725 100%);
   background-image: radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
 }
+
+/* =========================================================================
+   24. MATH & SCIENCE STUDIO STYLING (KATEX, MHCHEM, WORKBENCH)
+   ========================================================================= */
+.katex {
+  color: var(--text-primary);
+  font-size: 1.05em;
+  font-weight: 400;
+}
+
+.katex-display {
+  margin: 0.35rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  max-width: 100%;
+}
+
+.math-inline-render {
+  display: inline-block;
+  vertical-align: -0.15em;
+  padding: 0 0.15rem;
+  line-height: normal;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.math-inline-render:hover {
+  background-color: var(--accent-vermilion-tint);
+}
+
+.math-rendered-display .katex-display {
+  margin: 0;
+}
+
+.math-symbol-card {
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.math-symbol-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-vermilion);
+  box-shadow: 0 4px 12px rgba(200, 70, 43, 0.08);
+}
+
+.math-symbol-card:active {
+  transform: translateY(0);
+}

@@ -1800,6 +1800,10 @@
         </div>
 
         <div class="flex items-center gap-1">
+          <button type="button" id="sdExpandBtn" onclick="toggleSmartDrawExpand()" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1" title="Expand / Shrink Canvas">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            <span id="sdExpandText">Expand</span>
+          </button>
           <button type="button" onclick="undoSmartDrawStroke()" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">Undo</button>
           <button type="button" onclick="clearSmartDrawCanvas()" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-rose-400 cursor-pointer">Clear</button>
         </div>
@@ -1833,6 +1837,12 @@
             <span>Insert Sketch</span>
           </button>
         </div>
+      </div>
+
+      <!-- Alternative Candidates Suggestion Chips Row -->
+      <div id="smartDrawAlternativesRow" class="hidden px-4 py-1.5 bg-[var(--bg-canvas)] border-t border-[var(--border-hairline)] flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
+        <span class="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] mr-1">Suggestions:</span>
+        <div id="smartDrawAlternativesChips" class="flex items-center gap-1.5 flex-wrap"></div>
       </div>
 
       <!-- One-Tap Symbol & Number Shortcuts Bar -->

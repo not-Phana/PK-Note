@@ -5851,6 +5851,7 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: `Switch to ${state.theme === 'dark' ? 'Archival Vellum (Light)' : 'Obsidian Carbon (Dark)'}`, hint: 'Theme', glyph: 'sliders', shortcut: 'Theme', run: () => toggleTheme() },
     { kind: 'action', label: `Switch Prose to ${state.fontStyle === 'sans' ? 'Editorial Serif' : 'Geometric Sans'}`, hint: 'Typography', glyph: 'quote', shortcut: 'Font', run: () => toggleFontStyle() },
     { kind: 'action', label: 'Inspect Topology Graph', hint: 'Interactive force-directed link graph', glyph: 'graph', shortcut: 'Graph', run: () => openRightInspector('graph') },
+    { kind: 'action', label: 'Scan & Organize API Keys', hint: 'Detect providers, remove duplicates & organize into code blocks', glyph: 'terminal', shortcut: 'Keys', run: () => { if (typeof openApiKeyScannerModal === 'function') openApiKeyScannerModal(); } },
     { kind: 'action', label: 'Start Fresh (Reset Workspace)', hint: 'Clear demo clutter & reset to clean PK Note template', glyph: 'archive', shortcut: 'Reset', danger: true, run: () => promptStartFresh() },
   ];
 

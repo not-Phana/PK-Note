@@ -1745,7 +1745,8 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
     'Tone & Persona: Communicate naturally and directly, like a sharp, professional colleague in a focused conversation. Avoid sounding like a formulaic AI chatbot: do not use robotic greetings, canned flattery, repetitive filler, or rigid textbook structures. Write with clarity, nuance, and professional substance without being stiff, corporate, or overly academic. In chat conversation, you can naturally use emojis to add warmth, tone, and expression when appropriate. However, never insert unwanted emojis into document text or note replacements unless the user specifically asked for emojis in their note. Use formatting only when it genuinely improves readability.',
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
-    'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```'
+    'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```',
+    'API KEYS & CREDENTIAL SCANNING (EXPERT CAPABILITY): When asked to scan text or notes for API keys, identify providers, remove duplicates, organize into clean lists, or check security: You are an expert at detecting and categorizing API keys. Accurately identify providers by their format: Google Gemini (AIzaSy... or AQ....), Groq (gsk_...), OpenRouter (sk-or-v1-... or sk-or-...), NVIDIA NIM (nvapi-...), OpenAI Project (sk-proj-...), OpenAI Standard (sk-...), Anthropic Claude (sk-ant-api03-... or sk-ant-...), DeepSeek (sk-... followed by exactly 32 hex characters), Perplexity (pplx-...), Cerebras (csk-...), Hugging Face (hf_...), GitHub (ghp_... or github_pat_...), Mistral, Cohere, etc. Automatically deduplicate identical keys. Format your response with clean Markdown code blocks (```) grouped by provider for instant 1-click copying. Perform a security & formatting health check: flag if any key is truncated, contains accidental trailing punctuation (commas, quotes) or internal whitespace, or looks like an insecure dummy/placeholder value, and explain how to fix it.'
   ];
 
   if (autoMemOn) {
@@ -2444,6 +2445,10 @@ function handleGroqPromptKeydown(e) {
 }
 
 function runGroqQuickAction(kind) {
+  if (kind === 'scankeys') {
+    openApiKeyScannerModal(true);
+    return;
+  }
   const currentSel = typeof getReadableSelectedText === 'function' ? getReadableSelectedText(true) : '';
   const currentBlockId = typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null;
 
@@ -2820,6 +2825,571 @@ async function sendGroqPrompt(overrideText) {
   }
 }
 
+// ============================================================================
+// API KEY SCANNER, DEDUPLICATOR & ORGANIZER ENGINE
+// ============================================================================
+let pkLastKeyScanResult = null;
+
+function scanAndAnalyzeApiKeys(rawText) {
+  if (!rawText || typeof rawText !== 'string') {
+    return { totalFound: 0, uniqueCount: 0, duplicateCount: 0, fixedCount: 0, categories: {}, allKeys: [] };
+  }
+
+  const providerDefinitions = [
+    {
+      name: 'Google Gemini',
+      id: 'gemini',
+      isSupportedInPk: true,
+      regex: /(?:AIzaSy[A-Za-z0-9_-]{33}|AQ\.[A-Za-z0-9_-]{20,})/g,
+      validate: (k) => {
+        const issues = [];
+        if (k.startsWith('AIzaSy') && k.length !== 39) issues.push(`Non-standard length (${k.length} chars, standard is 39)`);
+        return issues;
+      }
+    },
+    {
+      name: 'Groq Cloud',
+      id: 'groq',
+      isSupportedInPk: true,
+      regex: /gsk_[A-Za-z0-9]{45,64}/g,
+      validate: (k) => {
+        const issues = [];
+        if (k.length < 52) issues.push(`Shorter than standard Groq key (${k.length} chars, standard ~56)`);
+        return issues;
+      }
+    },
+    {
+      name: 'OpenRouter',
+      id: 'openrouter',
+      isSupportedInPk: true,
+      regex: /(?:sk-or-v1-[a-f0-9]{64}|sk-or-[A-Za-z0-9_-]{32,})/g,
+      validate: (k) => {
+        const issues = [];
+        if (k.startsWith('sk-or-v1-') && k.length !== 73) issues.push(`Non-standard length (${k.length} chars, expected 73)`);
+        return issues;
+      }
+    },
+    {
+      name: 'NVIDIA NIM',
+      id: 'nvidia',
+      isSupportedInPk: true,
+      regex: /nvapi-[A-Za-z0-9_-]{40,}/g,
+      validate: () => []
+    },
+    {
+      name: 'OpenAI (Project)',
+      id: 'openai_proj',
+      isSupportedInPk: false,
+      regex: /sk-proj-[A-Za-z0-9_-]{48,}/g,
+      validate: () => []
+    },
+    {
+      name: 'OpenAI (Admin)',
+      id: 'openai_admin',
+      isSupportedInPk: false,
+      regex: /sk-admin-[A-Za-z0-9_-]{48,}/g,
+      validate: () => []
+    },
+    {
+      name: 'Anthropic Claude',
+      id: 'anthropic',
+      isSupportedInPk: false,
+      regex: /(?:sk-ant-api03-[A-Za-z0-9_-]{80,}|sk-ant-admin01-[A-Za-z0-9_-]{80,}|sk-ant-[A-Za-z0-9_-]{32,})/g,
+      validate: () => []
+    },
+    {
+      name: 'DeepSeek',
+      id: 'deepseek',
+      isSupportedInPk: false,
+      regex: /sk-[a-f0-9]{32}(?![a-zA-Z0-9_-])/g,
+      validate: (k) => {
+        const issues = [];
+        if (k.length !== 35) issues.push(`DeepSeek keys are exactly 35 characters ('sk-' + 32 hex)`);
+        return issues;
+      }
+    },
+    {
+      name: 'OpenAI (Standard)',
+      id: 'openai_std',
+      isSupportedInPk: false,
+      regex: /sk-[A-Za-z0-9]{48,52}/g,
+      validate: () => []
+    },
+    {
+      name: 'Perplexity AI',
+      id: 'perplexity',
+      isSupportedInPk: false,
+      regex: /pplx-[a-f0-9]{48}/g,
+      validate: (k) => {
+        const issues = [];
+        if (k.length !== 53) issues.push(`Perplexity keys are 53 characters ('pplx-' + 48 hex)`);
+        return issues;
+      }
+    },
+    {
+      name: 'Cerebras',
+      id: 'cerebras',
+      isSupportedInPk: false,
+      regex: /csk-[a-zA-Z0-9_-]{32,}/g,
+      validate: () => []
+    },
+    {
+      name: 'Hugging Face',
+      id: 'huggingface',
+      isSupportedInPk: false,
+      regex: /hf_[A-Za-z0-9]{34,}/g,
+      validate: () => []
+    },
+    {
+      name: 'GitHub Token',
+      id: 'github',
+      isSupportedInPk: false,
+      regex: /(?:ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})/g,
+      validate: () => []
+    }
+  ];
+
+  // Pre-process: detect keys with accidental internal spaces/breaks (e.g. copied from wrapped terminal)
+  let processedText = rawText;
+  const spacedCandidateRegex = /\b(gsk_|AIzaSy|sk-or-v1-|sk-proj-|nvapi-|sk-ant-api03-|pplx-)([A-Za-z0-9_ -]{30,120})\b/g;
+  let spaceMatch;
+  while ((spaceMatch = spacedCandidateRegex.exec(rawText)) !== null) {
+    const rawMatch = spaceMatch[0];
+    if (/\s+/.test(rawMatch)) {
+      processedText += `\n${rawMatch.replace(/\s+/g, '')}`;
+    }
+  }
+
+  // Also parse environment variable assignments (e.g. MISTRAL_API_KEY=..., COHERE_API_KEY=...)
+  const envVarMap = new Map();
+  const envRegex = /(?:^|[\r\n])\s*(?:export\s+)?([A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|KEY)[A-Z0-9_]*)\s*[:=]\s*["']?([A-Za-z0-9_\-\.]{16,128})["']?/gi;
+  let envMatch;
+  while ((envMatch = envRegex.exec(rawText)) !== null) {
+    const varName = (envMatch[1] || '').toUpperCase();
+    const val = (envMatch[2] || '').trim();
+    if (val && !envVarMap.has(val)) {
+      envVarMap.set(val, varName);
+    }
+  }
+
+  const seenMap = new Map();
+  let duplicateCount = 0;
+  let fixedCount = 0;
+
+  for (const def of providerDefinitions) {
+    let match;
+    const re = new RegExp(def.regex.source, def.regex.flags);
+    while ((match = re.exec(processedText)) !== null) {
+      const rawKey = match[0];
+      const cleanedKey = rawKey
+        .replace(/[.,;:"')\]}>]+$/, '')
+        .replace(/^[.,;:"'(\[{<]+/, '')
+        .trim();
+      if (!cleanedKey) continue;
+
+      if (cleanedKey !== rawKey) fixedCount++;
+
+      if (seenMap.has(cleanedKey)) {
+        duplicateCount++;
+        continue;
+      }
+
+      const issues = def.validate(cleanedKey);
+      if (/your[_-]?api[_-]?key|placeholder|test[_-]?key|xxxx+/i.test(cleanedKey)) {
+        issues.push('Insecure / Dummy Key (contains placeholder pattern)');
+      }
+
+      seenMap.set(cleanedKey, {
+        key: cleanedKey,
+        provider: def.name,
+        providerId: def.id,
+        isSupportedInPk: def.isSupportedInPk,
+        issues
+      });
+    }
+  }
+
+  // Check any remaining environment variable assignments not matched by prefix regexes
+  for (const [val, varName] of envVarMap.entries()) {
+    const cleanedVal = val.replace(/[.,;:"')\]}>]+$/, '').replace(/^[.,;:"'(\[{<]+/, '').trim();
+    if (seenMap.has(cleanedVal)) continue;
+
+    let provName = 'Generic API Key';
+    let provId = 'generic';
+    let isSupp = false;
+
+    if (varName.includes('GEMINI')) { provName = 'Google Gemini'; provId = 'gemini'; isSupp = true; }
+    else if (varName.includes('GROQ')) { provName = 'Groq Cloud'; provId = 'groq'; isSupp = true; }
+    else if (varName.includes('OPENROUTER')) { provName = 'OpenRouter'; provId = 'openrouter'; isSupp = true; }
+    else if (varName.includes('NVIDIA')) { provName = 'NVIDIA NIM'; provId = 'nvidia'; isSupp = true; }
+    else if (varName.includes('OPENAI')) { provName = 'OpenAI'; provId = 'openai'; }
+    else if (varName.includes('ANTHROPIC') || varName.includes('CLAUDE')) { provName = 'Anthropic Claude'; provId = 'anthropic'; }
+    else if (varName.includes('DEEPSEEK')) { provName = 'DeepSeek'; provId = 'deepseek'; }
+    else if (varName.includes('MISTRAL')) { provName = 'Mistral AI'; provId = 'mistral'; }
+    else if (varName.includes('COHERE')) { provName = 'Cohere'; provId = 'cohere'; }
+    else if (varName.includes('PERPLEXITY')) { provName = 'Perplexity AI'; provId = 'perplexity'; }
+    else if (varName.includes('CEREBRAS')) { provName = 'Cerebras'; provId = 'cerebras'; }
+    else if (varName.includes('SAMBANOVA')) { provName = 'SambaNova'; provId = 'sambanova'; }
+    else if (varName.includes('HUGGING') || varName.includes('HF_')) { provName = 'Hugging Face'; provId = 'huggingface'; }
+    else if (varName.includes('GITHUB')) { provName = 'GitHub Token'; provId = 'github'; }
+
+    const issues = [];
+    if (/your[_-]?api[_-]?key|placeholder|test[_-]?key|xxxx+/i.test(cleanedVal)) {
+      issues.push('Insecure / Dummy Key (contains placeholder pattern)');
+    }
+
+    seenMap.set(cleanedVal, {
+      key: cleanedVal,
+      provider: provName,
+      providerId: provId,
+      isSupportedInPk: isSupp,
+      issues
+    });
+  }
+
+  const allKeys = Array.from(seenMap.values());
+  const categories = {};
+  allKeys.forEach(item => {
+    if (!categories[item.provider]) {
+      categories[item.provider] = {
+        providerName: item.provider,
+        providerId: item.providerId,
+        isSupportedInPk: item.isSupportedInPk,
+        keys: []
+      };
+    }
+    categories[item.provider].keys.push(item);
+  });
+
+  return {
+    totalFound: allKeys.length + duplicateCount,
+    uniqueCount: allKeys.length,
+    duplicateCount,
+    fixedCount,
+    categories,
+    allKeys
+  };
+}
+
+function openApiKeyScannerModal(prefillFromActiveNote = false) {
+  const modal = document.getElementById('pkApiKeyScannerModal');
+  const input = document.getElementById('pkApiKeyScannerInput');
+  const results = document.getElementById('pkApiKeyScannerResults');
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+  if (prefillFromActiveNote) {
+    scanActiveNoteForKeys();
+  } else if (input && !input.value.trim()) {
+    if (results) results.classList.add('hidden');
+    input.focus();
+  }
+}
+
+function closeApiKeyScannerModal() {
+  const modal = document.getElementById('pkApiKeyScannerModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function clearApiKeyScannerInput() {
+  const input = document.getElementById('pkApiKeyScannerInput');
+  const results = document.getElementById('pkApiKeyScannerResults');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  if (results) {
+    results.innerHTML = '';
+    results.classList.add('hidden');
+  }
+  pkLastKeyScanResult = null;
+}
+
+async function pasteClipboardToKeyScanner() {
+  const input = document.getElementById('pkApiKeyScannerInput');
+  if (!input) return;
+  if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        if (typeof showToast === 'function') showToast('Clipboard is empty', 'ochre');
+        return;
+      }
+      input.value = text;
+      runApiKeyScan();
+      return;
+    } catch (_) {}
+  }
+  input.focus();
+  if (typeof showToast === 'function') showToast('Paste your text or keys into the box');
+}
+
+function scanActiveNoteForKeys() {
+  const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+  const input = document.getElementById('pkApiKeyScannerInput');
+  if (!note || !input) return;
+
+  const lines = [note.title || ''];
+  (note.blocks || []).forEach(b => {
+    if (!b) return;
+    if (b.content) lines.push(b.content);
+    if (b.body) lines.push(b.body);
+    if (Array.isArray(b.rows)) {
+      lines.push(b.rows.flat().join(' '));
+    }
+  });
+
+  input.value = lines.join('\n');
+  runApiKeyScan();
+  if (typeof showToast === 'function') showToast(`Loaded note "${note.title || 'Untitled'}" for scanning`);
+}
+
+function runApiKeyScan() {
+  const input = document.getElementById('pkApiKeyScannerInput');
+  const results = document.getElementById('pkApiKeyScannerResults');
+  if (!input || !results) return;
+
+  const rawText = input.value || '';
+  const scanResult = scanAndAnalyzeApiKeys(rawText);
+  pkLastKeyScanResult = scanResult;
+
+  results.classList.remove('hidden');
+  renderApiKeyScanResults(scanResult);
+}
+
+function renderApiKeyScanResults(scanResult) {
+  const container = document.getElementById('pkApiKeyScannerResults');
+  if (!container) return;
+
+  if (scanResult.uniqueCount === 0) {
+    container.innerHTML = `
+      <div class="p-4 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-[var(--text-tertiary)] font-mono text-xs">
+        No API keys detected. Paste your text, .env file, or raw keys above and click Scan.
+      </div>
+    `;
+    return;
+  }
+
+  const supportedKeys = scanResult.allKeys.filter(k => k.isSupportedInPk);
+  const catEntries = Object.values(scanResult.categories);
+
+  let html = `
+    <!-- Summary & Bulk Actions Bar -->
+    <div class="p-3 rounded-[6px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="font-mono text-xs text-[var(--text-primary)]">
+          Found <span class="text-[var(--accent-vermilion)] font-bold">${scanResult.uniqueCount}</span> unique API key${scanResult.uniqueCount === 1 ? '' : 's'} across <span class="font-bold">${catEntries.length}</span> provider${catEntries.length === 1 ? '' : 's'}
+          ${scanResult.duplicateCount > 0 ? `<span class="text-[var(--accent-ochre)] font-semibold">(${scanResult.duplicateCount} duplicate${scanResult.duplicateCount === 1 ? '' : 's'} removed)</span>` : ''}
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+          <button type="button" onclick="copyOrganizedKeysMarkdown()" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-semibold cursor-pointer">
+            Copy All (Code Blocks)
+          </button>
+          ${supportedKeys.length > 0 ? `
+            <button type="button" onclick="importScannedKeysToPkNote()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold cursor-pointer shadow-xs">
+              Import to PK Note (${supportedKeys.length})
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Provider Categories List -->
+    <div class="space-y-3">
+  `;
+
+  catEntries.forEach(cat => {
+    html += `
+      <div class="p-3 rounded-[6px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="font-semibold text-xs text-[var(--text-primary)] truncate">${escapeHtml(cat.providerName)}</span>
+            <span class="px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[9px] text-[var(--text-secondary)]">${cat.keys.length} key${cat.keys.length === 1 ? '' : 's'}</span>
+            ${cat.isSupportedInPk ? `<span class="px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 font-mono text-[9px] text-[var(--accent-vermilion)] font-semibold">Active in PK Note</span>` : ''}
+          </div>
+        </div>
+
+        <!-- Code Block for this Provider -->
+        <div class="rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] overflow-hidden divide-y divide-[var(--border-hairline)]">
+    `;
+
+    cat.keys.forEach((item) => {
+      const hasIssues = item.issues && item.issues.length > 0;
+      const issuesText = hasIssues ? item.issues.join(' · ') : '';
+      const safeJsKey = item.key.replace(/'/g, "\\'");
+
+      html += `
+        <div class="p-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="min-w-0 flex-1 space-y-0.5">
+            <pre class="font-mono text-[11px] text-[var(--text-primary)] select-all whitespace-pre-wrap break-all overflow-x-auto leading-tight"><code>${escapeHtml(item.key)}</code></pre>
+            ${hasIssues ? `
+              <div class="font-mono text-[9.5px] text-amber-500 font-medium">${escapeHtml(issuesText)}</div>
+            ` : ''}
+          </div>
+          <div class="flex items-center gap-1 shrink-0 font-mono text-[10px]">
+            <button type="button" onclick="copySingleScannedKey('${safeJsKey}', this)" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              Copy
+            </button>
+            ${item.isSupportedInPk ? `
+              <button type="button" onclick="importSingleScannedKey('${safeJsKey}', '${cat.providerId}')" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--bg-hover)] border border-[var(--accent-vermilion)]/40 text-[var(--accent-vermilion)] font-semibold cursor-pointer">
+                Use in App
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function copySingleScannedKey(keyText, btnEl) {
+  const doFeedback = () => {
+    if (btnEl) {
+      const orig = btnEl.textContent;
+      btnEl.textContent = 'Copied!';
+      btnEl.classList.add('text-[var(--accent-vermilion)]');
+      setTimeout(() => {
+        btnEl.textContent = orig;
+        btnEl.classList.remove('text-[var(--accent-vermilion)]');
+      }, 1500);
+    }
+    if (typeof showToast === 'function') showToast('Copied key to clipboard');
+  };
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(keyText).then(doFeedback).catch(() => {
+      copyKeyFallbackText(keyText);
+      doFeedback();
+    });
+  } else {
+    copyKeyFallbackText(keyText);
+    doFeedback();
+  }
+}
+
+function copyOrganizedKeysMarkdown() {
+  if (!pkLastKeyScanResult || !pkLastKeyScanResult.categories) return;
+  const lines = ['# Organized API Keys', ''];
+  Object.values(pkLastKeyScanResult.categories).forEach(cat => {
+    lines.push(`## ${cat.providerName} (${cat.keys.length} key${cat.keys.length === 1 ? '' : 's'})`);
+    lines.push('```');
+    cat.keys.forEach(k => {
+      lines.push(k.key);
+    });
+    lines.push('```');
+    lines.push('');
+  });
+
+  const mdText = lines.join('\n').trim();
+  const doFeedback = () => {
+    if (typeof showToast === 'function') showToast('Copied organized keys with code blocks to clipboard');
+  };
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(mdText).then(doFeedback).catch(() => {
+      copyKeyFallbackText(mdText);
+      doFeedback();
+    });
+  } else {
+    copyKeyFallbackText(mdText);
+    doFeedback();
+  }
+}
+
+function copyKeyFallbackText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+  } catch (_) {}
+  document.body.removeChild(ta);
+}
+
+function importScannedKeysToPkNote() {
+  if (!pkLastKeyScanResult || !pkLastKeyScanResult.allKeys) return;
+  const supported = pkLastKeyScanResult.allKeys.filter(k => k.isSupportedInPk);
+  if (supported.length === 0) {
+    if (typeof showToast === 'function') showToast('No PK Note-supported keys found (Gemini, Groq, OpenRouter, NVIDIA)', 'ochre');
+    return;
+  }
+  const cfg = loadAiConfig();
+  let importedCount = 0;
+
+  supported.forEach(item => {
+    const pId = item.providerId;
+    if (!cfg[pId]) return;
+    if (!cfg[pId].keys) cfg[pId].keys = [];
+    const exists = cfg[pId].keys.some(slot => slot.key === item.key);
+    if (!exists) {
+      const nextNum = cfg[pId].keys.length + 1;
+      const newSlot = {
+        id: makeAiKeyId(),
+        label: `Key ${nextNum}`,
+        key: item.key
+      };
+      cfg[pId].keys.push(newSlot);
+      if (!cfg[pId].apiKey) {
+        cfg[pId].apiKey = item.key;
+        cfg[pId].activeKeyId = newSlot.id;
+      }
+      importedCount++;
+    }
+  });
+
+  if (importedCount > 0) {
+    saveAiConfig(cfg);
+    syncGroqHeaderAndSettingsUI();
+    if (typeof showToast === 'function') {
+      showToast(`Imported ${importedCount} API key(s) into PK Note settings!`);
+    }
+    runApiKeyScan();
+  } else {
+    if (typeof showToast === 'function') {
+      showToast('All supported keys are already saved in your settings');
+    }
+  }
+}
+
+function importSingleScannedKey(keyText, providerId) {
+  const cfg = loadAiConfig();
+  if (!cfg[providerId]) return;
+  if (!cfg[providerId].keys) cfg[providerId].keys = [];
+  const exists = cfg[providerId].keys.some(slot => slot.key === keyText);
+  if (exists) {
+    if (typeof showToast === 'function') showToast('Key is already in your settings');
+    return;
+  }
+  const nextNum = cfg[providerId].keys.length + 1;
+  const newSlot = {
+    id: makeAiKeyId(),
+    label: `Key ${nextNum}`,
+    key: keyText
+  };
+  cfg[providerId].keys.push(newSlot);
+  if (!cfg[providerId].apiKey) {
+    cfg[providerId].apiKey = keyText;
+    cfg[providerId].activeKeyId = newSlot.id;
+  }
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  if (typeof showToast === 'function') {
+    showToast(`Added ${PK_AI_PROVIDERS[providerId].shortName} Key ${nextNum}`);
+  }
+  runApiKeyScan();
+}
+
 // Keyboard shortcut: Alt+A toggles AI Assistant, Esc closes it
 document.addEventListener('keydown', (e) => {
   if (e.altKey && (e.key === 'a' || e.key === 'A')) {
@@ -2828,7 +3398,14 @@ document.addEventListener('keydown', (e) => {
     else openGroqAssistant();
     return;
   }
-  if (e.key === 'Escape' && pkGroqDrawerOpen) {
-    closeGroqAssistant();
+  if (e.key === 'Escape') {
+    const keyModal = document.getElementById('pkApiKeyScannerModal');
+    if (keyModal && !keyModal.classList.contains('hidden')) {
+      closeApiKeyScannerModal();
+      return;
+    }
+    if (pkGroqDrawerOpen) {
+      closeGroqAssistant();
+    }
   }
 });

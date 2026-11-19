@@ -2851,6 +2851,7 @@
             <select id="pkAiKeySlotSelect" onchange="selectAiKeySlot(this.value)" title="Switch between your saved API keys for this provider" class="flex-1 min-w-0 px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] cursor-pointer"></select>
             <button type="button" onclick="addAiKeySlot()" title="Add another API key slot" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0">+ Key</button>
             <button type="button" onclick="renameAiKeySlot()" title="Rename active key slot" class="px-1.5 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer shrink-0">Name</button>
+            <button type="button" onclick="openApiKeyScannerModal()" title="Scan text for API keys, organize by provider, remove duplicates, and import" class="px-1.5 py-1 rounded-[3px] bg-[var(--accent-vermilion-tint)] hover:bg-[var(--bg-hover)] border border-[var(--accent-vermilion)]/40 text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0">Scan Keys</button>
           </div>
           <div class="flex items-center gap-1.5">
             <input type="text"
@@ -2980,6 +2981,7 @@
           <button type="button" onclick="runGroqQuickAction('flashcards')" class="shrink-0 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Make Flashcards</button>
           <button type="button" onclick="runGroqQuickAction('continue')" class="shrink-0 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Continue Note</button>
           <button type="button" onclick="runGroqQuickAction('schedule')" class="shrink-0 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Plan My Day</button>
+          <button type="button" onclick="runGroqQuickAction('scankeys')" class="shrink-0 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] font-semibold cursor-pointer">Scan API Keys</button>
         </div>
       </div>
 
@@ -3236,6 +3238,50 @@
 
       <!-- Table / Kanban Content Viewport -->
       <div id="pkDatabaseContent" class="flex-1 overflow-y-auto p-3 sm:p-4"></div>
+    </div>
+  </div>
+
+  <!-- 10. API Key Scanner, Deduplicator & Organizer Modal -->
+  <div id="pkApiKeyScannerModal" onclick="closeApiKeyScannerModal()" class="hidden fixed inset-0 bg-black/70 z-[989] flex items-center justify-center p-2 sm:p-5 select-none animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-strong)] shadow-2xl overflow-hidden select-text animate-modal-card">
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between gap-2 shrink-0 select-none">
+        <div class="flex items-center gap-2.5">
+          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          </span>
+          <div>
+            <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">API Key Scanner &amp; Organizer</div>
+            <div class="font-mono text-[9.5px] text-[var(--text-tertiary)]">Detect providers · Remove duplicates · Format &amp; check security</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeApiKeyScannerModal()" class="w-7 h-7 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-xs">✕</button>
+      </div>
+
+      <!-- Body / Scroller -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+        <!-- Input Box -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between font-mono text-[10.5px]">
+            <label for="pkApiKeyScannerInput" class="text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Paste Text, Notes, or Raw Keys</label>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="pasteClipboardToKeyScanner()" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] font-semibold cursor-pointer">Paste Clipboard</button>
+              <button type="button" onclick="scanActiveNoteForKeys()" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Scan Active Note</button>
+              <button type="button" onclick="clearApiKeyScannerInput()" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Clear</button>
+            </div>
+          </div>
+          <textarea id="pkApiKeyScannerInput" rows="4" placeholder="Paste .env file, JSON, code snippet, or messy text with API keys here (e.g. gsk_..., AIzaSy..., sk-or-v1-..., sk-proj-..., nvapi-..., pplx-..., hf_...)..." class="w-full px-3 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y"></textarea>
+          <div class="flex items-center justify-between">
+            <div class="font-mono text-[9.5px] text-[var(--text-tertiary)]">Recognizes Gemini, Groq, OpenRouter, NVIDIA, OpenAI, Claude, DeepSeek, Perplexity &amp; more</div>
+            <button type="button" onclick="runApiKeyScan()" class="px-3.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] hover:opacity-95 text-white font-mono text-xs font-semibold cursor-pointer shadow-xs">Scan &amp; Organize</button>
+          </div>
+        </div>
+
+        <!-- Output / Results Section -->
+        <div id="pkApiKeyScannerResults" class="hidden space-y-3 pt-2 border-t border-[var(--border-hairline)]">
+          <!-- Dynamically populated by renderApiKeyScanResults() -->
+        </div>
+      </div>
     </div>
   </div>
 

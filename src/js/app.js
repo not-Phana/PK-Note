@@ -493,7 +493,7 @@ const SLASH_COMMANDS = [
   { type: 'callout', label: 'Callout Block', desc: 'Left-ruled emphasis note', glyph: 'alert', shortcut: '>' },
   { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
   { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
-  { type: 'math', label: 'Math Formula (LaTeX)', desc: 'KaTeX display equation & chemistry formula', glyph: 'terminal', shortcut: '$$' },
+  { type: 'math', label: 'Math Equation', desc: 'Visual formula & equation (zero code needed)', glyph: 'terminal', shortcut: '$$' },
   { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
   { type: 'fix', label: 'Quick Fix Block (No AI)', desc: 'Fix typos, punctuation & spacing instantly', glyph: 'sparkles', shortcut: '/fix' },
   { type: 'polish', label: '1-Tap AI Polish Block', desc: 'In-place AI rewrite & polish without opening chat', glyph: 'sparkles', shortcut: '/polish' },
@@ -593,22 +593,135 @@ function unescapeHtml(str) {
     .replace(/&#39;/g, "'");
 }
 
+// =========================================================================
+// NATURAL MATH TRANSLATOR (ZERO-CODE INSTANT MATH ENGINE)
+// Translates natural everyday math (1/2, x^2, sqrt(x), +- , pi) to clean KaTeX
+// =========================================================================
+function naturalMathToLatex(raw) {
+  if (!raw) return '';
+  let s = String(raw).trim();
+
+  // 1. Unicode Math Symbols -> LaTeX
+  s = s.replace(/±/g, '\\pm ')
+       .replace(/∓/g, '\\mp ')
+       .replace(/×/g, '\\times ')
+       .replace(/÷/g, '\\div ')
+       .replace(/·/g, '\\cdot ')
+       .replace(/≠/g, '\\neq ')
+       .replace(/≈/g, '\\approx ')
+       .replace(/≤/g, '\\le ')
+       .replace(/≥/g, '\\ge ')
+       .replace(/π/g, '\\pi ')
+       .replace(/∞/g, '\\infty ')
+       .replace(/°/g, '^{\\circ}')
+       .replace(/⟹/g, '\\implies ')
+       .replace(/⟺/g, '\\iff ')
+       .replace(/→/g, '\\to ')
+       .replace(/←/g, '\\leftarrow ')
+       .replace(/θ/g, '\\theta ')
+       .replace(/α/g, '\\alpha ')
+       .replace(/β/g, '\\beta ')
+       .replace(/γ/g, '\\gamma ')
+       .replace(/δ/g, '\\delta ')
+       .replace(/λ/g, '\\lambda ')
+       .replace(/μ/g, '\\mu ')
+       .replace(/σ/g, '\\sigma ')
+       .replace(/ω/g, '\\omega ')
+       .replace(/Δ/g, '\\Delta ')
+       .replace(/Σ/g, '\\Sigma ')
+       .replace(/∫/g, '\\int ')
+       .replace(/∑/g, '\\sum ');
+
+  // 2. Unicode superscripts/subscripts
+  s = s.replace(/²/g, '^{2}')
+       .replace(/³/g, '^{3}')
+       .replace(/⁰/g, '^{0}')
+       .replace(/¹/g, '^{1}')
+       .replace(/⁴/g, '^{4}')
+       .replace(/⁵/g, '^{5}')
+       .replace(/⁻¹/g, '^{-1}')
+       .replace(/⁻⁵/g, '^{-5}')
+       .replace(/₀/g, '_{0}')
+       .replace(/₁/g, '_{1}')
+       .replace(/₂/g, '_{2}')
+       .replace(/₃/g, '_{3}')
+       .replace(/₄/g, '_{4}')
+       .replace(/₅/g, '_{5}');
+
+  // 3. Roots: sqrt(...) and cbrt(...) and root(n, ...)
+  s = s.replace(/\bsqrt\(([^()]+)\)/gi, '\\sqrt{$1}');
+  s = s.replace(/\bcbrt\(([^()]+)\)/gi, '\\sqrt[3]{$1}');
+  s = s.replace(/\broot\(([^,]+),\s*([^()]+)\)/gi, '\\sqrt[$1]{$2}');
+
+  // 4. Fractions:
+  // (A) / (B)
+  s = s.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g, '\\frac{$1}{$2}');
+  // (A) / B
+  s = s.replace(/\(([^()]+)\)\s*\/\s*([a-zA-Z0-9_\.\-]+)/g, '\\frac{$1}{$2}');
+  // A / (B)
+  s = s.replace(/([a-zA-Z0-9_\.\-]+)\s*\/\s*\(([^()]+)\)/g, '\\frac{$1}{$2}');
+  // Simple A / B (e.g. 1/2, 3/4, x/2, y/x)
+  s = s.replace(/\b([a-zA-Z0-9_\.\-]+)\s*\/\s*([a-zA-Z0-9_\.\-]+)\b/g, (m, a, b) => {
+    if (a.startsWith('\\') || b.startsWith('\\')) return m;
+    return `\\frac{${a}}{${b}}`;
+  });
+
+  // 5. Exponents: ^(expr) and ^expr
+  s = s.replace(/\^\(([^)]+)\)/g, '^{$1}');
+  s = s.replace(/\^([a-zA-Z0-9+\-]+)/g, (m, p) => p.startsWith('{') ? m : `^{${p}}`);
+
+  // 6. Subscripts: _(expr) and _expr
+  s = s.replace(/_\(([^)]+)\)/g, '_{$1}');
+  s = s.replace(/_([a-zA-Z0-9]+)/g, (m, p) => p.startsWith('{') ? m : `_{${p}}`);
+
+  // 7. Operators & Words
+  s = s.replace(/\+\-/g, '\\pm ')
+       .replace(/\-\+/g, '\\mp ')
+       .replace(/!=|<>/g, '\\neq ')
+       .replace(/<=/g, '\\le ')
+       .replace(/>=/g, '\\ge ')
+       .replace(/~=|\bapprox\b/gi, '\\approx ')
+       .replace(/==>|=>/g, '\\implies ')
+       .replace(/<=>|<==>/g, '\\iff ')
+       .replace(/-->|->/g, '\\to ')
+       .replace(/\b(?:infinity|inf)\b/gi, '\\infty ');
+
+  // 8. Greek words
+  const greekWords = ['alpha','beta','gamma','delta','epsilon','zeta','eta','theta','iota','kappa','lambda','mu','nu','xi','pi','rho','sigma','tau','upsilon','phi','chi','psi','omega','Delta','Gamma','Lambda','Sigma','Omega','Phi','Psi'];
+  greekWords.forEach(g => {
+    s = s.replace(new RegExp(`\\b${g}\\b`, 'g'), `\\${g} `);
+  });
+
+  // 9. Standard mathematical functions in upright font
+  s = s.replace(/\b(sin|cos|tan|log|ln|exp|sec|csc|cot)\b(?=\s*\()/gi, '\\$1');
+
+  // 10. Multiplication: * -> \cdot
+  s = s.replace(/\s*\*\s*/g, ' \\cdot ');
+
+  // 11. Calculus shorthand
+  s = s.replace(/\bd\/dx\b/gi, '\\frac{d}{dx}');
+  s = s.replace(/\bint\s+from\s+([a-zA-Z0-9_\.\-]+)\s+to\s+([a-zA-Z0-9_\.\-]+)/gi, '\\int_{$1}^{$2}');
+  s = s.replace(/\bsum\s+from\s+([a-zA-Z0-9_\.\-]+)\s+to\s+([a-zA-Z0-9_\.\-]+)/gi, '\\sum_{$1}^{$2}');
+
+  return s;
+}
+
 function renderLatexToHtml(latex, displayMode = false) {
   if (!latex || !String(latex).trim()) return '';
-  const cleanLatex = String(latex).trim();
+  const parsedLatex = naturalMathToLatex(String(latex).trim());
   if (typeof katex !== 'undefined' && katex.renderToString) {
     try {
-      return katex.renderToString(cleanLatex, {
+      return katex.renderToString(parsedLatex, {
         displayMode: displayMode,
         throwOnError: false,
         trust: true,
         strict: false
       });
     } catch (e) {
-      return `<code class="text-rose-500 font-mono text-xs">${escapeHtml(cleanLatex)}</code>`;
+      return `<code class="text-rose-500 font-mono text-xs">${escapeHtml(parsedLatex)}</code>`;
     }
   }
-  return `<span class="katex-fallback font-mono text-[13px] bg-[var(--bg-panel)] px-1.5 py-0.5 rounded border border-[var(--border-hairline)]">${escapeHtml(cleanLatex)}</span>`;
+  return `<span class="katex-fallback font-mono text-[13px] bg-[var(--bg-panel)] px-1.5 py-0.5 rounded border border-[var(--border-hairline)]">${escapeHtml(parsedLatex)}</span>`;
 }
 
 // =========================================================================
@@ -3081,52 +3194,130 @@ function renderSingleBlockHTML(block) {
 
     case 'math': {
       const isEditing = block.isEditing === true;
-      const mathFormula = block.content || '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
+      const mathFormula = block.content || 'x^2 + 1/2 = 4';
       const renderedHtml = renderLatexToHtml(mathFormula, true);
       innerBlock = `
-        <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden font-mono group/math">
+        <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden group/math">
+          <!-- Top Header -->
           <div class="px-3 py-1.5 bg-[var(--bg-canvas)] border-b border-[var(--border-hairline)] flex items-center justify-between text-[11px] text-[var(--text-tertiary)] select-none">
             <div class="flex items-center gap-1.5 font-semibold text-[var(--text-secondary)]">
               <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 18h16M14 6l-4 12"/></svg>
-              <span>MATH FORMULA</span>
+              <span>MATH EQUATION</span>
             </div>
             <div class="flex items-center gap-2">
-              <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Insert Math & Chemistry Symbols" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
-                <span>∑ Symbols</span>
+              <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
+                <span>∑ Studio</span>
               </button>
               <button type="button" onclick="copyMathSnippetToClipboard('${escapeHtml(mathFormula).replace(/'/g, "\\'")}', true)" title="Copy as Clean Readable Text" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">TEXT</button>
               <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy Real Math Formula" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">COPY</button>
-              <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Toggle LaTeX Editor" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE CODE' : 'EDIT'}</button>
+              <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula Without Code" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
             </div>
           </div>
           
-          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit LaTeX" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center">
+          <!-- Rendered Formula View -->
+          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit formula (no code needed)" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/20 transition-colors min-h-[56px] flex items-center justify-center">
             <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full" data-math-raw="${escapeHtml(mathFormula)}">${renderedHtml}</div>
           </div>
 
-          <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--code-bg)] p-3">
-            <div class="flex items-center justify-between text-[10px] text-[var(--text-tertiary)] mb-1.5 font-mono">
-              <span>LaTeX Input (KaTeX &amp; mhchem Chemistry supported)</span>
-              <span class="text-[var(--accent-vermilion)]">Live preview above · Shift+Enter to close</span>
+          <!-- Easy Visual Math Editor (Zero Code Needed!) -->
+          <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-3 space-y-2.5">
+            <div class="flex items-center justify-between text-[11px] pb-1 border-b border-[var(--border-hairline)]">
+              <span class="font-medium text-[var(--text-secondary)]">Type natural math or tap buttons (zero code needed)</span>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="toggleMathWizard('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--accent-ochre)] font-semibold cursor-pointer flex items-center gap-1">
+                  <span>✨ Fill-in Box</span>
+                </button>
+                <button type="button" onclick="clearMathBlock('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Clear</button>
+                <button type="button" onclick="toggleMathBlockEditMode('${block.id}', false)" class="px-2.5 py-0.5 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Done</button>
+              </div>
             </div>
-            <textarea
+
+            <!-- Visual Fill-in Helper Drawer -->
+            <div id="mathWizard_${block.id}" class="hidden p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2 text-xs">
+              <span class="text-[10px] uppercase font-mono tracking-wider text-[var(--text-tertiary)] block">1-Click Fill-in Templates:</span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <!-- Fraction Box -->
+                <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col gap-1.5">
+                  <span class="text-[10px] font-semibold text-[var(--accent-vermilion)]">Fraction (a/b)</span>
+                  <div class="flex items-center gap-1">
+                    <input type="text" id="wizNum_${block.id}" placeholder="Top" value="1" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
+                    <span>/</span>
+                    <input type="text" id="wizDen_${block.id}" placeholder="Bottom" value="2" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
+                    <button type="button" onclick="insertWizardFraction('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Add</button>
+                  </div>
+                </div>
+
+                <!-- Power Box -->
+                <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col gap-1.5">
+                  <span class="text-[10px] font-semibold text-[var(--accent-ochre)]">Power (xⁿ)</span>
+                  <div class="flex items-center gap-1">
+                    <input type="text" id="wizBase_${block.id}" placeholder="Base" value="x" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
+                    <span>^</span>
+                    <input type="text" id="wizExp_${block.id}" placeholder="Power" value="2" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
+                    <button type="button" onclick="insertWizardPower('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--accent-ochre)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Add</button>
+                  </div>
+                </div>
+
+                <!-- Root Box -->
+                <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col gap-1.5">
+                  <span class="text-[10px] font-semibold text-emerald-500">Root (√x)</span>
+                  <div class="flex items-center gap-1">
+                    <span>√</span>
+                    <input type="text" id="wizRad_${block.id}" placeholder="Inside" value="x" class="flex-1 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
+                    <button type="button" onclick="insertWizardRoot('${block.id}')" class="px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Add</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Natural Math Input Box -->
+            <input
+              type="text"
               id="mathInput_${block.id}"
               data-block-id="${block.id}"
               spellcheck="false"
-              rows="2"
+              value="${escapeHtml(block.content || '')}"
               oninput="handleMathBlockInput(event, '${block.id}')"
               onkeydown="handleMathBlockKeydown(event, '${block.id}')"
-              placeholder="e.g. \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} or \\ce{H2O}"
-              class="w-full p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--code-text)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y">${escapeHtml(block.content || '')}</textarea>
-            
-            <div class="flex flex-wrap items-center gap-1 pt-2">
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\frac{a}{b}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">a/b</button>
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\sqrt{x}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">√x</button>
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\int_{a}^{b} f(x) dx')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">∫ dx</button>
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\sum_{i=1}^{n} x_i')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">∑</button>
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\lim_{x \\\\to \\\\infty}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">lim</button>
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\begin{pmatrix} a & b \\\\\\\\ c & d \\\\end{pmatrix}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">Matrix</button>
-              <button type="button" onclick="insertMathSnippet('${block.id}', '\\\\ce{2H2 + O2 -> 2H2O}')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] font-mono cursor-pointer">Chemistry</button>
+              placeholder="e.g. 1/2 + x^2 = 5 or sqrt(x) + 3 or (-b +- sqrt(D))/(2a)"
+              class="w-full px-3 py-2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] transition-all"
+            />
+
+            <!-- Visual Math Keypad (1-Tap Buttons) -->
+            <div class="space-y-1.5 pt-0.5 select-none">
+              <!-- Row 1: Structures -->
+              <div class="flex flex-wrap items-center gap-1">
+                <span class="text-[9.5px] font-mono text-[var(--text-tertiary)] uppercase mr-1">Structure:</span>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'frac')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">➗ a/b</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'pow2')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">x²</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'powN')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">xⁿ</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'sqrt')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">√x</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'sub')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">x₀</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'parens')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">( )</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'abs')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">|x|</button>
+              </div>
+
+              <!-- Row 2: 1-Tap Symbols -->
+              <div class="flex flex-wrap items-center gap-1">
+                <span class="text-[9.5px] font-mono text-[var(--text-tertiary)] uppercase mr-1">Symbols:</span>
+                ${['±', '×', '÷', '·', '≠', '≈', '≤', '≥', 'π', '∞', '°', '→', '⟹', 'θ', 'α', 'β', 'Δ'].map(sym => `
+                  <button type="button" onclick="insertEasyMathToken('${block.id}', '${sym}')" class="w-6 h-6 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer transition-colors">${sym}</button>
+                `).join('')}
+              </div>
+
+              <!-- Row 3: Calculus & Functions -->
+              <div class="flex flex-wrap items-center gap-1">
+                <span class="text-[9.5px] font-mono text-[var(--text-tertiary)] uppercase mr-1">Calculus:</span>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'd/dx')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">d/dx</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'int')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">∫ dx</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'int_ab')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">∫₀¹</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'sum')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">∑</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'lim')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">lim</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'sin')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">sin</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'cos')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">cos</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'log')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">log</button>
+                <button type="button" onclick="insertEasyMathToken('${block.id}', 'ln')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">ln</button>
+              </div>
             </div>
           </div>
         </div>
@@ -4048,7 +4239,7 @@ function applySlashCommand(newType) {
     if (newType === 'code' && !block.language) block.language = 'typescript';
     if (newType === 'math') {
       block.isEditing = true;
-      if (!block.content) block.content = '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
+      if (!block.content) block.content = 'x^2 + 1/2 = 4';
     }
     if (newType === 'toggle') { block.open = true; if (typeof block.body !== 'string') block.body = ''; }
     if (newType === 'table' && !Array.isArray(block.rows)) {
@@ -19254,6 +19445,153 @@ function copyMathLatex(blockId) {
   });
 }
 
+// =========================================================================
+// ZERO-CODE EASY MATH BUILDER HELPERS
+// =========================================================================
+function toggleMathWizard(blockId) {
+  const wiz = document.getElementById(`mathWizard_${blockId}`);
+  if (wiz) wiz.classList.toggle('hidden');
+}
+
+function clearMathBlock(blockId) {
+  const input = document.getElementById(`mathInput_${blockId}`);
+  if (input) {
+    input.value = '';
+    input.focus();
+    handleMathBlockInput({ target: input }, blockId);
+  }
+}
+
+function insertAtMathInput(blockId, text) {
+  const input = document.getElementById(`mathInput_${blockId}`);
+  if (!input) return;
+  const start = input.selectionStart || input.value.length;
+  const end = input.selectionEnd || input.value.length;
+  const cur = input.value;
+  const before = cur.substring(0, start);
+  const after = cur.substring(end);
+  const needsSpace = before.length > 0 && !before.endsWith(' ') && !before.endsWith('+') && !before.endsWith('-');
+  const insertStr = (needsSpace ? ' ' : '') + text + ' ';
+  input.value = before + insertStr + after;
+  input.focus();
+  input.setSelectionRange(before.length + insertStr.length, before.length + insertStr.length);
+  handleMathBlockInput({ target: input }, blockId);
+}
+
+function insertWizardFraction(blockId) {
+  const num = (document.getElementById(`wizNum_${blockId}`)?.value || '1').trim();
+  const den = (document.getElementById(`wizDen_${blockId}`)?.value || '2').trim();
+  insertAtMathInput(blockId, `(${num})/(${den})`);
+  showToast(`Added fraction ${num}/${den}`);
+}
+
+function insertWizardPower(blockId) {
+  const base = (document.getElementById(`wizBase_${blockId}`)?.value || 'x').trim();
+  const exp = (document.getElementById(`wizExp_${blockId}`)?.value || '2').trim();
+  insertAtMathInput(blockId, `${base}^(${exp})`);
+  showToast(`Added power ${base}^${exp}`);
+}
+
+function insertWizardRoot(blockId) {
+  const rad = (document.getElementById(`wizRad_${blockId}`)?.value || 'x').trim();
+  insertAtMathInput(blockId, `sqrt(${rad})`);
+  showToast(`Added square root`);
+}
+
+function insertEasyMathToken(blockId, token) {
+  const input = document.getElementById(`mathInput_${blockId}`);
+  if (!input) return;
+  const start = input.selectionStart || 0;
+  const end = input.selectionEnd || 0;
+  const val = input.value || '';
+  const sel = val.substring(start, end);
+
+  let insertion = '';
+  let selOffset = 0;
+  let selLen = 0;
+
+  switch (token) {
+    case 'frac':
+      if (sel) {
+        insertion = `(${sel})/(b)`;
+        selOffset = sel.length + 4;
+        selLen = 1;
+      } else {
+        insertion = `(a)/(b)`;
+        selOffset = 1;
+        selLen = 1;
+      }
+      break;
+    case 'pow2':
+      insertion = `^2`;
+      selOffset = 2;
+      break;
+    case 'powN':
+      insertion = sel ? `^(${sel})` : `^(n)`;
+      selOffset = sel ? sel.length + 3 : 2;
+      selLen = sel ? 0 : 1;
+      break;
+    case 'sqrt':
+      insertion = sel ? `sqrt(${sel})` : `sqrt(x)`;
+      selOffset = sel ? sel.length + 6 : 5;
+      selLen = sel ? 0 : 1;
+      break;
+    case 'sub':
+      insertion = sel ? `_${sel}` : `_0`;
+      selOffset = sel ? sel.length + 1 : 2;
+      break;
+    case 'parens':
+      insertion = sel ? `(${sel})` : `()`;
+      selOffset = sel ? sel.length + 2 : 1;
+      break;
+    case 'abs':
+      insertion = sel ? `|${sel}|` : `|x|`;
+      selOffset = sel ? sel.length + 2 : 1;
+      selLen = sel ? 0 : 1;
+      break;
+    case 'd/dx':
+      insertion = sel ? `d/dx(${sel})` : `d/dx(x)`;
+      selOffset = insertion.length;
+      break;
+    case 'int':
+      insertion = sel ? `int ${sel} dx` : `int f(x) dx`;
+      selOffset = insertion.length;
+      break;
+    case 'int_ab':
+      insertion = sel ? `int from a to b ${sel} dx` : `int from 0 to 1 x dx`;
+      selOffset = insertion.length;
+      break;
+    case 'sum':
+      insertion = sel ? `sum from i=1 to n ${sel}` : `sum from i=1 to n x_i`;
+      selOffset = insertion.length;
+      break;
+    case 'lim':
+      insertion = `lim x->0 `;
+      selOffset = insertion.length;
+      break;
+    case 'sin':
+    case 'cos':
+    case 'tan':
+    case 'log':
+    case 'ln':
+      insertion = sel ? `${token}(${sel})` : `${token}(x)`;
+      selOffset = insertion.length;
+      break;
+    default:
+      // Direct symbols: ±, ×, ÷, ·, ≠, ≈, ≤, ≥, π, ∞, °, →, ⟹, θ, α, β, Δ
+      insertion = ` ${token} `;
+      selOffset = insertion.length;
+      break;
+  }
+
+  input.value = val.substring(0, start) + insertion + val.substring(end);
+  input.focus();
+  input.setSelectionRange(start + selOffset, start + selOffset + selLen);
+
+  handleMathBlockInput({ target: input }, blockId);
+  if (typeof pkHaptic === 'function') pkHaptic(6);
+}
+
 function insertMathSnippet(blockId, snippet) {
   const note = guardActiveNoteEditable();
   if (!note) return;
@@ -19279,7 +19617,7 @@ function insertMathSnippet(blockId, snippet) {
 function insertNewMathBlockIntoNote(latexContent) {
   const note = guardActiveNoteEditable();
   if (!note) return;
-  const formula = latexContent || '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
+  const formula = latexContent || 'x^2 + 1/2 = 4';
   const newBlock = {
     id: generateId('b'),
     type: 'math',

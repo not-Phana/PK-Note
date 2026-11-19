@@ -20423,18 +20423,16 @@ function setSmartDrawMode(mode) {
     const btn = document.getElementById(`sdMode${m.charAt(0).toUpperCase() + m.slice(1)}Btn`);
     if (btn) {
       if (m === mode) {
-        btn.className = 'px-2 sm:px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer';
+        btn.className = 'px-2.5 py-1 rounded-md bg-[var(--accent-vermilion)] text-white font-medium cursor-pointer transition-colors';
       } else {
-        btn.className = 'px-2 sm:px-2.5 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+        btn.className = 'px-2.5 py-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors';
       }
     }
   });
 
-  const applyBtn = document.getElementById('sdApplyBtn');
-  if (applyBtn) {
-    const label = mode === 'text' ? 'Apply Text' : (mode === 'sketch' ? 'Apply Sketch' : 'Apply Equation');
-    const shortLabel = mode === 'text' ? 'Text' : (mode === 'sketch' ? 'Sketch' : 'Apply');
-    applyBtn.innerHTML = `<span class="sm:hidden">${shortLabel}</span><span class="hidden sm:inline">${label}</span>`;
+  const applyBtnLabel = document.getElementById('sdApplyBtnLabel');
+  if (applyBtnLabel) {
+    applyBtnLabel.textContent = mode === 'text' ? 'Insert Text' : (mode === 'sketch' ? 'Insert Sketch' : 'Insert Formula');
   }
 
   redrawSmartDrawCanvas();
@@ -20560,19 +20558,41 @@ function clearSmartDrawCanvas() {
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
-function initSmartDrawCanvas() {
+function resizeSmartDrawCanvas() {
   const canvas = document.getElementById('smartDrawCanvas');
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
+  const wrapper = document.getElementById('sdCanvasWrapper');
+  if (!canvas || !wrapper) return;
+  const rect = wrapper.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  const w = Math.floor(rect.width) || 960;
-  const h = Math.floor(rect.height) || 480;
+  const w = Math.floor(rect.width) || 800;
+  const h = Math.floor(rect.height) || 450;
 
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
+  if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+  }
   smartDrawCtx = canvas.getContext('2d');
   smartDrawCtx.setTransform(1, 0, 0, 1, 0, 0);
   smartDrawCtx.scale(dpr, dpr);
+}
+
+function initSmartDrawCanvas() {
+  const canvas = document.getElementById('smartDrawCanvas');
+  const wrapper = document.getElementById('sdCanvasWrapper');
+  if (!canvas || !wrapper) return;
+
+  resizeSmartDrawCanvas();
+
+  if (!window._smartDrawResizeObserver && typeof ResizeObserver !== 'undefined') {
+    window._smartDrawResizeObserver = new ResizeObserver(() => {
+      const modal = document.getElementById('smartDrawModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        resizeSmartDrawCanvas();
+        redrawSmartDrawCanvas();
+      }
+    });
+    window._smartDrawResizeObserver.observe(wrapper);
+  }
 
   if (smartDrawCanvasInitialized) return;
   smartDrawCanvasInitialized = true;
@@ -20588,22 +20608,9 @@ function initSmartDrawCanvas() {
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
     const pt = getPos(e);
 
-    // Interactive Recognition Badges Hit-Testing (1-tap candidate cycling)
-    if (smartDrawGlyphs && smartDrawGlyphs.length > 0) {
-      const hitGlyph = smartDrawGlyphs.find(g =>
-        g.badgeRect &&
-        pt.x >= g.badgeRect.x && pt.x <= g.badgeRect.x + g.badgeRect.w &&
-        pt.y >= g.badgeRect.y && pt.y <= g.badgeRect.y + g.badgeRect.h
-      );
-      if (hitGlyph) {
-        cycleGlyphCandidate(hitGlyph);
-        return;
-      }
-    }
-
-    canvas.setPointerCapture(e.pointerId);
     const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
     let color = smartDrawColor;
     if (smartDrawTool === 'eraser') {
@@ -20623,7 +20630,7 @@ function initSmartDrawCanvas() {
     };
     smartDrawRedoStrokes = [];
     smartDrawStrokes.push(smartDrawCurrentStroke);
-    redrawSmartDrawCanvas();
+
     const hint = document.getElementById('smartDrawEmptyHint');
     if (hint) hint.classList.add('hidden');
   });
@@ -20631,18 +20638,47 @@ function initSmartDrawCanvas() {
   canvas.addEventListener('pointermove', (e) => {
     if (!smartDrawCurrentStroke) return;
     e.preventDefault();
-    const pt = getPos(e);
+    const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+    const bg = isDark ? '#141417' : '#ffffff';
+
+    const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
     const pts = smartDrawCurrentStroke.points;
-    const last = pts[pts.length - 1];
-    if (!last || Math.hypot(pt.x - last.x, pt.y - last.y) >= 1.5) {
-      pts.push(pt);
-      redrawSmartDrawCanvas();
+
+    smartDrawCtx.save();
+    smartDrawCtx.lineCap = 'round';
+    smartDrawCtx.lineJoin = 'round';
+    if (smartDrawCurrentStroke.tool === 'highlighter') {
+      smartDrawCtx.globalAlpha = 0.35;
+      smartDrawCtx.strokeStyle = smartDrawCurrentStroke.color;
+      smartDrawCtx.lineWidth = smartDrawCurrentStroke.size * 2.8;
+    } else {
+      smartDrawCtx.globalAlpha = 1.0;
+      smartDrawCtx.strokeStyle = smartDrawCurrentStroke.color === '__erase__' ? bg : smartDrawCurrentStroke.color;
+      smartDrawCtx.lineWidth = smartDrawCurrentStroke.color === '__erase__' ? smartDrawCurrentStroke.size * 3.5 : smartDrawCurrentStroke.size;
     }
+
+    for (let k = 0; k < events.length; k++) {
+      const pt = getPos(events[k]);
+      const last = pts[pts.length - 1];
+      if (!last || Math.hypot(pt.x - last.x, pt.y - last.y) >= 1.5) {
+        pts.push(pt);
+        if (pts.length >= 2) {
+          smartDrawCtx.beginPath();
+          const p1 = pts[pts.length - 2];
+          const p2 = pts[pts.length - 1];
+          smartDrawCtx.moveTo(p1.x, p1.y);
+          smartDrawCtx.lineTo(p2.x, p2.y);
+          smartDrawCtx.stroke();
+        }
+      }
+    }
+    smartDrawCtx.restore();
   });
 
   const finishStroke = (e) => {
     if (smartDrawCurrentStroke) {
       smartDrawCurrentStroke = null;
+      redrawSmartDrawCanvas();
       recognizeSmartDrawStrokes();
       if (typeof pkHaptic === 'function') pkHaptic(5);
     }
@@ -20748,57 +20784,6 @@ function redrawSmartDrawCanvas() {
   }
   smartDrawCtx.globalAlpha = 1.0;
 
-  // Draw Interactive Recognition Badges over Glyphs
-  if (smartDrawGlyphs && smartDrawGlyphs.length > 0) {
-    for (let i = 0; i < smartDrawGlyphs.length; i++) {
-      const g = smartDrawGlyphs[i];
-      if (!g.char) continue;
-
-      const badgeW = Math.max(26, Math.min(36, g.w * 0.7));
-      const badgeH = 20;
-      const badgeX = Math.max(4, Math.min(w - badgeW - 4, g.cx - badgeW / 2));
-      const badgeY = g.minY > 26 ? g.minY - 24 : Math.min(h - badgeH - 4, g.maxY + 6);
-      g.badgeRect = { x: badgeX, y: badgeY, w: badgeW, h: badgeH };
-
-      // Badge pill background
-      smartDrawCtx.save();
-      smartDrawCtx.fillStyle = isDark ? 'rgba(24, 24, 27, 0.94)' : 'rgba(255, 255, 255, 0.96)';
-      smartDrawCtx.strokeStyle = 'rgba(224, 90, 71, 0.75)';
-      smartDrawCtx.lineWidth = 1.2;
-
-      const r = 4;
-      smartDrawCtx.beginPath();
-      smartDrawCtx.moveTo(badgeX + r, badgeY);
-      smartDrawCtx.lineTo(badgeX + badgeW - r, badgeY);
-      smartDrawCtx.quadraticCurveTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + r);
-      smartDrawCtx.lineTo(badgeX + badgeW, badgeY + badgeH - r);
-      smartDrawCtx.quadraticCurveTo(badgeX + badgeW, badgeY + badgeH, badgeX + badgeW - r, badgeY + badgeH);
-      smartDrawCtx.lineTo(badgeX + r, badgeY + badgeH);
-      smartDrawCtx.quadraticCurveTo(badgeX, badgeY + badgeH, badgeX, badgeY + badgeH - r);
-      smartDrawCtx.lineTo(badgeX, badgeY + r);
-      smartDrawCtx.quadraticCurveTo(badgeX, badgeY, badgeX + r, badgeY);
-      smartDrawCtx.closePath();
-      smartDrawCtx.fill();
-      smartDrawCtx.stroke();
-
-      // Badge text
-      smartDrawCtx.fillStyle = isDark ? '#ffffff' : '#18181b';
-      smartDrawCtx.font = 'bold 11px monospace';
-      smartDrawCtx.textAlign = 'center';
-      smartDrawCtx.textBaseline = 'middle';
-      smartDrawCtx.fillText(g.char, badgeX + badgeW / 2 - (g.candidates && g.candidates.length > 1 ? 2 : 0), badgeY + badgeH / 2 + 0.5);
-
-      // Indicator dot for alternative candidates
-      if (g.candidates && g.candidates.length > 1) {
-        smartDrawCtx.fillStyle = 'rgba(224, 90, 71, 0.9)';
-        smartDrawCtx.beginPath();
-        smartDrawCtx.arc(badgeX + badgeW - 5, badgeY + badgeH / 2, 1.8, 0, Math.PI * 2);
-        smartDrawCtx.fill();
-      }
-      smartDrawCtx.restore();
-    }
-  }
-
   const hint = document.getElementById('smartDrawEmptyHint');
   if (hint) {
     hint.classList.toggle('hidden', smartDrawStrokes.length > 0);
@@ -20870,26 +20855,95 @@ function detectLoops(points) {
 function classifyGlyph(g) {
   const sCount = g.strokes.length;
 
-  // 2-Stroke Characters (+, =, x, 4, 7, 5)
+  // 3-Stroke Characters (K, N, H, A, π, ÷, etc.)
+  if (sCount === 3) {
+    const s1 = g.strokes[0];
+    const s2 = g.strokes[1];
+    const s3 = g.strokes[2];
+
+    // Letter K: one stroke is vertical (left stem), other two are diagonal arms meeting near center
+    const hasVertStem = g.strokes.some(s => s.isVert || s.h > s.w * 1.3);
+    if (hasVertStem) {
+      const vert = g.strokes.find(s => s.isVert || s.h > s.w * 1.3);
+      const others = g.strokes.filter(s => s !== vert);
+      if (others.length === 2 && others.every(s => s.minX >= vert.minX - 6)) {
+        return { char: 'K', candidates: ['K', 'k', 'X', '1<'] };
+      }
+      // Letter H: two vertical stems + one horizontal crossbar between them
+      const verts = g.strokes.filter(s => s.isVert || s.h > s.w * 1.3);
+      const horiz = g.strokes.find(s => s.isHoriz || s.w > s.h * 1.2);
+      if (verts.length >= 2 && horiz) {
+        return { char: 'H', candidates: ['H', 'h', 'n', '#'] };
+      }
+      // Letter N: two vertical stems + one diagonal connecting top of left to bottom of right
+      if (verts.length >= 2) {
+        const diag = g.strokes.find(s => !verts.includes(s));
+        if (diag && diag.dx > 0 && diag.dy > 0) {
+          return { char: 'N', candidates: ['N', 'n', 'H', 'M'] };
+        }
+      }
+    }
+
+    // Letter A: 2 diagonal strokes meeting near top apex + 1 horizontal crossbar
+    const horizBar = g.strokes.find(s => s.isHoriz || s.w > s.h * 1.2);
+    if (horizBar) {
+      const others = g.strokes.filter(s => s !== horizBar);
+      if (others.length === 2 && Math.abs(others[0].start.x - others[1].start.x) < g.w * 0.45 && Math.abs(others[0].start.y - others[1].start.y) < 15) {
+        return { char: 'A', candidates: ['A', 'a', '4'] };
+      }
+    }
+
+    const horiz = g.strokes.find(s => s.isHoriz);
+    const verts = g.strokes.filter(s => s.isVert);
+    if (horiz && verts.length >= 2) {
+      return { char: 'π', candidates: ['π', 'n', 'H'] };
+    }
+    if (horiz && g.strokes.filter(s => s.pathLen < 20).length >= 2) {
+      return { char: '÷', candidates: ['÷', '%', '-'] };
+    }
+
+    if (smartDrawMode === 'text') {
+      return { char: 'K', candidates: ['K', 'N', 'A', 'H'] };
+    }
+    return { char: '3', candidates: ['3', 'B', 'π', 'K'] };
+  }
+
+  // 2-Stroke Characters (7, K, N, T, +, =, x, 4, 5, L, etc.)
   if (sCount === 2) {
     const s1 = g.strokes[0];
     const s2 = g.strokes[1];
 
-    // European crossed 7: one stroke is a 7 or vertical/diagonal stem, other is a horizontal crossbar near middle
-    if (s2.isHoriz && !s1.isHoriz) {
-      if (Math.abs(s2.cy - s1.cy) < s1.h * 0.45 && s2.minX <= s1.maxX + 15 && s2.maxX >= s1.minX - 15) {
+    // European crossed 7: one stroke is a 7 or descending diagonal stem, other is a crossbar near middle
+    const sStem = s1.h > s1.w * 0.8 ? s1 : (s2.h > s2.w * 0.8 ? s2 : null);
+    const sCross = sStem === s1 ? s2 : s1;
+    if (sStem && sCross) {
+      const isCrossbar = (sCross.isHoriz || sCross.w > sCross.h * 1.05) && sCross.w > 8;
+      const isNearMiddle = Math.abs(sCross.cy - sStem.cy) < sStem.h * 0.48;
+      const xOverlap = sCross.minX <= sStem.maxX + 18 && sCross.maxX >= sStem.minX - 18;
+      if (isCrossbar && isNearMiddle && xOverlap) {
         return { char: '7', candidates: ['7', '1', 'z', '>'] };
       }
     }
-    if (s1.isHoriz && !s2.isHoriz) {
-      // 2-stroke standard 7: s1 is top horizontal bar, s2 starts near top-right of s1 and descends down
-      if (s1.minY <= s2.minY + 15 && s2.h > s2.w * 1.1) {
-        return { char: '7', candidates: ['7', '1', '>'] };
+
+    // 2-stroke standard 7: s1 is top horizontal bar, s2 starts near top-right of s1 and descends down
+    if (s1.isHoriz && !s2.isHoriz && s1.minY <= s2.minY + 15 && s2.h > s2.w * 1.05) {
+      return { char: '7', candidates: ['7', '1', '>'] };
+    }
+
+    // Letter K (2 strokes: vertical line + < shape)
+    if ((s1.isVert && !s2.isVert && s2.minX >= s1.minX - 6) || (s2.isVert && !s1.isVert && s1.minX >= s2.minX - 6)) {
+      const vert = s1.isVert ? s1 : s2;
+      const other = s1.isVert ? s2 : s1;
+      if (other.minX >= vert.minX - 8 && other.w > 8 && other.h > 12) {
+        return { char: 'K', candidates: ['K', 'k', 'x', '<'] };
       }
-      // Or s1 is crossbar crossing s2 near middle
-      if (Math.abs(s1.cy - s2.cy) < s2.h * 0.45 && s1.minX <= s2.maxX + 15 && s1.maxX >= s2.minX - 15) {
-        return { char: '7', candidates: ['7', '1', 'z', '>'] };
-      }
+    }
+
+    // Letter T (top horizontal bar + centered vertical stem)
+    const horizStroke = s1.isHoriz ? s1 : (s2.isHoriz ? s2 : null);
+    const vertStroke = horizStroke === s1 ? s2 : (horizStroke === s2 ? s1 : null);
+    if (horizStroke && vertStroke && vertStroke.isVert && vertStroke.minY >= horizStroke.minY - 4) {
+      return { char: 'T', candidates: ['T', 't', '+', '7'] };
     }
 
     // Equal sign (=): two parallel horizontal lines stacked vertically
@@ -20902,30 +20956,21 @@ function classifyGlyph(g) {
     }
     // Variable x or multiplication (×): two crossing diagonal strokes
     if (!s1.isHoriz && !s1.isVert && !s2.isHoriz && !s2.isVert) {
-      return { char: 'x', candidates: ['x', '×', '+'] };
+      return { char: 'x', candidates: ['x', '×', '+', 'X'] };
     }
     // Number 4: L-shape corner + vertical line
     if (s1.isVert || s2.isVert) {
-      return { char: '4', candidates: ['4', '+', 'y'] };
+      return { char: '4', candidates: ['4', '+', 'y', 'A'] };
     }
     // Number 5: 2 strokes (vertical-curve + top horizontal bar)
     if (s1.isHoriz || s2.isHoriz) {
       return { char: '5', candidates: ['5', 's', '6'] };
     }
-    return { char: '+', candidates: ['+', 'x', '4', '7'] };
-  }
 
-  // 3-Stroke Characters (π, ÷, etc.)
-  if (sCount === 3) {
-    const horiz = g.strokes.find(s => s.isHoriz);
-    const verts = g.strokes.filter(s => s.isVert);
-    if (horiz && verts.length >= 2) {
-      return { char: 'π', candidates: ['π', 'n', 'H'] };
+    if (smartDrawMode === 'text') {
+      return { char: 'K', candidates: ['K', 'T', 'X', 'N'] };
     }
-    if (horiz && g.strokes.filter(s => s.pathLen < 20).length >= 2) {
-      return { char: '÷', candidates: ['÷', '%', '-'] };
-    }
-    return { char: '3', candidates: ['3', 'B', 'π'] };
+    return { char: '+', candidates: ['+', 'x', '4', '7'] };
   }
 
   // Single-Stroke Characters
@@ -20945,7 +20990,7 @@ function classifyGlyph(g) {
     return { char: '-', candidates: ['-', '—', '_'] };
   }
   if (s.isVert && s.pathLen / directDist < 1.35) {
-    return { char: '1', candidates: ['1', '|', '/', 'l'] };
+    return { char: '1', candidates: ['1', '|', '/', 'l', 'I'] };
   }
 
   // Slash (/)
@@ -20964,24 +21009,27 @@ function classifyGlyph(g) {
     }
 
     // Loop in bottom half: definitely a 6!
-    if (lcy > g.cy + g.h * 0.04) {
+    if (lcy > g.cy + g.h * 0.04 && start.x > g.minX + g.w * 0.25) {
       return { char: '6', candidates: ['6', 'b', 'G', '0'] };
     }
 
-    // Loop in top half: definitely a 9!
-    if (lcy < g.cy - 0.04 * g.h) {
+    // Loop in top half: definitely a 9! (ensure it descends to bottom right)
+    if (lcy < g.cy - 0.04 * g.h && end.y > g.cy + g.h * 0.25) {
       return { char: '9', candidates: ['9', 'q', 'g', 'p'] };
     }
 
-    // Centered large loop: 0
-    if (loopInfo.hasClosedStartEnd && g.h > g.w * 0.75) {
-      return { char: '0', candidates: ['0', 'o', 'O', '8'] };
+    // Centered large loop: 0 or O
+    if (loopInfo.hasClosedStartEnd && g.h > g.w * 0.65) {
+      if (smartDrawMode === 'text') {
+        return { char: 'O', candidates: ['O', 'o', '0', '8'] };
+      }
+      return { char: '0', candidates: ['0', 'O', 'o', '8'] };
     }
   }
 
   // TOPOLOGICAL VETO: If NO loop was detected, it is strictly impossible to be 0, 6, 8, or 9!
 
-  // Number 7: starts top-left, moves right, sharp downward angle to bottom
+  // Number 7: starts top-left, moves right, sharp downward angle to bottom-left
   if (start.y < g.minY + g.h * 0.45 && start.x < g.minX + g.w * 0.65 && end.y > g.maxY - g.h * 0.38) {
     let topMaxX = -Infinity;
     let topMaxIdx = -1;
@@ -20992,9 +21040,14 @@ function classifyGlyph(g) {
         topMaxIdx = i;
       }
     }
-    if (topMaxX > g.minX + g.w * 0.55 && pts[topMaxIdx].y < g.minY + g.h * 0.5) {
+    if (topMaxX > g.minX + g.w * 0.52 && pts[topMaxIdx].y < g.minY + g.h * 0.5) {
       return { char: '7', candidates: ['7', '1', '>', 'z'] };
     }
+  }
+
+  // Letter N (1-stroke continuous zig-zag: starts bottom-left, goes up, goes down-right, goes up)
+  if (start.y > g.minY + g.h * 0.45 && start.x < g.minX + g.w * 0.45 && end.y < g.minY + g.h * 0.55 && end.x > g.maxX - g.w * 0.45 && s.pathLen > g.h * 2.1) {
+    return { char: 'N', candidates: ['N', 'n', 'W', 'u'] };
   }
 
   // Square Root (√): starts with small dip/hook, sharp descent to lowest point, sharp ascent to top-right
@@ -21029,6 +21082,9 @@ function classifyGlyph(g) {
     return { char: 'z', candidates: ['z', '2', '7'] };
   }
 
+  if (smartDrawMode === 'text') {
+    return { char: 'x', candidates: ['x', 'c', 'n', 'v'] };
+  }
   return { char: 'x', candidates: ['x', '×', '+'] };
 }
 
@@ -21079,10 +21135,13 @@ function recognizeSmartDrawStrokes() {
       lowestPt,
       highestPt,
       isClosed: directDist < Math.max(w, h) * 0.35 && pathLen > 24,
-      isHoriz: w > h * 1.6 && w > 10,
-      isVert: h > w * 1.6 && h > 10
+      isHoriz: w > h * 1.5 && w > 8,
+      isVert: h > w * 1.4 && h > 10
     };
   });
+
+  // Sort strokes horizontally by minX
+  strokeBoxes.sort((a, b) => a.minX - b.minX);
 
   // Cluster strokes into glyphs from left to right based on geometric proximity
   const visited = new Set();
@@ -21101,7 +21160,11 @@ function recognizeSmartDrawStrokes() {
       const yDist = Math.abs(b1.cy - b2.cy);
       const spanH = Math.max(b1.h, b2.h, 24);
 
-      if (xOverlap > -14 && yDist < spanH * 1.5) {
+      // Only merge if strokes actually overlap horizontally or one is a crossbar/accent inside the other
+      const isCrossbar = (b2.isHoriz || b2.w > b2.h) && b2.minX <= b1.maxX + 4 && b2.maxX >= b1.minX - 4 && Math.abs(b2.cy - b1.cy) < spanH * 0.7;
+      const isOverlapping = xOverlap > -3 && yDist < spanH * 1.2;
+
+      if (isCrossbar || isOverlapping) {
         group.push(b2);
         visited.add(j);
       }
@@ -21413,17 +21476,48 @@ function appendSmartDrawToken(tok) {
   if (typeof pkHaptic === 'function') pkHaptic(6);
 }
 
+function toggleSmartDrawManualInput() {
+  const pill = document.getElementById('smartDrawResultPill');
+  const inp = document.getElementById('smartDrawRecognizedFormula');
+  if (!pill || !inp) return;
+  const isHidden = inp.classList.contains('hidden');
+  if (isHidden) {
+    inp.classList.remove('hidden');
+    pill.classList.add('hidden');
+    inp.focus();
+    inp.select();
+  } else {
+    inp.classList.add('hidden');
+    pill.classList.remove('hidden');
+  }
+}
+
+function handleSmartDrawManualBlur() {
+  const pill = document.getElementById('smartDrawResultPill');
+  const inp = document.getElementById('smartDrawRecognizedFormula');
+  if (pill && inp) {
+    setTimeout(() => {
+      inp.classList.add('hidden');
+      pill.classList.remove('hidden');
+    }, 150);
+  }
+}
+
 function updateSmartDrawPreview() {
   const preview = document.getElementById('smartDrawKatexPreview');
   if (!preview) return;
   if (!smartDrawRecognizedFormula) {
-    preview.innerHTML = '';
+    preview.innerHTML = '<span class="text-[var(--text-tertiary)] italic font-sans text-xs">Waiting for drawing...</span>';
     return;
   }
-  try {
-    preview.innerHTML = renderLatexToHtml(smartDrawRecognizedFormula, false);
-  } catch (e) {
+  if (smartDrawMode === 'text') {
     preview.textContent = smartDrawRecognizedFormula;
+  } else {
+    try {
+      preview.innerHTML = renderLatexToHtml(smartDrawRecognizedFormula, false);
+    } catch (e) {
+      preview.textContent = smartDrawRecognizedFormula;
+    }
   }
 }
 

@@ -1738,8 +1738,8 @@
   <!-- =====================================================================
        SMART DRAW MODAL: HANDWRITE MATH, NUMBERS, TEXT & SHAPES
        ===================================================================== -->
-  <div id="smartDrawModal" onclick="closeSmartDrawModal(event)" class="hidden fixed inset-0 bg-black/75 z-[980] flex items-center justify-center p-0 sm:p-4 select-none">
-    <div id="smartDrawCard" onclick="event.stopPropagation()" onkeydown="handleSmartDrawKeydown(event)" tabindex="-1" class="w-full h-[100dvh] sm:h-auto max-w-5xl lg:max-w-6xl bg-[var(--bg-panel)] sm:popover-surface rounded-none sm:rounded-xl border-0 sm:border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col max-h-[100dvh] sm:max-h-[94vh] transition-all outline-none">
+  <div id="smartDrawModal" onclick="closeSmartDrawModal(event)" class="hidden fixed inset-0 bg-black/75 z-[980] flex items-center justify-center p-0 sm:p-4 select-none animate-backdrop">
+    <div id="smartDrawCard" onclick="event.stopPropagation()" onkeydown="handleSmartDrawKeydown(event)" tabindex="-1" class="w-full h-[100dvh] sm:h-auto max-w-5xl lg:max-w-6xl bg-[var(--bg-panel)] sm:popover-surface rounded-none sm:rounded-xl border-0 sm:border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col max-h-[100dvh] sm:max-h-[94vh] animate-modal-card outline-none">
       <!-- Header -->
       <div class="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between shrink-0 gap-1.5">
         <div class="flex items-center gap-2 min-w-0">

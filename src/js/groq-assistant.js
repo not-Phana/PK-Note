@@ -77,7 +77,7 @@ const PK_AI_PROVIDERS = {
     id: 'nvidia',
     name: 'NVIDIA AI',
     shortName: 'NVIDIA',
-    defaultBaseUrl: 'http://127.0.0.1:4000/v1',
+    defaultBaseUrl: 'https://integrate.api.nvidia.com/v1',
     defaultModel: 'nvidia/nemotron-3.5-bolt-e4b',
     requiresKey: true,
     keyPlaceholder: 'nvapi-...',
@@ -299,23 +299,15 @@ function loadAiConfig() {
         def.gemini.model = PK_AI_PROVIDERS.gemini.defaultModel;
         migrated = true;
       }
-      // Upgrade retired NVIDIA models and default URL automatically
+      // Upgrade retired NVIDIA models automatically
       if (PK_RETIRED_NVIDIA_MODELS.has(def.nvidia.model) || !def.nvidia.model) {
         def.nvidia.model = PK_AI_PROVIDERS.nvidia.defaultModel;
         migrated = true;
       }
-      if (def.nvidia.baseUrl === 'https://integrate.api.nvidia.com/v1') {
+      // Clean up any accidental github.io or invalid host URLs that cause HTTP 405
+      if (/github\.io/i.test(def.nvidia.baseUrl) || !def.nvidia.baseUrl) {
         def.nvidia.baseUrl = PK_AI_PROVIDERS.nvidia.defaultBaseUrl;
         migrated = true;
-      }
-      // If running on phone or network host, automatically adapt localhost:4000 to current host origin
-      if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
-        const isLocalhostUrl = /^https?:\/\/(localhost|127\.0\.0\.1):4000/i.test(def.nvidia.baseUrl);
-        const isLanHost = !/^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-        if (isLocalhostUrl && isLanHost) {
-          def.nvidia.baseUrl = `${window.location.origin}/v1`;
-          migrated = true;
-        }
       }
       // Upgrade OpenRouter legacy preset to openrouter/auto
       if (def.openrouter.model === 'openrouter/free' || !def.openrouter.model) {
@@ -891,14 +883,16 @@ function copyServerPhoneUrl() {
 
 function useNvidiaLocalProxy() {
   const cfg = loadAiConfig();
-  const origin = (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http'))
-    ? window.location.origin
-    : 'http://127.0.0.1:4000';
-  cfg.nvidia.baseUrl = `${origin}/v1`;
+  const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+  cfg.nvidia.baseUrl = 'http://127.0.0.1:4000/v1';
   saveAiConfig(cfg);
   const input = document.getElementById('pkAiBaseUrlInput');
   if (input) input.value = cfg.nvidia.baseUrl;
-  if (typeof showToast === 'function') {
+  if (isHttps) {
+    if (typeof showToast === 'function') {
+      showToast('Set to local proxy. On HTTPS (GitHub Pages), browsers block local HTTP. Use a Cloudflare Worker or run PK Note locally via PK Note.bat.', 'ochre');
+    }
+  } else if (typeof showToast === 'function') {
     showToast(`Set NVIDIA endpoint to ${cfg.nvidia.baseUrl}`);
   }
 }
@@ -1562,6 +1556,12 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
     return `Cannot reach ${spec.name}. Check your internet connection or browser ad-blocker.`;
   }
 
+  if (/\b405\b/.test(rawMsg)) {
+    if (/github\.io/i.test(baseUrl || '')) {
+      return 'GitHub Pages is a static host and cannot process API requests. Set your NVIDIA Endpoint to a valid proxy (e.g. Cloudflare Worker) or switch to Groq / Gemini.';
+    }
+    return `Endpoint returned HTTP 405 (Method Not Allowed). Check your endpoint URL (${baseUrl}).`;
+  }
   if (/\b(401|403)\b/.test(rawMsg)) {
     return `${spec.shortName} rejected your API key (${rawMsg}). Check your key in Settings.`;
   }

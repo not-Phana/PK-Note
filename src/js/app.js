@@ -5818,6 +5818,8 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: 'AI: Summarize Active Note', hint: 'Instant bullet summary of current note using your active AI provider', glyph: 'sparkles', shortcut: 'AI', run: () => { openGroqAssistant(); runGroqQuickAction('summarize'); } },
     { kind: 'action', label: 'AI: Polish Active Note', hint: 'Improve clarity, grammar & flow using your active AI provider', glyph: 'sparkles', shortcut: 'AI', run: () => { openGroqAssistant(); runGroqQuickAction('polish'); } },
     { kind: 'action', label: 'AI: Generate Flashcards', hint: 'Create Study Deck Q::A cards from active note using your active AI provider', glyph: 'sparkles', shortcut: 'AI', run: () => { openGroqAssistant(); runGroqQuickAction('flashcards'); } },
+    { kind: 'action', label: 'Quick Fix Active Note (No AI · 0ms)', hint: 'Fix typos, spacing, capitalization & grammar instantly without AI', glyph: 'sparkles', shortcut: 'Fix', run: () => quickFixWholeNoteOffline() },
+    { kind: 'action', label: '1-Tap AI Polish Active Note (In-Place)', hint: 'Refine and polish active note directly without opening AI chat', glyph: 'sparkles', shortcut: 'AI', run: () => inPlaceAiPolishWholeNote() },
     { kind: 'action', label: 'Import Markdown File (.md / .txt)', hint: 'Import external Markdown notes with headings, todos & code blocks', glyph: 'document', shortcut: 'Import', run: () => triggerMarkdownImport() },
     { kind: 'action', label: 'Toggle Read-Only Note Lock', hint: 'Protect active document from accidental edits while reading', glyph: 'alert', shortcut: 'Lock', run: () => toggleNoteLock() },
     { kind: 'action', label: 'Customize Workspace & Appearance', hint: 'Banners, theme inks, width & guarded settings', glyph: 'sliders', shortcut: 'Theme', run: () => openCustomizerModal() },
@@ -9684,7 +9686,9 @@ document.addEventListener('contextmenu', e => {
         );
       }
       menuItems.push(
-        { label: 'AI: Fix / Replace Selection', shortcut: 'AI', icon: 'sparkles', action: () => openAiForSelection() },
+        { label: 'Quick Fix Text (No AI · 0ms)', shortcut: 'Fix', icon: 'sparkles', action: () => quickFixSelectionOffline() },
+        { label: '1-Tap AI Polish (In-Place)', shortcut: 'AI', icon: 'sparkles', action: () => inPlaceAiPolishSelection() },
+        { label: 'AI Chat with Selection', shortcut: 'Chat', icon: 'sparkles', action: () => openAiForSelection() },
         { label: 'Bold', shortcut: '⌘B', icon: 'hash', action: () => document.execCommand('bold') },
         { label: 'Italic', shortcut: '⌘I', icon: 'quote', action: () => document.execCommand('italic') },
         { label: 'Inline Code', shortcut: '`', icon: 'terminal', action: () => formatSelectionWithCode() },
@@ -9745,7 +9749,9 @@ document.addEventListener('contextmenu', e => {
         { label: 'Move Block Down', shortcut: 'Alt+↓', icon: 'chevronDown', action: () => moveBlockRelative(block.id, 1) },
         { label: 'Insert Block Above', shortcut: '⇧↵', icon: 'document', action: () => insertBlockBefore(block.id) },
         { label: 'Insert Block Below', shortcut: '↵', icon: 'document', action: () => insertBlockAfter(block.id) },
-        { label: 'AI: Edit / Polish Block', shortcut: 'AI', icon: 'sparkles', action: () => { if (typeof setAiTarget === 'function') setAiTarget('', block.id); openGroqAssistant(); } },
+        { label: 'Quick Fix Block (No AI · 0ms)', shortcut: 'Fix', icon: 'sparkles', action: () => quickFixBlockOffline(block.id) },
+        { label: '1-Tap AI Polish Block (In-Place)', shortcut: 'AI', icon: 'sparkles', action: () => inPlaceAiPolishBlock(block.id) },
+        { label: 'AI Chat with Block', shortcut: 'Chat', icon: 'sparkles', action: () => { if (typeof setAiTarget === 'function') setAiTarget('', block.id); openGroqAssistant(); } },
         { label: 'Read This Block Only', icon: 'volume', action: () => readSingleBlockAloud(block.id) },
         { label: 'Duplicate Block', shortcut: '⌘D', icon: 'layers', action: () => duplicateBlock(block.id) },
         { label: 'Copy Markdown', icon: 'copy', action: () => copyBlockMarkdown(block.id) },
@@ -12294,6 +12300,321 @@ function toggleAutocorrectSetting() {
   state.autocorrectEnabled = state.autocorrectEnabled === false ? true : false;
   persistState();
   showToast(`Autocorrect: ${state.autocorrectEnabled ? 'ENABLED' : 'DISABLED'}`);
+}
+
+// =========================================================================
+// 15C. OFFLINE TEXT FIXER (0ms · ZERO AI · RULE-BASED DICTIONARY & GRAMMAR)
+// =========================================================================
+function cleanAndFixTextOffline(text, customDict = {}) {
+  if (!text || typeof text !== 'string') return { text: '', fixCount: 0 };
+  let fixCount = 0;
+
+  // 1. Mask protected tokens: API keys, code blocks, URLs, Wiki links
+  const preserved = [];
+  const maskToken = (val) => {
+    const idx = preserved.length;
+    preserved.push(val);
+    return `__PK_PRESERVE_${idx}__`;
+  };
+
+  let s = text;
+  // Multi-line code blocks
+  s = s.replace(/```[\s\S]*?```/g, maskToken);
+  // Inline code
+  s = s.replace(/`[^`]+`/g, maskToken);
+  // URLs
+  s = s.replace(/https?:\/\/[^\s)]+/g, maskToken);
+  // Wikilinks
+  s = s.replace(/\[\[[^\]]+\]\]/g, maskToken);
+  // API keys
+  s = s.replace(/\b(?:gsk_[A-Za-z0-9]{40,}|AIzaSy[A-Za-z0-9_-]{33}|AQ\.[A-Za-z0-9_-]{20,}|sk-or-[A-Za-z0-9_-]{30,}|sk-proj-[A-Za-z0-9_-]{40,}|sk-ant-[A-Za-z0-9_-]{40,}|nvapi-[A-Za-z0-9_-]{40,}|sk-[a-f0-9]{32}|pplx-[a-f0-9]{40,}|hf_[A-Za-z0-9]{30,}|ghp_[A-Za-z0-9]{30,})\b/g, maskToken);
+
+  // 2. Fix punctuation spacing
+  // Eliminate spaces before punctuation: "word ,word" -> "word, word"
+  s = s.replace(/\s+([,.;:!?])/g, (m, p) => { fixCount++; return p; });
+  // Add space after commas, semicolons, colons if directly touching words/numbers
+  s = s.replace(/([,;:])(?=[A-Za-z0-9])/g, (m, p) => { fixCount++; return `${p} `; });
+  // Add space after sentence-ending periods, exclamation marks, question marks if followed by a letter
+  s = s.replace(/([.!?])(?=[A-Za-z])/g, (m, p) => { fixCount++; return `${p} `; });
+  // Collapse duplicate spaces
+  s = s.replace(/[ \t]{2,}/g, () => { fixCount++; return ' '; });
+
+  // 3. Fix duplicate consecutive words: "the the" -> "the"
+  s = s.replace(/\b([a-zA-Z]{2,})\s+\1\b/gi, (m, word) => { fixCount++; return word; });
+
+  // 4. Standalone "i" pronoun to "I"
+  s = s.replace(/\b([iI])\b/g, (m) => {
+    if (m === 'i') fixCount++;
+    return 'I';
+  });
+
+  // 5. Dictionary replacements using AUTOCORRECT_DICTIONARY & resolveWordCorrection
+  const extraDict = Object.assign({
+    'plz': 'please', 'pls': 'please', 'thx': 'thanks', 'idk': "I don't know",
+    'rn': 'right now', 'btw': 'by the way', 'diffrnt': 'different', 'im': "I'm",
+    'ive': "I've", 'ill': "I'll", 'id': "I'd"
+  }, customDict);
+
+  s = s.replace(/\b[a-zA-Z']{2,}\b/g, (w) => {
+    const lower = w.toLowerCase();
+    let repl = extraDict[lower] || (typeof resolveWordCorrection === 'function' ? resolveWordCorrection(lower) : null);
+    if (repl) {
+      if (w !== repl) fixCount++;
+      return typeof matchCasing === 'function' ? matchCasing(w, repl) : repl;
+    }
+    return w;
+  });
+
+  // 6. Sentence auto-capitalization: start of text or following . / ! / ? + whitespace
+  s = s.replace(/(^|[.!?]\s+)([a-z])/g, (m, p1, p2) => {
+    fixCount++;
+    return p1 + p2.toUpperCase();
+  });
+
+  // 7. Unmask preserved tokens
+  preserved.forEach((orig, idx) => {
+    s = s.replace(new RegExp(`__PK_PRESERVE_${idx}__`, 'g'), orig);
+  });
+
+  return { text: s, fixCount };
+}
+
+function replaceTextInActiveNote(targetText, cleanReplacement, targetBlockId = null) {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : getActiveNote();
+  if (!note || note.encryptedPayload) return false;
+
+  if (typeof stampNoteSnapshot === 'function') {
+    stampNoteSnapshot(false, 'Pre-Text Replace');
+  }
+  if (typeof takeSnapshot === 'function') takeSnapshot('replaceText');
+
+  let replaced = false;
+
+  // 1. Try DOM selection replacement if active selection matches targetText
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+    const range = sel.getRangeAt(0);
+    const selectedString = range.toString().trim();
+    if (selectedString && (selectedString === (targetText || '').trim() || (targetText && targetText.includes(selectedString)))) {
+      try {
+        range.deleteContents();
+        const textNode = document.createTextNode(cleanReplacement);
+        range.insertNode(textNode);
+        range.selectNodeContents(textNode);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        replaced = true;
+      } catch (_) {}
+    }
+  }
+
+  // 2. Target block direct match
+  if (targetBlockId) {
+    const block = (note.blocks || []).find(b => b.id === targetBlockId);
+    if (block && typeof block.content === 'string') {
+      if (targetText && block.content.includes(targetText)) {
+        block.content = block.content.replace(targetText, cleanReplacement);
+        replaced = true;
+      } else if (!targetText || block.content.trim() === targetText.trim()) {
+        block.content = cleanReplacement;
+        replaced = true;
+      }
+    }
+  }
+
+  // 3. Search across all blocks for exact match
+  if (!replaced && targetText) {
+    for (const b of (note.blocks || [])) {
+      if (b && typeof b.content === 'string' && b.content.includes(targetText)) {
+        b.content = b.content.replace(targetText, cleanReplacement);
+        replaced = true;
+        break;
+      }
+    }
+  }
+
+  // 4. Case-insensitive / trimmed match
+  if (!replaced && targetText) {
+    const norm = targetText.trim().toLowerCase();
+    for (const b of (note.blocks || [])) {
+      if (b && typeof b.content === 'string' && b.content.toLowerCase().includes(norm)) {
+        const lower = b.content.toLowerCase();
+        const start = lower.indexOf(norm);
+        b.content = b.content.slice(0, start) + cleanReplacement + b.content.slice(start + targetText.trim().length);
+        replaced = true;
+        break;
+      }
+    }
+  }
+
+  // 5. Note title match
+  if (!replaced && targetText && note.title && note.title.includes(targetText)) {
+    note.title = note.title.replace(targetText, cleanReplacement);
+    const titleEl = document.getElementById('docTitleInput');
+    if (titleEl) titleEl.innerText = note.title;
+    const breadcrumb = document.getElementById('breadcrumbTitleText');
+    if (breadcrumb) breadcrumb.textContent = note.title || 'Untitled Document';
+    replaced = true;
+  }
+
+  // 6. Active editing block fallback
+  if (!replaced && typeof activeEditingBlockId !== 'undefined' && activeEditingBlockId) {
+    const block = (note.blocks || []).find(b => b.id === activeEditingBlockId);
+    if (block) {
+      block.content = cleanReplacement;
+      replaced = true;
+    }
+  }
+
+  if (replaced) {
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof updateWordCount === 'function') updateWordCount(note);
+    if (typeof persistState === 'function') persistState();
+  }
+  return replaced;
+}
+
+function quickFixSelectionOffline() {
+  const sel = getReadableSelectedText(true);
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (bar) bar.classList.add('hidden');
+  if (!sel || !sel.trim()) {
+    showToast('No text selected', 'ochre');
+    return;
+  }
+  const res = cleanAndFixTextOffline(sel);
+  if (res.fixCount === 0 && res.text === sel) {
+    showToast('No typos or spacing issues detected · Looks great!', 'blue');
+    return;
+  }
+  const ok = replaceTextInActiveNote(sel, res.text, typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null);
+  if (ok) {
+    if (typeof playPopSound === 'function') playPopSound();
+    showToast(`Fixed ${res.fixCount} issue${res.fixCount > 1 ? 's' : ''} (0ms · No AI)`);
+  }
+}
+
+function quickFixBlockOffline(blockId) {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : getActiveNote();
+  if (!note || note.encryptedPayload) return;
+  const block = (note.blocks || []).find(b => b.id === blockId);
+  if (!block || !block.content || !block.content.trim()) {
+    showToast('Block is empty', 'ochre');
+    return;
+  }
+  const res = cleanAndFixTextOffline(block.content);
+  if (res.fixCount === 0 && res.text === block.content) {
+    showToast('No typos or issues detected · Looks great!', 'blue');
+    return;
+  }
+  if (typeof stampNoteSnapshot === 'function') stampNoteSnapshot(false, 'Pre-Block Fix');
+  if (typeof takeSnapshot === 'function') takeSnapshot('fixBlockOffline');
+  block.content = res.text;
+  note.updatedAt = new Date().toISOString();
+  if (typeof renderBlocks === 'function') renderBlocks(note);
+  if (typeof updateWordCount === 'function') updateWordCount(note);
+  if (typeof persistState === 'function') persistState();
+  if (typeof playPopSound === 'function') playPopSound();
+  showToast(`Fixed ${res.fixCount} issue${res.fixCount > 1 ? 's' : ''} in block (0ms · No AI)`);
+}
+
+function quickFixWholeNoteOffline() {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : getActiveNote();
+  if (!note || note.encryptedPayload) return;
+  let totalFixes = 0;
+  if (typeof stampNoteSnapshot === 'function') stampNoteSnapshot(false, 'Pre-Document Fix');
+  if (typeof takeSnapshot === 'function') takeSnapshot('fixWholeNoteOffline');
+
+  if (note.title) {
+    const titleRes = cleanAndFixTextOffline(note.title);
+    if (titleRes.fixCount > 0) {
+      totalFixes += titleRes.fixCount;
+      note.title = titleRes.text;
+      const titleEl = document.getElementById('docTitleInput');
+      if (titleEl) titleEl.innerText = note.title;
+      const breadcrumb = document.getElementById('breadcrumbTitleText');
+      if (breadcrumb) breadcrumb.textContent = note.title || 'Untitled Document';
+    }
+  }
+
+  (note.blocks || []).forEach(b => {
+    if (b.type === 'code' || b.type === 'divider') return;
+    if (b.content && b.content.trim()) {
+      const res = cleanAndFixTextOffline(b.content);
+      if (res.fixCount > 0) {
+        totalFixes += res.fixCount;
+        b.content = res.text;
+      }
+    }
+  });
+
+  if (totalFixes === 0) {
+    showToast('Document already looks clean and well-punctuated!', 'blue');
+    return;
+  }
+
+  note.updatedAt = new Date().toISOString();
+  if (typeof renderBlocks === 'function') renderBlocks(note);
+  if (typeof updateWordCount === 'function') updateWordCount(note);
+  if (typeof persistState === 'function') persistState();
+  if (typeof playSparkleSound === 'function') playSparkleSound();
+  showToast(`Fixed ${totalFixes} issue${totalFixes > 1 ? 's' : ''} across document (0ms · No AI)`);
+}
+
+function inPlaceAiPolishSelection() {
+  const sel = getReadableSelectedText(true);
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (bar) bar.classList.add('hidden');
+  if (!sel || !sel.trim()) {
+    showToast('No text selected', 'ochre');
+    return;
+  }
+  if (typeof runInPlaceAiPolishText === 'function') {
+    runInPlaceAiPolishText(sel, {
+      preferredBlockId: typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null,
+      targetText: sel
+    });
+  } else {
+    showToast('AI polish engine is loading...', 'ochre');
+  }
+}
+
+function inPlaceAiPolishBlock(blockId) {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : getActiveNote();
+  if (!note || note.encryptedPayload) return;
+  const block = (note.blocks || []).find(b => b.id === blockId);
+  if (!block || !block.content || !block.content.trim()) {
+    showToast('Block is empty', 'ochre');
+    return;
+  }
+  if (typeof runInPlaceAiPolishText === 'function') {
+    runInPlaceAiPolishText(block.content, {
+      preferredBlockId: blockId,
+      targetText: block.content
+    });
+  } else {
+    showToast('AI polish engine is loading...', 'ochre');
+  }
+}
+
+function inPlaceAiPolishWholeNote() {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : getActiveNote();
+  if (!note || note.encryptedPayload) return;
+  const textBlocks = (note.blocks || []).filter(b => b.type !== 'code' && b.type !== 'divider' && b.content && b.content.trim());
+  if (textBlocks.length === 0) {
+    showToast('Note has no text blocks to polish', 'ochre');
+    return;
+  }
+  const combined = textBlocks.map(b => b.content).join('\n\n');
+  if (typeof runInPlaceAiPolishText === 'function') {
+    runInPlaceAiPolishText(combined, {
+      isWholeNote: true
+    });
+  } else {
+    showToast('AI polish engine is loading...', 'ochre');
+  }
 }
 
 // =========================================================================

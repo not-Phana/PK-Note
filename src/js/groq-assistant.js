@@ -2228,6 +2228,126 @@ function replaceTargetBlockWithGroqReply(msgIdx) {
   }
 }
 
+// ============================================================================
+// IN-PLACE 1-TAP AI POLISH ENGINE (BACKGROUND NON-STREAMING · ZERO CHAT DRAWER)
+// ============================================================================
+async function runInPlaceAiPolishText(rawText, options = {}) {
+  if (!rawText || !rawText.trim()) {
+    showToast('No text provided to polish', 'ochre');
+    return;
+  }
+
+  const cfg = loadAiConfig();
+  const { spec, data } = getActiveProviderSpec(cfg);
+
+  if (!isProviderReady(cfg.provider, data)) {
+    showToast(`Please configure ${spec.shortName} in AI Settings first`, 'ochre');
+    if (typeof openGroqSettingsModal === 'function') openGroqSettingsModal();
+    return;
+  }
+
+  showToast(`Polishing text with ${spec.shortName}...`, 'blue');
+
+  const systemPrompt = [
+    'You are an expert editorial proofreader and text polish engine for PK Note.',
+    'TASK: Rewrite and polish the user text to fix all typos, grammatical mistakes, awkward phrasing, and flow, while strictly keeping the author original meaning, voice, facts, and structure.',
+    'CRITICAL RULES:',
+    '1. Return ONLY the polished text as replacement. No preamble, no introduction ("Here is...", "Sure!"), no commentary, no quotes around the output.',
+    '2. Do NOT wrap entire output in markdown code fences unless the original text itself was a code block.',
+    '3. STRICTLY PRESERVE all code snippets, wikilinks [[...]], markdown tags, links, and any API keys (e.g. gsk_..., AIzaSy..., sk-..., nvapi-...) verbatim without changing or truncating them.',
+    '4. Do not omit user facts or details.'
+  ].join('\n');
+
+  try {
+    let endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
+    let activeModel = data.model || spec.defaultModel;
+
+    const doFetch = (chatUrl, modelId) => fetch(chatUrl, {
+      method: 'POST',
+      headers: buildAuthHeaders(data.apiKey),
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: rawText }
+        ],
+        stream: false,
+        temperature: 0.3,
+        max_tokens: 2048
+      })
+    });
+
+    let res = await doFetch(endpoints.chatUrl, activeModel);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      const msg = errJson?.error?.message || errJson?.detail || `${spec.shortName} error (${res.status})`;
+      showToast(`AI Polish failed: ${msg}`, 'vermilion');
+      return;
+    }
+
+    const json = await res.json();
+    let reply = json.choices?.[0]?.message?.content || '';
+
+    // Strip AI conversational intro/outro fluff if any leaked through
+    reply = cleanAiTextForInsertion(reply);
+
+    // Strictly protect original API keys against alteration
+    reply = preserveApiKeysInReplacement(rawText, reply);
+
+    if (!reply || !reply.trim()) {
+      showToast('AI returned empty response', 'ochre');
+      return;
+    }
+
+    if (options.isWholeNote) {
+      const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : getActiveNote();
+      if (!note) return;
+      if (typeof stampNoteSnapshot === 'function') stampNoteSnapshot(false, 'Pre-AI Note Polish');
+      if (typeof takeSnapshot === 'function') takeSnapshot('aiPolishWholeNote');
+      const paragraphs = reply.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+      if (paragraphs.length > 0) {
+        note.blocks = paragraphs.map(p => ({
+          id: generateId('b'),
+          type: 'paragraph',
+          content: p
+        }));
+        note.updatedAt = new Date().toISOString();
+        if (typeof renderBlocks === 'function') renderBlocks(note);
+        if (typeof updateWordCount === 'function') updateWordCount(note);
+        if (typeof persistState === 'function') persistState();
+        if (typeof playSparkleSound === 'function') playSparkleSound();
+        showToast('Document polished with AI (Undo: Ctrl+Z)');
+      }
+    } else {
+      const target = options.targetText || rawText;
+      const ok = typeof replaceTextInActiveNote === 'function'
+        ? replaceTextInActiveNote(target, reply, options.preferredBlockId)
+        : false;
+      if (ok) {
+        if (typeof playSparkleSound === 'function') playSparkleSound();
+        showToast('AI Polish applied (Undo: Ctrl+Z)');
+      } else {
+        // Fallback: replace target block or selection directly
+        if (options.preferredBlockId) {
+          const note = getActiveNote();
+          const blk = (note.blocks || []).find(b => b.id === options.preferredBlockId);
+          if (blk) {
+            blk.content = reply;
+            if (typeof renderBlocks === 'function') renderBlocks(note);
+            if (typeof persistState === 'function') persistState();
+            showToast('AI Polish applied (Undo: Ctrl+Z)');
+          }
+        } else {
+          showToast('Could not locate text in note to replace', 'ochre');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('runInPlaceAiPolishText error:', err);
+    showToast(`AI Polish error: ${err.message || 'Network error'}`, 'vermilion');
+  }
+}
+
 function insertGroqReplyIntoNote(msgIdx, replaceExisting = false) {
   const msg = pkGroqHistory[msgIdx];
   if (!msg || !msg.content || msg.isError) return;

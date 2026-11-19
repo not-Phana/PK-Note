@@ -1514,9 +1514,16 @@
       <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       <span id="pkSelectionReadLabel">Read Selected</span>
     </button>
-    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="openAiForSelection()" title="Ask AI to fix or replace selected text" class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-mono text-[11px] font-semibold cursor-pointer transition-colors">
+    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="quickFixSelectionOffline()" title="Fix typos, spacing, capitalization &amp; grammar instantly (100% offline, no AI)" class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--accent-ochre)]/60 text-[var(--accent-ochre)] font-mono text-[11px] font-semibold cursor-pointer transition-colors">
+      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>Fix (No AI)</span>
+    </button>
+    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="inPlaceAiPolishSelection()" title="Polish and improve text in-place using AI (no chat window needed)" class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-mono text-[11px] font-semibold cursor-pointer transition-colors">
       <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       <span>AI Fix</span>
+    </button>
+    <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="openAiForSelection()" title="Open AI Assistant chat with this selection" class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] font-mono text-[11px] cursor-pointer transition-colors">
+      <span>Chat</span>
     </button>
     <button type="button" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" id="pkSelectionCopyKeyBtn" onclick="copySelectionApiKey()" title="Copy API key" class="hidden flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--accent-ochre)]/60 text-[var(--accent-ochre)] font-mono text-[11px] font-semibold cursor-pointer transition-colors">
       <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>

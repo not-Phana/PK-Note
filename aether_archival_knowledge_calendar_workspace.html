@@ -71,18 +71,24 @@
 
     <!-- Primary Workspace Mode Switcher: Notes vs Calendar -->
     <div class="px-2.5 pt-2.5 pb-1.5 border-b border-[var(--border-hairline)] shrink-0 space-y-2">
-      <div class="grid grid-cols-2 gap-1 p-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
-        <button id="modeBtnWorkspace" onclick="setAppMode('workspace')" class="flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors">
+      <div class="grid grid-cols-3 gap-0.5 p-0.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
+        <button id="modeBtnWorkspace" onclick="setAppMode('workspace')" class="flex items-center justify-center gap-1 py-1 px-1 rounded-[2px] font-mono text-[10px] sm:text-[11px] font-medium transition-colors">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
           </svg>
           <span>NOTES</span>
         </button>
-        <button id="modeBtnCalendar" onclick="setAppMode('calendar')" class="flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors">
+        <button id="modeBtnKanban" onclick="setAppMode('kanban')" class="flex items-center justify-center gap-1 py-1 px-1 rounded-[2px] font-mono text-[10px] sm:text-[11px] font-medium transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/>
+          </svg>
+          <span>BOARD</span>
+        </button>
+        <button id="modeBtnCalendar" onclick="setAppMode('calendar')" class="flex items-center justify-center gap-1 py-1 px-1 rounded-[2px] font-mono text-[10px] sm:text-[11px] font-medium transition-colors">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
             <rect x="3" y="4" width="18" height="18" rx="1"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <span>CALENDAR</span>
+          <span>CAL</span>
           <span id="sidebarTodayEventBadge" class="text-[9px] px-1 rounded-[2px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)]">0</span>
         </button>
       </div>
@@ -246,6 +252,9 @@
         <div class="hidden md:flex items-center gap-0.5 bg-[var(--bg-panel)] p-0.5 rounded-[3px] border border-[var(--border-hairline)] shrink-0">
           <button id="topTabWorkspace" onclick="setAppMode('workspace')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase">
             Notes
+          </button>
+          <button id="topTabKanban" onclick="setAppMode('kanban')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase">
+            Board
           </button>
           <button id="topTabCalendar" onclick="setAppMode('calendar')" class="px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase">
             Schedule
@@ -732,6 +741,47 @@
 
     </div>
 
+    <!-- ===================================================================
+         VIEW C: INTERACTIVE KANBAN WORKFLOW STUDIO
+         =================================================================== -->
+    <div id="kanbanViewport" class="hidden flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg-canvas)]">
+      
+      <!-- Kanban Header & Filter Row -->
+      <div class="px-3 sm:px-5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)]/55 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div class="w-6 h-6 rounded-[3px] bg-[var(--accent-ochre)] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg>
+          </div>
+          <div>
+            <h2 class="font-serif text-sm sm:text-base font-semibold text-[var(--text-primary)] leading-tight">Kanban Studio</h2>
+            <p class="font-mono text-[10px] text-[var(--text-tertiary)] hidden sm:block">Status board · Drag cards · Track completion</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
+          <div class="flex items-center gap-1.5 bg-[var(--bg-canvas)] border border-[var(--border-hairline)] rounded-[3px] px-2 py-1 shrink-0">
+            <span class="font-mono text-[10px] text-[var(--text-tertiary)] uppercase">Collection:</span>
+            <select id="kanbanFolderFilter" onchange="renderKanbanBoard()" class="bg-transparent font-mono text-[11px] text-[var(--text-primary)] outline-none cursor-pointer">
+              <option value="ALL">All Vault Notes</option>
+              <option value="General">General</option>
+              <option value="Projects">Projects</option>
+              <option value="Daily Logs">Daily Logs</option>
+              <option value="Reading">Reading</option>
+            </select>
+          </div>
+          <button onclick="createNewNoteWithStatus('General', 'backlog')" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:brightness-110 text-white font-mono text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Add Card</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Kanban Columns Container (Horizontal Scroll) -->
+      <div id="kanbanColumnsContainer" class="flex-1 overflow-x-auto overflow-y-hidden p-3 sm:p-5 flex gap-3 sm:gap-4 select-none">
+        <!-- Rendered dynamically by renderKanbanBoard() -->
+      </div>
+    </div>
+
   </main>
 
 
@@ -1118,6 +1168,245 @@
     </div>
   </div>
 
+  <!-- Universal Deep Vault Search & Replace Modal (`Cmd+Shift+F`) -->
+  <div id="vaultSearchModal" onclick="closeVaultSearchModal(event)" class="hidden fixed inset-0 bg-black/60 z-[975] flex items-start justify-center pt-[8vh] px-3 sm:px-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-2xl popover-surface rounded-lg border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-cmd-card flex flex-col max-h-[85vh]">
+      <!-- Header / Search Row -->
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
+          <input id="vaultSearchInput"
+                 type="text"
+                 placeholder="Search all notes, blocks, tags &amp; content..."
+                 oninput="executeVaultSearch(this.value)"
+                 class="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none font-mono" />
+          <div class="flex items-center gap-1 shrink-0 font-mono text-[10px]">
+            <button type="button" id="vaultSearchCaseBtn" onclick="toggleVaultSearchCase()" title="Match Case (Aa)" class="px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer">Aa</button>
+            <button type="button" id="vaultSearchRegexBtn" onclick="toggleVaultSearchRegex()" title="Regular Expression (.*)" class="px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer">.*</button>
+            <button type="button" onclick="toggleVaultReplaceBar()" title="Toggle Find &amp; Replace" id="vaultSearchReplaceToggleBtn" class="px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer">Replace</button>
+            <kbd class="px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] border border-[var(--border-hairline)] select-none">ESC</kbd>
+          </div>
+        </div>
+
+        <!-- Find & Replace Row -->
+        <div id="vaultReplaceRow" class="hidden flex items-center gap-2 pt-2 border-t border-[var(--border-hairline)]">
+          <svg class="w-4 h-4 text-[var(--accent-ochre)] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <input id="vaultReplaceInput"
+                 type="text"
+                 placeholder="Replacement text..."
+                 class="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none font-mono" />
+          <button type="button" onclick="replaceInActiveNoteFromSearch(false)" class="px-2 py-0.5 rounded-[2px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-mono text-[10px] cursor-pointer">Replace In Doc</button>
+          <button type="button" onclick="replaceInActiveNoteFromSearch(true)" class="px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] cursor-pointer">Replace All</button>
+        </div>
+      </div>
+
+      <!-- Scope Filter Row -->
+      <div class="px-3 py-1.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between text-[11px] font-mono select-none">
+        <div class="flex items-center gap-1 overflow-x-auto scrollbar-none">
+          <span class="text-[var(--text-tertiary)] mr-1">Filter:</span>
+          <button type="button" onclick="setVaultSearchFilter('ALL')" id="vsFilterAll" class="px-2 py-0.5 rounded-[2px] bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-hairline)]">All</button>
+          <button type="button" onclick="setVaultSearchFilter('General')" id="vsFilterGeneral" class="px-2 py-0.5 rounded-[2px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">General</button>
+          <button type="button" onclick="setVaultSearchFilter('Projects')" id="vsFilterProjects" class="px-2 py-0.5 rounded-[2px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Projects</button>
+          <button type="button" onclick="setVaultSearchFilter('Daily Logs')" id="vsFilterDaily" class="px-2 py-0.5 rounded-[2px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Daily</button>
+          <button type="button" onclick="setVaultSearchFilter('Reading')" id="vsFilterReading" class="px-2 py-0.5 rounded-[2px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Reading</button>
+        </div>
+        <div id="vaultSearchResultsCount" class="text-[var(--text-tertiary)] shrink-0 ml-2">0 matches</div>
+      </div>
+
+      <!-- Results Container -->
+      <div id="vaultSearchResults" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+    </div>
+  </div>
+
+  <!-- Floating Quick Capture HUD (`Cmd+Shift+N`) -->
+  <div id="quickCaptureModal" onclick="closeQuickCaptureModal(event)" class="hidden fixed inset-0 bg-black/60 z-[980] flex items-center justify-center p-3 sm:p-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-lg popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card flex flex-col">
+      <!-- Capture Header -->
+      <div class="px-4 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-[3px] bg-[var(--accent-vermilion)] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </div>
+          <span class="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Quick Capture HUD</span>
+        </div>
+        <kbd class="font-mono text-[10px] px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-canvas)] text-[var(--text-tertiary)] border border-[var(--border-hairline)] select-none">Esc</kbd>
+      </div>
+
+      <!-- Capture Input Area -->
+      <div class="p-4 space-y-3 bg-[var(--bg-canvas)]">
+        <textarea id="quickCaptureText"
+                  rows="4"
+                  placeholder="Capture fleeting thoughts, ideas, tasks, quotes or links..."
+                  onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();saveQuickCapture();}"
+                  class="w-full bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none resize-none leading-relaxed font-sans"></textarea>
+
+        <!-- Destination Selector -->
+        <div class="space-y-1.5 pt-1 border-t border-[var(--border-hairline)]">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[10px] uppercase text-[var(--text-tertiary)]">Destination:</span>
+            <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Cmd/Ctrl+Enter to save</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 font-mono text-[11px]">
+            <button type="button" onclick="setQuickCaptureDest('daily')" id="qcDestDaily" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] text-[var(--text-primary)] font-medium flex items-center justify-center gap-1 cursor-pointer">
+              <span>Today's Log</span>
+            </button>
+            <button type="button" onclick="setQuickCaptureDest('active')" id="qcDestActive" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1 cursor-pointer">
+              <span>Current Note</span>
+            </button>
+            <button type="button" onclick="setQuickCaptureDest('new')" id="qcDestNew" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1 cursor-pointer">
+              <span>New Note</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Format & Action Row -->
+        <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="toggleQuickCaptureFormat('todo')" id="qcFormatTodo" class="px-2 py-0.5 rounded-[2px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] cursor-pointer">
+              [ ] Todo
+            </button>
+            <button type="button" onclick="toggleVoiceDictation()" title="Voice Dictate" class="p-1 rounded-[2px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeQuickCaptureModal()" class="px-3 py-1 rounded-[3px] font-mono text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Cancel</button>
+            <button type="button" onclick="saveQuickCapture()" class="px-3.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:brightness-110 text-white font-mono text-xs font-semibold cursor-pointer">Capture</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visual Revision History & Diff Time-Machine Modal -->
+  <div id="revisionHistoryModal" onclick="closeRevisionHistoryModal(event)" class="hidden fixed inset-0 bg-black/60 z-[985] flex items-center justify-center p-3 sm:p-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-3xl popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card flex flex-col max-h-[85vh]">
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-5 h-5 rounded-[3px] bg-[var(--accent-ochre)] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          </div>
+          <div class="min-w-0">
+            <h3 class="font-serif text-sm font-semibold text-[var(--text-primary)] truncate">Revision Time-Machine</h3>
+            <p id="revisionHistorySubtitle" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Compare and restore previous document states</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeRevisionHistoryModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+      </div>
+
+      <!-- Split Layout: Snapshot List on Left, Diff on Right -->
+      <div class="flex-1 flex flex-col md:flex-row min-h-0 bg-[var(--bg-canvas)]">
+        <!-- Snapshot List Column -->
+        <div class="w-full md:w-64 border-b md:border-b-0 md:border-r border-[var(--border-hairline)] flex flex-col bg-[var(--bg-panel)]/40 shrink-0">
+          <div class="px-3 py-2 border-b border-[var(--border-hairline)] font-mono text-[10px] uppercase text-[var(--text-tertiary)] font-semibold">
+            Saved Snapshots (<span id="revisionSnapshotCount">0</span>)
+          </div>
+          <div id="revisionSnapshotList" class="flex-1 overflow-y-auto p-1.5 space-y-1"></div>
+        </div>
+
+        <!-- Diff Viewer Column -->
+        <div class="flex-1 flex flex-col min-h-0">
+          <div class="px-3 py-2 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between text-xs">
+            <div id="revisionDiffHeader" class="font-mono text-[11px] text-[var(--text-secondary)]">Select a snapshot to preview diff</div>
+            <button type="button" id="revisionRestoreBtn" onclick="restoreSelectedRevision()" class="hidden px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] hover:brightness-110 text-white font-mono text-[11px] font-semibold cursor-pointer">
+              Restore this Version
+            </button>
+          </div>
+          <div id="revisionDiffContent" class="flex-1 overflow-y-auto p-3 sm:p-4 font-mono text-xs leading-relaxed space-y-1 select-text">
+            <div class="text-[var(--text-tertiary)] italic">No snapshot selected yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Format Vault Publisher & Export Studio Modal -->
+  <div id="vaultExportModal" onclick="closeVaultExportModal(event)" class="hidden fixed inset-0 bg-black/60 z-[985] flex items-center justify-center p-3 sm:p-4 animate-backdrop">
+    <div onclick="event.stopPropagation()" class="w-full max-w-xl popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden animate-modal-card flex flex-col">
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-[3px] bg-[var(--accent-vermilion)] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div>
+            <h3 class="font-serif text-sm font-semibold text-[var(--text-primary)]">Export &amp; Publishing Studio</h3>
+            <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Publish or backup your notes into open standard formats</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeVaultExportModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+      </div>
+
+      <!-- Export Formats Grid -->
+      <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--bg-canvas)]">
+        <!-- 1. Markdown ZIP -->
+        <div class="p-3.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all flex flex-col justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+              <span class="text-[var(--accent-vermilion)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
+              <span>Vault Markdown ZIP</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Export entire vault as an organized folder tree of clean Markdown files with YAML frontmatter. 100% Obsidian &amp; Logseq compatible.
+            </p>
+          </div>
+          <button type="button" onclick="exportVaultAsMarkdownZip()" class="w-full py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-xs font-semibold cursor-pointer hover:brightness-110 transition-colors">
+            Download ZIP
+          </button>
+        </div>
+
+        <!-- 2. Standalone HTML Document -->
+        <div class="p-3.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all flex flex-col justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+              <span class="text-[var(--accent-ochre)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+              <span>Standalone HTML</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Export active note as a beautiful, self-contained HTML page with responsive typography, book layout, and zero dependencies.
+            </p>
+          </div>
+          <button type="button" onclick="exportActiveNoteAsStandaloneHtml()" class="w-full py-1.5 rounded-[3px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-mono text-xs font-semibold cursor-pointer transition-colors">
+            Export HTML
+          </button>
+        </div>
+
+        <!-- 3. Formatted Markdown File -->
+        <div class="p-3.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all flex flex-col justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+              <span class="text-[var(--text-primary)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
+              <span>Single Markdown (.md)</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Download the current working note as a standard clean Markdown file with checkboxes and code blocks.
+            </p>
+          </div>
+          <button type="button" onclick="exportCurrentNoteMarkdown()" class="w-full py-1.5 rounded-[3px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-mono text-xs font-semibold cursor-pointer transition-colors">
+            Download .md
+          </button>
+        </div>
+
+        <!-- 4. Print / PDF Export -->
+        <div class="p-3.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all flex flex-col justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+              <span class="text-[var(--text-secondary)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span>
+              <span>Print to PDF / Paper</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Format current document for print or PDF output with book margins, page breaks, and high-contrast ink styling.
+            </p>
+          </div>
+          <button type="button" onclick="printCurrentNote()" class="w-full py-1.5 rounded-[3px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-mono text-xs font-semibold cursor-pointer transition-colors">
+            Print / PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Minimal Status Toast Container -->
   <div id="toastContainer" class="fixed bottom-20 md:bottom-4 right-4 z-[1005] flex flex-col gap-1.5 pointer-events-none"></div>
 
@@ -1321,27 +1610,27 @@
   <nav id="mobileBottomNav" style="padding-bottom: env(safe-area-inset-bottom);" class="md:hidden fixed bottom-0 left-0 right-0 min-h-[54px] bg-[var(--bg-panel)] border-t border-[var(--border-hairline)] z-[85] flex items-center justify-around px-2 select-none">
     <button onclick="mobileNavSelect('notes')" id="mobileNavNotes" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--accent-vermilion)]">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <span class="text-[9.5px] font-mono font-medium">Notes</span>
+      <span class="text-[9px] font-mono font-medium">Notes</span>
+    </button>
+
+    <button onclick="mobileNavSelect('kanban')" id="mobileNavKanban" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--text-secondary)]">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg>
+      <span class="text-[9px] font-mono">Board</span>
     </button>
 
     <button onclick="mobileNavSelect('calendar')" id="mobileNavCalendar" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--text-secondary)]">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="1"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      <span class="text-[9.5px] font-mono">Schedule</span>
+      <span class="text-[9px] font-mono">Schedule</span>
     </button>
 
-    <button onclick="openMobileQuickMenu()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--accent-vermilion)]" title="New Note or Event">
+    <button onclick="openQuickCaptureModal()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--accent-vermilion)]" title="Quick Capture">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="text-[9.5px] font-mono font-semibold">New</span>
+      <span class="text-[9px] font-mono font-semibold">Capture</span>
     </button>
 
-    <button onclick="mobileNavSelect('graph')" id="mobileNavGraph" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--text-secondary)]">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/><line x1="15.8" y1="6.2" x2="8.2" y2="10.8"/></svg>
-      <span class="text-[9.5px] font-mono">Graph</span>
-    </button>
-
-    <button onclick="openCommandPalette()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--text-secondary)]">
+    <button onclick="openVaultSearchModal()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--text-secondary)]">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>
-      <span class="text-[9.5px] font-mono">Find</span>
+      <span class="text-[9px] font-mono">Search</span>
     </button>
   </nav>
 

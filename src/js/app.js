@@ -587,7 +587,7 @@ function escapeHtml(str) {
 // 5. MODE SWITCHING (NOTES WORKSPACE <-> INTEGRATED CALENDAR)
 // =========================================================================
 function setAppMode(mode) {
-  state.appMode = mode === 'calendar' ? 'calendar' : 'workspace';
+  state.appMode = (mode === 'calendar' || mode === 'kanban') ? mode : 'workspace';
   if (window.innerWidth < 1024) {
     closeMobileSidebar();
     closeRightSidebar();
@@ -841,6 +841,8 @@ function renderAll() {
   renderMiniCalendarWidget();
   if (state.appMode === 'calendar') {
     renderCalendarSystem();
+  } else if (state.appMode === 'kanban') {
+    if (typeof renderKanbanBoard === 'function') renderKanbanBoard();
   } else {
     renderActiveDocument();
     renderInspector();
@@ -901,8 +903,12 @@ function applyThemeAndLayout() {
 
   // App Mode Views & Header Controls
   const isCalendar = state.appMode === 'calendar';
+  const isKanban = state.appMode === 'kanban';
+  const isWorkspace = !isCalendar && !isKanban;
+
   const docArea = document.getElementById('documentScrollArea');
   const calArea = document.getElementById('calendarViewport');
+  const kanbanArea = document.getElementById('kanbanViewport');
   const wsBread = document.getElementById('workspaceBreadcrumbNav');
   const calBread = document.getElementById('calendarBreadcrumbNav');
   const wsControls = document.getElementById('workspaceHeaderControls');
@@ -910,86 +916,96 @@ function applyThemeAndLayout() {
   const rightSidebar = document.getElementById('rightSidebar');
 
   // Mode Toggle Buttons (Sidebar & Top Bar)
-  const activeClasses = ['bg-[var(--bg-panel)]', 'text-[var(--text-primary)]', 'border', 'border-[var(--border-hairline)]'];
-  const inactiveClasses = ['text-[var(--text-secondary)]', 'hover:text-[var(--text-primary)]', 'border', 'border-transparent'];
-
   const modeBtnWs = document.getElementById('modeBtnWorkspace');
+  const modeBtnKanban = document.getElementById('modeBtnKanban');
   const modeBtnCal = document.getElementById('modeBtnCalendar');
   const topTabWs = document.getElementById('topTabWorkspace');
+  const topTabKanban = document.getElementById('topTabKanban');
   const topTabCal = document.getElementById('topTabCalendar');
 
-  const wasCalendar = !calArea.classList.contains('hidden');
-  if (isCalendar) {
-    docArea.classList.add('hidden');
-    calArea.classList.remove('hidden');
-    if (!wasCalendar && !window.PK_LITE_MODE) {
-      calArea.classList.remove('animate-view-fade');
-      void calArea.offsetWidth;
-      calArea.classList.add('animate-view-fade');
-    }
-    wsBread.classList.add('hidden');
-    calBread.classList.remove('hidden');
-    wsControls.classList.add('hidden');
-    calControls.classList.remove('hidden');
+  const activeBtnClass = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)] shadow-xs';
+  const inactiveBtnClass = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
 
-    // Hide document graph inspector in calendar mode (calendar has its own right agenda inspector)
-    rightSidebar.style.width = '0px';
-    rightSidebar.style.opacity = '0';
+  const activeTopTabClass = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors bg-[var(--bg-canvas)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-medium';
+  const inactiveTopTabClass = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
+
+  if (modeBtnWs) modeBtnWs.className = isWorkspace ? activeBtnClass : inactiveBtnClass;
+  if (modeBtnKanban) modeBtnKanban.className = isKanban ? activeBtnClass : inactiveBtnClass;
+  if (modeBtnCal) modeBtnCal.className = isCalendar ? activeBtnClass : inactiveBtnClass;
+
+  if (topTabWs) topTabWs.className = isWorkspace ? activeTopTabClass : inactiveTopTabClass;
+  if (topTabKanban) topTabKanban.className = isKanban ? activeTopTabClass : inactiveTopTabClass;
+  if (topTabCal) topTabCal.className = isCalendar ? activeTopTabClass : inactiveTopTabClass;
+
+  if (isCalendar) {
+    if (docArea) docArea.classList.add('hidden');
+    if (kanbanArea) kanbanArea.classList.add('hidden');
+    if (calArea) calArea.classList.remove('hidden');
+    if (wsBread) wsBread.classList.add('hidden');
+    if (calBread) calBread.classList.remove('hidden');
+    if (wsControls) wsControls.classList.add('hidden');
+    if (calControls) calControls.classList.remove('hidden');
+
+    // Hide document graph inspector in calendar mode
+    if (rightSidebar) {
+      rightSidebar.style.width = '0px';
+      rightSidebar.style.opacity = '0';
+    }
     const inspectorBackdrop = document.getElementById('mobileInspectorBackdrop');
     if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
     updateMobileNavState();
+  } else if (isKanban) {
+    if (docArea) docArea.classList.add('hidden');
+    if (calArea) calArea.classList.add('hidden');
+    if (kanbanArea) kanbanArea.classList.remove('hidden');
+    if (wsBread) wsBread.classList.remove('hidden');
+    if (calBread) calBread.classList.add('hidden');
+    if (wsControls) wsControls.classList.add('hidden');
+    if (calControls) calControls.classList.add('hidden');
 
-    modeBtnCal.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)]';
-    modeBtnWs.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
-
-    topTabCal.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors bg-[var(--bg-canvas)] text-[var(--text-primary)] border border-[var(--border-hairline)]';
-    topTabWs.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
-  } else {
-    docArea.classList.remove('hidden');
-    calArea.classList.add('hidden');
-    if (wasCalendar && !window.PK_LITE_MODE) {
-      docArea.classList.remove('animate-view-fade');
-      void docArea.offsetWidth;
-      docArea.classList.add('animate-view-fade');
+    if (rightSidebar) {
+      rightSidebar.style.width = '0px';
+      rightSidebar.style.opacity = '0';
     }
-    wsBread.classList.remove('hidden');
-    calBread.classList.add('hidden');
-    wsControls.classList.remove('hidden');
-    calControls.classList.add('hidden');
+    const inspectorBackdrop = document.getElementById('mobileInspectorBackdrop');
+    if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+    updateMobileNavState();
+  } else {
+    if (docArea) docArea.classList.remove('hidden');
+    if (calArea) calArea.classList.add('hidden');
+    if (kanbanArea) kanbanArea.classList.add('hidden');
+    if (wsBread) wsBread.classList.remove('hidden');
+    if (calBread) calBread.classList.add('hidden');
+    if (wsControls) wsControls.classList.remove('hidden');
+    if (calControls) calControls.classList.add('hidden');
 
     const isMobileScreen = window.innerWidth < 1024;
     const inspectorBackdrop = document.getElementById('mobileInspectorBackdrop');
 
-    if (isMobileScreen) {
-      rightSidebar.style.width = window.innerWidth < 640 ? '100%' : '20rem';
-      if (state.rightSidebarOpen) {
-        rightSidebar.style.transform = 'translateX(0)';
-        rightSidebar.style.opacity = '1';
-        if (inspectorBackdrop) inspectorBackdrop.classList.remove('hidden');
+    if (rightSidebar) {
+      if (isMobileScreen) {
+        rightSidebar.style.width = window.innerWidth < 640 ? '100%' : '20rem';
+        if (state.rightSidebarOpen) {
+          rightSidebar.style.transform = 'translateX(0)';
+          rightSidebar.style.opacity = '1';
+          if (inspectorBackdrop) inspectorBackdrop.classList.remove('hidden');
+        } else {
+          rightSidebar.style.transform = 'translateX(100%)';
+          if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+        }
       } else {
-        rightSidebar.style.transform = 'translateX(100%)';
         if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
-      }
-    } else {
-      if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
-      rightSidebar.style.transform = 'translateX(0)';
-      if (state.rightSidebarOpen) {
-        rightSidebar.style.width = '20rem';
-        rightSidebar.style.opacity = '1';
-      } else {
-        rightSidebar.style.width = '0px';
-        rightSidebar.style.opacity = '0';
+        rightSidebar.style.transform = 'translateX(0)';
+        if (state.rightSidebarOpen) {
+          rightSidebar.style.width = '20rem';
+          rightSidebar.style.opacity = '1';
+        } else {
+          rightSidebar.style.width = '0px';
+          rightSidebar.style.opacity = '0';
+        }
       }
     }
-
-    // Update Mobile Bottom Nav Active Highlighting
     updateMobileNavState();
-
-    modeBtnWs.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-hairline)]';
-    modeBtnCal.className = 'flex items-center justify-center gap-1.5 py-1 px-2 rounded-[2px] font-mono text-[11px] font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
-
-    topTabWs.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors bg-[var(--bg-canvas)] text-[var(--text-primary)] border border-[var(--border-hairline)]';
-    topTabCal.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] uppercase transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent';
   }
 
   // Apply Accent Theme & Custom Inks
@@ -5800,6 +5816,11 @@ function renderCommandPaletteResults(query) {
   const q = query.toLowerCase().trim();
 
   const allActions = [
+    { kind: 'action', label: 'Kanban Studio: Open Project Board', hint: 'Agile status board, columns & task completion', glyph: 'grid', shortcut: 'Board', run: () => setAppMode('kanban') },
+    { kind: 'action', label: 'Deep Vault Search & Replace', hint: 'Full-text vault regex search and in-doc replace', glyph: 'search', shortcut: '⇧⌘F', run: () => openVaultSearchModal() },
+    { kind: 'action', label: 'Quick Capture HUD', hint: 'Fleeting thought capture to today’s log or active doc', glyph: 'edit', shortcut: '⇧⌘N', run: () => openQuickCaptureModal() },
+    { kind: 'action', label: 'Revision Time-Machine', hint: 'Visual history diff & 1-click snapshot restore', glyph: 'clock', shortcut: 'History', run: () => openRevisionHistoryModal() },
+    { kind: 'action', label: 'Export Studio: Markdown ZIP', hint: 'Download 100% Obsidian/Logseq vault ZIP backup', glyph: 'download', shortcut: 'Export', run: () => openVaultExportModal() },
     { kind: 'action', label: 'Graph: Switch to Link Mode', hint: 'Connect notes by dragging or tapping', glyph: 'graph', shortcut: 'Link', run: () => { setGraphToolMode('connect'); openRightInspector('graph'); } },
     { kind: 'action', label: 'Graph: Switch to Move / Pan Mode', hint: 'Reposition graph vertices and pan canvas', glyph: 'graph', shortcut: 'Move', run: () => { setGraphToolMode('move'); openRightInspector('graph'); } },
     { kind: 'action', label: 'Graph: Expand Fullscreen Graph Studio', hint: 'Spacious fullscreen topology canvas with search & zoom', glyph: 'grid', shortcut: 'Studio', run: () => openExpandedGraphModal() },
@@ -6094,6 +6115,20 @@ document.addEventListener('keydown', e => {
     }
   }
 
+  // Cmd/Ctrl + Shift + F: Universal Deep Vault Search
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    openVaultSearchModal();
+    return;
+  }
+
+  // Cmd/Ctrl + Shift + N: Floating Quick Capture HUD
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    openQuickCaptureModal();
+    return;
+  }
+
   // Cmd/Ctrl + K: Command Palette
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault();
@@ -6215,18 +6250,20 @@ function mobileNavSelect(action) {
       closeMobileSidebar();
       closeRightSidebar();
     } else if (state.rightSidebarOpen) {
-      // Returning from Graph/Inspector back to Notes cleanly closes Graph instead of opening left drawer!
       closeRightSidebar();
     } else {
       toggleLeftSidebar();
     }
+  } else if (action === 'kanban') {
+    setAppMode('kanban');
+    closeMobileSidebar();
+    closeRightSidebar();
   } else if (action === 'calendar') {
     setAppMode('calendar');
     closeMobileSidebar();
     closeRightSidebar();
   } else if (action === 'graph') {
     if (state.appMode === 'workspace' && state.rightSidebarOpen) {
-      // Tapping GRAPH while already open cleanly toggles it closed!
       closeRightSidebar();
     } else {
       state.appMode = 'workspace';
@@ -6239,26 +6276,22 @@ function mobileNavSelect(action) {
 
 function updateMobileNavState() {
   const navNotes = document.getElementById('mobileNavNotes');
+  const navKanban = document.getElementById('mobileNavKanban');
   const navCal = document.getElementById('mobileNavCalendar');
   const navGraph = document.getElementById('mobileNavGraph');
-  if (!navNotes || !navCal || !navGraph) return;
+  if (!navNotes && !navCal) return;
 
   const isCal = state.appMode === 'calendar';
-  const isGraphOpen = !isCal && state.rightSidebarOpen;
+  const isKanban = state.appMode === 'kanban';
+  const isGraphOpen = !isCal && !isKanban && state.rightSidebarOpen;
 
-  if (isCal) {
-    navCal.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] font-medium transition-colors';
-    navNotes.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
-    navGraph.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
-  } else if (isGraphOpen) {
-    navGraph.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-ochre)] font-medium transition-colors';
-    navNotes.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
-    navCal.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
-  } else {
-    navNotes.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--accent-vermilion)] font-medium transition-colors';
-    navCal.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
-    navGraph.className = 'flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
-  }
+  const activeCls = 'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--accent-vermilion)] font-medium transition-colors';
+  const inactiveCls = 'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+
+  if (navNotes) navNotes.className = (!isCal && !isKanban && !isGraphOpen) ? activeCls : inactiveCls;
+  if (navKanban) navKanban.className = isKanban ? activeCls : inactiveCls;
+  if (navCal) navCal.className = isCal ? activeCls : inactiveCls;
+  if (navGraph) navGraph.className = isGraphOpen ? 'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--accent-ochre)] font-medium transition-colors' : inactiveCls;
 }
 
 function openMobileQuickMenu() {
@@ -17128,3 +17161,988 @@ function pkSpawnTouchRipple() {}
 
 // Sections 20D (accidental paragraph slide-to-delete/todo), 20E (header note flick), and 20F (tag pill flick)
 // removed so normal finger scrolling, tapping, and text selection feel 100% natural on mobile phones!
+
+
+// =========================================================================
+// 22. FIVE MAJOR GAME-CHANGING POWER SYSTEMS FOR PK NOTE
+// =========================================================================
+
+// -------------------------------------------------------------------------
+// 22A. INTERACTIVE AGILE KANBAN BOARD STUDIO (`appMode: 'kanban'`)
+// -------------------------------------------------------------------------
+const KANBAN_COLUMNS = [
+  { id: 'backlog', title: 'Backlog', color: 'var(--text-tertiary)', badgeColor: 'bg-zinc-500/15 text-zinc-400' },
+  { id: 'in-progress', title: 'In Progress', color: 'var(--accent-vermilion)', badgeColor: 'bg-[var(--accent-vermilion)]/15 text-[var(--accent-vermilion)]' },
+  { id: 'review', title: 'Review', color: 'var(--accent-ochre)', badgeColor: 'bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)]' },
+  { id: 'done', title: 'Done', color: '#10b981', badgeColor: 'bg-emerald-500/15 text-emerald-500' }
+];
+
+let draggedKanbanNoteId = null;
+
+function formatVaultRelativeTime(isoOrTimestamp) {
+  if (!isoOrTimestamp) return 'Just now';
+  const d = new Date(isoOrTimestamp);
+  const diffSec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (diffSec < 60) return 'Just now';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
+  return d.toLocaleDateString();
+}
+
+function getNoteKanbanStatus(note) {
+  if (!note) return 'backlog';
+  if (note.status && ['backlog', 'in-progress', 'review', 'done'].includes(note.status)) {
+    return note.status;
+  }
+  const tags = (note.tags || []).map(t => String(t).toLowerCase().replace(/^#/, ''));
+  if (tags.includes('done') || tags.includes('completed')) return 'done';
+  if (tags.includes('review') || tags.includes('testing')) return 'review';
+  if (tags.includes('in-progress') || tags.includes('doing') || tags.includes('wip')) return 'in-progress';
+  
+  const todos = (note.blocks || []).filter(b => b.type === 'todo');
+  if (todos.length > 0) {
+    const doneCount = todos.filter(b => b.checked).length;
+    if (doneCount === todos.length) return 'done';
+    if (doneCount > 0) return 'in-progress';
+  }
+  return 'backlog';
+}
+
+function setNoteKanbanStatus(noteId, newStatus) {
+  const note = state.notes.find(n => n.id === noteId);
+  if (!note) return;
+  takeSnapshot('Kanban move');
+  note.status = newStatus;
+  note.updated_at = new Date().toISOString();
+  persistState();
+  renderKanbanBoard();
+  if (typeof pkHaptic === 'function') pkHaptic(12);
+  if (typeof playChimeSound === 'function') playChimeSound();
+  const col = KANBAN_COLUMNS.find(c => c.id === newStatus);
+  showToast(`Moved "${escapeHtml(note.title || 'Untitled')}" to ${col ? col.title : newStatus}`);
+}
+
+function createNewNoteWithStatus(folder, status) {
+  const note = createNewNote(folder || 'General');
+  if (note) {
+    note.status = status || 'backlog';
+    persistState();
+    if (state.appMode === 'kanban') {
+      renderKanbanBoard();
+    }
+  }
+}
+
+function renderKanbanBoard() {
+  const container = document.getElementById('kanbanColumnsContainer');
+  if (!container) return;
+  
+  const filterSelect = document.getElementById('kanbanFolderFilter');
+  const filterFolder = filterSelect ? filterSelect.value : 'ALL';
+  
+  const filteredNotes = filterFolder === 'ALL'
+    ? state.notes
+    : state.notes.filter(n => (n.folder || 'General') === filterFolder);
+
+  const columnBuckets = { 'backlog': [], 'in-progress': [], 'review': [], 'done': [] };
+  filteredNotes.forEach(note => {
+    const st = getNoteKanbanStatus(note);
+    if (columnBuckets[st]) columnBuckets[st].push(note);
+    else columnBuckets['backlog'].push(note);
+  });
+
+  container.innerHTML = KANBAN_COLUMNS.map(col => {
+    const cards = columnBuckets[col.id] || [];
+    return `
+      <div class="w-72 sm:w-80 shrink-0 flex flex-col bg-[var(--bg-panel)]/80 rounded-xl border border-[var(--border-hairline)] overflow-hidden"
+           ondragover="event.preventDefault()"
+           ondrop="handleKanbanDrop(event, '${col.id}')">
+        <!-- Column Header -->
+        <div class="px-3.5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]/60 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${col.color};"></span>
+            <span class="font-mono text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider truncate">${col.title}</span>
+            <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full ${col.badgeColor} font-bold">${cards.length}</span>
+          </div>
+          <button type="button" onclick="createNewNoteWithStatus('${filterFolder === 'ALL' ? 'General' : filterFolder}', '${col.id}')"
+                  title="Add Note in ${col.title}"
+                  class="w-5 h-5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors font-mono text-xs cursor-pointer">
+            +
+          </button>
+        </div>
+
+        <!-- Cards List -->
+        <div class="flex-1 overflow-y-auto p-2.5 space-y-2 max-h-[calc(100vh-230px)]">
+          ${cards.length === 0 ? `
+            <div class="py-8 text-center border border-dashed border-[var(--border-hairline)] rounded-lg text-[var(--text-tertiary)] font-mono text-[11px]">
+              No notes in ${col.title}
+            </div>
+          ` : cards.map(note => {
+            const todos = (note.blocks || []).filter(b => b.type === 'todo');
+            const doneTodos = todos.filter(b => b.checked).length;
+            const hasTodos = todos.length > 0;
+            const pct = hasTodos ? Math.round((doneTodos / todos.length) * 100) : 0;
+            const updatedTime = formatVaultRelativeTime(note.updated_at || note.created_at);
+            
+            return `
+              <div draggable="true"
+                   ondragstart="handleKanbanDragStart(event, '${note.id}')"
+                   onclick="selectNoteAndOpenWorkspace('${note.id}')"
+                   class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] hover:shadow-md transition-all cursor-pointer group select-none">
+                
+                <!-- Card Header -->
+                <div class="flex items-start justify-between gap-1.5 mb-1.5">
+                  <h4 class="font-serif text-xs font-semibold text-[var(--text-primary)] leading-snug line-clamp-2 group-hover:text-[var(--accent-vermilion)] transition-colors">
+                    ${escapeHtml(note.title || 'Untitled Document')}
+                  </h4>
+                  <span class="font-mono text-[9px] px-1.5 py-0.2 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] shrink-0 border border-[var(--border-hairline)]">
+                    ${escapeHtml(note.folder || 'General')}
+                  </span>
+                </div>
+
+                <!-- Preview Snippet -->
+                <p class="font-mono text-[10px] text-[var(--text-secondary)] line-clamp-2 leading-relaxed mb-2">
+                  ${escapeHtml((note.blocks && note.blocks[0] && note.blocks[0].content) || 'Empty document')}
+                </p>
+
+                <!-- Todo Completion Progress -->
+                ${hasTodos ? `
+                  <div class="mb-2">
+                    <div class="flex items-center justify-between font-mono text-[9px] text-[var(--text-tertiary)] mb-1">
+                      <span>Tasks: ${doneTodos}/${todos.length}</span>
+                      <span>${pct}%</span>
+                    </div>
+                    <div class="w-full h-1 bg-[var(--bg-panel)] rounded-full overflow-hidden">
+                      <div class="h-full bg-[var(--accent-vermilion)] transition-all duration-300" style="width: ${pct}%;"></div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Card Footer & Quick Column Move Buttons -->
+                <div class="flex items-center justify-between pt-1.5 border-t border-[var(--border-hairline)]/60 text-[10px] font-mono text-[var(--text-tertiary)]">
+                  <span>${updatedTime}</span>
+                  <div class="flex items-center gap-1 opacity-70 group-hover:opacity-100" onclick="event.stopPropagation()">
+                    ${col.id !== 'backlog' ? `
+                      <button type="button" title="Move Left" onclick="shiftKanbanCard('${note.id}', -1)" class="px-1 py-0.5 rounded-[2px] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)] cursor-pointer">←</button>
+                    ` : ''}
+                    ${col.id !== 'done' ? `
+                      <button type="button" title="Move Right" onclick="shiftKanbanCard('${note.id}', 1)" class="px-1 py-0.5 rounded-[2px] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)] cursor-pointer">→</button>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function handleKanbanDragStart(e, noteId) {
+  draggedKanbanNoteId = noteId;
+  if (e.dataTransfer) {
+    e.dataTransfer.setData('text/plain', noteId);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+}
+
+function handleKanbanDrop(e, targetStatus) {
+  e.preventDefault();
+  const noteId = draggedKanbanNoteId || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+  if (noteId && targetStatus) {
+    setNoteKanbanStatus(noteId, targetStatus);
+  }
+  draggedKanbanNoteId = null;
+}
+
+function shiftKanbanCard(noteId, direction) {
+  const note = state.notes.find(n => n.id === noteId);
+  if (!note) return;
+  const currentStatus = getNoteKanbanStatus(note);
+  const statusOrder = ['backlog', 'in-progress', 'review', 'done'];
+  const curIdx = statusOrder.indexOf(currentStatus);
+  const nextIdx = Math.max(0, Math.min(statusOrder.length - 1, curIdx + direction));
+  if (nextIdx !== curIdx) {
+    setNoteKanbanStatus(noteId, statusOrder[nextIdx]);
+  }
+}
+
+function selectNoteAndOpenWorkspace(noteId) {
+  selectNote(noteId);
+  setAppMode('workspace');
+}
+
+// -------------------------------------------------------------------------
+// 22B. UNIVERSAL DEEP VAULT SEARCH & REPLACE ENGINE (`Cmd+Shift+F`)
+// -------------------------------------------------------------------------
+let vaultSearchFolder = 'ALL';
+let vaultSearchCase = false;
+let vaultSearchRegex = false;
+
+function openVaultSearchModal() {
+  const modal = document.getElementById('vaultSearchModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  const input = document.getElementById('vaultSearchInput');
+  if (input) {
+    input.focus();
+    input.select();
+    executeVaultSearch(input.value);
+  }
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function closeVaultSearchModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('vaultSearchModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function toggleVaultSearchCase() {
+  vaultSearchCase = !vaultSearchCase;
+  const btn = document.getElementById('vaultSearchCaseBtn');
+  if (btn) {
+    btn.className = vaultSearchCase
+      ? 'px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] cursor-pointer'
+      : 'px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer';
+  }
+  const input = document.getElementById('vaultSearchInput');
+  executeVaultSearch(input ? input.value : '');
+}
+
+function toggleVaultSearchRegex() {
+  vaultSearchRegex = !vaultSearchRegex;
+  const btn = document.getElementById('vaultSearchRegexBtn');
+  if (btn) {
+    btn.className = vaultSearchRegex
+      ? 'px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] cursor-pointer'
+      : 'px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer';
+  }
+  const input = document.getElementById('vaultSearchInput');
+  executeVaultSearch(input ? input.value : '');
+}
+
+function toggleVaultReplaceBar() {
+  const row = document.getElementById('vaultReplaceRow');
+  const btn = document.getElementById('vaultSearchReplaceToggleBtn');
+  if (!row) return;
+  const isHidden = row.classList.contains('hidden');
+  if (isHidden) {
+    row.classList.remove('hidden');
+    if (btn) btn.className = 'px-1.5 py-0.5 rounded-[2px] bg-[var(--accent-ochre)] text-white border border-transparent cursor-pointer';
+    const repInput = document.getElementById('vaultReplaceInput');
+    if (repInput) repInput.focus();
+  } else {
+    row.classList.add('hidden');
+    if (btn) btn.className = 'px-1.5 py-0.5 rounded-[2px] bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] cursor-pointer';
+  }
+}
+
+function setVaultSearchFilter(folder) {
+  vaultSearchFolder = folder || 'ALL';
+  const filterBtns = {
+    'ALL': document.getElementById('vsFilterAll'),
+    'General': document.getElementById('vsFilterGeneral'),
+    'Projects': document.getElementById('vsFilterProjects'),
+    'Daily Logs': document.getElementById('vsFilterDaily'),
+    'Reading': document.getElementById('vsFilterReading')
+  };
+  Object.entries(filterBtns).forEach(([f, btn]) => {
+    if (!btn) return;
+    if (f === vaultSearchFolder) {
+      btn.className = 'px-2 py-0.5 rounded-[2px] bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-semibold';
+    } else {
+      btn.className = 'px-2 py-0.5 rounded-[2px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]';
+    }
+  });
+  const input = document.getElementById('vaultSearchInput');
+  executeVaultSearch(input ? input.value : '');
+}
+
+function executeVaultSearch(query) {
+  const resultsContainer = document.getElementById('vaultSearchResults');
+  const countEl = document.getElementById('vaultSearchResultsCount');
+  if (!resultsContainer) return;
+  
+  const rawQ = (query || '').trim();
+  if (!rawQ) {
+    resultsContainer.innerHTML = `
+      <div class="py-12 text-center text-[var(--text-tertiary)] font-mono text-xs">
+        Type to search across note titles, paragraphs, code blocks &amp; tags...
+      </div>
+    `;
+    if (countEl) countEl.textContent = '0 matches';
+    return;
+  }
+
+  let regex;
+  try {
+    const flags = vaultSearchCase ? 'g' : 'gi';
+    const pattern = vaultSearchRegex ? rawQ : rawQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    regex = new RegExp(pattern, flags);
+  } catch (err) {
+    resultsContainer.innerHTML = `<div class="p-3 text-xs text-rose-500 font-mono">Invalid Regular Expression</div>`;
+    return;
+  }
+
+  const targetNotes = vaultSearchFolder === 'ALL'
+    ? state.notes
+    : state.notes.filter(n => (n.folder || 'General') === vaultSearchFolder);
+
+  let totalMatches = 0;
+  const matchedDocs = [];
+
+  targetNotes.forEach(note => {
+    const matchesInDoc = [];
+    if (regex.test(note.title || '')) {
+      totalMatches++;
+      matchesInDoc.push({
+        type: 'title',
+        text: note.title,
+        highlighted: escapeHtml(note.title).replace(regex, m => `<mark class="bg-amber-400/30 text-[var(--text-primary)] rounded-[1px] px-0.5 font-bold">${m}</mark>`)
+      });
+    }
+
+    (note.blocks || []).forEach((block, bIdx) => {
+      const content = block.content || '';
+      regex.lastIndex = 0;
+      if (regex.test(content)) {
+        totalMatches++;
+        const matchIdx = content.toLowerCase().indexOf(rawQ.toLowerCase());
+        const start = Math.max(0, matchIdx - 35);
+        const end = Math.min(content.length, matchIdx + rawQ.length + 45);
+        const snippet = (start > 0 ? '...' : '') + content.substring(start, end) + (end < content.length ? '...' : '');
+        regex.lastIndex = 0;
+        const highlighted = escapeHtml(snippet).replace(regex, m => `<mark class="bg-amber-400/30 text-[var(--text-primary)] rounded-[1px] px-0.5 font-bold">${m}</mark>`);
+        matchesInDoc.push({
+          type: block.type || 'text',
+          blockIndex: bIdx,
+          text: snippet,
+          highlighted
+        });
+      }
+    });
+
+    if (matchesInDoc.length > 0) {
+      matchedDocs.push({ note, matches: matchesInDoc });
+    }
+  });
+
+  if (countEl) {
+    countEl.textContent = `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${matchedDocs.length} doc${matchedDocs.length === 1 ? '' : 's'}`;
+  }
+
+  if (matchedDocs.length === 0) {
+    resultsContainer.innerHTML = `
+      <div class="py-12 text-center text-[var(--text-tertiary)] font-mono text-xs">
+        No matches found for "${escapeHtml(rawQ)}"
+      </div>
+    `;
+    return;
+  }
+
+  resultsContainer.innerHTML = matchedDocs.map(({ note, matches }) => `
+    <div class="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all">
+      <div class="flex items-center justify-between cursor-pointer mb-1.5" onclick="selectNoteFromSearch('${note.id}')">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="font-serif text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-vermilion)] transition-colors truncate">
+            ${escapeHtml(note.title || 'Untitled Document')}
+          </span>
+          <span class="font-mono text-[9px] px-1.5 py-0.2 rounded-[2px] bg-[var(--bg-canvas)] text-[var(--text-tertiary)] border border-[var(--border-hairline)]">
+            ${escapeHtml(note.folder || 'General')}
+          </span>
+        </div>
+        <span class="font-mono text-[10px] text-[var(--text-tertiary)] shrink-0">${matches.length} hit${matches.length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="space-y-1 pl-2 border-l border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)]">
+        ${matches.slice(0, 4).map(m => `
+          <div class="hover:bg-[var(--bg-hover)] p-1 rounded cursor-pointer leading-relaxed" onclick="selectNoteFromSearch('${note.id}', ${m.blockIndex !== undefined ? m.blockIndex : null})">
+            ${m.highlighted}
+          </div>
+        `).join('')}
+        ${matches.length > 4 ? `
+          <div class="text-[10px] text-[var(--text-tertiary)] italic pl-1">+ ${matches.length - 4} more matches in this document</div>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectNoteFromSearch(noteId, blockIndex) {
+  selectNote(noteId);
+  setAppMode('workspace');
+  closeVaultSearchModal();
+  if (blockIndex !== undefined && blockIndex !== null) {
+    setTimeout(() => {
+      const blockEl = document.querySelector(`[data-block-idx="${blockIndex}"]`);
+      if (blockEl) {
+        blockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        blockEl.classList.add('ring-2', 'ring-[var(--accent-vermilion)]');
+        setTimeout(() => blockEl.classList.remove('ring-2', 'ring-[var(--accent-vermilion)]'), 2000);
+      }
+    }, 150);
+  }
+}
+
+function replaceInActiveNoteFromSearch(replaceAll) {
+  const searchInput = document.getElementById('vaultSearchInput');
+  const replaceInput = document.getElementById('vaultReplaceInput');
+  const note = getActiveNote();
+  if (!note || !searchInput || !replaceInput) return;
+  const sText = searchInput.value;
+  const rText = replaceInput.value;
+  if (!sText) return;
+
+  takeSnapshot('Search replace');
+  let replacedCount = 0;
+  const flags = replaceAll ? (vaultSearchCase ? 'g' : 'gi') : (vaultSearchCase ? '' : 'i');
+  const pattern = vaultSearchRegex ? sText : sText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(pattern, flags);
+
+  if (regex.test(note.title)) {
+    note.title = note.title.replace(regex, rText);
+    replacedCount++;
+  }
+
+  (note.blocks || []).forEach(block => {
+    if (block.content && regex.test(block.content)) {
+      block.content = block.content.replace(regex, rText);
+      replacedCount++;
+    }
+  });
+
+  if (replacedCount > 0) {
+    note.updated_at = new Date().toISOString();
+    persistState();
+    renderAll();
+    if (typeof pkHaptic === 'function') pkHaptic(14);
+    showToast(`Replaced ${replacedCount} occurrence${replacedCount === 1 ? '' : 's'} in "${escapeHtml(note.title)}"`);
+    executeVaultSearch(sText);
+  } else {
+    showToast('No matching text found in active document');
+  }
+}
+
+// -------------------------------------------------------------------------
+// 22C. FLOATING QUICK CAPTURE HUD (`Cmd+Shift+N`)
+// -------------------------------------------------------------------------
+let quickCaptureDest = 'daily';
+let quickCaptureFormat = 'note';
+
+function openQuickCaptureModal() {
+  const modal = document.getElementById('quickCaptureModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  const textarea = document.getElementById('quickCaptureText');
+  if (textarea) {
+    textarea.value = '';
+    textarea.focus();
+  }
+  setQuickCaptureDest('daily');
+  quickCaptureFormat = 'note';
+  const fmtBtn = document.getElementById('qcFormatTodo');
+  if (fmtBtn) fmtBtn.className = 'px-2 py-0.5 rounded-[2px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] cursor-pointer';
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function closeQuickCaptureModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('quickCaptureModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setQuickCaptureDest(dest) {
+  quickCaptureDest = dest;
+  const btns = {
+    'daily': document.getElementById('qcDestDaily'),
+    'active': document.getElementById('qcDestActive'),
+    'new': document.getElementById('qcDestNew')
+  };
+  Object.entries(btns).forEach(([k, btn]) => {
+    if (!btn) return;
+    if (k === dest) {
+      btn.className = 'px-2 py-1.5 rounded-[3px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] text-[var(--text-primary)] font-medium flex items-center justify-center gap-1 cursor-pointer';
+    } else {
+      btn.className = 'px-2 py-1.5 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1 cursor-pointer';
+    }
+  });
+}
+
+function toggleQuickCaptureFormat(fmt) {
+  quickCaptureFormat = quickCaptureFormat === fmt ? 'note' : fmt;
+  const btn = document.getElementById('qcFormatTodo');
+  if (btn) {
+    btn.className = quickCaptureFormat === 'todo'
+      ? 'px-2 py-0.5 rounded-[2px] bg-[var(--accent-vermilion)] text-white border border-transparent font-mono text-[10px] font-semibold cursor-pointer'
+      : 'px-2 py-0.5 rounded-[2px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] cursor-pointer';
+  }
+}
+
+function saveQuickCapture() {
+  const textarea = document.getElementById('quickCaptureText');
+  if (!textarea) return;
+  const text = textarea.value.trim();
+  if (!text) {
+    showToast('Please type something to capture');
+    return;
+  }
+
+  const isTodo = quickCaptureFormat === 'todo';
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  let targetNote = null;
+  let toastMsg = '';
+
+  if (quickCaptureDest === 'daily') {
+    targetNote = openOrCreateDailyNote();
+    toastMsg = `Captured to Today's Daily Log (${timeStr})`;
+  } else if (quickCaptureDest === 'active') {
+    targetNote = getActiveNote();
+    if (!targetNote) targetNote = state.notes[0];
+    toastMsg = `Captured to "${targetNote.title}"`;
+  } else if (quickCaptureDest === 'new') {
+    const firstLine = text.split('\n')[0].substring(0, 40);
+    targetNote = createNewNote('General');
+    targetNote.title = firstLine || `Quick Thought ${timeStr}`;
+    toastMsg = `Created new note "${targetNote.title}"`;
+  }
+
+  if (targetNote) {
+    takeSnapshot('Quick capture');
+    if (!targetNote.blocks) targetNote.blocks = [];
+    const blockType = isTodo ? 'todo' : 'paragraph';
+    targetNote.blocks.push({
+      type: blockType,
+      content: text,
+      checked: false
+    });
+    targetNote.updated_at = new Date().toISOString();
+    persistState();
+    renderAll();
+    if (typeof playChimeSound === 'function') playChimeSound();
+    if (typeof pkHaptic === 'function') pkHaptic(16);
+    closeQuickCaptureModal();
+    showToast(toastMsg);
+  }
+}
+
+// -------------------------------------------------------------------------
+// 22D. VISUAL REVISION HISTORY & DIFF TIME-MACHINE STUDIO
+// -------------------------------------------------------------------------
+let selectedRevisionIndex = null;
+
+function openRevisionHistoryModal() {
+  const modal = document.getElementById('revisionHistoryModal');
+  if (!modal) return;
+  const active = getActiveNote();
+  if (!active) {
+    showToast('No active document open');
+    return;
+  }
+
+  modal.classList.remove('hidden');
+  const subtitle = document.getElementById('revisionHistorySubtitle');
+  if (subtitle) subtitle.textContent = `Document: "${escapeHtml(active.title || 'Untitled')}"`;
+
+  const stack = typeof getNoteUndoStack === 'function' ? getNoteUndoStack(active.id) : [];
+  const countEl = document.getElementById('revisionSnapshotCount');
+  if (countEl) countEl.textContent = String(stack.length);
+
+  const listEl = document.getElementById('revisionSnapshotList');
+  if (!listEl) return;
+
+  if (stack.length === 0) {
+    listEl.innerHTML = `<div class="p-3 text-center text-[var(--text-tertiary)] font-mono text-[11px]">No previous revisions recorded yet in this session. Revisions are created automatically whenever you edit.</div>`;
+    renderRevisionDiff(null);
+    return;
+  }
+
+  listEl.innerHTML = stack.map((snap, idx) => {
+    const time = snap.timestamp ? formatVaultRelativeTime(snap.timestamp) : `Step #${idx + 1}`;
+    const blockCount = (snap.blocks || []).length;
+    return `
+      <div onclick="selectRevisionSnapshot(${idx})"
+           id="revSnapItem_${idx}"
+           class="p-2.5 rounded-lg border border-[var(--border-hairline)] hover:border-[var(--border-strong)] bg-[var(--bg-canvas)] cursor-pointer transition-all">
+        <div class="flex items-center justify-between font-mono text-[11px] text-[var(--text-primary)] font-medium mb-1">
+          <span>Revision #${idx + 1}</span>
+          <span class="text-[9px] text-[var(--text-tertiary)]">${time}</span>
+        </div>
+        <div class="font-mono text-[10px] text-[var(--text-secondary)]">
+          ${blockCount} block${blockCount === 1 ? '' : 's'} · "${escapeHtml((snap.title || '').substring(0, 24))}"
+        </div>
+      </div>
+    `;
+  }).reverse().join('');
+
+  selectRevisionSnapshot(stack.length - 1);
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function closeRevisionHistoryModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('revisionHistoryModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function selectRevisionSnapshot(idx) {
+  selectedRevisionIndex = idx;
+  const active = getActiveNote();
+  if (!active) return;
+  const stack = typeof getNoteUndoStack === 'function' ? getNoteUndoStack(active.id) : [];
+  const snapshot = stack[idx];
+
+  stack.forEach((_, sIdx) => {
+    const el = document.getElementById(`revSnapItem_${sIdx}`);
+    if (el) {
+      if (sIdx === idx) {
+        el.className = 'p-2.5 rounded-lg border border-[var(--accent-vermilion)] bg-[var(--bg-elevated)] cursor-pointer transition-all shadow-xs';
+      } else {
+        el.className = 'p-2.5 rounded-lg border border-[var(--border-hairline)] hover:border-[var(--border-strong)] bg-[var(--bg-canvas)] cursor-pointer transition-all';
+      }
+    }
+  });
+
+  renderRevisionDiff(snapshot);
+}
+
+function computeSimpleDiff(oldLines, newLines) {
+  const diff = [];
+  const max = Math.max(oldLines.length, newLines.length);
+  for (let i = 0; i < max; i++) {
+    const o = oldLines[i];
+    const n = newLines[i];
+    if (o === undefined) {
+      diff.push({ type: 'add', line: n });
+    } else if (n === undefined) {
+      diff.push({ type: 'del', line: o });
+    } else if (o !== n) {
+      diff.push({ type: 'del', line: o });
+      diff.push({ type: 'add', line: n });
+    } else {
+      diff.push({ type: 'same', line: o });
+    }
+  }
+  return diff;
+}
+
+function renderRevisionDiff(snapshot) {
+  const diffHeader = document.getElementById('revisionDiffHeader');
+  const diffContent = document.getElementById('revisionDiffContent');
+  const restoreBtn = document.getElementById('revisionRestoreBtn');
+  if (!diffContent) return;
+
+  if (!snapshot) {
+    if (diffHeader) diffHeader.textContent = 'Select a snapshot to preview diff';
+    if (restoreBtn) restoreBtn.classList.add('hidden');
+    diffContent.innerHTML = `<div class="text-[var(--text-tertiary)] italic">No snapshot selected yet.</div>`;
+    return;
+  }
+
+  const active = getActiveNote();
+  if (diffHeader) {
+    diffHeader.textContent = `Comparing Revision #${selectedRevisionIndex + 1} with Current Document`;
+  }
+  if (restoreBtn) restoreBtn.classList.remove('hidden');
+
+  const oldText = [snapshot.title || '', ...(snapshot.blocks || []).map(b => b.content || '')];
+  const newText = [active.title || '', ...(active.blocks || []).map(b => b.content || '')];
+
+  const diff = computeSimpleDiff(oldText, newText);
+
+  diffContent.innerHTML = diff.map(item => {
+    if (item.type === 'add') {
+      return `<div class="p-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[11px] flex gap-2">
+        <span class="font-bold select-none">+</span>
+        <span class="flex-1">${escapeHtml(item.line || '(empty)')}</span>
+      </div>`;
+    } else if (item.type === 'del') {
+      return `<div class="p-1 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono text-[11px] line-through opacity-80 flex gap-2">
+        <span class="font-bold select-none">-</span>
+        <span class="flex-1">${escapeHtml(item.line || '(empty)')}</span>
+      </div>`;
+    } else {
+      return `<div class="p-1 text-[var(--text-secondary)] font-mono text-[11px] flex gap-2 opacity-60">
+        <span class="select-none">&nbsp;</span>
+        <span class="flex-1">${escapeHtml(item.line || '')}</span>
+      </div>`;
+    }
+  }).join('');
+}
+
+function restoreSelectedRevision() {
+  const active = getActiveNote();
+  if (!active || selectedRevisionIndex === null) return;
+  const stack = typeof getNoteUndoStack === 'function' ? getNoteUndoStack(active.id) : [];
+  const snapshot = stack[selectedRevisionIndex];
+  if (!snapshot) return;
+
+  takeSnapshot('Restore revision');
+  active.title = snapshot.title || active.title;
+  active.blocks = JSON.parse(JSON.stringify(snapshot.blocks || []));
+  active.updated_at = new Date().toISOString();
+  persistState();
+  renderAll();
+  if (typeof playChimeSound === 'function') playChimeSound();
+  if (typeof pkHaptic === 'function') pkHaptic(20);
+  closeRevisionHistoryModal();
+  showToast(`Restored version #${selectedRevisionIndex + 1} for "${escapeHtml(active.title)}"`);
+}
+
+// -------------------------------------------------------------------------
+// 22E. CLIENT-SIDE PURE JAVASCRIPT ZIP ENGINE & VAULT PUBLISHER STUDIO
+// -------------------------------------------------------------------------
+class SimpleZip {
+  constructor() {
+    this.files = [];
+    this.crcTable = SimpleZip.makeCrcTable();
+  }
+
+  static makeCrcTable() {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      table[i] = c >>> 0;
+    }
+    return table;
+  }
+
+  crc32(data) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < data.length; i++) {
+      crc = (crc >>> 8) ^ this.crcTable[(crc ^ data[i]) & 0xFF];
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  addFile(name, content) {
+    const enc = new TextEncoder();
+    const data = typeof content === 'string' ? enc.encode(content) : content;
+    const nameBytes = enc.encode(name.replace(/\\/g, '/'));
+    this.files.push({
+      name: nameBytes,
+      data: data,
+      crc: this.crc32(data)
+    });
+  }
+
+  build() {
+    let localParts = [];
+    let centralParts = [];
+    let offset = 0;
+
+    this.files.forEach(file => {
+      const modTime = 0;
+      const modDate = 0;
+      const size = file.data.length;
+
+      // Local File Header (30 bytes + name length)
+      const lfh = new Uint8Array(30 + file.name.length);
+      const lView = new DataView(lfh.buffer);
+      lView.setUint32(0, 0x04034b50, true);
+      lView.setUint16(4, 20, true);
+      lView.setUint16(6, 0x0800, true); // UTF-8 filename flag
+      lView.setUint16(8, 0, true); // Stored (no compression)
+      lView.setUint16(10, modTime, true);
+      lView.setUint16(12, modDate, true);
+      lView.setUint32(14, file.crc, true);
+      lView.setUint32(18, size, true);
+      lView.setUint32(22, size, true);
+      lView.setUint16(26, file.name.length, true);
+      lView.setUint16(28, 0, true);
+      lfh.set(file.name, 30);
+
+      localParts.push(lfh);
+      localParts.push(file.data);
+
+      // Central Directory Header (46 bytes + name length)
+      const cdh = new Uint8Array(46 + file.name.length);
+      const cView = new DataView(cdh.buffer);
+      cView.setUint32(0, 0x02014b50, true);
+      cView.setUint16(4, 20, true);
+      cView.setUint16(6, 20, true);
+      cView.setUint16(8, 0x0800, true);
+      cView.setUint16(10, 0, true);
+      cView.setUint16(12, modTime, true);
+      cView.setUint16(14, modDate, true);
+      cView.setUint32(16, file.crc, true);
+      cView.setUint32(20, size, true);
+      cView.setUint32(24, size, true);
+      cView.setUint16(28, file.name.length, true);
+      cView.setUint16(30, 0, true);
+      cView.setUint16(32, 0, true);
+      cView.setUint16(34, 0, true);
+      cView.setUint16(36, 0, true);
+      cView.setUint32(38, 0, true);
+      cView.setUint32(42, offset, true);
+      cdh.set(file.name, 46);
+
+      centralParts.push(cdh);
+      offset += lfh.length + size;
+    });
+
+    const centralStart = offset;
+    let centralSize = 0;
+    centralParts.forEach(p => centralSize += p.length);
+
+    // End of Central Directory (22 bytes)
+    const eocd = new Uint8Array(22);
+    const eView = new DataView(eocd.buffer);
+    eView.setUint32(0, 0x06054b50, true);
+    eView.setUint16(4, 0, true);
+    eView.setUint16(6, 0, true);
+    eView.setUint16(8, this.files.length, true);
+    eView.setUint16(10, this.files.length, true);
+    eView.setUint32(12, centralSize, true);
+    eView.setUint32(16, centralStart, true);
+    eView.setUint16(20, 0, true);
+
+    return new Blob([...localParts, ...centralParts, eocd], { type: 'application/zip' });
+  }
+}
+
+function openVaultExportModal() {
+  const modal = document.getElementById('vaultExportModal');
+  if (modal) modal.classList.remove('hidden');
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function closeVaultExportModal(e) {
+  if (e && e.target && e.target !== e.currentTarget) return;
+  const modal = document.getElementById('vaultExportModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function noteToMarkdown(note) {
+  const frontmatter = [
+    '---',
+    `title: "${(note.title || 'Untitled').replace(/"/g, '\\"')}"`,
+    `date: "${note.created_at || new Date().toISOString()}"`,
+    `updated: "${note.updated_at || new Date().toISOString()}"`,
+    `folder: "${note.folder || 'General'}"`,
+    `tags: [${(note.tags || []).map(t => `"${t}"`).join(', ')}]`,
+    `status: "${note.status || 'backlog'}"`,
+    '---',
+    ''
+  ].join('\n');
+
+  const content = (note.blocks || []).map(b => {
+    switch (b.type) {
+      case 'h1': return `# ${b.content}\n`;
+      case 'h2': return `## ${b.content}\n`;
+      case 'h3': return `### ${b.content}\n`;
+      case 'todo': return `- [${b.checked ? 'x' : ' '}] ${b.content}\n`;
+      case 'bullet': return `- ${b.content}\n`;
+      case 'quote': return `> ${b.content}\n`;
+      case 'code': return `\`\`\`${b.language || ''}\n${b.content}\n\`\`\`\n`;
+      case 'divider': return `---\n`;
+      case 'callout': return `> [!NOTE]\n> ${b.content}\n`;
+      default: return `${b.content}\n`;
+    }
+  }).join('\n');
+
+  return frontmatter + content;
+}
+
+function sanitizeExportFilename(name) {
+  return (name || 'untitled').replace(/[\\/:*?"<>|]/g, '_').trim().substring(0, 60);
+}
+
+function exportVaultAsMarkdownZip() {
+  const zip = new SimpleZip();
+  state.notes.forEach(note => {
+    const folder = sanitizeExportFilename(note.folder || 'General');
+    const filename = `${sanitizeExportFilename(note.title || 'Untitled')}.md`;
+    const md = noteToMarkdown(note);
+    zip.addFile(`${folder}/${filename}`, md);
+  });
+
+  const blob = zip.build();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `PK_Note_Vault_Markdown_${dateStr}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  if (typeof playChimeSound === 'function') playChimeSound();
+  if (typeof pkHaptic === 'function') pkHaptic(16);
+  closeVaultExportModal();
+  showToast(`Exported entire vault (${state.notes.length} notes) as Markdown ZIP`);
+}
+
+function exportActiveNoteAsStandaloneHtml() {
+  const note = getActiveNote();
+  if (!note) return;
+  const title = escapeHtml(note.title || 'Untitled Document');
+  const date = note.created_at ? new Date(note.created_at).toLocaleDateString() : '';
+  const folder = escapeHtml(note.folder || 'General');
+
+  const blocksHtml = (note.blocks || []).map(b => {
+    const text = escapeHtml(b.content || '');
+    switch (b.type) {
+      case 'h1': return `<h1 style="font-size:1.8rem;margin:1.5rem 0 0.5rem;font-weight:700;">${text}</h1>`;
+      case 'h2': return `<h2 style="font-size:1.4rem;margin:1.3rem 0 0.4rem;font-weight:600;">${text}</h2>`;
+      case 'h3': return `<h3 style="font-size:1.15rem;margin:1.1rem 0 0.3rem;font-weight:600;">${text}</h3>`;
+      case 'todo': return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;"><input type="checkbox" ${b.checked ? 'checked' : ''} disabled /><span>${text}</span></div>`;
+      case 'bullet': return `<li style="margin:4px 0;">${text}</li>`;
+      case 'quote': return `<blockquote style="border-left:3px solid #D95338;padding-left:12px;margin:12px 0;color:#666;font-style:italic;">${text}</blockquote>`;
+      case 'code': return `<pre style="background:#1e1e1e;color:#f8f8f2;padding:12px;border-radius:6px;overflow-x:auto;font-family:monospace;font-size:12px;"><code>${text}</code></pre>`;
+      case 'divider': return `<hr style="border:0;border-top:1px solid #ddd;margin:20px 0;" />`;
+      default: return `<p style="margin:8px 0;line-height:1.7;">${text}</p>`;
+    }
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${title} — PK Note</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Newsreader', Georgia, serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; background: #FAF8F5; }
+    header { border-bottom: 2px solid #D95338; padding-bottom: 12px; margin-bottom: 24px; font-family: 'Inter', sans-serif; }
+    .badge { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
+    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #ddd; font-family: 'Inter', sans-serif; font-size: 11px; color: #888; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="badge">${folder} · PK NOTE EXPORT</div>
+    <h1 style="font-size:2rem;margin:8px 0 4px;font-family:'Newsreader',serif;">${title}</h1>
+    <div class="badge">${date}</div>
+  </header>
+  <main>
+    ${blocksHtml}
+  </main>
+  <footer>Exported from PK Note · Archival Personal Knowledge & Block Workspace</footer>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${sanitizeExportFilename(note.title)}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  if (typeof playChimeSound === 'function') playChimeSound();
+  if (typeof pkHaptic === 'function') pkHaptic(16);
+  closeVaultExportModal();
+  showToast(`Exported "${escapeHtml(note.title)}" as standalone HTML`);
+}

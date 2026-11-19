@@ -3252,6 +3252,7 @@ function renderSingleBlockHTML(block) {
       const isEditing = block.isEditing === true;
       const mathFormula = block.content || 'x^2 + 1/2 = 4';
       const renderedHtml = renderLatexToHtml(mathFormula, true);
+      const fracParts = parseFractionParts(mathFormula) || { prefix: '', num: '1', den: '2', suffix: '' };
       innerBlock = `
         <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden group/math">
           <!-- Top Header -->
@@ -3283,7 +3284,7 @@ function renderSingleBlockHTML(block) {
           <!-- Easy Visual Math Editor (Zero Code Needed!) -->
           <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-3 space-y-2.5">
             <div class="flex items-center justify-between text-[11px] pb-1 border-b border-[var(--border-hairline)]">
-              <span class="font-medium text-[var(--text-secondary)]">Type natural math or tap buttons (zero code needed)</span>
+              <span class="font-medium text-[var(--text-secondary)]">Fill in boxes or tap buttons (zero code needed)</span>
               <div class="flex items-center gap-1.5">
                 <button type="button" onclick="toggleMathWizard('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--accent-ochre)] font-semibold cursor-pointer flex items-center gap-1">
                   <span>✨ Fill-in Box</span>
@@ -3297,47 +3298,98 @@ function renderSingleBlockHTML(block) {
               </div>
             </div>
 
-            <!-- Visual Fill-in Helper Drawer -->
-            <div id="mathWizard_${block.id}" class="hidden p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2 text-xs">
-              <span class="text-[10px] uppercase font-mono tracking-wider text-[var(--text-tertiary)] block">1-Click Fill-in Templates:</span>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <!-- Fraction Box -->
-                <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col gap-1.5">
-                  <span class="text-[10px] font-semibold text-[var(--accent-vermilion)]">Fraction (a/b)</span>
-                  <div class="flex items-center gap-1">
-                    <input type="text" id="wizNum_${block.id}" placeholder="Top" value="1" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
-                    <span>/</span>
-                    <input type="text" id="wizDen_${block.id}" placeholder="Bottom" value="2" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
-                    <button type="button" onclick="insertWizardFraction('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Add</button>
+            <!-- Visual Fill-in Fraction & Math Builder (Clean & Easy!) -->
+            <div id="mathWizard_${block.id}" class="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2">
+              <div class="flex items-center justify-between text-[11px]">
+                <div class="flex items-center gap-1.5 font-semibold text-[var(--accent-vermilion)]">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16"/></svg>
+                  <span>Fill-in Fraction (Top ÷ Bottom)</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="setVisualFractionSample('${block.id}', 'sqrt(x)', 'b')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">√x / b</button>
+                  <button type="button" onclick="setVisualFractionSample('${block.id}', '1', '2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">1 / 2</button>
+                  <button type="button" onclick="setVisualFractionSample('${block.id}', 'x^2', '2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[9.5px] font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">x² / 2</button>
+                </div>
+              </div>
+
+              <!-- Interactive Stacked Fraction Box -->
+              <div class="p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col items-center gap-1.5 shadow-sm">
+                <!-- Top Box (Numerator) -->
+                <div class="w-full flex items-center gap-2">
+                  <span class="text-[11px] font-mono font-medium text-[var(--accent-vermilion)] w-14 text-right shrink-0">Top:</span>
+                  <input
+                    type="text"
+                    id="vTop_${block.id}"
+                    oninput="updateMathFromVisual('${block.id}')"
+                    value="${escapeHtml(fracParts.num || '1')}"
+                    placeholder="e.g. sqrt(x), 1, x^2"
+                    class="flex-1 px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs font-mono text-[var(--text-primary)] focus:border-[var(--accent-vermilion)] focus:outline-none"
+                  />
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vTop', 'sqrt(x)')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">√x</button>
+                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vTop', 'x^2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">x²</button>
                   </div>
                 </div>
 
-                <!-- Power Box -->
-                <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col gap-1.5">
-                  <span class="text-[10px] font-semibold text-[var(--accent-ochre)]">Power (xⁿ)</span>
-                  <div class="flex items-center gap-1">
-                    <input type="text" id="wizBase_${block.id}" placeholder="Base" value="x" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
-                    <span>^</span>
-                    <input type="text" id="wizExp_${block.id}" placeholder="Power" value="2" class="w-12 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
-                    <button type="button" onclick="insertWizardPower('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--accent-ochre)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Add</button>
+                <!-- Fraction Line -->
+                <div class="w-full h-[2px] bg-[var(--accent-vermilion)] rounded my-0.5"></div>
+
+                <!-- Bottom Box (Denominator) -->
+                <div class="w-full flex items-center gap-2">
+                  <span class="text-[11px] font-mono font-medium text-[var(--text-secondary)] w-14 text-right shrink-0">Bottom:</span>
+                  <input
+                    type="text"
+                    id="vBottom_${block.id}"
+                    oninput="updateMathFromVisual('${block.id}')"
+                    value="${escapeHtml(fracParts.den || '2')}"
+                    placeholder="e.g. b, 2, 2a, x"
+                    class="flex-1 px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs font-mono text-[var(--text-primary)] focus:border-[var(--accent-vermilion)] focus:outline-none"
+                  />
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vBottom', 'b')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">b</button>
+                    <button type="button" onclick="insertIntoVisualField('${block.id}', 'vBottom', '2')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] cursor-pointer">2</button>
                   </div>
                 </div>
 
-                <!-- Root Box -->
-                <div class="p-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex flex-col gap-1.5">
-                  <span class="text-[10px] font-semibold text-emerald-500">Root (√x)</span>
-                  <div class="flex items-center gap-1">
-                    <span>√</span>
-                    <input type="text" id="wizRad_${block.id}" placeholder="Inside" value="x" class="flex-1 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-xs text-[var(--text-primary)]">
-                    <button type="button" onclick="insertWizardRoot('${block.id}')" class="px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Add</button>
-                  </div>
+                <!-- Before & After Expression -->
+                <div class="w-full pt-1.5 mt-0.5 border-t border-[var(--border-hairline)] flex items-center gap-2">
+                  <input
+                    type="text"
+                    id="vPrefix_${block.id}"
+                    oninput="updateMathFromVisual('${block.id}')"
+                    value="${escapeHtml(fracParts.prefix || '')}"
+                    placeholder="Before (e.g. x^2 + )"
+                    class="w-1/2 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-[10.5px] text-[var(--text-secondary)] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    id="vSuffix_${block.id}"
+                    oninput="updateMathFromVisual('${block.id}')"
+                    value="${escapeHtml(fracParts.suffix || '')}"
+                    placeholder="After (e.g. = 4)"
+                    class="w-1/2 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-center text-[10.5px] text-[var(--text-secondary)] focus:outline-none"
+                  />
                 </div>
               </div>
             </div>
 
             <!-- Natural Math Input Box -->
-            <input
-              type="text"
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
+                <span>Direct formula expression:</span>
+              </div>
+              <input
+                type="text"
+                id="mathInput_${block.id}"
+                data-block-id="${block.id}"
+                spellcheck="false"
+                value="${escapeHtml(block.content || '')}"
+                oninput="handleMathBlockInput(event, '${block.id}')"
+                onkeydown="handleMathBlockKeydown(event, '${block.id}')"
+                placeholder="e.g. 1/2 + x^2 = 5 or sqrt(x) + 3 or (-b +- sqrt(D))/(2a)"
+                class="w-full px-3 py-1.5 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[13px] font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] transition-all"
+              />
+            </div>
               id="mathInput_${block.id}"
               data-block-id="${block.id}"
               spellcheck="false"
@@ -19438,6 +19490,9 @@ function handleMathBlockInput(e, blockId) {
   if (displayEl) {
     displayEl.innerHTML = renderLatexToHtml(block.content || '\\dots', true);
   }
+  if (typeof syncVisualFromInput === 'function') {
+    syncVisualFromInput(blockId);
+  }
   persistState();
 }
 
@@ -19716,15 +19771,126 @@ async function copyMathBlockAsImage(blockId) {
 // =========================================================================
 // ZERO-CODE EASY MATH BUILDER HELPERS
 // =========================================================================
+function parseFractionParts(formula) {
+  let s = String(formula || '').trim();
+  if (!s) return null;
+  // 1. \frac{num}{den}
+  let m = s.match(/^(.*?)\\frac\{([^{}]+)\}\{([^{}]+)\}(.*)$/);
+  if (m) return { prefix: m[1].trim(), num: m[2].trim(), den: m[3].trim(), suffix: m[4].trim() };
+  // 2. (num) / (den) or (num) / den
+  m = s.match(/^(.*?)\((.+?)\)\s*\/\s*\(?([a-zA-Z0-9_\.\-]+)\)?(.*)$/);
+  if (m) return { prefix: m[1].trim(), num: m[2].trim(), den: m[3].trim(), suffix: m[4].trim() };
+  // 3. num / den
+  m = s.match(/^(.*?)([a-zA-Z0-9_\.\-]+)\s*\/\s*([a-zA-Z0-9_\.\-]+)(.*)$/);
+  if (m) return { prefix: m[1].trim(), num: m[2].trim(), den: m[3].trim(), suffix: m[4].trim() };
+  return null;
+}
+
+function syncVisualFromInput(blockId) {
+  const input = document.getElementById(`mathInput_${blockId}`);
+  if (!input) return;
+  const parts = parseFractionParts(input.value);
+  if (parts) {
+    const topInput = document.getElementById(`vTop_${blockId}`);
+    const bottomInput = document.getElementById(`vBottom_${blockId}`);
+    const prefixInput = document.getElementById(`vPrefix_${blockId}`);
+    const suffixInput = document.getElementById(`vSuffix_${blockId}`);
+    if (topInput && document.activeElement !== topInput) topInput.value = parts.num;
+    if (bottomInput && document.activeElement !== bottomInput) bottomInput.value = parts.den;
+    if (prefixInput && document.activeElement !== prefixInput) prefixInput.value = parts.prefix;
+    if (suffixInput && document.activeElement !== suffixInput) suffixInput.value = parts.suffix;
+  }
+}
+
+function updateMathFromVisual(blockId) {
+  const topInput = document.getElementById(`vTop_${blockId}`);
+  const bottomInput = document.getElementById(`vBottom_${blockId}`);
+  const prefixInput = document.getElementById(`vPrefix_${blockId}`);
+  const suffixInput = document.getElementById(`vSuffix_${blockId}`);
+  const mathInput = document.getElementById(`mathInput_${blockId}`);
+  if (!topInput || !bottomInput || !mathInput) return;
+
+  let top = topInput.value.trim() || '1';
+  let bottom = bottomInput.value.trim() || '2';
+  const prefix = prefixInput ? prefixInput.value.trim() : '';
+  const suffix = suffixInput ? suffixInput.value.trim() : '';
+
+  // Clean any ^2sqrt(x) to \sqrt{x} or \sqrt[2]{x}
+  top = top.replace(/\^2sqrt\(([^()]+)\)/gi, 'sqrt($1)');
+  if (top === '^2sqrt(x)') top = 'sqrt(x)';
+
+  const fracStr = `\\frac{${top}}{${bottom}}`;
+  const fullFormula = (prefix ? prefix + ' ' : '') + fracStr + (suffix ? ' ' + suffix : '');
+
+  mathInput.value = fullFormula;
+  const note = guardActiveNoteEditable();
+  if (note) {
+    const block = note.blocks.find(b => b.id === blockId);
+    if (block) {
+      block.content = fullFormula;
+      block.isEditing = true;
+      const displayEl = document.getElementById(`mathDisplay_${blockId}`);
+      if (displayEl) {
+        displayEl.innerHTML = renderLatexToHtml(fullFormula, true);
+      }
+      persistState();
+    }
+  }
+}
+
+function setVisualFractionSample(blockId, top, den) {
+  const topInput = document.getElementById(`vTop_${blockId}`);
+  const bottomInput = document.getElementById(`vBottom_${blockId}`);
+  if (topInput) topInput.value = top;
+  if (bottomInput) bottomInput.value = den;
+  updateMathFromVisual(blockId);
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function insertIntoVisualField(blockId, fieldId, text) {
+  const input = document.getElementById(`${fieldId}_${blockId}`);
+  if (!input) return;
+  input.value = text;
+  input.focus();
+  updateMathFromVisual(blockId);
+  if (typeof pkHaptic === 'function') pkHaptic(8);
+}
+
+function openMathVisualFraction(blockId) {
+  const wiz = document.getElementById(`mathWizard_${blockId}`);
+  if (wiz && wiz.classList.contains('hidden')) {
+    wiz.classList.remove('hidden');
+  }
+  const topInput = document.getElementById(`vTop_${blockId}`);
+  if (topInput) {
+    topInput.focus();
+    topInput.select();
+  }
+}
+
 function toggleMathWizard(blockId) {
   const wiz = document.getElementById(`mathWizard_${blockId}`);
-  if (wiz) wiz.classList.toggle('hidden');
+  if (wiz) {
+    wiz.classList.toggle('hidden');
+    if (!wiz.classList.contains('hidden')) {
+      const topInput = document.getElementById(`vTop_${blockId}`);
+      if (topInput) topInput.focus();
+    }
+  }
 }
 
 function clearMathBlock(blockId) {
   const input = document.getElementById(`mathInput_${blockId}`);
+  const topInput = document.getElementById(`vTop_${blockId}`);
+  const bottomInput = document.getElementById(`vBottom_${blockId}`);
+  const prefixInput = document.getElementById(`vPrefix_${blockId}`);
+  const suffixInput = document.getElementById(`vSuffix_${blockId}`);
+  if (input) input.value = '';
+  if (topInput) topInput.value = '';
+  if (bottomInput) bottomInput.value = '';
+  if (prefixInput) prefixInput.value = '';
+  if (suffixInput) suffixInput.value = '';
   if (input) {
-    input.value = '';
     input.focus();
     handleMathBlockInput({ target: input }, blockId);
   }
@@ -19746,26 +19912,6 @@ function insertAtMathInput(blockId, text) {
   handleMathBlockInput({ target: input }, blockId);
 }
 
-function insertWizardFraction(blockId) {
-  const num = (document.getElementById(`wizNum_${blockId}`)?.value || '1').trim();
-  const den = (document.getElementById(`wizDen_${blockId}`)?.value || '2').trim();
-  insertAtMathInput(blockId, `(${num})/(${den})`);
-  showToast(`Added fraction ${num}/${den}`);
-}
-
-function insertWizardPower(blockId) {
-  const base = (document.getElementById(`wizBase_${blockId}`)?.value || 'x').trim();
-  const exp = (document.getElementById(`wizExp_${blockId}`)?.value || '2').trim();
-  insertAtMathInput(blockId, `${base}^(${exp})`);
-  showToast(`Added power ${base}^${exp}`);
-}
-
-function insertWizardRoot(blockId) {
-  const rad = (document.getElementById(`wizRad_${blockId}`)?.value || 'x').trim();
-  insertAtMathInput(blockId, `sqrt(${rad})`);
-  showToast(`Added square root`);
-}
-
 function insertEasyMathToken(blockId, token) {
   const input = document.getElementById(`mathInput_${blockId}`);
   if (!input) return;
@@ -19780,16 +19926,16 @@ function insertEasyMathToken(blockId, token) {
 
   switch (token) {
     case 'frac':
+      openMathVisualFraction(blockId);
       if (sel) {
-        insertion = `(${sel})/(b)`;
-        selOffset = sel.length + 4;
-        selLen = 1;
-      } else {
-        insertion = `(a)/(b)`;
-        selOffset = 1;
-        selLen = 1;
+        const topInput = document.getElementById(`vTop_${blockId}`);
+        if (topInput) {
+          topInput.value = sel;
+          updateMathFromVisual(blockId);
+        }
       }
-      break;
+      showToast('Type Top & Bottom of fraction');
+      return;
     case 'pow2':
       if (sel) {
         insertion = `${sel}^2`;

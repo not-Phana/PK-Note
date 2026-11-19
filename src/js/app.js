@@ -3080,7 +3080,7 @@ function renderSingleBlockHTML(block) {
       break;
 
     case 'math': {
-      const isEditing = block.isEditing !== false;
+      const isEditing = block.isEditing === true;
       const mathFormula = block.content || '\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}';
       const renderedHtml = renderLatexToHtml(mathFormula, true);
       innerBlock = `
@@ -3094,12 +3094,13 @@ function renderSingleBlockHTML(block) {
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Insert Math & Chemistry Symbols" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Symbols</span>
               </button>
-              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy LaTeX Formula" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">COPY</button>
+              <button type="button" onclick="copyMathSnippetToClipboard('${escapeHtml(mathFormula).replace(/'/g, "\\'")}', true)" title="Copy as Clean Readable Text" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">TEXT</button>
+              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy Real Math Formula" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">COPY</button>
               <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Toggle LaTeX Editor" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE CODE' : 'EDIT'}</button>
             </div>
           </div>
           
-          <div onclick="toggleMathBlockEditMode('${block.id}', true)" title="Click to edit LaTeX" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-pointer hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center">
+          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit LaTeX" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center">
             <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full" data-math-raw="${escapeHtml(mathFormula)}">${renderedHtml}</div>
           </div>
 
@@ -19241,8 +19242,15 @@ function copyMathLatex(blockId) {
   if (!note) return;
   const block = note.blocks.find(b => b.id === blockId);
   if (!block || !block.content) return;
-  navigator.clipboard.writeText(block.content).then(() => {
-    showToast('Copied LaTeX formula to clipboard');
+  let raw = String(block.content).trim();
+  if (raw.startsWith('\\begin{aligned}') && raw.endsWith('\\end{aligned}')) {
+    raw = raw.replace(/^\\begin\{aligned\}\s*/, '').replace(/\s*\\end\{aligned\}$/, '').trim();
+  }
+  const toCopy = raw.startsWith('$') ? raw : (raw.includes('\n') ? `$$\n${raw}\n$$` : `$${raw}$`);
+  navigator.clipboard.writeText(toCopy).then(() => {
+    showToast('Copied real math formula to clipboard');
+  }).catch(() => {
+    copyMathSnippetToClipboard(raw, false);
   });
 }
 
@@ -20123,45 +20131,94 @@ function renderMathSolverTab(container) {
 // =========================================================================
 function latexToCleanText(latex) {
   if (!latex) return '';
-  return String(latex)
-    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
-    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
-    .replace(/\\sqrt\{([^{}]+)\}/g, '√($1)')
-    .replace(/\\approx/g, '≈')
-    .replace(/\\neq/g, '≠')
-    .replace(/\\le/g, '≤')
-    .replace(/\\ge/g, '≥')
-    .replace(/\\pm/g, '±')
-    .replace(/\\cdot/g, '·')
-    .replace(/\\times/g, '×')
-    .replace(/\\div/g, '÷')
-    .replace(/\\pi/g, 'π')
-    .replace(/\\theta/g, 'θ')
-    .replace(/\\alpha/g, 'α')
-    .replace(/\\beta/g, 'β')
-    .replace(/\\gamma/g, 'γ')
-    .replace(/\\delta/g, 'δ')
-    .replace(/\\sigma/g, 'σ')
-    .replace(/\\lambda/g, 'λ')
-    .replace(/\\mu/g, 'μ')
-    .replace(/\\int_\{([^}]+)\}\^\{([^}]+)\}/g, '∫[$1 to $2]')
-    .replace(/\\int/g, '∫')
-    .replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '∑[$1 to $2]')
-    .replace(/\\sum/g, '∑')
-    .replace(/\\infty/g, '∞')
-    .replace(/\\left[\[\(\{]/g, '(')
-    .replace(/\\right[\]\)\}]/g, ')')
-    .replace(/\\quad/g, ' ')
-    .replace(/\\,/g, ' ')
-    .replace(/\\text\{([^}]+)\}/g, '$1')
-    .replace(/\^\{([^}]+)\}/g, '^($1)')
-    .replace(/_\{([^}]+)\}/g, '_($1)')
-    .replace(/\\mathbf\{([^}]+)\}/g, '$1')
-    .replace(/\\vec\{([^}]+)\}/g, '$1')
-    .replace(/\\[a-zA-Z]+/g, '')
-    .replace(/[{}]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  let str = String(latex).trim();
+
+  // Strip environments like \begin{aligned}, \end{aligned}, \begin{matrix}, etc.
+  str = str.replace(/\\begin\{[a-zA-Z*]+\}/g, '')
+           .replace(/\\end\{[a-zA-Z*]+\}/g, '');
+
+  // Convert line breaks '\\' to real newlines
+  str = str.replace(/\\\\/g, '\n');
+
+  // Strip alignment ampersands '&'
+  str = str.replace(/(^|[^\\&])&/g, '$1');
+
+  // Text formatting
+  str = str.replace(/\\text(?:bf|it|rm)?\{([^}]+)\}/g, '$1')
+           .replace(/\\mathbf\{([^}]+)\}/g, '$1')
+           .replace(/\\math(?:it|rm|sf|tt)\{([^}]+)\}/g, '$1')
+           .replace(/\\vec\{([^}]+)\}/g, '$1')
+           .replace(/\\overline\{([^}]+)\}/g, '$1');
+
+  // Arrows and relations
+  str = str.replace(/\\implies/g, '⟹')
+           .replace(/\\iff/g, '⟺')
+           .replace(/\\to|\\rightarrow/g, '→')
+           .replace(/\\leftarrow/g, '←')
+           .replace(/\\approx/g, '≈')
+           .replace(/\\neq/g, '≠')
+           .replace(/\\le|\\leq/g, '≤')
+           .replace(/\\ge|\\geq/g, '≥')
+           .replace(/\\pm/g, '±')
+           .replace(/\\mp/g, '∓')
+           .replace(/\\cdot/g, '·')
+           .replace(/\\times/g, '×')
+           .replace(/\\div/g, '÷')
+           .replace(/\\in/g, '∈')
+           .replace(/\\notin/g, '∉')
+           .replace(/\\infty/g, '∞');
+
+  // Fractions (nested up to 2 levels)
+  str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)');
+  str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)');
+  str = str.replace(/\\sqrt\{([^{}]+)\}/g, '√($1)');
+
+  // Greek letters
+  str = str.replace(/\\alpha/g, 'α')
+           .replace(/\\beta/g, 'β')
+           .replace(/\\gamma/g, 'γ')
+           .replace(/\\delta/g, 'δ')
+           .replace(/\\sigma/g, 'σ')
+           .replace(/\\lambda/g, 'λ')
+           .replace(/\\mu/g, 'μ')
+           .replace(/\\pi/g, 'π')
+           .replace(/\\theta/g, 'θ')
+           .replace(/\\omega/g, 'ω')
+           .replace(/\\Delta/g, 'Δ')
+           .replace(/\\Sigma/g, 'Σ');
+
+  // Integrals & Summations
+  str = str.replace(/\\int_\{([^}]+)\}\^\{([^}]+)\}/g, '∫[$1 to $2]')
+           .replace(/\\int/g, '∫')
+           .replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '∑[$1 to $2]')
+           .replace(/\\sum/g, '∑');
+
+  // Common superscript/subscript conversions for clean text
+  str = str.replace(/\^2\b/g, '²')
+           .replace(/\^3\b/g, '³')
+           .replace(/\^\{2\}/g, '²')
+           .replace(/\^\{3\}/g, '³')
+           .replace(/\^\{-1\}/g, '⁻¹')
+           .replace(/\^\{-5\}/g, '⁻⁵')
+           .replace(/\^\{([^}]+)\}/g, '^($1)')
+           .replace(/_0\b|_\{0\}/g, '₀')
+           .replace(/_1\b|_\{1\}/g, '₁')
+           .replace(/_2\b|_\{2\}/g, '₂')
+           .replace(/_\{([^}]+)\}/g, '_($1)');
+
+  // Delimiters & Spacing
+  str = str.replace(/\\left[\[\(\{]/g, '(')
+           .replace(/\\right[\]\)\}]/g, ')')
+           .replace(/\\(?:quad|qquad|,|;|!)/g, ' ');
+
+  // Clean up any remaining LaTeX commands and brackets
+  str = str.replace(/\\[a-zA-Z]+/g, '')
+           .replace(/[{}]/g, '')
+           .replace(/[ \t]+/g, ' ')
+           .split('\n').map(l => l.trim()).join('\n')
+           .trim();
+
+  return str;
 }
 
 function copyMathSnippetToClipboard(latex, asCleanText = false) {
@@ -20233,8 +20290,15 @@ if (typeof document !== 'undefined') {
       const raw = el.getAttribute('data-math-raw') ||
                   el.closest('[data-math-raw]')?.getAttribute('data-math-raw');
       if (raw) {
+        let clean = raw.trim();
+        if (clean.includes('\\begin{aligned}')) {
+          clean = clean.replace(/\\begin\{aligned\}\s*/g, '')
+                       .replace(/\s*\\end\{aligned\}/g, '')
+                       .replace(/\\\\/g, '\n')
+                       .trim();
+        }
         const isDisplay = el.classList.contains('math-display-render') || el.classList.contains('math-rendered-display');
-        const formatted = isDisplay ? `\n$$${raw}$$\n` : `$${raw}$`;
+        const formatted = isDisplay ? `\n$$${clean}$$\n` : `$${clean}$`;
         const textNode = document.createTextNode(formatted);
         if (el.parentNode) el.parentNode.replaceChild(textNode, el);
       }
@@ -20555,21 +20619,63 @@ function insertSolverStepsIntoNote(title, stepsArray) {
   const note = guardActiveNoteEditable();
   if (!note) return;
 
-  const stepsLatex = stepsArray.map(s => s.replace(/\\\\/g, '\\')).join(' \\\\\n');
-  const mathContent = `\\begin{aligned}\n\\textbf{${title}} \\\\\n${stepsLatex}\n\\end{aligned}`;
+  const newBlocks = [
+    { id: generateId('b'), type: 'h3', content: title }
+  ];
 
-  const newBlock = {
-    id: generateId('b'),
-    type: 'math',
-    content: mathContent,
-    isEditing: false
-  };
+  (stepsArray || []).forEach(step => {
+    let s = String(step || '').trim();
+    if (!s) return;
 
-  note.blocks.push(newBlock);
+    // Check if step begins with \text{...} or \textbf{...}
+    let label = '';
+    const textMatch = s.match(/^\\text(?:bf)?\{([^}]+)\}:?\s*(.*)$/);
+    if (textMatch) {
+      label = textMatch[1].trim();
+      if (!label.endsWith(':')) label += ':';
+      s = textMatch[2].trim();
+    }
+
+    if (!s) {
+      // Descriptive text or heading step
+      newBlocks.push({
+        id: generateId('b'),
+        type: 'bullet',
+        content: label
+      });
+      return;
+    }
+
+    // If step has a label, format as: **Label:** $formula$
+    if (label) {
+      newBlocks.push({
+        id: generateId('b'),
+        type: 'bullet',
+        content: `**${label}** $${s}$`
+      });
+    } else {
+      // Pure formula step (e.g. f(x) = x^3 - 3*x + 2)
+      newBlocks.push({
+        id: generateId('b'),
+        type: 'bullet',
+        content: `$${s}$`
+      });
+    }
+  });
+
+  // If the last block in note is empty paragraph, clean it up
+  if (note.blocks.length > 0) {
+    const last = note.blocks[note.blocks.length - 1];
+    if (last.type === 'paragraph' && (!last.content || !last.content.trim())) {
+      note.blocks.pop();
+    }
+  }
+
+  note.blocks.push(...newBlocks);
   note.updatedAt = TODAY_KEY;
   renderBlocks(note);
   persistState();
-  showToast(`Inserted "${title}" solution steps into note`);
+  showToast(`Inserted "${title}" notes`);
   closeMathSymbolsModal();
 }
 

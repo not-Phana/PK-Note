@@ -1,5 +1,5 @@
 // PK Note — Progressive Web App Service Worker (Offline Support & Auto-Update Engine)
-const CACHE_NAME = 'pk-note-v2.9.4';
+const CACHE_NAME = 'pk-note-v2.9.5';
 
 const PRECACHE_ASSETS = [
   './',

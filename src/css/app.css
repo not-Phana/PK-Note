@@ -471,28 +471,32 @@ select:focus, select:focus-visible {
   box-shadow: 0 0 0 1.5px var(--accent-vermilion-tint, rgba(217, 79, 44, 0.25)) !important;
 }
 
-/* Explicit OS Dropdown Popup Theme, Background & High Contrast for Options */
+/* Explicit OS Dropdown Popup Theme, Solid Background & High Contrast for Options */
+option, optgroup {
+  font-family: inherit;
+  padding: 6px 10px;
+}
+
+/* Dark mode: guaranteed dark popup background with crisp light text */
 html.dark select,
 html.dark select option,
-html.dark select optgroup {
+html.dark select optgroup,
+html.dark option,
+html.dark optgroup {
   color-scheme: dark !important;
-  background-color: #1a1a1f !important;
-  color: #f4f4f7 !important;
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
 }
 
+/* Light mode: guaranteed clean white background with crisp dark text */
 html:not(.dark) select,
 html:not(.dark) select option,
-html:not(.dark) select optgroup {
+html:not(.dark) select optgroup,
+html:not(.dark) option,
+html:not(.dark) optgroup {
   color-scheme: light !important;
   background-color: #ffffff !important;
-  color: #18181b !important;
-}
-
-select option {
-  padding: 8px 12px;
-  background-color: var(--bg-panel) !important;
-  color: var(--text-primary) !important;
-  font-family: var(--font-sans);
+  color: #09090b !important;
 }
 
 select option:checked {

@@ -648,18 +648,68 @@ function naturalMathToLatex(raw) {
        .replace(/₄/g, '_{4}')
        .replace(/₅/g, '_{5}');
 
-  // 3. Roots: sqrt(...) and cbrt(...) and root(n, ...)
-  s = s.replace(/\bsqrt\(([^()]+)\)/gi, '\\sqrt{$1}');
-  s = s.replace(/\bcbrt\(([^()]+)\)/gi, '\\sqrt[3]{$1}');
+  // 3. Roots:
+  // Degree roots e.g. ^2sqrt(x), ^3sqrt(x), root(n, x), cbrt(x), sqrt(x)
+  s = s.replace(/\^([0-9a-zA-Z]+)\s*sqrt\(([^()]+)\)/gi, '\\sqrt[$1]{$2}');
   s = s.replace(/\broot\(([^,]+),\s*([^()]+)\)/gi, '\\sqrt[$1]{$2}');
+  s = s.replace(/\bcbrt\(([^()]+)\)/gi, '\\sqrt[3]{$1}');
+  s = s.replace(/\bsqrt\(([^()]+)\)/gi, '\\sqrt{$1}');
 
-  // 4. Fractions:
-  // (A) / (B)
-  s = s.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g, '\\frac{$1}{$2}');
-  // (A) / B
-  s = s.replace(/\(([^()]+)\)\s*\/\s*([a-zA-Z0-9_\.\-]+)/g, '\\frac{$1}{$2}');
-  // A / (B)
-  s = s.replace(/([a-zA-Z0-9_\.\-]+)\s*\/\s*\(([^()]+)\)/g, '\\frac{$1}{$2}');
+  // 4. Fractions with balanced parenthesis matching (supports nested sqrt, funcs, etc.)
+  let fracChanged = true;
+  let fracIterations = 0;
+  while (fracChanged && fracIterations < 8) {
+    fracChanged = false;
+    fracIterations++;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '/' && (i === 0 || s[i-1] !== '\\')) {
+        let leftEnd = i - 1;
+        while (leftEnd >= 0 && /\s/.test(s[leftEnd])) leftEnd--;
+        if (leftEnd >= 0 && s[leftEnd] === ')') {
+          let depth = 0;
+          let leftStart = -1;
+          for (let j = leftEnd; j >= 0; j--) {
+            if (s[j] === ')') depth++;
+            else if (s[j] === '(') {
+              depth--;
+              if (depth === 0) { leftStart = j; break; }
+            }
+          }
+          if (leftStart !== -1) {
+            let rightStart = i + 1;
+            while (rightStart < s.length && /\s/.test(s[rightStart])) rightStart++;
+            let rightEnd = -1;
+            if (rightStart < s.length && s[rightStart] === '(') {
+              depth = 0;
+              for (let j = rightStart; j < s.length; j++) {
+                if (s[j] === '(') depth++;
+                else if (s[j] === ')') {
+                  depth--;
+                  if (depth === 0) { rightEnd = j; break; }
+                }
+              }
+            } else {
+              const rightMatch = s.slice(rightStart).match(/^[a-zA-Z0-9_\.\-]+/);
+              if (rightMatch) {
+                rightEnd = rightStart + rightMatch[0].length - 1;
+              }
+            }
+            if (rightEnd !== -1) {
+              const num = s.slice(leftStart + 1, leftEnd).trim();
+              const isParenRight = s[rightStart] === '(';
+              const den = isParenRight ? s.slice(rightStart + 1, rightEnd).trim() : s.slice(rightStart, rightEnd + 1).trim();
+              const parsedNum = naturalMathToLatex(num);
+              const parsedDen = naturalMathToLatex(den);
+              s = s.slice(0, leftStart) + `\\frac{${parsedNum}}{${parsedDen}}` + s.slice(rightEnd + 1);
+              fracChanged = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Simple A / B (e.g. 1/2, 3/4, x/2, y/x)
   s = s.replace(/\b([a-zA-Z0-9_\.\-]+)\s*\/\s*([a-zA-Z0-9_\.\-]+)\b/g, (m, a, b) => {
     if (a.startsWith('\\') || b.startsWith('\\')) return m;
@@ -3214,12 +3264,8 @@ function renderSingleBlockHTML(block) {
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
-              <button type="button" onclick="copyMathBlockAsImage('${block.id}')" title="Copy exact math picture (looks completely like this image)" class="px-2.5 py-0.5 rounded bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold text-[10px] cursor-pointer flex items-center gap-1 shadow-sm">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy Math Formula" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
                 <span>COPY</span>
-              </button>
-              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy as clean text" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
-                <span>TEXT</span>
               </button>
               <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula Without Code" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
               <button type="button" onclick="deleteBlock('${block.id}')" title="Delete this equation block" class="hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded text-[var(--text-tertiary)] transition-colors cursor-pointer text-[10px] flex items-center gap-0.5">
@@ -3229,14 +3275,9 @@ function renderSingleBlockHTML(block) {
             </div>
           </div>
           
-          <!-- Rendered Formula View (Click to copy exact image) -->
-          <div onclick="copyMathBlockAsImage('${block.id}')" ondblclick="event.stopPropagation(); toggleMathBlockEditMode('${block.id}', true)" title="Click to copy exact equation picture · Double-click to edit formula" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-pointer hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center relative group/formula">
+          <!-- Rendered Formula View -->
+          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit formula (no code needed)" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/20 transition-colors min-h-[56px] flex items-center justify-center">
             <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full" data-math-raw="${escapeHtml(mathFormula)}">${renderedHtml}</div>
-            <div class="absolute bottom-1 right-2 opacity-0 group-hover/formula:opacity-100 transition-opacity pointer-events-none">
-              <span class="px-2 py-0.5 rounded-full bg-[var(--bg-canvas)]/90 backdrop-blur border border-[var(--border-hairline)] text-[9px] font-medium text-[var(--text-tertiary)] shadow-sm">
-                Click to copy picture
-              </span>
-            </div>
           </div>
 
           <!-- Easy Visual Math Editor (Zero Code Needed!) -->
@@ -19750,13 +19791,37 @@ function insertEasyMathToken(blockId, token) {
       }
       break;
     case 'pow2':
-      insertion = `^2`;
-      selOffset = 2;
+      if (sel) {
+        insertion = `${sel}^2`;
+        selOffset = insertion.length;
+      } else {
+        const prev = start > 0 ? val[start - 1] : '';
+        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
+          insertion = `^2`;
+          selOffset = 2;
+        } else {
+          insertion = `x^2`;
+          selOffset = 3;
+        }
+      }
       break;
     case 'powN':
-      insertion = sel ? `^(${sel})` : `^(n)`;
-      selOffset = sel ? sel.length + 3 : 2;
-      selLen = sel ? 0 : 1;
+      if (sel) {
+        insertion = `${sel}^(n)`;
+        selOffset = insertion.length - 2;
+        selLen = 1;
+      } else {
+        const prev = start > 0 ? val[start - 1] : '';
+        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
+          insertion = `^(n)`;
+          selOffset = 2;
+          selLen = 1;
+        } else {
+          insertion = `x^(n)`;
+          selOffset = 3;
+          selLen = 1;
+        }
+      }
       break;
     case 'sqrt':
       insertion = sel ? `sqrt(${sel})` : `sqrt(x)`;
@@ -19764,8 +19829,19 @@ function insertEasyMathToken(blockId, token) {
       selLen = sel ? 0 : 1;
       break;
     case 'sub':
-      insertion = sel ? `_${sel}` : `_0`;
-      selOffset = sel ? sel.length + 1 : 2;
+      if (sel) {
+        insertion = `_${sel}`;
+        selOffset = insertion.length;
+      } else {
+        const prev = start > 0 ? val[start - 1] : '';
+        if (/[a-zA-Z0-9_\)\]]/.test(prev)) {
+          insertion = `_0`;
+          selOffset = 2;
+        } else {
+          insertion = `x_0`;
+          selOffset = 3;
+        }
+      }
       break;
     case 'parens':
       insertion = sel ? `(${sel})` : `()`;

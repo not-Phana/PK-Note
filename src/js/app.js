@@ -3214,12 +3214,12 @@ function renderSingleBlockHTML(block) {
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
-              <button type="button" onclick="copyMathBlockAsImage('${block.id}')" title="Copy exact math picture (PNG for Discord/Chat/Docs)" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer flex items-center gap-1">
+              <button type="button" onclick="copyMathBlockAsImage('${block.id}')" title="Copy exact math picture (looks completely like this image)" class="px-2.5 py-0.5 rounded bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-semibold text-[10px] cursor-pointer flex items-center gap-1 shadow-sm">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <span>IMAGE</span>
-              </button>
-              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy visual math (x² + ½ = 4) and rich MathML" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer">
                 <span>COPY</span>
+              </button>
+              <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy as clean text" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                <span>TEXT</span>
               </button>
               <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula Without Code" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
               <button type="button" onclick="deleteBlock('${block.id}')" title="Delete this equation block" class="hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded text-[var(--text-tertiary)] transition-colors cursor-pointer text-[10px] flex items-center gap-0.5">
@@ -3229,9 +3229,14 @@ function renderSingleBlockHTML(block) {
             </div>
           </div>
           
-          <!-- Rendered Formula View -->
-          <div ondblclick="toggleMathBlockEditMode('${block.id}', true)" title="Double click to edit formula (no code needed)" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-default hover:bg-[var(--bg-hover)]/20 transition-colors min-h-[56px] flex items-center justify-center">
+          <!-- Rendered Formula View (Click to copy exact image) -->
+          <div onclick="copyMathBlockAsImage('${block.id}')" ondblclick="event.stopPropagation(); toggleMathBlockEditMode('${block.id}', true)" title="Click to copy exact equation picture · Double-click to edit formula" class="p-3.5 sm:p-5 overflow-x-auto text-center cursor-pointer hover:bg-[var(--bg-hover)]/30 transition-colors min-h-[56px] flex items-center justify-center relative group/formula">
             <div id="mathDisplay_${block.id}" class="math-rendered-display select-text w-full" data-math-raw="${escapeHtml(mathFormula)}">${renderedHtml}</div>
+            <div class="absolute bottom-1 right-2 opacity-0 group-hover/formula:opacity-100 transition-opacity pointer-events-none">
+              <span class="px-2 py-0.5 rounded-full bg-[var(--bg-canvas)]/90 backdrop-blur border border-[var(--border-hairline)] text-[9px] font-medium text-[var(--text-tertiary)] shadow-sm">
+                Click to copy picture
+              </span>
+            </div>
           </div>
 
           <!-- Easy Visual Math Editor (Zero Code Needed!) -->
@@ -19453,6 +19458,45 @@ function focusMathBlock(blockId) {
   }, 100);
 }
 
+let cachedKaTeXCssText = '';
+async function getKaTeXCss() {
+  if (cachedKaTeXCssText) return cachedKaTeXCssText;
+  try {
+    const res = await fetch('./css/katex.min.css');
+    if (res.ok) {
+      cachedKaTeXCssText = await res.text();
+      return cachedKaTeXCssText;
+    }
+  } catch (e) {}
+  return `
+    .katex { font: 1.21em / 1.2 "KaTeX_Main", "Cambria Math", "Times New Roman", serif; text-rendering: auto; display: inline-block; }
+    .katex-display { display: block; margin: 0.5em 0; text-align: center; }
+    .katex-display > .katex { display: block; text-align: center; white-space: nowrap; }
+    .katex .katex-html { display: inline-block; }
+    .katex .katex-mathml { clip: rect(1px, 1px, 1px, 1px); border: 0; height: 1px; width: 1px; overflow: hidden; position: absolute; }
+    .katex .base { position: relative; display: inline-block; white-space: nowrap; }
+    .katex .mord, .katex .mbin, .katex .mrel { position: relative; display: inline-block; }
+    .katex .mbin { margin-left: 0.2222em; margin-right: 0.2222em; }
+    .katex .mrel { margin-left: 0.2778em; margin-right: 0.2778em; }
+    .katex .vlist-t { display: inline-table; table-layout: fixed; border-collapse: collapse; }
+    .katex .vlist-r { display: table-row; }
+    .katex .vlist { display: table-cell; vertical-align: bottom; position: relative; }
+    .katex .vlist > span { display: block; height: 0; position: relative; }
+    .katex .vlist > span > span { display: inline-block; }
+    .katex .frac-line { width: 100%; border-bottom-style: solid; border-bottom-width: 1.5px; border-bottom-color: currentColor; display: block; }
+    .katex .msupsub { text-align: left; }
+  `;
+}
+
+function drawFallbackMathOnCanvas(ctx, raw, width, height, textColor) {
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const clean = latexToCleanText(raw);
+  ctx.font = 'bold 22px "Cambria Math", "Times New Roman", serif';
+  ctx.fillText(clean, width / 2, height / 2);
+}
+
 function copyMathLatex(blockId) {
   const note = getActiveNote();
   if (!note) return;
@@ -19463,14 +19507,13 @@ function copyMathLatex(blockId) {
     raw = raw.replace(/^\\begin\{aligned\}\s*/, '').replace(/\s*\\end\{aligned\}$/, '').trim();
   }
 
-  // 1. Clean visual Unicode text (e.g. "x² + ½ = 4") with NO dollar signs
+  // Clean visual Unicode text (e.g. "x² + ½ = 4") with NO dollar signs
   const visualText = latexToCleanText(raw);
 
-  // 2. Rich HTML with MathML (for Word, Google Docs, Apple Notes)
+  // Rich HTML with MathML (for Word, Google Docs, Apple Notes)
   const mathHtml = renderLatexToHtml(raw, true);
   const richHtml = `<div style="font-family:'Cambria Math','Times New Roman',serif; font-size:16px;">${mathHtml}</div>`;
 
-  // 3. Multi-mime clipboard if supported
   if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
     try {
       const textBlob = new Blob([visualText], { type: 'text/plain' });
@@ -19481,7 +19524,7 @@ function copyMathLatex(blockId) {
           'text/html': htmlBlob
         })
       ]).then(() => {
-        showToast(`Copied visual math: ${visualText.slice(0, 36)}`);
+        showToast(`Copied math text: ${visualText.slice(0, 36)}`);
         if (typeof pkHaptic === 'function') pkHaptic(10);
       }).catch(() => {
         copyMathSnippetToClipboard(raw, true);
@@ -19495,7 +19538,7 @@ function copyMathLatex(blockId) {
   copyMathSnippetToClipboard(raw, true);
 }
 
-// Copy rendered math equation as exact PNG picture (for Discord, WhatsApp, Word, Slack)
+// Copy rendered math equation as exact PNG picture (looks completely like the rendered math with stacked fraction)
 async function copyMathBlockAsImage(blockId) {
   try {
     const el = document.getElementById(`mathDisplay_${blockId}`);
@@ -19504,12 +19547,19 @@ async function copyMathBlockAsImage(blockId) {
       return;
     }
 
+    const note = getActiveNote();
+    const block = note?.blocks?.find(b => b.id === blockId);
+    const raw = String(block?.content || 'x^2 + 1/2 = 4').trim();
+    const visualText = latexToCleanText(raw);
+    const mathHtml = renderLatexToHtml(raw, true);
+
+    const cssText = await getKaTeXCss();
     const rect = el.getBoundingClientRect();
-    const padX = 28;
-    const padY = 20;
-    const width = Math.max(Math.ceil(rect.width) + padX * 2, 260);
-    const height = Math.max(Math.ceil(rect.height) + padY * 2, 70);
-    const scale = 2; // high-DPI retina crispness
+    const padX = 26;
+    const padY = 18;
+    const width = Math.max(Math.ceil(rect.width) + padX * 2, 230);
+    const height = Math.max(Math.ceil(rect.height) + padY * 2, 64);
+    const scale = 2; // high-DPI retina sharpness
 
     const canvas = document.createElement('canvas');
     canvas.width = width * scale;
@@ -19535,22 +19585,23 @@ async function copyMathBlockAsImage(blockId) {
       ctx.fillRect(0, 0, width, height);
     }
 
-    // Clone rendered math HTML
+    // Clone rendered math HTML and embed into isolated SVG
     const clone = el.cloneNode(true);
-    const htmlContent = clone.innerHTML;
+    const formulaHtml = clone.innerHTML;
 
-    // Build SVG foreignObject
     const svgData = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
         <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: ${textColor}; font-family: 'KaTeX_Main', 'Cambria Math', 'Times New Roman', serif; font-size: 18px; box-sizing: border-box; padding: ${padY}px ${padX}px;">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: ${textColor}; font-family: 'KaTeX_Main', 'Cambria Math', 'Times New Roman', serif; font-size: 19px; box-sizing: border-box; padding: ${padY}px ${padX}px;">
             <style>
-              .katex { font-size: 1.25em; text-rendering: geometricPrecision; }
+              ${cssText}
+              .katex { font-size: 1.25em !important; color: ${textColor} !important; text-rendering: geometricPrecision; }
+              .katex .katex-html { display: inline-block !important; }
               .katex .katex-mathml { clip: rect(1px, 1px, 1px, 1px); border: 0; height: 1px; width: 1px; overflow: hidden; position: absolute; }
-              .katex-display { margin: 0; }
-              .frac-line { border-bottom-width: 1.5px !important; }
+              .katex-display { margin: 0 !important; }
+              .frac-line { border-bottom-color: ${textColor} !important; border-bottom-width: 1.5px !important; }
             </style>
-            ${htmlContent}
+            ${formulaHtml}
           </div>
         </foreignObject>
       </svg>
@@ -19573,7 +19624,12 @@ async function copyMathBlockAsImage(blockId) {
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error('SVG load error'));
+        try {
+          drawFallbackMathOnCanvas(ctx, raw, width, height, textColor);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
       };
       img.src = url;
     });
@@ -19582,11 +19638,27 @@ async function copyMathBlockAsImage(blockId) {
     if (!blob) throw new Error('Failed to generate image blob');
 
     if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob })
-      ]);
-      showToast('Copied exact math image (PNG) to clipboard!');
-      if (typeof pkHaptic === 'function') pkHaptic(12);
+      try {
+        const textBlob = new Blob([visualText], { type: 'text/plain' });
+        const htmlBlob = new Blob([`<div style="font-family:'Cambria Math','Times New Roman',serif; font-size:16px;">${mathHtml}</div>`], { type: 'text/html' });
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/png': blob,
+            'text/html': htmlBlob,
+            'text/plain': textBlob
+          })
+        ]);
+        showToast('Copied exact equation picture! Ready to paste anywhere.');
+        if (typeof pkHaptic === 'function') pkHaptic(12);
+        return;
+      } catch (multiErr) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        showToast('Copied exact equation picture (PNG)! Ready to paste.');
+        if (typeof pkHaptic === 'function') pkHaptic(12);
+        return;
+      }
     } else {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

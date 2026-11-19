@@ -3173,9 +3173,15 @@ function renderSingleBlockHTML(block) {
     case 'code':
       innerBlock = `
         <div class="flex-1 my-3 rounded-[3px] bg-[var(--code-bg)] border border-[var(--border-hairline)] overflow-hidden font-mono">
-          <div class="px-3 py-1 bg-[var(--bg-panel)] border-b border-[var(--border-hairline)] flex items-center justify-between text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">
+          <div class="px-3 py-1 bg-[var(--bg-panel)] border-b border-[var(--border-hairline)] flex items-center justify-between text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] select-none">
             <span>${escapeHtml(block.language || 'code')}</span>
-            <button onclick="copyCodeBlock('${block.id}')" class="hover:text-[var(--text-primary)] transition-colors">COPY</button>
+            <div class="flex items-center gap-2">
+              <button onclick="copyCodeBlock('${block.id}')" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer">COPY</button>
+              <button onclick="deleteBlock('${block.id}')" title="Delete code block" class="hover:text-rose-400 text-[var(--text-tertiary)] hover:bg-rose-500/10 px-1.5 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-0.5">
+                <svg class="w-3 h-3 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span class="text-rose-400 font-medium">REMOVE</span>
+              </button>
+            </div>
           </div>
           <pre contenteditable="true"
                data-block-id="${block.id}"
@@ -3204,13 +3210,17 @@ function renderSingleBlockHTML(block) {
               <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 18h16M14 6l-4 12"/></svg>
               <span>MATH EQUATION</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
               <button type="button" onclick="copyMathSnippetToClipboard('${escapeHtml(mathFormula).replace(/'/g, "\\'")}', true)" title="Copy as Clean Readable Text" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">TEXT</button>
               <button type="button" onclick="copyMathLatex('${block.id}')" title="Copy Real Math Formula" class="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10px]">COPY</button>
               <button type="button" onclick="toggleMathBlockEditMode('${block.id}')" title="Edit Formula Without Code" class="hover:text-[var(--accent-vermilion)] transition-colors cursor-pointer text-[10px] font-semibold">${isEditing ? 'HIDE' : 'EDIT'}</button>
+              <button type="button" onclick="deleteBlock('${block.id}')" title="Delete this equation block" class="hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded text-[var(--text-tertiary)] transition-colors cursor-pointer text-[10px] flex items-center gap-0.5">
+                <svg class="w-3 h-3 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span class="text-rose-400 font-medium">REMOVE</span>
+              </button>
             </div>
           </div>
           
@@ -3223,11 +3233,15 @@ function renderSingleBlockHTML(block) {
           <div id="mathEditor_${block.id}" class="${isEditing ? 'block' : 'hidden'} border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-3 space-y-2.5">
             <div class="flex items-center justify-between text-[11px] pb-1 border-b border-[var(--border-hairline)]">
               <span class="font-medium text-[var(--text-secondary)]">Type natural math or tap buttons (zero code needed)</span>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5">
                 <button type="button" onclick="toggleMathWizard('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--accent-ochre)] font-semibold cursor-pointer flex items-center gap-1">
                   <span>✨ Fill-in Box</span>
                 </button>
                 <button type="button" onclick="clearMathBlock('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer">Clear</button>
+                <button type="button" onclick="deleteBlock('${block.id}')" class="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-[10px] text-rose-400 hover:text-rose-300 font-semibold cursor-pointer flex items-center gap-1" title="Delete block from note">
+                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                  <span>Delete</span>
+                </button>
                 <button type="button" onclick="toggleMathBlockEditMode('${block.id}', false)" class="px-2.5 py-0.5 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">Done</button>
               </div>
             </div>
@@ -19382,14 +19396,20 @@ function handleMathBlockKeydown(e, blockId) {
     toggleMathBlockEditMode(blockId, false);
     return;
   }
+  if ((e.key === 'Backspace' || e.key === 'Delete') && e.target && e.target.value === '') {
+    e.preventDefault();
+    deleteBlock(blockId);
+    showToast('Deleted equation block');
+    return;
+  }
   if (e.key === 'Tab') {
     e.preventDefault();
-    const textarea = e.target;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
-    textarea.selectionStart = textarea.selectionEnd = start + 2;
-    handleMathBlockInput({ target: textarea }, blockId);
+    const input = e.target;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.value = input.value.substring(0, start) + '  ' + input.value.substring(end);
+    input.selectionStart = input.selectionEnd = start + 2;
+    handleMathBlockInput({ target: input }, blockId);
   }
 }
 

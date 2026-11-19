@@ -3799,14 +3799,26 @@
                    class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
             <button type="button" onclick="pasteAiBaseUrl()" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0">Paste</button>
           </div>
-          <!-- NVIDIA CORS Note + 1-Click Self-Hosted Worker Snippet -->
+          <!-- NVIDIA CORS Note + 1-Click Server & Cloud Setup -->
           <div id="pkAiNvidiaCorsHint" class="hidden px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed space-y-1.5">
-            <div><strong class="text-[var(--text-primary)]">On Mobile Phone or Want 0 Servers Running?</strong> Switch to Groq or Gemini AI for 100% direct connection with zero server needed on any device, or deploy a free Cloudflare Worker for 24/7 cloud NVIDIA access.</div>
+            <div><strong class="text-[var(--text-primary)]">Run on PC &amp; Connect from Phone:</strong> Start the server with <code class="text-[var(--text-primary)]">Start NVIDIA Proxy.bat</code> (or <code class="text-[var(--text-primary)]">PK Note.bat</code>). It serves both PK Note and NVIDIA AI over Wi-Fi with zero CORS errors.</div>
+            
+            <div id="pkAiServerPhoneContainer" class="hidden px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-primary)] flex items-center justify-between gap-1.5">
+              <span>Phone Wi-Fi URL: <code id="pkAiServerPhoneBadge" class="text-[var(--accent-vermilion)] font-bold">http://192.168.1.10:4000</code></span>
+              <button type="button" onclick="copyServerPhoneUrl()" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[9px] text-[var(--text-secondary)] font-semibold cursor-pointer">Copy</button>
+            </div>
+
             <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <button type="button" onclick="switchToGroqProvider()" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)]/15 hover:bg-[var(--accent-vermilion)]/25 border border-[var(--accent-vermilion)]/40 text-[var(--accent-vermilion)] font-semibold cursor-pointer">Switch to Groq (0 Servers · Mobile)</button>
-              <button type="button" onclick="switchToGeminiProvider()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold cursor-pointer">Switch to Gemini (0 Servers)</button>
-              <button type="button" onclick="copyNvidiaProxySnippet()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold cursor-pointer">Copy Cloudflare Worker Code</button>
-              <button type="button" onclick="useNvidiaLocalProxy()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] cursor-pointer">Use Local PC Proxy (Port 4000)</button>
+              <button type="button" onclick="useNvidiaLocalProxy()" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)]/15 hover:bg-[var(--accent-vermilion)]/25 border border-[var(--accent-vermilion)]/40 text-[var(--accent-vermilion)] font-semibold cursor-pointer">Use Current Host Endpoint</button>
+              <button type="button" onclick="copyServerPhoneUrl()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold cursor-pointer">Copy Phone URL</button>
+              <button type="button" onclick="copyNvidiaProxySnippet()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Copy Cloudflare Worker Code</button>
+            </div>
+
+            <div class="pt-1 border-t border-[var(--border-hairline)]/60 text-[9px] text-[var(--text-tertiary)] flex items-center gap-1.5 flex-wrap">
+              <span>Need 0 servers on phone?</span>
+              <button type="button" onclick="switchToGroqProvider()" class="text-[var(--accent-vermilion)] underline cursor-pointer">Switch to Groq (0 Servers)</button>
+              <span>·</span>
+              <button type="button" onclick="switchToGeminiProvider()" class="text-[var(--accent-vermilion)] underline cursor-pointer">Switch to Gemini (0 Servers)</button>
             </div>
           </div>
           <!-- Local CORS Hint -->

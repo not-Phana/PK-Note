@@ -308,6 +308,15 @@ function loadAiConfig() {
         def.nvidia.baseUrl = PK_AI_PROVIDERS.nvidia.defaultBaseUrl;
         migrated = true;
       }
+      // If running on phone or network host, automatically adapt localhost:4000 to current host origin
+      if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+        const isLocalhostUrl = /^https?:\/\/(localhost|127\.0\.0\.1):4000/i.test(def.nvidia.baseUrl);
+        const isLanHost = !/^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+        if (isLocalhostUrl && isLanHost) {
+          def.nvidia.baseUrl = `${window.location.origin}/v1`;
+          migrated = true;
+        }
+      }
       // Upgrade OpenRouter legacy preset to openrouter/auto
       if (def.openrouter.model === 'openrouter/free' || !def.openrouter.model) {
         def.openrouter.model = PK_AI_PROVIDERS.openrouter.defaultModel;
@@ -846,14 +855,51 @@ function copyNvidiaProxySnippet() {
   }
 }
 
+let pkServerLanUrl = '';
+
+async function detectServerLanUrl() {
+  const origin = (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http'))
+    ? window.location.origin
+    : 'http://127.0.0.1:4000';
+  try {
+    const res = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(1500) });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.lanIps) && data.lanIps.length > 0) {
+        pkServerLanUrl = `http://${data.lanIps[0].ip}:${data.port || 4000}`;
+        const phoneBadge = document.getElementById('pkAiServerPhoneBadge');
+        if (phoneBadge) {
+          phoneBadge.textContent = pkServerLanUrl;
+        }
+        const container = document.getElementById('pkAiServerPhoneContainer');
+        if (container) container.classList.remove('hidden');
+      }
+    }
+  } catch (_) {}
+}
+
+function copyServerPhoneUrl() {
+  const url = pkServerLanUrl || (window.location && window.location.protocol.startsWith('http') ? window.location.origin : 'http://192.168.1.10:4000');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      if (typeof showToast === 'function') {
+        showToast(`Copied Phone URL: ${url} — open in Safari or Chrome on your phone!`);
+      }
+    });
+  }
+}
+
 function useNvidiaLocalProxy() {
   const cfg = loadAiConfig();
-  cfg.nvidia.baseUrl = 'http://127.0.0.1:4000/v1';
+  const origin = (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http'))
+    ? window.location.origin
+    : 'http://127.0.0.1:4000';
+  cfg.nvidia.baseUrl = `${origin}/v1`;
   saveAiConfig(cfg);
   const input = document.getElementById('pkAiBaseUrlInput');
   if (input) input.value = cfg.nvidia.baseUrl;
   if (typeof showToast === 'function') {
-    showToast('Switched to local proxy (http://127.0.0.1:4000/v1). Ensure "Start NVIDIA Proxy.bat" is running.');
+    showToast(`Set NVIDIA endpoint to ${cfg.nvidia.baseUrl}`);
   }
 }
 
@@ -1039,6 +1085,9 @@ function toggleGroqSettingsPanel() {
   if (memPanel) memPanel.classList.add('hidden');
   syncGroqHeaderAndSettingsUI();
   panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) {
+    detectServerLanUrl();
+  }
 }
 
 let pkAiMemoryTab = 'memories'; // 'memories' | 'chats'

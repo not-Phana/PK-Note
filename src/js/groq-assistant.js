@@ -857,6 +857,26 @@ function useNvidiaLocalProxy() {
   }
 }
 
+function switchToGroqProvider() {
+  const cfg = loadAiConfig();
+  cfg.provider = 'groq';
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  if (typeof showToast === 'function') {
+    showToast('Switched to Groq! 100% serverless, runs directly on phone with 0 servers.');
+  }
+}
+
+function switchToGeminiProvider() {
+  const cfg = loadAiConfig();
+  cfg.provider = 'gemini';
+  saveAiConfig(cfg);
+  syncGroqHeaderAndSettingsUI();
+  if (typeof showToast === 'function') {
+    showToast('Switched to Gemini AI! 100% serverless, runs directly on phone with 0 servers.');
+  }
+}
+
 function updateGroqScopeButtons() {
   const scopes = [
     ['note', 'pkGroqScopeNote'],
@@ -1467,11 +1487,20 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
 
   if (isNetworkOrCors) {
     if (pid === 'nvidia') {
+      const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(baseUrl || '');
       const isDefaultNvidia = /integrate\.api\.nvidia\.com/i.test(baseUrl || '');
-      if (isDefaultNvidia) {
-        return 'NVIDIA NIM blocks direct browser CORS requests. Start the local proxy with "Start NVIDIA Proxy.bat" and use http://127.0.0.1:4000/v1, or deploy a free Cloudflare Worker.';
+
+      if (isHttps && isLocalhost) {
+        return 'Local proxy (127.0.0.1) cannot be reached from mobile phones or HTTPS pages. For zero-server mobile use, switch to Groq or Gemini (100% serverless with no PC needed), or deploy a free Cloudflare Worker for NVIDIA.';
       }
-      return `Could not reach NVIDIA proxy (${baseUrl}). If using the local proxy, run "Start NVIDIA Proxy.bat" or launch via "PK Note.bat".`;
+      if (isLocalhost) {
+        return `Local NVIDIA proxy (${baseUrl}) is not running. On PC: double-click "Start NVIDIA Proxy.bat". On mobile or without a PC server: switch to Groq or Gemini (0 servers needed), or use a free Cloudflare Worker.`;
+      }
+      if (isDefaultNvidia) {
+        return 'NVIDIA NIM blocks direct browser CORS. On PC: run "Start NVIDIA Proxy.bat". On phone / without PC: switch to Groq or Gemini (0 servers needed), or deploy a free Cloudflare Worker.';
+      }
+      return `Could not reach NVIDIA proxy (${baseUrl}). Check the URL. For 0-server mobile usage, switch to Groq or Gemini in Settings.`;
     }
     if (pid === 'local') {
       const isHttpsPage = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';

@@ -3658,6 +3658,9 @@ function handleBlockInput(e, blockId) {
     closeWikiLinkMenu();
   }
 
+  // Live "Math Notes" Solver Detection (e.g. "12 + 15 * 3 =")
+  checkInlineMathTypeToSolve(el, blockId, plainText);
+
   // Debounced persist + inspector rebuild (zero keystroke stutter on mobile!)
   scheduleTypingSideEffects();
 }
@@ -3700,6 +3703,49 @@ function handleBlockKeydown(e, blockId) {
       e.preventDefault();
       showToast('Note is locked — unlock to edit', 'ochre');
     }
+    return;
+  }
+
+  // Live "Math Notes" Solver: Press Tab to insert pending calculated solution
+  if (e.key === 'Tab' && pendingMathSolve && pendingMathSolve.blockId === blockId) {
+    e.preventDefault();
+    applyInlineMathSolution();
+    return;
+  }
+  if (e.key === 'Escape' && pendingMathSolve) {
+    hideInlineMathSolveBadge();
+  }
+
+  // Math Formula Selection Wrapper: Pressing $ on highlighted text wraps in $...$
+  if (e.key === '$' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+      const selectedText = sel.toString();
+      if (selectedText && selectedText.trim()) {
+        e.preventDefault();
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const textNode = document.createTextNode(`$${selectedText}$`);
+        range.insertNode(textNode);
+        const note = guardActiveNoteEditable();
+        if (note) {
+          const block = note.blocks.find(b => b.id === blockId);
+          if (block) {
+            block.content = serializeEditableBlock(e.currentTarget);
+            renderBlocks(note);
+            persistState();
+            showToast('Wrapped formula in $...$');
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  // Cmd/Ctrl + Shift + = or Cmd/Ctrl + =: Instant offline math solver for selection or line
+  if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+    e.preventDefault();
+    solveCurrentBlockMath(e.currentTarget, blockId);
     return;
   }
 
@@ -6346,6 +6392,9 @@ document.addEventListener('keydown', e => {
 
   // Visual Modals Escape Key Handler
   if (e.key === 'Escape') {
+    const imp = document.getElementById('inlineMathPopover');
+    if (imp && !imp.classList.contains('hidden')) { closeInlineMathPopover(); return; }
+    if (typeof hideInlineMathSolveBadge === 'function') { hideInlineMathSolveBadge(); }
     const ms = document.getElementById('mathSymbolsModal');
     if (ms && !ms.classList.contains('hidden')) { closeMathSymbolsModal(); return; }
     const wb = document.getElementById('spatialWhiteboardModal');
@@ -18990,8 +19039,12 @@ function triggerBannerCustomUpload() {
 // 24. MATH & SCIENCE STUDIO SUITE (KATEX, MHCHEM, WORKBENCH & CALCULATOR)
 // =========================================================================
 let mathTargetBlockId = null;
-let mathActiveTab = 'playground';
+let mathActiveTab = 'solver';
+let mathSolverSubtab = 'equations';
 let mathFilterQuery = '';
+let lastSolverResults = {};
+let pendingMathSolve = null;
+let currentInlineMathTarget = null;
 
 const MATH_SNIPPETS_DATABASE = [
   // --- CALCULUS & ANALYSIS ---
@@ -19218,12 +19271,12 @@ function closeMathSymbolsModal(e) {
 
 function switchMathTab(tabId) {
   mathActiveTab = tabId;
-  const tabs = ['playground', 'calculus', 'algebra', 'matrices', 'greek', 'chemistry'];
+  const tabs = ['solver', 'playground', 'calculus', 'algebra', 'matrices', 'greek', 'chemistry'];
   tabs.forEach(t => {
     const btn = document.getElementById(`mathTab_${t}`);
     if (btn) {
       if (t === tabId) {
-        btn.className = 'px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0';
+        btn.className = 'px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0 flex items-center gap-1.5';
       } else {
         btn.className = 'px-2.5 py-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-transparent cursor-pointer shrink-0';
       }
@@ -19238,73 +19291,23 @@ function filterMathSnippets(e) {
   renderMathTabContent();
 }
 
+function switchMathSolverSubtab(subtab) {
+  mathSolverSubtab = subtab;
+  renderMathTabContent();
+  if (typeof pkHaptic === 'function') pkHaptic(6);
+}
+
 function renderMathTabContent() {
   const container = document.getElementById('mathTabBody');
   if (!container) return;
 
+  if (mathActiveTab === 'solver') {
+    renderMathSolverTab(container);
+    return;
+  }
+
   if (mathActiveTab === 'playground') {
-    container.innerHTML = `
-      <div class="space-y-4">
-        <!-- Interactive Formula Sandbox -->
-        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="font-mono text-xs font-semibold text-[var(--text-primary)]">Interactive Formula Playground</span>
-            <span class="font-mono text-[10px] text-[var(--text-tertiary)]">Live KaTeX & mhchem preview</span>
-          </div>
-          
-          <div class="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] min-h-[72px] flex items-center justify-center overflow-x-auto text-center">
-            <div id="playgroundRenderedFormula" class="select-text">${renderLatexToHtml('\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}', true)}</div>
-          </div>
-
-          <div class="space-y-1.5 font-mono">
-            <div class="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-              <span>LaTeX Input:</span>
-              <button type="button" onclick="document.getElementById('playgroundLatexInput').value = '\\\\ce{2H2 + O2 -> 2H2O}'; updatePlaygroundLivePreview();" class="text-[var(--accent-vermilion)] hover:underline cursor-pointer">Try Chemistry</button>
-            </div>
-            <textarea
-              id="playgroundLatexInput"
-              rows="2"
-              oninput="updatePlaygroundLivePreview()"
-              class="w-full p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y">\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}</textarea>
-          </div>
-
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <div class="flex items-center gap-1.5 font-mono text-[11px]">
-              <button type="button" onclick="insertPlaygroundFormulaIntoNote(false)" class="px-3 py-1.5 rounded bg-[var(--accent-vermilion)] text-white font-semibold hover:opacity-90 cursor-pointer">+ Insert as Block</button>
-              <button type="button" onclick="insertPlaygroundFormulaIntoNote(true)" class="px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Insert Inline $...$</button>
-            </div>
-            <button type="button" onclick="copyPlaygroundLatex()" class="px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono text-[11px] cursor-pointer">Copy LaTeX</button>
-          </div>
-        </div>
-
-        <!-- Expression Calculator -->
-        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3 font-mono">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
-              <span class="text-xs font-semibold text-[var(--text-primary)]">Math Expression Solver & Calculator</span>
-            </div>
-            <span class="text-[10px] text-[var(--text-tertiary)]">Arithmetic, radicals, trig, logs</span>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <input
-              type="text"
-              id="calcExpressionInput"
-              placeholder="e.g. sqrt(144) + 5^2 or sin(pi/2) * 10"
-              value="sqrt(144) + 5^2"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();runMathCalculator();}"
-              class="flex-1 px-3 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
-            <button type="button" onclick="runMathCalculator()" class="px-3 py-1.5 rounded bg-[var(--accent-ochre)] text-white font-semibold text-xs cursor-pointer">Calculate</button>
-          </div>
-
-          <div id="calcResultContainer" class="p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between text-xs">
-            <span class="text-[var(--text-tertiary)]">Result: <strong id="calcResultValue" class="text-[var(--accent-vermilion)] font-bold">37</strong></span>
-            <button type="button" onclick="insertEvaluatedResultIntoNote()" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline cursor-pointer">Insert into Note →</button>
-          </div>
-        </div>
-      </div>
-    `;
+    renderMathPlaygroundTab(container);
     return;
   }
 
@@ -19344,6 +19347,1060 @@ function renderMathTabContent() {
       `).join('')}
     </div>
   `;
+}
+
+function renderMathPlaygroundTab(container) {
+  container.innerHTML = `
+    <div class="space-y-4 font-mono">
+      <!-- Interactive Formula Sandbox -->
+      <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-[var(--text-primary)]">Formula Sandbox & Live Preview</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">KaTeX & mhchem</span>
+        </div>
+        
+        <div class="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] min-h-[72px] flex items-center justify-center overflow-x-auto text-center">
+          <div id="playgroundRenderedFormula" class="select-text">${renderLatexToHtml('\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}', true)}</div>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+            <span>LaTeX Source:</span>
+            <button type="button" onclick="document.getElementById('playgroundLatexInput').value = '\\\\ce{2H2 + O2 -> 2H2O}'; updatePlaygroundLivePreview();" class="text-[var(--accent-vermilion)] hover:underline cursor-pointer">Sample: Chemistry</button>
+          </div>
+          <textarea
+            id="playgroundLatexInput"
+            rows="2"
+            oninput="updatePlaygroundLivePreview()"
+            class="w-full p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y">\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}</textarea>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="insertPlaygroundFormulaIntoNote(false)" class="px-3 py-1.5 rounded bg-[var(--accent-vermilion)] text-white font-semibold hover:opacity-90 cursor-pointer">+ Insert as Block</button>
+            <button type="button" onclick="insertPlaygroundFormulaIntoNote(true)" class="px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Insert Inline $...$</button>
+          </div>
+          <button type="button" onclick="copyPlaygroundLatex()" class="px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Copy LaTeX</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------------------
+// OFFLINE DETERMINISTIC MATH SOLVER ENGINE (ZERO-AI, 0MS LATENCY)
+// -------------------------------------------------------------------------
+const pkMathEngine = {
+  angleMode: 'deg',
+
+  toFraction(val, maxDenom = 1000) {
+    if (Math.abs(val - Math.round(val)) < 1e-9) return `${Math.round(val)}`;
+    let bestN = Math.round(val), bestD = 1, minDiff = Math.abs(val - bestN);
+    for (let d = 1; d <= maxDenom; d++) {
+      const n = Math.round(val * d);
+      const diff = Math.abs(val - n / d);
+      if (diff < minDiff) {
+        bestN = n;
+        bestD = d;
+        minDiff = diff;
+        if (diff < 1e-7) break;
+      }
+    }
+    return minDiff < 1e-4 ? `\\frac{${bestN}}{${bestD}}` : `${Math.round(val * 1e4) / 1e4}`;
+  },
+
+  solveLinear(a, b, c) {
+    a = Number(a); b = Number(b); c = Number(c);
+    const steps = [];
+    const eqLeft = `${a}x ${b >= 0 ? '+ ' + b : '- ' + Math.abs(b)}`;
+    steps.push(`\\text{Equation: } ${eqLeft} = ${c}`);
+
+    if (Math.abs(a) < 1e-12) {
+      if (Math.abs(b - c) < 1e-12) {
+        steps.push(`0x = 0 \\implies \\text{Identity (Infinitely many solutions, } \\forall x \\in \\mathbb{R})`);
+        return { type: 'infinite', steps, latexSolution: `x \\in \\mathbb{R}` };
+      } else {
+        steps.push(`0x = ${c - b} \\implies \\text{Contradiction (No solution)}`);
+        return { type: 'none', steps, latexSolution: `\\text{No solution}` };
+      }
+    }
+
+    const cMinusB = c - b;
+    steps.push(`\\text{Subtract } ${b} \\text{ from both sides: } ${a}x = ${c} - (${b}) = ${cMinusB}`);
+    const x = cMinusB / a;
+    const fracStr = pkMathEngine.toFraction(x);
+    steps.push(`\\text{Divide by } ${a}: x = \\frac{${cMinusB}}{${a}} = ${fracStr} \\approx ${Math.round(x * 1e6) / 1e6}`);
+
+    return {
+      type: 'unique',
+      x,
+      steps,
+      latexSolution: `x = ${fracStr} \\approx ${Math.round(x * 1e4) / 1e4}`
+    };
+  },
+
+  solveQuadratic(a, b, c) {
+    a = Number(a); b = Number(b); c = Number(c);
+    if (Math.abs(a) < 1e-12) {
+      return pkMathEngine.solveLinear(b, c, 0);
+    }
+    const disc = b * b - 4 * a * c;
+    const vertexX = -b / (2 * a);
+    const vertexY = c - (b * b) / (4 * a);
+    const steps = [];
+
+    const bSign = b >= 0 ? `+ ${b}` : `- ${Math.abs(b)}`;
+    const cSign = c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`;
+    steps.push(`\\text{Standard Form: } ${a}x^2 ${bSign}x ${cSign} = 0`);
+    steps.push(`\\text{Discriminant: } \\Delta = b^2 - 4ac = (${b})^2 - 4(${a})(${c}) = ${disc}`);
+
+    let roots = [];
+    let latexSol = '';
+
+    if (disc > 1e-10) {
+      const sqrtDisc = Math.sqrt(disc);
+      const x1 = (-b + sqrtDisc) / (2 * a);
+      const x2 = (-b - sqrtDisc) / (2 * a);
+      roots = [x1, x2];
+      steps.push(`\\Delta > 0 \\implies \\text{Two distinct real roots:}`);
+      steps.push(`x_{1,2} = \\frac{-b \\pm \\sqrt{\\Delta}}{2a} = \\frac{${-b} \\pm ${Math.round(sqrtDisc * 1e4) / 1e4}}{${2 * a}}`);
+      steps.push(`x_1 = ${Math.round(x1 * 1e6) / 1e6}, \\quad x_2 = ${Math.round(x2 * 1e6) / 1e6}`);
+      latexSol = `x_1 = ${Math.round(x1 * 1e4) / 1e4}, \\quad x_2 = ${Math.round(x2 * 1e4) / 1e4}`;
+    } else if (Math.abs(disc) <= 1e-10) {
+      const x = -b / (2 * a);
+      roots = [x];
+      steps.push(`\\Delta = 0 \\implies \\text{One double real root:}`);
+      steps.push(`x = -\\frac{b}{2a} = \\frac{${-b}}{${2 * a}} = ${Math.round(x * 1e6) / 1e6}`);
+      latexSol = `x = ${Math.round(x * 1e4) / 1e4}`;
+    } else {
+      const realPart = -b / (2 * a);
+      const imagPart = Math.sqrt(-disc) / (2 * a);
+      steps.push(`\\Delta < 0 \\implies \\text{Two complex conjugate roots:}`);
+      steps.push(`x_{1,2} = -\\frac{b}{2a} \\pm \\frac{\\sqrt{|\\Delta|}}{2a}i = ${Math.round(realPart * 1e4) / 1e4} \\pm ${Math.abs(Math.round(imagPart * 1e4) / 1e4)}i`);
+      latexSol = `x = ${Math.round(realPart * 1e4) / 1e4} \\pm ${Math.abs(Math.round(imagPart * 1e4) / 1e4)}i`;
+    }
+
+    steps.push(`\\text{Parabola Vertex: } (h, k) = (${Math.round(vertexX * 1e4) / 1e4}, ${Math.round(vertexY * 1e4) / 1e4})`);
+    steps.push(`\\text{Axis of Symmetry: } x = ${Math.round(vertexX * 1e4) / 1e4}`);
+    steps.push(`\\text{Orientation: } \\text{Opens } ${a > 0 ? '\\text{upward (minimum)}' : '\\text{downward (maximum)}'}`);
+
+    return { disc, roots, vertex: [vertexX, vertexY], steps, latexSolution: latexSol };
+  },
+
+  solveSystem2x2(a1, b1, c1, a2, b2, c2) {
+    a1 = Number(a1); b1 = Number(b1); c1 = Number(c1);
+    a2 = Number(a2); b2 = Number(b2); c2 = Number(c2);
+    const D = a1 * b2 - a2 * b1;
+    const Dx = c1 * b2 - c2 * b1;
+    const Dy = a1 * c2 - a2 * c1;
+
+    const steps = [
+      `\\begin{cases} ${a1}x ${b1 >= 0 ? '+ ' + b1 : '- ' + Math.abs(b1)}y = ${c1} \\\\ ${a2}x ${b2 >= 0 ? '+ ' + b2 : '- ' + Math.abs(b2)}y = ${c2} \\end{cases}`,
+      `D = \\begin{vmatrix} ${a1} & ${b1} \\\\ ${a2} & ${b2} \\end{vmatrix} = (${a1})(${b2}) - (${b1})(${a2}) = ${D}`,
+      `D_x = \\begin{vmatrix} ${c1} & ${b1} \\\\ ${c2} & ${b2} \\end{vmatrix} = (${c1})(${b2}) - (${b1})(${c2}) = ${Dx}`,
+      `D_y = \\begin{vmatrix} ${a1} & ${c1} \\\\ ${a2} & ${c2} \\end{vmatrix} = (${a1})(${c2}) - (${c1})(${a2}) = ${Dy}`
+    ];
+
+    if (Math.abs(D) > 1e-10) {
+      const x = Dx / D;
+      const y = Dy / D;
+      steps.push(`x = \\frac{D_x}{D} = \\frac{${Dx}}{${D}} = ${pkMathEngine.toFraction(x)} \\approx ${Math.round(x * 1e6) / 1e6}`);
+      steps.push(`y = \\frac{D_y}{D} = \\frac{${Dy}}{${D}} = ${pkMathEngine.toFraction(y)} \\approx ${Math.round(y * 1e6) / 1e6}`);
+      return { x, y, type: 'unique', steps, latexSolution: `x = ${Math.round(x * 1e4) / 1e4}, \\; y = ${Math.round(y * 1e4) / 1e4}` };
+    } else {
+      if (Math.abs(Dx) < 1e-10 && Math.abs(Dy) < 1e-10) {
+        steps.push(`D = 0, D_x = 0, D_y = 0 \\implies \\text{Infinitely many solutions (Coincident lines)}`);
+        return { type: 'infinite', steps, latexSolution: `\\text{Infinitely many solutions}` };
+      } else {
+        steps.push(`D = 0, D_x \\ne 0 \\text{ or } D_y \\ne 0 \\implies \\text{No solution (Parallel lines)}`);
+        return { type: 'none', steps, latexSolution: `\\text{No solution}` };
+      }
+    }
+  },
+
+  compileFunction(exprStr) {
+    let s = (exprStr || '').trim();
+    if (!s) throw new Error('Empty function expression');
+    s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '(($1)/($2))');
+    s = s.replace(/\\sqrt\{([^}]+)\}/g, 'Math.sqrt($1)');
+    s = s.replace(/\\pi/g, 'Math.PI');
+    s = s.replace(/\\e\b/g, 'Math.E');
+    s = s.replace(/\^\{([^}]+)\}/g, '**($1)');
+    s = s.replace(/\^([0-9a-zA-Z.]+)/g, '**($1)');
+    s = s.replace(/([0-9.]+)\s*x/g, '$1*x');
+    s = s.replace(/x\s*([0-9.]+)/g, 'x*$1');
+    s = s.replace(/\b(sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|sqrt|cbrt|log|log10|log2|exp|abs)\(/g, 'Math.$1(');
+    s = s.replace(/\bln\(/g, 'Math.log(');
+    s = s.replace(/\bpi\b/gi, 'Math.PI');
+    s = s.replace(/\be\b/g, 'Math.E');
+
+    return new Function('x', `"use strict"; try { return (${s}); } catch(e) { return NaN; }`);
+  },
+
+  solveDerivative(fnStr, x0, h = 1e-5) {
+    x0 = Number(x0);
+    const f = pkMathEngine.compileFunction(fnStr);
+    const y0 = f(x0);
+    if (isNaN(y0)) throw new Error(`Function not defined at x = ${x0}`);
+    const d = (-f(x0 + 2 * h) + 8 * f(x0 + h) - 8 * f(x0 - h) + f(x0 - 2 * h)) / (12 * h);
+    if (isNaN(d)) throw new Error(`Could not compute derivative at x = ${x0}`);
+
+    const slope = Math.round(d * 1e6) / 1e6;
+    const y0Round = Math.round(y0 * 1e6) / 1e6;
+    const intercept = Math.round((y0 - slope * x0) * 1e6) / 1e6;
+    const interceptSign = intercept >= 0 ? `+ ${intercept}` : `- ${Math.abs(intercept)}`;
+    const tangentStr = `y = ${slope}x ${interceptSign}`;
+
+    const steps = [
+      `f(x) = ${fnStr}`,
+      `\\text{Point: } (x_0, f(x_0)) = (${x0}, ${y0Round})`,
+      `\\text{5-point stencil central difference } (h = 10^{-5}):`,
+      `f'(${x0}) \\approx \\frac{-f(x+2h) + 8f(x+h) - 8f(x-h) + f(x-2h)}{12h} = ${slope}`,
+      `\\text{Tangent Line: } y - y_0 = m(x - x_0) \\implies y - ${y0Round} = ${slope}(x - ${x0})`,
+      `\\text{Slope-Intercept Form: } ${tangentStr}`
+    ];
+
+    return {
+      x0, y0: y0Round, slope, tangentLine: tangentStr, steps,
+      latexSolution: `f'(${x0}) \\approx ${slope}, \\quad \\text{Tangent: } ${tangentStr}`
+    };
+  },
+
+  solveIntegral(fnStr, a, b, n = 1000) {
+    a = Number(a); b = Number(b);
+    if (n % 2 !== 0) n++;
+    const f = pkMathEngine.compileFunction(fnStr);
+    const h = (b - a) / n;
+    let sum = f(a) + f(b);
+    if (isNaN(sum)) throw new Error('Function evaluation failed at interval boundaries');
+
+    for (let i = 1; i < n; i++) {
+      const x = a + i * h;
+      const fx = f(x);
+      if (isNaN(fx)) throw new Error(`Function not defined at x = ${Math.round(x * 1e4) / 1e4}`);
+      sum += (i % 2 === 1 ? 4 : 2) * fx;
+    }
+
+    const result = (h / 3) * sum;
+    const rounded = Math.round(result * 1e6) / 1e6;
+    const steps = [
+      `\\int_{${a}}^{${b}} (${fnStr})\\,dx`,
+      `\\text{Method: Composite Simpson's 1/3 Rule with } N = ${n} \\text{ intervals}`,
+      `h = \\frac{b - a}{N} = \\frac{${b} - (${a})}{${n}} = ${Math.round(h * 1e6) / 1e6}`,
+      `\\int_{a}^{b} f(x)\\,dx \\approx \\frac{h}{3} \\left[ f(a) + 4\\sum_{\\text{odd}} f(x_i) + 2\\sum_{\\text{even}} f(x_i) + f(b) \\right]`,
+      `\\text{Numerical Approximation: } \\approx ${rounded}`
+    ];
+
+    return {
+      a, b, n, result: rounded, steps,
+      latexSolution: `\\int_{${a}}^{${b}} (${fnStr})\\,dx \\approx ${rounded}`
+    };
+  },
+
+  solveMatrix2x2(a, b, c, d) {
+    a = Number(a); b = Number(b); c = Number(c); d = Number(d);
+    const det = a * d - b * c;
+    const trace = a + d;
+    const steps = [
+      `A = \\begin{pmatrix} ${a} & ${b} \\\\ ${c} & ${d} \\end{pmatrix}`,
+      `\\det(A) = ad - bc = (${a})(${d}) - (${b})(${c}) = ${det}`,
+      `\\text{Tr}(A) = a + d = ${a} + ${d} = ${trace}`
+    ];
+    let invLatex = '';
+    if (Math.abs(det) > 1e-10) {
+      const invA = d / det, invB = -b / det, invC = -c / det, invD = a / det;
+      steps.push(`A^{-1} = \\frac{1}{\\det(A)} \\begin{pmatrix} d & -b \\\\ -c & a \\end{pmatrix} = \\frac{1}{${det}} \\begin{pmatrix} ${d} & ${-b} \\\\ ${-c} & ${a} \\end{pmatrix}`);
+      invLatex = `A^{-1} = \\begin{pmatrix} ${Math.round(invA*1e4)/1e4} & ${Math.round(invB*1e4)/1e4} \\\\ ${Math.round(invC*1e4)/1e4} & ${Math.round(invD*1e4)/1e4} \\end{pmatrix}`;
+      steps.push(invLatex);
+    } else {
+      steps.push(`\\det(A) = 0 \\implies A \\text{ is singular (non-invertible)}`);
+      invLatex = `\\text{Non-invertible}`;
+    }
+    return { det, trace, steps, latexSolution: `\\det(A) = ${det}, \\; \\text{Tr}(A) = ${trace}` };
+  },
+
+  solveMatrix3x3(m) {
+    const d00 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+    const d01 = m[1][0] * m[2][2] - m[1][2] * m[2][0];
+    const d02 = m[1][0] * m[2][1] - m[1][1] * m[2][0];
+    const det = m[0][0] * d00 - m[0][1] * d01 + m[0][2] * d02;
+    const trace = m[0][0] + m[1][1] + m[2][2];
+
+    const steps = [
+      `A = \\begin{pmatrix} ${m[0][0]} & ${m[0][1]} & ${m[0][2]} \\\\ ${m[1][0]} & ${m[1][1]} & ${m[1][2]} \\\\ ${m[2][0]} & ${m[2][1]} & ${m[2][2]} \\end{pmatrix}`,
+      `\\text{Cofactor expansion along Row 1: }`,
+      `\\det(A) = ${m[0][0]} \\begin{vmatrix} ${m[1][1]} & ${m[1][2]} \\\\ ${m[2][1]} & ${m[2][2]} \\end{vmatrix} - (${m[0][1]}) \\begin{vmatrix} ${m[1][0]} & ${m[1][2]} \\\\ ${m[2][0]} & ${m[2][2]} \\end{vmatrix} + (${m[0][2]}) \\begin{vmatrix} ${m[1][0]} & ${m[1][1]} \\\\ ${m[2][0]} & ${m[2][1]} \\end{vmatrix}`,
+      `= (${m[0][0]})(${d00}) - (${m[0][1]})(${d01}) + (${m[0][2]})(${d02}) = ${det}`,
+      `\\text{Tr}(A) = ${m[0][0]} + ${m[1][1]} + ${m[2][2]} = ${trace}`
+    ];
+    return { det, trace, steps, latexSolution: `\\det(A) = ${det}, \\; \\text{Tr}(A) = ${trace}` };
+  },
+
+  solveVectors3D(u, v) {
+    const dot = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    const cross = [
+      u[1] * v[2] - u[2] * v[1],
+      u[2] * v[0] - u[0] * v[2],
+      u[0] * v[1] - u[1] * v[0]
+    ];
+    const normU = Math.sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+    const normV = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    const cosTheta = (normU > 0 && normV > 0) ? Math.max(-1, Math.min(1, dot / (normU * normV))) : 0;
+    const angleRad = Math.acos(cosTheta);
+    const angleDeg = angleRad * (180 / Math.PI);
+
+    const steps = [
+      `\\vec{u} = \\langle ${u[0]}, ${u[1]}, ${u[2]} \\rangle, \\quad \\vec{v} = \\langle ${v[0]}, ${v[1]}, ${v[2]} \\rangle`,
+      `\\vec{u} \\cdot \\vec{v} = (${u[0]})(${v[0]}) + (${u[1]})(${v[1]}) + (${u[2]})(${v[2]}) = ${dot}`,
+      `\\vec{u} \\times \\vec{v} = \\begin{vmatrix} \\mathbf{i} & \\mathbf{j} & \\mathbf{k} \\\\ ${u[0]} & ${u[1]} & ${u[2]} \\\\ ${v[0]} & ${v[1]} & ${v[2]} \\end{vmatrix} = \\langle ${cross[0]}, ${cross[1]}, ${cross[2]} \\rangle`,
+      `\\|\\vec{u}\\| = \\sqrt{${u[0]}^2 + ${u[1]}^2 + ${u[2]}^2} \\approx ${Math.round(normU * 1e4) / 1e4}`,
+      `\\|\\vec{v}\\| = \\sqrt{${v[0]}^2 + ${v[1]}^2 + ${v[2]}^2} \\approx ${Math.round(normV * 1e4) / 1e4}`,
+      `\\theta = \\arccos\\left(\\frac{\\vec{u} \\cdot \\vec{v}}{\\|\\vec{u}\\| \\|\\vec{v}\\|}\\right) \\approx ${Math.round(angleDeg * 1e2) / 1e2}^\\circ \\; (${Math.round(angleRad * 1e4) / 1e4} \\text{ rad})`
+    ];
+
+    return { dot, cross, normU, normV, angleDeg, steps, latexSolution: `\\vec{u} \\cdot \\vec{v} = ${dot}, \\; \\vec{u} \\times \\vec{v} = \\langle ${cross[0]}, ${cross[1]}, ${cross[2]} \\rangle, \\; \\theta \\approx ${Math.round(angleDeg * 1e2) / 1e2}^\\circ` };
+  },
+
+  solveStatistics(numbersList) {
+    if (!Array.isArray(numbersList) || numbersList.length === 0) throw new Error('Provide at least one number');
+    const arr = [...numbersList].sort((a, b) => a - b);
+    const n = arr.length;
+    const sum = arr.reduce((acc, v) => acc + v, 0);
+    const mean = sum / n;
+
+    const mid = Math.floor(n / 2);
+    const median = n % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+
+    const freq = {};
+    let maxF = 0;
+    arr.forEach(v => { freq[v] = (freq[v] || 0) + 1; if (freq[v] > maxF) maxF = freq[v]; });
+    const modes = maxF > 1 ? Object.keys(freq).filter(k => freq[k] === maxF).map(Number) : [];
+
+    const lowerHalf = arr.slice(0, mid);
+    const upperHalf = n % 2 !== 0 ? arr.slice(mid + 1) : arr.slice(mid);
+    const q1 = lowerHalf.length === 0 ? arr[0] : (lowerHalf.length % 2 !== 0 ? lowerHalf[Math.floor(lowerHalf.length / 2)] : (lowerHalf[lowerHalf.length/2 - 1] + lowerHalf[lowerHalf.length/2]) / 2);
+    const q3 = upperHalf.length === 0 ? arr[n - 1] : (upperHalf.length % 2 !== 0 ? upperHalf[Math.floor(upperHalf.length / 2)] : (upperHalf[upperHalf.length/2 - 1] + upperHalf[upperHalf.length/2]) / 2);
+    const iqr = q3 - q1;
+
+    const sqDiffs = arr.map(v => Math.pow(v - mean, 2));
+    const popVar = sqDiffs.reduce((a, b) => a + b, 0) / n;
+    const sampleVar = n > 1 ? sqDiffs.reduce((a, b) => a + b, 0) / (n - 1) : 0;
+    const popSd = Math.sqrt(popVar);
+    const sampleSd = Math.sqrt(sampleVar);
+    const sem = sampleSd / Math.sqrt(n);
+
+    const steps = [
+      `\\text{Sample Size: } N = ${n}`,
+      `\\text{Sorted Data: } \\{ ${arr.join(', ')} \\}`,
+      `\\text{Sum: } \\sum x = ${Math.round(sum * 1e4) / 1e4}`,
+      `\\text{Mean: } \\bar{x} = \\frac{\\sum x}{N} = ${Math.round(mean * 1e4) / 1e4}`,
+      `\\text{Median: } \\tilde{x} = ${Math.round(median * 1e4) / 1e4}`,
+      `\\text{Mode: } ${modes.length > 0 ? modes.join(', ') : '\\text{None}'}`,
+      `\\text{Range: } [\\min: ${arr[0]}, \\max: ${arr[n-1]}] \\implies ${arr[n-1] - arr[0]}`,
+      `\\text{Quartiles: } Q_1 = ${Math.round(q1 * 1e4) / 1e4}, \\; Q_3 = ${Math.round(q3 * 1e4) / 1e4}, \\; IQR = ${Math.round(iqr * 1e4) / 1e4}`,
+      `\\text{Sample Variance: } s^2 = ${Math.round(sampleVar * 1e4) / 1e4}`,
+      `\\text{Sample Std Dev: } s = ${Math.round(sampleSd * 1e4) / 1e4}`,
+      `\\text{Std Error (SEM): } \\frac{s}{\\sqrt{N}} = ${Math.round(sem * 1e4) / 1e4}`
+    ];
+
+    return {
+      n, sum, mean, median, modes, min: arr[0], max: arr[n - 1], q1, q3, iqr, sampleSd, popSd, sem, steps,
+      latexSolution: `N = ${n}, \\; \\bar{x} = ${Math.round(mean * 1e4) / 1e4}, \\; s = ${Math.round(sampleSd * 1e4) / 1e4}`
+    };
+  },
+
+  evaluateExpression(exprStr, angleMode = pkMathEngine.angleMode) {
+    if (!exprStr || !exprStr.trim()) return null;
+    let s = exprStr.trim();
+    s = s.replace(/=\s*$/, '').trim();
+
+    s = s.replace(/([0-9.]+)\s*%\s*(?:of|\*)\s*([0-9.]+)/gi, '(($1/100) * $2)');
+    s = s.replace(/([0-9.]+)\s*%/g, '($1/100)');
+
+    s = s.replace(/([0-9]+)\s*!/g, (match, n) => {
+      let num = parseInt(n, 10);
+      if (num > 170) return 'Infinity';
+      let f = 1;
+      for (let i = 2; i <= num; i++) f *= i;
+      return f.toString();
+    });
+
+    s = s.replace(/\^\{([^}]+)\}/g, '**($1)');
+    s = s.replace(/\^/g, '**');
+
+    s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '(($1)/($2))');
+    s = s.replace(/\\sqrt\{([^}]+)\}/g, 'Math.sqrt($1)');
+    s = s.replace(/\\times|\\cdot/g, '*');
+    s = s.replace(/\\div/g, '/');
+    s = s.replace(/\\pi/gi, 'Math.PI');
+    s = s.replace(/\\e\b/g, 'Math.E');
+
+    s = s.replace(/([0-9]),([0-9]{3})/g, '$1$2');
+
+    if (angleMode === 'deg') {
+      s = s.replace(/\b(sin|cos|tan)\s*\(([^)]+)\)/g, 'Math.$1(($2) * Math.PI / 180)');
+      s = s.replace(/\b(asin|acos|atan)\s*\(([^)]+)\)/g, '(Math.$1($2) * 180 / Math.PI)');
+    } else {
+      s = s.replace(/\b(sin|cos|tan|asin|acos|atan)\s*\(/g, 'Math.$1(');
+    }
+
+    s = s.replace(/\b(sinh|cosh|tanh|sqrt|cbrt|log|log10|log2|exp|abs|round|floor|ceil)\s*\(/g, 'Math.$1(');
+    s = s.replace(/\bln\s*\(/g, 'Math.log(');
+    s = s.replace(/\bpi\b/gi, 'Math.PI');
+    s = s.replace(/\btau\b/gi, '(2*Math.PI)');
+    s = s.replace(/\bphi\b/gi, '1.618033988749895');
+    s = s.replace(/\be\b/g, 'Math.E');
+
+    const safeRegex = /^[0-9\s.+\-*\/%()Math,PIEpowsqrtsincostanlogabsminmaxexproundfloorceilInfinity]+$/;
+    if (!safeRegex.test(s)) {
+      throw new Error('Unsupported math expression');
+    }
+
+    const val = Function(`"use strict"; return (${s})`)();
+    if (typeof val !== 'number' || isNaN(val)) throw new Error('Evaluation error');
+    return Math.round(val * 1e8) / 1e8;
+  }
+};
+
+function renderMathSolverTab(container) {
+  const subtabs = [
+    { id: 'equations', label: 'Equations' },
+    { id: 'calculus', label: 'Calculus' },
+    { id: 'systems', label: '2×2 Systems' },
+    { id: 'matrices', label: 'Matrices & Vectors' },
+    { id: 'statistics', label: 'Statistics' },
+    { id: 'calculator', label: 'Scientific Calc' }
+  ];
+
+  let bodyHtml = '';
+
+  if (mathSolverSubtab === 'equations') {
+    bodyHtml = `
+      <div class="space-y-4 font-mono">
+        <!-- Quadratic Equation Card -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Quadratic Equation Solver</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">ax² + bx + c = 0</span>
+          </div>
+          
+          <div class="grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Coefficient a:</label>
+              <input type="number" id="solverQuadA" value="1" oninput="runSolverQuadratic()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Coefficient b:</label>
+              <input type="number" id="solverQuadB" value="-5" oninput="runSolverQuadratic()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Constant c:</label>
+              <input type="number" id="solverQuadC" value="6" oninput="runSolverQuadratic()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+          </div>
+
+          <!-- Result Container -->
+          <div id="solverQuadResult" class="space-y-2"></div>
+        </div>
+
+        <!-- Linear Equation Card -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Linear Equation Solver</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">ax + b = c</span>
+          </div>
+          
+          <div class="grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Coefficient a:</label>
+              <input type="number" id="solverLinearA" value="3" oninput="runSolverLinear()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Term b:</label>
+              <input type="number" id="solverLinearB" value="7" oninput="runSolverLinear()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Right Side c:</label>
+              <input type="number" id="solverLinearC" value="22" oninput="runSolverLinear()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+          </div>
+
+          <!-- Result Container -->
+          <div id="solverLinearResult" class="space-y-2"></div>
+        </div>
+      </div>
+    `;
+  } else if (mathSolverSubtab === 'calculus') {
+    bodyHtml = `
+      <div class="space-y-4 font-mono">
+        <!-- Derivative Card -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Numerical Derivative & Tangent Line</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">f'(x₀) via 5-point stencil</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Function f(x):</label>
+              <input type="text" id="solverDerivFn" value="x^3 - 3*x + 2" oninput="runSolverDerivative()" placeholder="e.g. x^2, sin(x), ln(x)" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Point x₀:</label>
+              <input type="number" id="solverDerivX0" value="2" step="any" oninput="runSolverDerivative()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+          </div>
+
+          <div id="solverDerivResult" class="space-y-2"></div>
+        </div>
+
+        <!-- Definite Integral Card -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Definite Integral (Simpson's 1/3 Rule)</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">∫ₐᵇ f(x) dx (N=1000)</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Integrand f(x):</label>
+              <input type="text" id="solverIntegFn" value="sin(x)" oninput="runSolverIntegral()" placeholder="e.g. x^2, sin(x), e^x" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Lower Bound a:</label>
+              <input type="text" id="solverIntegA" value="0" oninput="runSolverIntegral()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Upper Bound b:</label>
+              <input type="text" id="solverIntegB" value="pi" oninput="runSolverIntegral()" class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] text-center" />
+            </div>
+          </div>
+
+          <div id="solverIntegResult" class="space-y-2"></div>
+        </div>
+      </div>
+    `;
+  } else if (mathSolverSubtab === 'systems') {
+    bodyHtml = `
+      <div class="space-y-4 font-mono">
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">2×2 Linear System (Cramer's Rule)</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">D, Dx, Dy determinants</span>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-[var(--text-tertiary)] w-14 shrink-0">Eq 1:</span>
+              <input type="number" id="sysA1" value="2" oninput="runSolverSystem2x2()" class="w-20 px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-center" />
+              <span>x +</span>
+              <input type="number" id="sysB1" value="3" oninput="runSolverSystem2x2()" class="w-20 px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-center" />
+              <span>y =</span>
+              <input type="number" id="sysC1" value="12" oninput="runSolverSystem2x2()" class="w-20 px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-center" />
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-[var(--text-tertiary)] w-14 shrink-0">Eq 2:</span>
+              <input type="number" id="sysA2" value="1" oninput="runSolverSystem2x2()" class="w-20 px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-center" />
+              <span>x +</span>
+              <input type="number" id="sysB2" value="-1" oninput="runSolverSystem2x2()" class="w-20 px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-center" />
+              <span>y =</span>
+              <input type="number" id="sysC2" value="1" oninput="runSolverSystem2x2()" class="w-20 px-2 py-1 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-center" />
+            </div>
+          </div>
+
+          <div id="solverSystemResult" class="space-y-2"></div>
+        </div>
+      </div>
+    `;
+  } else if (mathSolverSubtab === 'matrices') {
+    bodyHtml = `
+      <div class="space-y-4 font-mono">
+        <!-- 2x2 Matrix & Inverse -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">2×2 Matrix Determinant & Inverse</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">det(A), adj(A), A⁻¹</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 max-w-xs text-xs">
+            <input type="number" id="mat2_00" value="4" oninput="runSolverMatrix2x2()" placeholder="a₁₁" class="p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+            <input type="number" id="mat2_01" value="7" oninput="runSolverMatrix2x2()" placeholder="a₁₂" class="p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+            <input type="number" id="mat2_10" value="2" oninput="runSolverMatrix2x2()" placeholder="a₂₁" class="p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+            <input type="number" id="mat2_11" value="6" oninput="runSolverMatrix2x2()" placeholder="a₂₂" class="p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+          </div>
+
+          <div id="solverMat2Result" class="space-y-2"></div>
+        </div>
+
+        <!-- 3D Vectors -->
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">3D Vectors: Dot & Cross Product</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">u·v, u×v, norms, angle</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="space-y-1">
+              <label class="text-[10px] text-[var(--text-tertiary)]">Vector u ⟨x, y, z⟩:</label>
+              <div class="flex gap-1.5">
+                <input type="number" id="vecUx" value="1" oninput="runSolverVectors3D()" class="w-full p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+                <input type="number" id="vecUy" value="2" oninput="runSolverVectors3D()" class="w-full p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+                <input type="number" id="vecUz" value="3" oninput="runSolverVectors3D()" class="w-full p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] text-[var(--text-tertiary)]">Vector v ⟨x, y, z⟩:</label>
+              <div class="flex gap-1.5">
+                <input type="number" id="vecVx" value="4" oninput="runSolverVectors3D()" class="w-full p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+                <input type="number" id="vecVy" value="5" oninput="runSolverVectors3D()" class="w-full p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+                <input type="number" id="vecVz" value="6" oninput="runSolverVectors3D()" class="w-full p-1.5 text-center rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)]" />
+              </div>
+            </div>
+          </div>
+
+          <div id="solverVecResult" class="space-y-2"></div>
+        </div>
+      </div>
+    `;
+  } else if (mathSolverSubtab === 'statistics') {
+    bodyHtml = `
+      <div class="space-y-4 font-mono">
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Descriptive Statistics & Dispersion</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-tertiary)]">N, mean, median, IQR, σ, s, SEM</span>
+          </div>
+
+          <div>
+            <label class="block text-[10px] text-[var(--text-tertiary)] mb-1">Enter Numbers (comma or space separated):</label>
+            <textarea id="solverStatsInput" rows="2" oninput="runSolverStatistics()" class="w-full p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]">12, 15, 18, 22, 25, 29, 35, 40, 48, 55</textarea>
+          </div>
+
+          <div id="solverStatsResult" class="space-y-2"></div>
+        </div>
+      </div>
+    `;
+  } else if (mathSolverSubtab === 'calculator') {
+    bodyHtml = `
+      <div class="space-y-4 font-mono">
+        <div class="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-ochre)]"></span>
+              <span class="text-xs font-semibold text-[var(--text-primary)]">Scientific Math Engine & Calculator</span>
+            </div>
+            <div class="flex items-center gap-1 text-[10px]">
+              <button type="button" id="angleDegBtn" onclick="toggleMathAngleMode('deg')" class="px-2 py-0.5 rounded ${pkMathEngine.angleMode === 'deg' ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)]'} cursor-pointer">DEG</button>
+              <button type="button" id="angleRadBtn" onclick="toggleMathAngleMode('rad')" class="px-2 py-0.5 rounded ${pkMathEngine.angleMode === 'rad' ? 'bg-[var(--accent-vermilion)] text-white' : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)]'} cursor-pointer">RAD</button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="solverCalcInput"
+              placeholder="e.g. sqrt(144) + 5^2, sin(30), 15% of 300, 5!"
+              value="sqrt(144) + 5^2"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();runAdvancedCalculator();}"
+              oninput="runAdvancedCalculator()"
+              class="flex-1 px-3 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+            <button type="button" onclick="runAdvancedCalculator()" class="px-3 py-1.5 rounded bg-[var(--accent-ochre)] text-white font-semibold text-xs cursor-pointer">Calculate</button>
+          </div>
+
+          <!-- Quick Calculator Keys -->
+          <div class="flex flex-wrap gap-1 text-[11px]">
+            <button type="button" onclick="appendCalcKey('sqrt(')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">√</button>
+            <button type="button" onclick="appendCalcKey('^2')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">x²</button>
+            <button type="button" onclick="appendCalcKey('^')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">xʸ</button>
+            <button type="button" onclick="appendCalcKey('!')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">n!</button>
+            <button type="button" onclick="appendCalcKey('sin(')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">sin</button>
+            <button type="button" onclick="appendCalcKey('cos(')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">cos</button>
+            <button type="button" onclick="appendCalcKey('tan(')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">tan</button>
+            <button type="button" onclick="appendCalcKey('ln(')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">ln</button>
+            <button type="button" onclick="appendCalcKey('log10(')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">log₁₀</button>
+            <button type="button" onclick="appendCalcKey('pi')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">π</button>
+            <button type="button" onclick="appendCalcKey('e')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">e</button>
+            <button type="button" onclick="appendCalcKey('% of ')" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">% of</button>
+          </div>
+
+          <div id="solverCalcResult" class="p-2.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] flex items-center justify-between text-xs">
+            <span class="text-[var(--text-tertiary)]">Result: <strong id="solverCalcValue" class="text-[var(--accent-vermilion)] font-bold">37</strong></span>
+            <button type="button" onclick="insertAdvancedCalcResultIntoNote()" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline cursor-pointer">Insert into Note →</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="space-y-3.5">
+      <!-- Subtab Switcher -->
+      <div class="flex items-center gap-1 border-b border-[var(--border-hairline)] pb-2 overflow-x-auto">
+        ${subtabs.map(st => `
+          <button type="button" onclick="switchMathSolverSubtab('${st.id}')" class="math-subtab-btn ${mathSolverSubtab === st.id ? 'active' : ''}">${st.label}</button>
+        `).join('')}
+      </div>
+
+      <!-- Active Subtab Body -->
+      ${bodyHtml}
+    </div>
+  `;
+
+  setTimeout(() => {
+    if (mathSolverSubtab === 'equations') { runSolverQuadratic(); runSolverLinear(); }
+    else if (mathSolverSubtab === 'calculus') { runSolverDerivative(); runSolverIntegral(); }
+    else if (mathSolverSubtab === 'systems') { runSolverSystem2x2(); }
+    else if (mathSolverSubtab === 'matrices') { runSolverMatrix2x2(); runSolverVectors3D(); }
+    else if (mathSolverSubtab === 'statistics') { runSolverStatistics(); }
+    else if (mathSolverSubtab === 'calculator') { runAdvancedCalculator(); }
+  }, 10);
+}
+
+function runSolverQuadratic() {
+  const container = document.getElementById('solverQuadResult');
+  if (!container) return;
+  const a = parseFloat(document.getElementById('solverQuadA')?.value || '1');
+  const b = parseFloat(document.getElementById('solverQuadB')?.value || '0');
+  const c = parseFloat(document.getElementById('solverQuadC')?.value || '0');
+
+  try {
+    const res = pkMathEngine.solveQuadratic(a, b, c);
+    lastSolverResults.quad = { title: 'Quadratic Equation Solution', steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Solution: <strong class="text-[var(--accent-vermilion)] font-bold">${escapeHtml(res.latexSolution)}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('quad')" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Step-by-Step Derivation:</span>
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverLinear() {
+  const container = document.getElementById('solverLinearResult');
+  if (!container) return;
+  const a = parseFloat(document.getElementById('solverLinearA')?.value || '1');
+  const b = parseFloat(document.getElementById('solverLinearB')?.value || '0');
+  const c = parseFloat(document.getElementById('solverLinearC')?.value || '0');
+
+  try {
+    const res = pkMathEngine.solveLinear(a, b, c);
+    lastSolverResults.linear = { title: 'Linear Equation Solution', steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Solution: <strong class="text-[var(--accent-ochre)] font-bold">${escapeHtml(res.latexSolution)}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('linear')" class="px-2.5 py-1 rounded bg-[var(--accent-ochre)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Step-by-Step Derivation:</span>
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverDerivative() {
+  const container = document.getElementById('solverDerivResult');
+  if (!container) return;
+  const fn = document.getElementById('solverDerivFn')?.value || 'x^2';
+  const x0 = parseFloat(document.getElementById('solverDerivX0')?.value || '0');
+
+  try {
+    const res = pkMathEngine.solveDerivative(fn, x0);
+    lastSolverResults.deriv = { title: `Derivative of f(x) at x = ${x0}`, steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Slope: <strong class="text-[var(--accent-vermilion)] font-bold">${res.slope}</strong>, Line: <strong class="text-[var(--text-primary)] font-bold">${res.tangentLine}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('deriv')" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Calculus Derivation:</span>
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverIntegral() {
+  const container = document.getElementById('solverIntegResult');
+  if (!container) return;
+  const fn = document.getElementById('solverIntegFn')?.value || 'x';
+  const aStr = document.getElementById('solverIntegA')?.value || '0';
+  const bStr = document.getElementById('solverIntegB')?.value || '1';
+  const a = pkMathEngine.evaluateExpression(aStr) ?? parseFloat(aStr);
+  const b = pkMathEngine.evaluateExpression(bStr) ?? parseFloat(bStr);
+
+  try {
+    const res = pkMathEngine.solveIntegral(fn, a, b);
+    lastSolverResults.integ = { title: `Definite Integral of (${fn}) from ${aStr} to ${bStr}`, steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Numerical Value: <strong class="text-[var(--accent-ochre)] font-bold">${res.result}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('integ')" class="px-2.5 py-1 rounded bg-[var(--accent-ochre)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Simpson's 1/3 Rule Steps:</span>
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverSystem2x2() {
+  const container = document.getElementById('solverSystemResult');
+  if (!container) return;
+  const a1 = parseFloat(document.getElementById('sysA1')?.value || '1');
+  const b1 = parseFloat(document.getElementById('sysB1')?.value || '1');
+  const c1 = parseFloat(document.getElementById('sysC1')?.value || '1');
+  const a2 = parseFloat(document.getElementById('sysA2')?.value || '1');
+  const b2 = parseFloat(document.getElementById('sysB2')?.value || '-1');
+  const c2 = parseFloat(document.getElementById('sysC2')?.value || '0');
+
+  try {
+    const res = pkMathEngine.solveSystem2x2(a1, b1, c1, a2, b2, c2);
+    lastSolverResults.system = { title: '2×2 Linear System Solution (Cramer’s Rule)', steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Solution: <strong class="text-[var(--accent-vermilion)] font-bold">${escapeHtml(res.latexSolution)}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('system')" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          <span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Cramer's Rule Determinants:</span>
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverMatrix2x2() {
+  const container = document.getElementById('solverMat2Result');
+  if (!container) return;
+  const a = parseFloat(document.getElementById('mat2_00')?.value || '1');
+  const b = parseFloat(document.getElementById('mat2_01')?.value || '0');
+  const c = parseFloat(document.getElementById('mat2_10')?.value || '0');
+  const d = parseFloat(document.getElementById('mat2_11')?.value || '1');
+
+  try {
+    const res = pkMathEngine.solveMatrix2x2(a, b, c, d);
+    lastSolverResults.mat2 = { title: '2×2 Matrix Determinant & Inverse', steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">det(A) = <strong class="text-[var(--accent-vermilion)] font-bold">${res.det}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('mat2')" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverVectors3D() {
+  const container = document.getElementById('solverVecResult');
+  if (!container) return;
+  const ux = parseFloat(document.getElementById('vecUx')?.value || '0');
+  const uy = parseFloat(document.getElementById('vecUy')?.value || '0');
+  const uz = parseFloat(document.getElementById('vecUz')?.value || '0');
+  const vx = parseFloat(document.getElementById('vecVx')?.value || '0');
+  const vy = parseFloat(document.getElementById('vecVy')?.value || '0');
+  const vz = parseFloat(document.getElementById('vecVz')?.value || '0');
+
+  try {
+    const res = pkMathEngine.solveVectors3D([ux, uy, uz], [vx, vy, vz]);
+    lastSolverResults.vec = { title: '3D Vector Analysis (Dot & Cross Product)', steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Angle: <strong class="text-[var(--accent-ochre)] font-bold">${Math.round(res.angleDeg * 1e2)/1e2}°</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('vec')" class="px-2.5 py-1 rounded bg-[var(--accent-ochre)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Solution</button>
+        </div>
+        <div class="space-y-1 pt-1">
+          ${res.steps.map(s => `<div class="p-1.5 rounded bg-[var(--bg-panel)]/50 border border-[var(--border-hairline)] overflow-x-auto">${renderLatexToHtml(s, false)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function runSolverStatistics() {
+  const container = document.getElementById('solverStatsResult');
+  if (!container) return;
+  const raw = document.getElementById('solverStatsInput')?.value || '';
+  const numbers = (raw.match(/-?[0-9]+(?:\.[0-9]+)?/g) || []).map(Number);
+
+  if (numbers.length === 0) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--text-tertiary)]">Enter at least one number above.</div>`;
+    return;
+  }
+
+  try {
+    const res = pkMathEngine.solveStatistics(numbers);
+    lastSolverResults.stats = { title: `Statistical Summary (N = ${res.n})`, steps: res.steps };
+
+    container.innerHTML = `
+      <div class="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-2 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-1.5">
+          <span class="text-[var(--text-tertiary)]">Mean: <strong class="text-[var(--accent-vermilion)] font-bold">${Math.round(res.mean * 1e4)/1e4}</strong>, StdDev: <strong class="text-[var(--text-primary)] font-bold">${Math.round(res.sampleSd * 1e4)/1e4}</strong></span>
+          <button type="button" onclick="insertStoredSolverSteps('stats')" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-semibold hover:opacity-90 cursor-pointer">+ Insert Summary</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1 text-[11px]">
+          <div class="p-1.5 rounded bg-[var(--bg-panel)]/60 border border-[var(--border-hairline)]">N: <strong>${res.n}</strong></div>
+          <div class="p-1.5 rounded bg-[var(--bg-panel)]/60 border border-[var(--border-hairline)]">Sum: <strong>${Math.round(res.sum*1e2)/1e2}</strong></div>
+          <div class="p-1.5 rounded bg-[var(--bg-panel)]/60 border border-[var(--border-hairline)]">Median: <strong>${Math.round(res.median*1e2)/1e2}</strong></div>
+          <div class="p-1.5 rounded bg-[var(--bg-panel)]/60 border border-[var(--border-hairline)]">Range: <strong>${Math.round(res.min*1e2)/1e2} - ${Math.round(res.max*1e2)/1e2}</strong></div>
+          <div class="p-1.5 rounded bg-[var(--bg-panel)]/60 border border-[var(--border-hairline)]">IQR: <strong>${Math.round(res.iqr*1e2)/1e2}</strong></div>
+          <div class="p-1.5 rounded bg-[var(--bg-panel)]/60 border border-[var(--border-hairline)]">SEM: <strong>${Math.round(res.sem*1e4)/1e4}</strong></div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="p-2 text-xs text-[var(--accent-vermilion)]">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function toggleMathAngleMode(mode) {
+  pkMathEngine.angleMode = mode;
+  const degBtn = document.getElementById('angleDegBtn');
+  const radBtn = document.getElementById('angleRadBtn');
+  if (degBtn && radBtn) {
+    if (mode === 'deg') {
+      degBtn.className = 'px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white cursor-pointer';
+      radBtn.className = 'px-2 py-0.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] cursor-pointer';
+    } else {
+      degBtn.className = 'px-2 py-0.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] cursor-pointer';
+      radBtn.className = 'px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white cursor-pointer';
+    }
+  }
+  runAdvancedCalculator();
+}
+
+function appendCalcKey(key) {
+  const input = document.getElementById('solverCalcInput');
+  if (!input) return;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  const val = input.value;
+  input.value = val.substring(0, start) + key + val.substring(end);
+  input.selectionStart = input.selectionEnd = start + key.length;
+  input.focus();
+  runAdvancedCalculator();
+}
+
+function runAdvancedCalculator() {
+  const input = document.getElementById('solverCalcInput');
+  const resVal = document.getElementById('solverCalcValue');
+  if (!input || !resVal) return;
+  try {
+    const evaluated = pkMathEngine.evaluateExpression(input.value);
+    resVal.textContent = evaluated ?? '...';
+  } catch (err) {
+    resVal.textContent = 'Syntax error';
+  }
+}
+
+function insertAdvancedCalcResultIntoNote() {
+  const input = document.getElementById('solverCalcInput');
+  const resVal = document.getElementById('solverCalcValue');
+  if (!input || !resVal) return;
+  const equation = `${input.value.trim()} = ${resVal.textContent}`;
+
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const newBlock = { id: generateId('b'), type: 'paragraph', content: equation };
+  note.blocks.push(newBlock);
+  note.updatedAt = TODAY_KEY;
+  renderBlocks(note);
+  persistState();
+  showToast(`Inserted "${equation}" into note`);
+  closeMathSymbolsModal();
+}
+
+function insertStoredSolverSteps(key) {
+  const item = lastSolverResults[key];
+  if (!item || !item.steps) return;
+  insertSolverStepsIntoNote(item.title, item.steps);
+}
+
+function insertSolverStepsIntoNote(title, stepsArray) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+
+  const stepsLatex = stepsArray.map(s => s.replace(/\\\\/g, '\\')).join(' \\\\\n');
+  const mathContent = `\\begin{aligned}\n\\textbf{${title}} \\\\\n${stepsLatex}\n\\end{aligned}`;
+
+  const newBlock = {
+    id: generateId('b'),
+    type: 'math',
+    content: mathContent,
+    isEditing: false
+  };
+
+  note.blocks.push(newBlock);
+  note.updatedAt = TODAY_KEY;
+  renderBlocks(note);
+  persistState();
+  showToast(`Inserted "${title}" solution steps into note`);
+  closeMathSymbolsModal();
 }
 
 function updatePlaygroundLivePreview() {
@@ -19419,70 +20476,307 @@ function insertMathFormulaFromWorkbench(latex) {
   insertNewMathBlockIntoNote(latex);
 }
 
-function evaluateMathExpression(rawExpr) {
-  if (!rawExpr || !rawExpr.trim()) return null;
-  let s = rawExpr.trim();
-  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '(($1)/($2))');
-  s = s.replace(/\\sqrt\{([^}]+)\}/g, 'Math.sqrt($1)');
-  s = s.replace(/\\sqrt\[([^\]]+)\]\{([^}]+)\}/g, 'Math.pow($2, 1/($1))');
-  s = s.replace(/\\times|\\cdot/g, '*');
-  s = s.replace(/\\div/g, '/');
-  s = s.replace(/\\pm/g, '+');
-  s = s.replace(/\\pi/g, 'Math.PI');
-  s = s.replace(/\\tau/g, '(2 * Math.PI)');
-  s = s.replace(/\\e\b/g, 'Math.E');
-  s = s.replace(/\\ln\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.log($1)');
-  s = s.replace(/\\log_\{10\}\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.log10($1)');
-  s = s.replace(/\\log\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.log10($1)');
-  s = s.replace(/\\sin\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.sin($1)');
-  s = s.replace(/\\cos\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.cos($1)');
-  s = s.replace(/\\tan\{?([a-zA-Z0-9_.]+)\}?/g, 'Math.tan($1)');
-  s = s.replace(/\^\{([^}]+)\}/g, '**($1)');
-  s = s.replace(/\^([0-9a-zA-Z]+)/g, '**$1');
-  s = s.replace(/\\left|\\right/g, '');
-  s = s.replace(/\{/g, '(').replace(/\}/g, ')');
-  const safeRegex = /^[0-9\s.+\-*\/%()Math,PIEpowsqrtsincostanlogabsminmax]+$/;
-  if (!safeRegex.test(s)) {
-    throw new Error('Unsupported or non-numerical expression');
+// -------------------------------------------------------------------------
+// INLINE MATH CLICK-TO-EDIT FLOATING POPOVER
+// -------------------------------------------------------------------------
+function openInlineMathPopover(mathSpan) {
+  const popover = document.getElementById('inlineMathPopover');
+  if (!popover) return;
+  currentInlineMathTarget = mathSpan;
+  const rawLatex = mathSpan.getAttribute('data-math-raw') || '';
+  const input = document.getElementById('inlineMathPopoverInput');
+  const preview = document.getElementById('inlineMathPopoverPreview');
+  if (input) input.value = rawLatex;
+  if (preview) preview.innerHTML = renderLatexToHtml(rawLatex || '\\dots', false);
+
+  const rect = mathSpan.getBoundingClientRect();
+  popover.classList.remove('hidden');
+
+  let top = rect.bottom + 6;
+  if (top + 220 > window.innerHeight) {
+    top = Math.max(10, rect.top - 220);
   }
-  const result = Function(`"use strict"; return (${s})`)();
-  if (typeof result !== 'number' || isNaN(result)) throw new Error('Could not evaluate expression');
-  return Math.round(result * 1e8) / 1e8;
+  let left = rect.left;
+  if (left + 320 > window.innerWidth) {
+    left = Math.max(10, window.innerWidth - 330);
+  }
+
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+
+  setTimeout(() => {
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }, 50);
 }
 
-function runMathCalculator() {
-  const input = document.getElementById('calcExpressionInput');
-  const resVal = document.getElementById('calcResultValue');
-  if (!input || !resVal) return;
-  try {
-    const evaluated = evaluateMathExpression(input.value);
-    resVal.textContent = evaluated;
-    if (typeof pkHaptic === 'function') pkHaptic(12);
-  } catch (err) {
-    resVal.textContent = 'Syntax error';
-    showToast(err.message, 'vermilion');
+function closeInlineMathPopover() {
+  const popover = document.getElementById('inlineMathPopover');
+  if (popover) popover.classList.add('hidden');
+  currentInlineMathTarget = null;
+}
+
+function updateInlineMathPopoverPreview() {
+  const input = document.getElementById('inlineMathPopoverInput');
+  const preview = document.getElementById('inlineMathPopoverPreview');
+  if (input && preview) {
+    preview.innerHTML = renderLatexToHtml(input.value || '\\dots', false);
   }
 }
 
-function insertEvaluatedResultIntoNote() {
-  const input = document.getElementById('calcExpressionInput');
-  const resVal = document.getElementById('calcResultValue');
-  if (!input || !resVal) return;
-  const expr = input.value.trim();
-  const val = resVal.textContent;
-  const fullEquation = `${expr} = ${val}`;
+function handleInlineMathPopoverKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyInlineMathPopoverEdit();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeInlineMathPopover();
+  }
+}
 
+function applyInlineMathPopoverEdit() {
+  if (!currentInlineMathTarget) return;
+  const input = document.getElementById('inlineMathPopoverInput');
+  if (!input) return;
+  const newLatex = input.value.trim();
+  const mathSpan = currentInlineMathTarget;
+  const blockEl = mathSpan.closest('[data-block-id]');
+  if (!blockEl) {
+    closeInlineMathPopover();
+    return;
+  }
+  const blockId = blockEl.getAttribute('data-block-id');
   const note = guardActiveNoteEditable();
   if (!note) return;
-  const newBlock = {
-    id: generateId('b'),
-    type: 'paragraph',
-    content: fullEquation
-  };
-  note.blocks.push(newBlock);
-  note.updatedAt = TODAY_KEY;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  if (!newLatex) {
+    mathSpan.remove();
+  } else {
+    mathSpan.setAttribute('data-math-raw', newLatex);
+    mathSpan.innerHTML = renderLatexToHtml(newLatex, false);
+  }
+
+  block.content = serializeEditableBlock(blockEl);
   renderBlocks(note);
   persistState();
-  showToast(`Inserted "${fullEquation}" into note`);
-  closeMathSymbolsModal();
+  closeInlineMathPopover();
+  showToast('Updated formula');
 }
+
+function removeInlineMathWrapper() {
+  if (!currentInlineMathTarget) return;
+  const input = document.getElementById('inlineMathPopoverInput');
+  const raw = input ? input.value : currentInlineMathTarget.getAttribute('data-math-raw') || '';
+  const blockEl = currentInlineMathTarget.closest('[data-block-id]');
+  if (!blockEl) return;
+  const blockId = blockEl.getAttribute('data-block-id');
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  const textNode = document.createTextNode(raw);
+  currentInlineMathTarget.parentNode.replaceChild(textNode, currentInlineMathTarget);
+  block.content = serializeEditableBlock(blockEl);
+  renderBlocks(note);
+  persistState();
+  closeInlineMathPopover();
+  showToast('Removed formula formatting');
+}
+
+function copyInlineMathLatex() {
+  const input = document.getElementById('inlineMathPopoverInput');
+  if (!input) return;
+  navigator.clipboard.writeText(input.value).then(() => {
+    showToast('Copied LaTeX to clipboard');
+  });
+}
+
+function insertSymbolIntoInlineMath(snippet) {
+  const input = document.getElementById('inlineMathPopoverInput');
+  if (!input) return;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  const val = input.value;
+  input.value = val.substring(0, start) + snippet + val.substring(end);
+  input.selectionStart = input.selectionEnd = start + snippet.length;
+  input.focus();
+  updateInlineMathPopoverPreview();
+}
+
+// -------------------------------------------------------------------------
+// LIVE "MATH NOTES" SOLVER ENGINE (APPLE NOTES / SOULVER STYLE)
+// -------------------------------------------------------------------------
+function checkInlineMathTypeToSolve(el, blockId, plainText) {
+  const badge = document.getElementById('inlineMathSolveBadge');
+  if (!badge) return;
+
+  const note = getActiveNote();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block || ['code', 'math', 'divider', 'image'].includes(block.type)) {
+    hideInlineMathSolveBadge();
+    return;
+  }
+
+  const lines = plainText.split('\n');
+  const currentLine = lines[lines.length - 1] || '';
+  const eqIdx = currentLine.lastIndexOf('=');
+  if (eqIdx === -1) {
+    hideInlineMathSolveBadge();
+    return;
+  }
+
+  const afterEq = currentLine.slice(eqIdx + 1);
+  if (/\S/.test(afterEq)) {
+    hideInlineMathSolveBadge();
+    return;
+  }
+
+  const beforeEq = currentLine.slice(0, eqIdx);
+  const m = beforeEq.match(/([a-zA-Z0-9(][0-9\s.+\-*\/%^!()a-zA-Z,]*)$/);
+  if (!m) {
+    hideInlineMathSolveBadge();
+    return;
+  }
+
+  let candidate = m[1].trim();
+  const words = candidate.match(/[a-zA-Z]+/g) || [];
+  const allowed = new Set(['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'sqrt', 'cbrt', 'log', 'ln', 'exp', 'abs', 'round', 'floor', 'ceil', 'pi', 'e', 'tau', 'phi', 'of']);
+  for (const w of words) {
+    if (!allowed.has(w.toLowerCase())) {
+      const idx = candidate.lastIndexOf(w);
+      candidate = candidate.slice(idx + w.length).trim();
+    }
+  }
+
+  if (!candidate || !/[0-9]/.test(candidate)) {
+    hideInlineMathSolveBadge();
+    return;
+  }
+
+  try {
+    const res = pkMathEngine.evaluateExpression(candidate);
+    if (res !== null && typeof res === 'number' && !isNaN(res)) {
+      pendingMathSolve = {
+        blockId,
+        el,
+        expression: candidate,
+        result: res
+      };
+      const valEl = document.getElementById('inlineMathSolveValue');
+      if (valEl) valEl.textContent = res;
+      positionInlineMathSolveBadge(el);
+      return;
+    }
+  } catch (err) {
+    // Ignore syntax errors while typing
+  }
+
+  hideInlineMathSolveBadge();
+}
+
+function positionInlineMathSolveBadge(el) {
+  const badge = document.getElementById('inlineMathSolveBadge');
+  if (!badge) return;
+  const rect = el.getBoundingClientRect();
+  badge.classList.remove('hidden');
+  const top = Math.min(window.innerHeight - 44, rect.bottom + 4);
+  const left = Math.max(12, Math.min(window.innerWidth - 180, rect.left + 24));
+  badge.style.top = `${top}px`;
+  badge.style.left = `${left}px`;
+}
+
+function hideInlineMathSolveBadge() {
+  pendingMathSolve = null;
+  const badge = document.getElementById('inlineMathSolveBadge');
+  if (badge) badge.classList.add('hidden');
+}
+
+function applyInlineMathSolution() {
+  if (!pendingMathSolve) return;
+  const { blockId, el, result } = pendingMathSolve;
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  const currentContent = serializeEditableBlock(el);
+  const eqIdx = currentContent.lastIndexOf('=');
+  if (eqIdx !== -1) {
+    const before = currentContent.slice(0, eqIdx + 1);
+    const after = currentContent.slice(eqIdx + 1).trim();
+    const newText = `${before} ${result}${after ? ' ' + after : ''}`;
+    block.content = newText;
+    renderBlocks(note);
+    persistState();
+    focusBlock(blockId, false, true);
+    if (typeof pkHaptic === 'function') pkHaptic(14);
+    showToast(`Solved: ${result}`);
+  }
+  hideInlineMathSolveBadge();
+}
+
+function solveCurrentBlockMath(el, blockId) {
+  const sel = window.getSelection();
+  const selectedText = (sel && !sel.isCollapsed) ? sel.toString().trim() : '';
+
+  let exprToSolve = '';
+  if (selectedText) {
+    exprToSolve = selectedText.replace(/=\s*$/, '').trim();
+  } else {
+    const text = serializeEditableBlock(el);
+    const lines = text.split('\n');
+    const lastLine = lines[lines.length - 1];
+    exprToSolve = lastLine.replace(/=\s*$/, '').trim();
+  }
+
+  if (!exprToSolve) {
+    showToast('Select or type a math formula to solve', 'ochre');
+    return;
+  }
+
+  try {
+    const result = pkMathEngine.evaluateExpression(exprToSolve);
+    if (result !== null && typeof result === 'number' && !isNaN(result)) {
+      const note = guardActiveNoteEditable();
+      if (!note) return;
+      const block = note.blocks.find(b => b.id === blockId);
+      if (!block) return;
+
+      if (selectedText) {
+        const currentContent = serializeEditableBlock(el);
+        block.content = currentContent.replace(selectedText, `${selectedText} = ${result}`);
+      } else {
+        block.content = (block.content ? block.content + ' = ' : '= ') + result;
+      }
+      renderBlocks(note);
+      persistState();
+      focusBlock(blockId, false, true);
+      showToast(`Solved: ${result}`);
+      if (typeof pkHaptic === 'function') pkHaptic(16);
+    } else {
+      showToast('Could not evaluate expression', 'vermilion');
+    }
+  } catch (err) {
+    showToast(`Math error: ${err.message}`, 'vermilion');
+  }
+}
+
+// Global click delegation for interactive inline math formulas
+document.addEventListener('click', (e) => {
+  const mathSpan = e.target.closest('.math-inline-render');
+  if (mathSpan) {
+    e.stopPropagation();
+    openInlineMathPopover(mathSpan);
+    return;
+  }
+  const popover = document.getElementById('inlineMathPopover');
+  if (popover && !popover.classList.contains('hidden') && !popover.contains(e.target)) {
+    closeInlineMathPopover();
+  }
+});

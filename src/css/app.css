@@ -1283,3 +1283,56 @@ html.dark .banner-preset-vellum {
 .math-symbol-card:active {
   transform: translateY(0);
 }
+
+/* Inline Math Floating Popover & Live Solver Badge */
+#inlineMathPopover {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+#inlineMathSolveBadge {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.12s ease;
+  user-select: none;
+}
+
+#inlineMathSolveBadge:hover {
+  border-color: var(--accent-vermilion);
+  transform: translateY(-1px);
+}
+
+.math-solver-result-step {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.math-subtab-btn {
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.math-subtab-btn.active {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-vermilion);
+  font-weight: 600;
+}
+
+.math-subtab-btn:not(.active) {
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.math-subtab-btn:not(.active):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

@@ -2,6 +2,7 @@
 (function () {
   const MAX_ARENA_FLOATS = 950000; // Fits safely inside 4 MB Rust static arena
   const enc = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+  const dec = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
 
   const bridge = {
     ready: false,
@@ -187,6 +188,245 @@
         syllables: out[3],
         longWords: out[4]
       };
+    },
+
+    analyzeTextStats(text) {
+      return this.analyzeText(text);
+    },
+
+    // 7. Native Rust Advanced Readability & Pulse Metrics
+    analyzeTextFull(text) {
+      if (!this.ready || !enc || typeof text !== 'string') return null;
+      const bytes = enc.encode(text);
+      if (bytes.length > 1024 * 1024) return null;
+      const w = this.exports;
+      w.arena_reset();
+      const ptr = bytes.length > 0 ? w.arena_alloc(bytes.length, 1) : 0;
+      const outPtr = w.arena_alloc(36, 4);
+      if (!outPtr) return null;
+      if (bytes.length > 0 && ptr) {
+        new Uint8Array(this.memory.buffer, ptr, bytes.length).set(bytes);
+      }
+      w.analyze_text_full(ptr, bytes.length, outPtr);
+      const out = new Float32Array(this.memory.buffer, outPtr, 9);
+      return {
+        words: out[0],
+        sentences: out[1],
+        nonWsChars: out[2],
+        syllables: out[3],
+        longWords: out[4],
+        fleschEase: out[5],
+        fkGrade: out[6],
+        readingTimeSecs: out[7],
+        speakingTimeSecs: out[8]
+      };
+    },
+
+    // 8. Native Rust High-Performance Math Evaluator (Kon Action calculate)
+    calculate(expression) {
+      if (!this.ready || !enc || typeof expression !== 'string') return null;
+      const trimmed = expression.trim();
+      if (!trimmed) return { ok: false, error: 'Empty expression' };
+      const bytes = enc.encode(trimmed);
+      if (bytes.length > 65536) return null;
+
+      const w = this.exports;
+      w.arena_reset();
+      const exprPtr = w.arena_alloc(bytes.length, 1);
+      const outPtr = w.arena_alloc(8, 8);
+      if (!exprPtr || !outPtr) return null;
+
+      new Uint8Array(this.memory.buffer, exprPtr, bytes.length).set(bytes);
+      const errCode = w.eval_math_expression(exprPtr, bytes.length, outPtr);
+      if (errCode === 0) {
+        const val = new Float64Array(this.memory.buffer, outPtr, 1)[0];
+        return { ok: true, result: val };
+      } else if (errCode === 2) {
+        return { ok: false, error: 'Division by zero' };
+      } else {
+        return { ok: false, error: 'Syntax error in mathematical expression' };
+      }
+    },
+
+    // 9. Native Rust Vault Wikilink Scanner
+    extractWikilinks(text, maxLinks) {
+      if (!this.ready || !enc || !dec || typeof text !== 'string') return null;
+      const bytes = enc.encode(text);
+      if (bytes.length > 1024 * 1024) return null;
+      const max = maxLinks || 256;
+
+      const w = this.exports;
+      w.arena_reset();
+      const textPtr = bytes.length > 0 ? w.arena_alloc(bytes.length, 1) : 0;
+      const outOffsetsPtr = w.arena_alloc(max * 8, 4);
+      if (!outOffsetsPtr) return null;
+
+      if (bytes.length > 0 && textPtr) {
+        new Uint8Array(this.memory.buffer, textPtr, bytes.length).set(bytes);
+      }
+      const count = w.extract_wikilinks(textPtr, bytes.length, outOffsetsPtr, max);
+      const offsets = new Uint32Array(this.memory.buffer, outOffsetsPtr, count * 2);
+      const links = [];
+      const memU8 = new Uint8Array(this.memory.buffer);
+      for (let i = 0; i < count; i++) {
+        const s = offsets[i * 2];
+        const l = offsets[i * 2 + 1];
+        const linkStr = dec.decode(memU8.subarray(textPtr + s, textPtr + s + l));
+        if (linkStr) links.push(linkStr);
+      }
+      return links;
+    },
+
+    // 10. Native Rust High-Speed Auto-Link Title Matcher
+    findTitleMatches(text, titles, maxMatches) {
+      if (!this.ready || !enc || typeof text !== 'string' || !Array.isArray(titles) || titles.length === 0) return null;
+      const textBytes = enc.encode(text);
+      if (textBytes.length > 512 * 1024) return null;
+      const max = maxMatches || 128;
+
+      let titlesBufSize = 4;
+      const encodedTitles = [];
+      for (let i = 0; i < titles.length; i++) {
+        const tb = enc.encode(titles[i]);
+        encodedTitles.push(tb);
+        titlesBufSize += 2 + tb.length;
+      }
+      if (titlesBufSize > 512 * 1024) return null;
+
+      const w = this.exports;
+      w.arena_reset();
+      const textPtr = textBytes.length > 0 ? w.arena_alloc(textBytes.length, 1) : 0;
+      const titlesPtr = w.arena_alloc(titlesBufSize, 4);
+      const outMatchesPtr = w.arena_alloc(max * 12, 4);
+      if (!titlesPtr || !outMatchesPtr) return null;
+
+      if (textBytes.length > 0 && textPtr) {
+        new Uint8Array(this.memory.buffer, textPtr, textBytes.length).set(textBytes);
+      }
+
+      const memU8 = new Uint8Array(this.memory.buffer);
+      new Uint32Array(this.memory.buffer, titlesPtr, 1)[0] = titles.length;
+      let tOff = 4;
+      for (let i = 0; i < encodedTitles.length; i++) {
+        const tb = encodedTitles[i];
+        memU8[titlesPtr + tOff] = tb.length & 0xff;
+        memU8[titlesPtr + tOff + 1] = (tb.length >> 8) & 0xff;
+        memU8.set(tb, titlesPtr + tOff + 2);
+        tOff += 2 + tb.length;
+      }
+
+      const matchCount = w.find_title_matches(textPtr, textBytes.length, titlesPtr, outMatchesPtr, max);
+      const matchesBuf = new Uint32Array(this.memory.buffer, outMatchesPtr, matchCount * 3);
+      const matches = [];
+      for (let i = 0; i < matchCount; i++) {
+        const start = matchesBuf[i * 3];
+        const end = matchesBuf[i * 3 + 1];
+        const titleIdx = matchesBuf[i * 3 + 2];
+        matches.push({
+          start,
+          end,
+          title: titles[titleIdx],
+          matchedText: text.substring(start, end)
+        });
+      }
+      return matches;
+    },
+
+    // 11. Native Rust Markdown Block Tokenizer
+    parseMarkdownBlocks(mdText, maxBlocks) {
+      if (!this.ready || !enc || typeof mdText !== 'string') return null;
+      const bytes = enc.encode(mdText);
+      if (bytes.length > 1024 * 1024) return null;
+      const max = maxBlocks || 512;
+
+      const w = this.exports;
+      w.arena_reset();
+      const textPtr = bytes.length > 0 ? w.arena_alloc(bytes.length, 1) : 0;
+      const outBlocksPtr = w.arena_alloc(max * 12, 4);
+      if (!outBlocksPtr) return null;
+
+      if (bytes.length > 0 && textPtr) {
+        new Uint8Array(this.memory.buffer, textPtr, bytes.length).set(bytes);
+      }
+
+      const count = w.parse_markdown_blocks(textPtr, bytes.length, outBlocksPtr, max);
+      const blocksBuf = new Uint32Array(this.memory.buffer, outBlocksPtr, count * 3);
+      const TYPE_MAP = {
+        1: 'h1', 2: 'h2', 3: 'h3', 4: 'divider',
+        5: 'todo', 6: 'todo', 7: 'bullet', 8: 'quote',
+        9: 'code', 10: 'math', 11: 'paragraph'
+      };
+      const result = [];
+      for (let i = 0; i < count; i++) {
+        const typeId = blocksBuf[i * 3];
+        const start = blocksBuf[i * 3 + 1];
+        const len = blocksBuf[i * 3 + 2];
+        const type = TYPE_MAP[typeId] || 'paragraph';
+        const content = mdText.substring(start, start + len);
+        const item = { type, content };
+        if (typeId === 6) item.checked = true;
+        else if (typeId === 5) item.checked = false;
+        result.push(item);
+      }
+      return result;
+    },
+
+    // 12. Native Rust Batch Fuzzy Vault Ranker
+    rankVaultNotes(query, notes, maxResults) {
+      if (!this.ready || !enc || !Array.isArray(notes) || notes.length === 0) return null;
+      const q = typeof query === 'string' ? query.trim() : '';
+      const qBytes = enc.encode(q);
+      const max = maxResults || 50;
+
+      let totalSize = 4;
+      const encodedNotes = [];
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i];
+        const tb = enc.encode(n.title || '');
+        const cb = enc.encode(n.content || '');
+        encodedNotes.push({ tb, cb });
+        totalSize += 4 + tb.length + cb.length;
+      }
+      if (totalSize > 2 * 1024 * 1024) return null;
+
+      const w = this.exports;
+      w.arena_reset();
+      const qPtr = qBytes.length > 0 ? w.arena_alloc(qBytes.length, 1) : 0;
+      const notesBufPtr = w.arena_alloc(totalSize, 4);
+      const outIdxPtr = w.arena_alloc(max * 4, 4);
+      const outScoresPtr = w.arena_alloc(max * 4, 4);
+      if (!notesBufPtr || !outIdxPtr || !outScoresPtr) return null;
+
+      if (qBytes.length > 0 && qPtr) {
+        new Uint8Array(this.memory.buffer, qPtr, qBytes.length).set(qBytes);
+      }
+
+      const memU8 = new Uint8Array(this.memory.buffer);
+      new Uint32Array(this.memory.buffer, notesBufPtr, 1)[0] = notes.length;
+      let offset = 4;
+      for (let i = 0; i < encodedNotes.length; i++) {
+        const { tb, cb } = encodedNotes[i];
+        memU8[notesBufPtr + offset] = tb.length & 0xff;
+        memU8[notesBufPtr + offset + 1] = (tb.length >> 8) & 0xff;
+        memU8[notesBufPtr + offset + 2] = cb.length & 0xff;
+        memU8[notesBufPtr + offset + 3] = (cb.length >> 8) & 0xff;
+        memU8.set(tb, notesBufPtr + offset + 4);
+        memU8.set(cb, notesBufPtr + offset + 4 + tb.length);
+        offset += 4 + tb.length + cb.length;
+      }
+
+      const count = w.rank_vault_notes(qPtr, qBytes.length, notesBufPtr, outIdxPtr, outScoresPtr, max);
+      const idxBuf = new Uint32Array(this.memory.buffer, outIdxPtr, count);
+      const scoresBuf = new Int32Array(this.memory.buffer, outScoresPtr, count);
+      const ranked = [];
+      for (let i = 0; i < count; i++) {
+        ranked.push({
+          noteIndex: idxBuf[i],
+          score: scoresBuf[i],
+          note: notes[idxBuf[i]]
+        });
+      }
+      return ranked;
     }
   };
 

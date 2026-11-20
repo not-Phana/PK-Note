@@ -57,15 +57,31 @@ assert(indexHtml.includes("runGroqQuickAction('quiz')"), 'quiz quick action miss
 assert(indexHtml.includes("runGroqQuickAction('template')"), 'template quick action missing in index.html');
 console.log('PASS: Quick action chips verified.');
 
-// 9. Zero Emojis check
+// 9. Rust WASM Lightning Accelerators
+console.log('Checking Rust WASM Accelerator Suite...');
+const wasmBridgeJs = fs.readFileSync('src/js/wasm-bridge.js', 'utf8');
+assert(wasmBridgeJs.includes('calculate(expression)'), 'calculate missing in wasm-bridge.js');
+assert(wasmBridgeJs.includes('extractWikilinks(text'), 'extractWikilinks missing in wasm-bridge.js');
+assert(wasmBridgeJs.includes('findTitleMatches(text'), 'findTitleMatches missing in wasm-bridge.js');
+assert(wasmBridgeJs.includes('parseMarkdownBlocks(mdText'), 'parseMarkdownBlocks missing in wasm-bridge.js');
+assert(wasmBridgeJs.includes('rankVaultNotes(query'), 'rankVaultNotes missing in wasm-bridge.js');
+assert(wasmBridgeJs.includes('analyzeTextFull(text)'), 'analyzeTextFull missing in wasm-bridge.js');
+assert(appJs.includes('window.PKWasm.extractWikilinks'), 'extractWikilinks call missing in app.js');
+assert(appJs.includes('window.PKWasm.parseMarkdownBlocks'), 'parseMarkdownBlocks call missing in app.js');
+assert(appJs.includes('window.PKWasm.rankVaultNotes'), 'rankVaultNotes call missing in app.js');
+assert(groqJs.includes('window.PKWasm.calculate'), 'calculate call missing in groq-assistant.js');
+assert(groqJs.includes('window.PKWasm.findTitleMatches'), 'findTitleMatches call missing in groq-assistant.js');
+console.log('PASS: Rust WASM Accelerator Suite verified.');
+
+// 10. Zero Emojis check
 console.log('Checking Zero-Emoji compliance...');
 const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA70}-\u{1FAFF}\u{FE00}-\u{FE0F}]/u;
-[appJs, groqJs, indexHtml].forEach((content, i) => {
+[appJs, groqJs, indexHtml, wasmBridgeJs].forEach((content, i) => {
   assert(!emojiRegex.test(content), `Emoji found in file index ${i}`);
 });
 console.log('PASS: Zero-Emoji compliance confirmed.');
 
-// 10. Pure HTML contract (0 style tags, 0 inline script tags)
+// 11. Pure HTML contract (0 style tags, 0 inline script tags)
 console.log('Checking HTML purity in index.html...');
 assert((indexHtml.match(/<style/gi) || []).length === 0, 'Found <style> tags in index.html');
 assert((indexHtml.match(/<script(?![^>]*src=)/gi) || []).length === 0, 'Found inline <script> tags in index.html');

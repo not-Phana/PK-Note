@@ -3168,6 +3168,22 @@ function executeAutoLinkNotes() {
   for (const block of note.blocks) {
     if (block.type === 'code' || block.type === 'divider' || block.type === 'sketch') continue;
     let content = block.content || '';
+
+    // Fast native Rust WASM title matcher
+    if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.findTitleMatches === 'function') {
+      const matches = window.PKWasm.findTitleMatches(content, otherTitles, 64);
+      if (Array.isArray(matches) && matches.length > 0) {
+        matches.sort((a, b) => b.start - a.start);
+        matches.forEach(m => {
+          content = content.substring(0, m.start) + '[[' + m.matchedText + ']]' + content.substring(m.end);
+          linkCount++;
+          linkedTitles.add(m.title);
+        });
+        block.content = content;
+        continue;
+      }
+    }
+
     for (const title of otherTitles) {
       const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(`(?<!\\[\\[)\\b(${escapedTitle})\\b(?!\\]\\])`, 'gi');
@@ -3219,6 +3235,35 @@ function executeCalculate(actionObj) {
   const label = actionObj.label || 'Calculation';
   if (!expr) {
     return { success: false, error: 'No expression provided to calculate' };
+  }
+
+  // Fast native Rust WASM evaluator if available
+  if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.calculate === 'function') {
+    const wasmRes = window.PKWasm.calculate(expr);
+    if (wasmRes && wasmRes.ok) {
+      const rawResult = wasmRes.result;
+      const formattedResult = typeof rawResult === 'number'
+        ? (Number.isInteger(rawResult) ? String(rawResult) : String(Number(rawResult.toFixed(4))))
+        : String(rawResult);
+
+      return {
+        success: true,
+        action: 'calculate',
+        expression: expr,
+        result: formattedResult,
+        description: `${label}: ${expr} = ${formattedResult}`,
+        customHtml: `
+          <div class="mt-2 p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] space-y-1.5 font-mono text-xs">
+            <div class="flex items-center justify-between text-[var(--accent-vermilion)] font-semibold">
+              <span>${escapeHtml(label)}</span>
+              <span class="text-[10px] text-[var(--accent-vermilion)]">Rust WASM</span>
+            </div>
+            <div class="text-[var(--text-secondary)] text-[11px]">${escapeHtml(expr)}</div>
+            <div class="text-base font-bold text-[var(--text-primary)]">= ${escapeHtml(formattedResult)}</div>
+          </div>
+        `
+      };
+    }
   }
 
   const safeExpr = expr

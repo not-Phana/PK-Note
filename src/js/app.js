@@ -1075,9 +1075,27 @@ function computeVaultConnections() {
   state.notes.forEach(sourceNote => {
     const seenTargets = new Set();
     sourceNote.blocks.forEach(block => {
+      const content = block.content || '';
+      if (!content || !content.includes('[[')) return;
+
+      if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.extractWikilinks === 'function') {
+        const found = window.PKWasm.extractWikilinks(content, 64);
+        if (Array.isArray(found)) {
+          found.forEach(rawTitle => {
+            const targetTitle = rawTitle.trim().toLowerCase();
+            const targetNote = titleMap.get(targetTitle);
+            if (targetNote && targetNote.id !== sourceNote.id && !seenTargets.has(targetNote.id)) {
+              seenTargets.add(targetNote.id);
+              links.push({ source: sourceNote.id, target: targetNote.id });
+            }
+          });
+          return;
+        }
+      }
+
       const regex = /\[\[([^\]]+)\]\]/g;
       let match;
-      while ((match = regex.exec(block.content || '')) !== null) {
+      while ((match = regex.exec(content)) !== null) {
         const targetTitle = match[1].trim().toLowerCase();
         const targetNote = titleMap.get(targetTitle);
         if (targetNote && targetNote.id !== sourceNote.id && !seenTargets.has(targetNote.id)) {
@@ -1430,15 +1448,36 @@ function renderSidebar() {
   if (badge) badge.textContent = todayEvents.length;
 
   const q = sidebarSearchQuery.toLowerCase().trim();
-  const filteredNotes = state.notes.filter(n => {
-    const matchesQuery = !q ||
-      n.title.toLowerCase().includes(q) ||
-      (n.tags || []).some(t => t.toLowerCase().includes(q)) ||
-      n.blocks.some(b => (b.content || '').toLowerCase().includes(q));
-    const matchesTag = !activeTagFilter || (n.tags || []).includes(activeTagFilter);
-    const matchesStarred = !activeStarredFilter || Boolean(n.favorite);
-    return matchesQuery && matchesTag && matchesStarred;
-  });
+  let filteredNotes;
+  if (q && window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.rankVaultNotes === 'function') {
+    const noteInputs = state.notes.map(n => ({
+      title: n.title || '',
+      content: (n.tags || []).join(' ') + ' ' + (n.blocks || []).map(b => b.content || '').join(' ')
+    }));
+    const ranked = window.PKWasm.rankVaultNotes(q, noteInputs, state.notes.length);
+    if (Array.isArray(ranked)) {
+      filteredNotes = ranked.map(r => state.notes[r.noteIndex]).filter(Boolean);
+    } else {
+      filteredNotes = [];
+    }
+    if (activeTagFilter || activeStarredFilter) {
+      filteredNotes = filteredNotes.filter(n => {
+        const matchesTag = !activeTagFilter || (n.tags || []).includes(activeTagFilter);
+        const matchesStarred = !activeStarredFilter || Boolean(n.favorite);
+        return matchesTag && matchesStarred;
+      });
+    }
+  } else {
+    filteredNotes = state.notes.filter(n => {
+      const matchesQuery = !q ||
+        n.title.toLowerCase().includes(q) ||
+        (n.tags || []).some(t => t.toLowerCase().includes(q)) ||
+        n.blocks.some(b => (b.content || '').toLowerCase().includes(q));
+      const matchesTag = !activeTagFilter || (n.tags || []).includes(activeTagFilter);
+      const matchesStarred = !activeStarredFilter || Boolean(n.favorite);
+      return matchesQuery && matchesTag && matchesStarred;
+    });
+  }
 
   // Update Starred Filter Button Style
   const starFilterBtn = document.getElementById('sidebarStarredFilterBtn');
@@ -16760,6 +16799,29 @@ function parseMarkdownToBlocks(mdText) {
       i++;
     }
     if (i < lines.length && lines[i].trim() === '---') i++;
+  }
+
+  // Fast native Rust WASM block tokenizer
+  if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.parseMarkdownBlocks === 'function') {
+    const remainingText = lines.slice(i).join('\n');
+    const wasmBlocks = window.PKWasm.parseMarkdownBlocks(remainingText);
+    if (Array.isArray(wasmBlocks) && wasmBlocks.length > 0) {
+      const blocks = [];
+      wasmBlocks.forEach(wb => {
+        if (wb.type === 'h1' && !title) {
+          title = wb.content;
+          return;
+        }
+        const b = { id: generateId('b'), type: wb.type, content: wb.content };
+        if (wb.type === 'todo') b.checked = !!wb.checked;
+        if (wb.type === 'math') b.isEditing = false;
+        blocks.push(b);
+      });
+      if (blocks.length === 0) {
+        blocks.push({ id: generateId('b'), type: 'paragraph', content: '' });
+      }
+      return { title, tags, blocks };
+    }
   }
 
   const blocks = [];

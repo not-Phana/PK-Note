@@ -881,7 +881,7 @@ document.addEventListener('keydown', (e) => {
     ['pkScratchpadDrawer', 'pk-motion-float', 170],
     ['pkAudioReaderHUD', 'pk-motion-float', 170],
     ['pkDictationHUD', 'pk-motion-float', 170],
-    ['pkSelectionReadBar', 'pk-motion-float', 170],
+    ['pkSelectionReadBar', 'pk-motion-selection', 140],
 
     // Popovers, Menus & Collapsible Sub-Panels (Crisp Spring Pop / Tuck)
     ['pkFindReplaceBar', 'pk-motion-popover', 135],

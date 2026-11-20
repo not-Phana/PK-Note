@@ -9738,6 +9738,8 @@ let pkLastSelectedReadableText = '';
 let pkLastSelectedReadableTs = 0;
 let pkSelectionBarDismissedText = '';
 let pkSelectionSyncTimer = null;
+let pkSelectionRafId = null;
+let pkSelectionActionPending = false;
 let isReadingSelectionOnly = false;
 
 function getReadableSelectedText(allowRecentCache = false) {
@@ -9777,29 +9779,84 @@ function getReadableSelectedText(allowRecentCache = false) {
   return '';
 }
 
-function syncSelectionReadBar() {
-  const bar = document.getElementById('pkSelectionReadBar');
-  const lbl = document.getElementById('pkSelectionReadLabel');
-  const sel = getReadableSelectedText(false);
+function getSelectionBoundingRect() {
+  try {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'))) {
+      const id = active.id || '';
+      const isIgnored = /ApiKey|BaseUrl|Search|Filter|CustomModel|MemoryAdd/i.test(id) || active.classList.contains('pk-key-masked');
+      if (!isIgnored && typeof active.selectionStart === 'number' && active.selectionEnd > active.selectionStart) {
+        return active.getBoundingClientRect();
+      }
+    }
+    if (window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        if (rect && (rect.width > 0 || rect.height > 0)) {
+          return rect;
+        }
+        const clientRects = range.getClientRects();
+        if (clientRects && clientRects.length > 0) {
+          return clientRects[0];
+        }
+      }
+    }
+  } catch (_) {}
+  return null;
+}
 
+function updateSmartSelectionPosition() {
+  pkSelectionRafId = null;
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (!bar) return;
+
+  if (pkSelectionActionPending) {
+    if (!bar.classList.contains('hidden')) {
+      bar.classList.add('hidden');
+    }
+    return;
+  }
+
+  const sel = getReadableSelectedText(false);
   if (!sel) {
     pkSelectionBarDismissedText = '';
-    if (bar) bar.classList.add('hidden');
+    if (!bar.classList.contains('hidden')) {
+      bar.classList.add('hidden');
+    }
     updateHeaderReadAloudState();
     return;
   }
 
   updateHeaderReadAloudState();
-  if (!bar) return;
+
   if (sel === pkSelectionBarDismissedText) {
-    bar.classList.add('hidden');
+    if (!bar.classList.contains('hidden')) {
+      bar.classList.add('hidden');
+    }
     return;
   }
 
-  const wordCount = sel.split(/\s+/).filter(Boolean).length;
-  if (lbl) {
-    lbl.textContent = wordCount === 1 ? 'Read Selected (1 word)' : `Read Selected (${wordCount} words)`;
+  const rect = getSelectionBoundingRect();
+  if (!rect) {
+    if (!bar.classList.contains('hidden')) {
+      bar.classList.add('hidden');
+    }
+    return;
   }
+
+  const lbl = document.getElementById('pkSelectionReadLabel');
+  if (lbl) {
+    const wordCount = sel.split(/\s+/).filter(Boolean).length;
+    const isMobile = window.innerWidth < 640;
+    if (isMobile) {
+      lbl.textContent = 'Read';
+    } else {
+      lbl.textContent = wordCount > 1 ? `Read (${wordCount}w)` : 'Read';
+    }
+  }
+
   const keyBtn = document.getElementById('pkSelectionCopyKeyBtn');
   const isKey = sel && (
     /^(?:gsk_|AIzaSy|AQ\.|sk-or-|sk-proj-|sk-ant-|nvapi-|pplx-|csk-|hf_|ghp_|github_pat_)/.test(sel.trim()) ||
@@ -9808,23 +9865,144 @@ function syncSelectionReadBar() {
   if (keyBtn) {
     keyBtn.classList.toggle('hidden', !isKey);
   }
-  // Shift cleanly above the audio reader HUD if it is currently visible
-  const hud = document.getElementById('pkAudioReaderHUD');
-  const hudVisible = hud && !hud.classList.contains('hidden');
-  bar.style.bottom = hudVisible ? (window.innerWidth < 640 ? '132px' : '74px') : '';
-  bar.classList.remove('hidden');
+
+  // Measure bar dimensions reliably
+  let barWidth = bar.offsetWidth;
+  let barHeight = bar.offsetHeight;
+  if (!barWidth || !barHeight) {
+    bar.style.visibility = 'hidden';
+    bar.classList.remove('hidden');
+    barWidth = bar.offsetWidth || 310;
+    barHeight = bar.offsetHeight || 38;
+    bar.style.visibility = '';
+  }
+
+  const vv = window.visualViewport;
+  const winW = vv ? vv.width : window.innerWidth;
+  const winH = vv ? vv.height : window.innerHeight;
+  const vvTop = vv ? vv.offsetTop : 0;
+  const vvLeft = vv ? vv.offsetLeft : 0;
+
+  // Header top boundary clearance
+  const header = document.getElementById('topHeaderBar');
+  const headerBottom = (header && header.offsetParent !== null) ? header.getBoundingClientRect().bottom : 0;
+  const topBoundary = Math.max(vvTop + 6, headerBottom + 6);
+
+  // Bottom boundary clearance (keyboard accessory bar, bottom nav, audio reader HUD, dictation HUD)
+  let bottomBoundary = vvTop + winH - 8;
+  const keyboardBar = document.getElementById('mobileKeyboardAccessoryBar');
+  if (keyboardBar && !keyboardBar.classList.contains('pointer-events-none') && !keyboardBar.classList.contains('translate-y-full') && keyboardBar.offsetParent !== null) {
+    const kbRect = keyboardBar.getBoundingClientRect();
+    if (kbRect.top > 0 && kbRect.top < bottomBoundary) {
+      bottomBoundary = kbRect.top - 6;
+    }
+  } else {
+    const nav = document.getElementById('mobileBottomNav');
+    if (nav && !nav.classList.contains('hidden') && !nav.classList.contains('pk-nav-hidden') && nav.offsetParent !== null) {
+      const navRect = nav.getBoundingClientRect();
+      if (navRect.top > 0 && navRect.top < bottomBoundary) {
+        bottomBoundary = navRect.top - 6;
+      }
+    }
+  }
+
+  const audioHud = document.getElementById('pkAudioReaderHUD');
+  if (audioHud && !audioHud.classList.contains('hidden') && audioHud.offsetParent !== null) {
+    const hudRect = audioHud.getBoundingClientRect();
+    if (hudRect.top > 0 && hudRect.top < bottomBoundary) {
+      bottomBoundary = hudRect.top - 6;
+    }
+  }
+
+  const dictHud = document.getElementById('pkDictationHUD');
+  if (dictHud && !dictHud.classList.contains('hidden') && dictHud.offsetParent !== null) {
+    const dictRect = dictHud.getBoundingClientRect();
+    if (dictRect.top > 0 && dictRect.top < bottomBoundary) {
+      bottomBoundary = dictRect.top - 6;
+    }
+  }
+
+  // If selection is completely scrolled outside visible viewport, hide the bar
+  if (rect.bottom < topBoundary || rect.top > bottomBoundary) {
+    if (!bar.classList.contains('hidden')) {
+      bar.classList.add('hidden');
+    }
+    return;
+  }
+
+  const VERTICAL_BUFFER = 10;
+  const spaceAbove = rect.top - topBoundary;
+  const spaceBelow = bottomBoundary - rect.bottom;
+  const neededAbove = barHeight + VERTICAL_BUFFER;
+
+  let placeAbove = true;
+  if (spaceAbove >= neededAbove) {
+    placeAbove = true;
+  } else if (spaceBelow >= (barHeight + VERTICAL_BUFFER)) {
+    placeAbove = false;
+  } else {
+    placeAbove = spaceAbove >= spaceBelow;
+  }
+
+  let targetTop = 0;
+  if (placeAbove) {
+    targetTop = rect.top - barHeight - VERTICAL_BUFFER;
+    if (targetTop < topBoundary) {
+      targetTop = topBoundary;
+    }
+  } else {
+    targetTop = rect.bottom + VERTICAL_BUFFER;
+    if (targetTop + barHeight > bottomBoundary) {
+      targetTop = bottomBoundary - barHeight;
+    }
+  }
+
+  // Horizontal centering over selection midpoint with viewport margin clamping
+  const selCenter = rect.left + (rect.width / 2);
+  let targetLeft = selCenter - (barWidth / 2);
+
+  const HORIZONTAL_MARGIN = 10;
+  const minLeft = vvLeft + HORIZONTAL_MARGIN;
+  const maxLeft = vvLeft + winW - barWidth - HORIZONTAL_MARGIN;
+
+  if (targetLeft < minLeft) {
+    targetLeft = minLeft;
+  } else if (targetLeft > maxLeft) {
+    targetLeft = maxLeft;
+  }
+
+  bar.style.position = 'fixed';
+  bar.style.left = `${Math.round(targetLeft)}px`;
+  bar.style.top = `${Math.round(targetTop)}px`;
+  bar.style.bottom = 'auto';
+  bar.style.right = 'auto';
+  bar.style.margin = '0';
+  bar.setAttribute('data-placement', placeAbove ? 'top' : 'bottom');
+
+  if (bar.classList.contains('hidden')) {
+    bar.classList.remove('hidden');
+  }
+}
+
+function syncSelectionReadBar() {
+  if (pkSelectionRafId) cancelAnimationFrame(pkSelectionRafId);
+  pkSelectionRafId = requestAnimationFrame(updateSmartSelectionPosition);
 }
 
 function scheduleSelectionReadBarSync() {
   if (pkSelectionSyncTimer) clearTimeout(pkSelectionSyncTimer);
-  pkSelectionSyncTimer = setTimeout(syncSelectionReadBar, 70);
+  pkSelectionSyncTimer = setTimeout(syncSelectionReadBar, 60);
 }
 
-function dismissSelectionReadBar() {
-  const sel = getReadableSelectedText(true);
-  if (sel) pkSelectionBarDismissedText = sel;
+function dismissSelectionReadBar(rememberText = true) {
+  if (rememberText) {
+    const sel = getReadableSelectedText(true);
+    if (sel) pkSelectionBarDismissedText = sel;
+  }
   const bar = document.getElementById('pkSelectionReadBar');
-  if (bar) bar.classList.add('hidden');
+  if (bar) {
+    bar.classList.add('hidden');
+  }
 }
 
 function copySelectionApiKey() {
@@ -9836,7 +10014,7 @@ function copySelectionApiKey() {
   } else if (typeof copyKeyFallbackText === 'function') {
     copyKeyFallbackText(cleaned);
   }
-  dismissSelectionReadBar();
+  dismissSelectionReadBar(true);
   if (typeof showToast === 'function') showToast('Copied API key to clipboard');
 }
 
@@ -9846,20 +10024,33 @@ function readCurrentSelectionOnly() {
     showToast('Highlight any text first to read just that part', 'ochre');
     return;
   }
-  const bar = document.getElementById('pkSelectionReadBar');
-  if (bar) bar.classList.add('hidden');
+  dismissSelectionReadBar(true);
   readTextAloud(sel, 'Selected Part');
 }
 
 function openAiForSelection() {
   const sel = getReadableSelectedText(true);
-  const bar = document.getElementById('pkSelectionReadBar');
-  if (bar) bar.classList.add('hidden');
+  dismissSelectionReadBar(true);
   if (typeof setAiTarget === 'function') {
     setAiTarget(sel || '', typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null);
   }
   if (typeof openGroqAssistant === 'function') {
     openGroqAssistant();
+  }
+}
+
+function handleSelectionKeydown(e) {
+  if (e.key === 'Escape') {
+    dismissSelectionReadBar(true);
+    return;
+  }
+  if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
+  if (e.shiftKey && (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown')) return;
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A' || e.key === 'c' || e.key === 'C')) return;
+
+  const bar = document.getElementById('pkSelectionReadBar');
+  if (bar && !bar.classList.contains('hidden')) {
+    bar.classList.add('hidden');
   }
 }
 
@@ -9878,6 +10069,14 @@ if (typeof document !== 'undefined') {
   document.addEventListener('selectionchange', scheduleSelectionReadBarSync);
   document.addEventListener('mouseup', scheduleSelectionReadBarSync, { passive: true });
   document.addEventListener('touchend', scheduleSelectionReadBarSync, { passive: true });
+  document.addEventListener('keyup', scheduleSelectionReadBarSync, { passive: true });
+  document.addEventListener('keydown', handleSelectionKeydown, { passive: true });
+  window.addEventListener('scroll', syncSelectionReadBar, { passive: true, capture: true });
+  window.addEventListener('resize', scheduleSelectionReadBarSync, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleSelectionReadBarSync);
+    window.visualViewport.addEventListener('scroll', syncSelectionReadBar);
+  }
 }
 
 function readTextAloud(text, title = 'Selected Part') {
@@ -13105,14 +13304,29 @@ function replaceTextInActiveNote(targetText, cleanReplacement, targetBlockId = n
     if (typeof renderBlocks === 'function') renderBlocks(note);
     if (typeof updateWordCount === 'function') updateWordCount(note);
     if (typeof persistState === 'function') persistState();
+
+    if (targetBlockId) {
+      setTimeout(() => {
+        try {
+          const el = document.querySelector(`[data-block-id="${targetBlockId}"]`);
+          if (el) {
+            el.focus();
+            const selObj = window.getSelection();
+            if (selObj) {
+              selObj.selectAllChildren(el);
+              selObj.collapseToEnd();
+            }
+          }
+        } catch (_) {}
+      }, 30);
+    }
   }
   return replaced;
 }
 
 function quickFixSelectionOffline() {
   const sel = getReadableSelectedText(true);
-  const bar = document.getElementById('pkSelectionReadBar');
-  if (bar) bar.classList.add('hidden');
+  dismissSelectionReadBar(true);
   if (!sel || !sel.trim()) {
     showToast('No text selected', 'ochre');
     return;
@@ -13198,18 +13412,22 @@ function quickFixWholeNoteOffline() {
 
 function inPlaceAiPolishSelection() {
   const sel = getReadableSelectedText(true);
-  const bar = document.getElementById('pkSelectionReadBar');
-  if (bar) bar.classList.add('hidden');
+  dismissSelectionReadBar(true);
   if (!sel || !sel.trim()) {
     showToast('No text selected', 'ochre');
     return;
   }
+  pkSelectionActionPending = true;
   if (typeof runInPlaceAiPolishText === 'function') {
-    runInPlaceAiPolishText(sel, {
+    Promise.resolve(runInPlaceAiPolishText(sel, {
       preferredBlockId: typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null,
       targetText: sel
+    })).finally(() => {
+      pkSelectionActionPending = false;
     });
+    setTimeout(() => { pkSelectionActionPending = false; }, 15000);
   } else {
+    pkSelectionActionPending = false;
     showToast('AI polish engine is loading...', 'ochre');
   }
 }

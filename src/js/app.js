@@ -913,7 +913,11 @@ function showWikiLinkPreview(event, targetTitle) {
     }
     if (metaEl) {
       const words = textSnippets ? textSnippets.split(/\s+/).length : 0;
-      metaEl.textContent = `${words} words · Modified ${targetNote.updatedAt || TODAY_KEY}`;
+      const rawTargetUpdated = targetNote.updatedAt || TODAY_KEY;
+      const targetUpdatedDisplay = typeof rawTargetUpdated === 'number'
+        ? new Date(rawTargetUpdated).toISOString().slice(0, 10)
+        : String(rawTargetUpdated).slice(0, 10);
+      metaEl.textContent = `${words} words · Modified ${targetUpdatedDisplay}`;
     }
     if (openBtn) {
       openBtn.onclick = () => { hideWikiLinkPreview(); selectNote(targetNote.id); };
@@ -3057,7 +3061,11 @@ function renderActiveDocument() {
 
   renderFolderDropdownUI(note);
 
-  document.getElementById('docUpdatedMeta').textContent = note.updatedAt || TODAY_KEY;
+  const rawUpdated = note.updatedAt || TODAY_KEY;
+  const updatedDisplay = typeof rawUpdated === 'number'
+    ? new Date(rawUpdated).toISOString().slice(0, 10)
+    : String(rawUpdated).slice(0, 10);
+  document.getElementById('docUpdatedMeta').textContent = updatedDisplay;
   updateWordCount(note);
 
   // Render Chronological Daily Log Stepper if viewing a Daily Log note

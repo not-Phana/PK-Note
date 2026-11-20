@@ -318,16 +318,30 @@
       const matchCount = w.find_title_matches(textPtr, textBytes.length, titlesPtr, outMatchesPtr, max);
       const matchesBuf = new Uint32Array(this.memory.buffer, outMatchesPtr, matchCount * 3);
       const matches = [];
+      const isPureAscii = textBytes.length === text.length;
       for (let i = 0; i < matchCount; i++) {
-        const start = matchesBuf[i * 3];
-        const end = matchesBuf[i * 3 + 1];
+        const bStart = matchesBuf[i * 3];
+        const bEnd = matchesBuf[i * 3 + 1];
         const titleIdx = matchesBuf[i * 3 + 2];
-        matches.push({
-          start,
-          end,
-          title: titles[titleIdx],
-          matchedText: text.substring(start, end)
-        });
+        const title = titles[titleIdx];
+        if (isPureAscii) {
+          matches.push({
+            start: bStart,
+            end: bEnd,
+            title,
+            matchedText: text.substring(bStart, bEnd)
+          });
+        } else {
+          const matchedText = dec.decode(memU8.subarray(textPtr + bStart, textPtr + bEnd));
+          const charStart = dec.decode(textBytes.subarray(0, bStart)).length;
+          const charEnd = charStart + matchedText.length;
+          matches.push({
+            start: charStart,
+            end: charEnd,
+            title,
+            matchedText
+          });
+        }
       }
       return matches;
     },
@@ -357,12 +371,13 @@
         9: 'code', 10: 'math', 11: 'paragraph'
       };
       const result = [];
+      const memU8 = new Uint8Array(this.memory.buffer);
       for (let i = 0; i < count; i++) {
         const typeId = blocksBuf[i * 3];
         const start = blocksBuf[i * 3 + 1];
         const len = blocksBuf[i * 3 + 2];
         const type = TYPE_MAP[typeId] || 'paragraph';
-        const content = mdText.substring(start, start + len);
+        const content = dec.decode(memU8.subarray(textPtr + start, textPtr + start + len));
         const item = { type, content };
         if (typeId === 6) item.checked = true;
         else if (typeId === 5) item.checked = false;

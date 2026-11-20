@@ -578,90 +578,19 @@ function stampNoteSnapshot(notify = false, customLabel = '') {
 }
 
 function renderTimeCapsuleModal() {
-  const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
-  const titleEl = document.getElementById('pkTimeCapsuleNoteTitle');
-  const listEl = document.getElementById('pkTimeCapsuleList');
-  const diffWrap = document.getElementById('pkTimeCapsuleDiffWrap');
-  if (!note || !listEl) return;
-
-  if (titleEl) titleEl.textContent = `${note.title || 'Untitled'} · Up to 12 saved revisions`;
-  const all = loadAllSnapshots();
-  const snaps = all[note.id] || [];
-
-  if (snaps.length === 0) {
-    if (diffWrap) diffWrap.classList.add('hidden');
-    listEl.innerHTML = `
-      <div class="py-6 text-center font-mono text-[11px] text-[var(--text-tertiary)] space-y-2">
-        <div>No snapshots stamped for this note yet.</div>
-        <div>Tap <span class="text-[var(--accent-vermilion)] font-semibold">+ Stamp Now</span> above to save a restore point before major edits.</div>
-      </div>
-    `;
-    return;
-  }
-
-  listEl.innerHTML = snaps.map(s => {
-    const dt = new Date(s.ts);
-    const timeStr = dt.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const isSel = pkSelectedSnapshotId === s.id;
-    return `
-      <div onclick="selectSnapshotForDiff('${s.id}')"
-           style="${isSel ? 'border-color: var(--accent-vermilion); background-color: var(--accent-vermilion-tint);' : ''}"
-           class="p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] flex items-center justify-between gap-2 cursor-pointer">
-        <div class="min-w-0">
-          <div class="font-serif font-semibold text-xs text-[var(--text-primary)] truncate">${escapeHtml(s.title)}</div>
-          <div class="font-mono text-[10px] text-[var(--text-tertiary)]">${timeStr} · ${s.words} words · ${escapeHtml(s.label)}</div>
-        </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <span class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)]">Diff</span>
-          <button type="button" onclick="event.stopPropagation(); deleteNoteSnapshot('${s.id}')" title="Delete Snapshot" class="px-1.5 py-0.5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] cursor-pointer">x</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  if (pkSelectedSnapshotId && snaps.some(s => s.id === pkSelectedSnapshotId)) {
-    renderSnapshotDiff(note, snaps.find(s => s.id === pkSelectedSnapshotId));
-  } else if (diffWrap) {
-    diffWrap.classList.add('hidden');
+  if (typeof openRevisionHistoryModal === 'function') {
+    openRevisionHistoryModal();
   }
 }
 
 function selectSnapshotForDiff(snapId) {
   pkSelectedSnapshotId = snapId;
-  renderTimeCapsuleModal();
 }
 
 function renderSnapshotDiff(note, snap) {
-  const diffWrap = document.getElementById('pkTimeCapsuleDiffWrap');
-  const headerEl = document.getElementById('pkTimeCapsuleDiffHeader');
-  const bodyEl = document.getElementById('pkTimeCapsuleDiffBody');
-  if (!diffWrap || !bodyEl || !snap) return;
-
-  diffWrap.classList.remove('hidden');
-  if (headerEl) headerEl.textContent = `Snapshot (${snap.words}w) vs Current`;
-
-  const oldLines = noteToPlainLines(snap);
-  const newLines = noteToPlainLines(note);
-  const oldSet = new Set(oldLines);
-  const newSet = new Set(newLines);
-  const rows = [];
-
-  oldLines.forEach(line => {
-    if (!newSet.has(line)) {
-      rows.push(`<div class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400">- ${escapeHtml(line)}</div>`);
-    } else {
-      rows.push(`<div class="px-2 py-0.5 text-[var(--text-tertiary)]">  ${escapeHtml(line)}</div>`);
-    }
-  });
-  newLines.forEach(line => {
-    if (!oldSet.has(line)) {
-      rows.push(`<div class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">+ ${escapeHtml(line)}</div>`);
-    }
-  });
-
-  bodyEl.innerHTML = rows.length > 0
-    ? rows.join('')
-    : '<div class="text-[var(--text-tertiary)]">Identical to current note.</div>';
+  if (typeof renderRevisionDiff === 'function') {
+    renderRevisionDiff(snap);
+  }
 }
 
 function restoreSelectedSnapshot() {
@@ -677,7 +606,7 @@ function restoreSelectedSnapshot() {
   if (typeof takeSnapshot === 'function') takeSnapshot('restoreTimeCapsule');
   note.title = snap.title;
   note.blocks = JSON.parse(JSON.stringify(snap.blocks));
-  note.updatedAt = new Date().toISOString();
+  note.updatedAt = typeof TODAY_KEY !== 'undefined' ? TODAY_KEY : new Date().toISOString().slice(0, 10);
   if (typeof renderAll === 'function') renderAll();
   if (typeof persistState === 'function') persistState();
   closeTimeCapsuleModal();

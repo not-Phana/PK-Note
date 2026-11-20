@@ -3072,19 +3072,23 @@ function executeApplyTemplate(actionObj) {
     ? (typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null))
     : null;
 
+  const todayStr = typeof TODAY_KEY !== 'undefined' ? TODAY_KEY : new Date().toISOString().slice(0, 10);
+
   if (mode === 'active_note' && note) {
     const prevBlocks = JSON.parse(JSON.stringify(note.blocks || []));
     note.blocks = tmpl.blocks(note.title || noteTitle);
-    note.updatedAt = Date.now();
+    note.updatedAt = todayStr;
 
     const undo = () => {
       note.blocks = prevBlocks;
-      note.updatedAt = Date.now();
+      note.updatedAt = todayStr;
+      if (typeof invalidateVaultLinksCache === 'function') invalidateVaultLinksCache();
       if (typeof renderBlocks === 'function') renderBlocks(note);
       if (typeof persistState === 'function') persistState();
       if (typeof showToast === 'function') showToast('Restored previous note structure', 'ochre');
     };
 
+    if (typeof invalidateVaultLinksCache === 'function') invalidateVaultLinksCache();
     if (typeof renderBlocks === 'function') renderBlocks(note);
     if (typeof persistState === 'function') persistState();
     return {
@@ -3101,14 +3105,18 @@ function executeApplyTemplate(actionObj) {
     if (!Array.isArray(state.folders)) state.folders = ['General'];
     if (!state.folders.includes(folder)) state.folders.push(folder);
 
+    const nextNum = String((state.notes ? state.notes.length : 0) + 1).padStart(2, '0');
     const newNote = {
       id: generateId('note'),
+      code: `DOC-${nextNum}`,
       title: noteTitle,
+      glyph: 'document',
       folder,
+      favorite: false,
       tags: ['template', templateKey],
       blocks: tmpl.blocks(noteTitle),
-      updatedAt: Date.now(),
-      createdAt: Date.now()
+      updatedAt: todayStr,
+      createdAt: todayStr
     };
 
     state.notes.unshift(newNote);
@@ -3205,13 +3213,16 @@ function executeAutoLinkNotes() {
     };
   }
 
-  note.updatedAt = Date.now();
+  const todayStr = typeof TODAY_KEY !== 'undefined' ? TODAY_KEY : new Date().toISOString().slice(0, 10);
+  note.updatedAt = todayStr;
+  if (typeof invalidateVaultLinksCache === 'function') invalidateVaultLinksCache();
   if (typeof renderBlocks === 'function') renderBlocks(note);
   if (typeof persistState === 'function') persistState();
 
   const undo = () => {
     note.blocks = prevBlocks;
-    note.updatedAt = Date.now();
+    note.updatedAt = todayStr;
+    if (typeof invalidateVaultLinksCache === 'function') invalidateVaultLinksCache();
     if (typeof renderBlocks === 'function') renderBlocks(note);
     if (typeof persistState === 'function') persistState();
     if (typeof showToast === 'function') showToast('Reverted auto-linked references', 'ochre');
@@ -3509,14 +3520,19 @@ function saveVaultResearchAsNote(query, citations) {
   const wikilinks = parsedCitations.map(c => `- [[${c.title}]] (in ${c.folder})`).join('\n');
   const content = `# Research: ${query}\n\n## Synthesis Summary\nSynthesized knowledge across vault notes regarding "${query}".\n\n## Cited Sources\n${wikilinks || 'No direct notes cited'}\n\n## Key Findings\n- Extracted insights and cross-references.\n- Generated automatically by Kon Vault Research.\n`;
 
+  const nextNum = String((state.notes ? state.notes.length : 0) + 1).padStart(2, '0');
+  const todayStr = typeof TODAY_KEY !== 'undefined' ? TODAY_KEY : new Date().toISOString().slice(0, 10);
   const newNote = {
     id: generateId('note'),
+    code: `DOC-${nextNum}`,
     title,
+    glyph: 'document',
     folder,
+    favorite: false,
     tags: ['research', 'synthesis', 'kon-ai'],
     blocks: parseMarkdownToPKBlocks(content),
-    updatedAt: Date.now(),
-    createdAt: Date.now()
+    updatedAt: todayStr,
+    createdAt: todayStr
   };
 
   state.notes.unshift(newNote);

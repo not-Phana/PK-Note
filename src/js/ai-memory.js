@@ -971,22 +971,27 @@ async function exportAllMemoriesJson() {
 
 async function importMemoriesJson(jsonStr) {
   await ensureInitialized();
-  const parsed = JSON.parse(jsonStr);
-  const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.memories) ? parsed.memories : []);
-  let added = 0;
-  for (let i = 0; i < arr.length; i++) {
-    const item = arr[i];
-    if (item && item.text) {
-      const res = await addMemory(item.text, {
-        category: item.category,
-        tags: item.tags,
-        pinned: !!item.pinned,
-        source: 'import'
-      });
-      if (res && !res.deduplicated) added++;
+  try {
+    const parsed = JSON.parse(jsonStr);
+    const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.memories) ? parsed.memories : []);
+    let added = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const item = arr[i];
+      if (item && item.text) {
+        const res = await addMemory(item.text, {
+          category: item.category,
+          tags: item.tags,
+          pinned: !!item.pinned,
+          source: 'import'
+        });
+        if (res && !res.deduplicated) added++;
+      }
     }
+    return added;
+  } catch (err) {
+    console.warn('Failed to parse memories JSON:', err);
+    return 0;
   }
-  return added;
 }
 
 window.PKMemory = {

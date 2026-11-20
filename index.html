@@ -1991,6 +1991,41 @@
     </div>
   </div>
 
+  <!-- Kon Inline Editor AI Copilot (Ctrl+J or /ai) -->
+  <div id="pkInlineAiCopilot" class="hidden fixed z-[930] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl p-3.5 w-96 max-w-[96vw] space-y-2.5 font-mono select-none animate-menu">
+    <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-2">
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)] animate-pulse"></span>
+        <span class="text-xs font-semibold text-[var(--text-primary)]">Kon Inline Copilot</span>
+        <span class="text-[10px] text-[var(--text-tertiary)] ml-1">Ctrl+J</span>
+      </div>
+      <button type="button" onclick="closeInlineAiCopilot()" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center text-xs cursor-pointer">x</button>
+    </div>
+    <div class="relative">
+      <input type="text" id="pkInlineAiInput" onkeydown="handleInlineAiInputKeydown(event)" placeholder="Ask Kon to write, summarize, edit, or format..." class="w-full px-2.5 py-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
+    </div>
+    <div id="pkInlineAiChips" class="flex flex-wrap gap-1 text-[10px]">
+      <button type="button" onclick="runInlineAiQuickAction('continue')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Continue writing</button>
+      <button type="button" onclick="runInlineAiQuickAction('summarize')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Summarize</button>
+      <button type="button" onclick="runInlineAiQuickAction('rewrite_pro')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Executive tone</button>
+      <button type="button" onclick="runInlineAiQuickAction('bullets')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Bullet list</button>
+      <button type="button" onclick="runInlineAiQuickAction('table')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Make table</button>
+      <button type="button" onclick="runInlineAiQuickAction('grammar')" class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Fix grammar</button>
+    </div>
+    <div id="pkInlineAiPreviewContainer" class="hidden space-y-2 border-t border-[var(--border-hairline)] pt-2">
+      <div class="text-[10px] text-[var(--text-tertiary)] flex items-center justify-between">
+        <span>Preview</span>
+        <span id="pkInlineAiStatus" class="text-[var(--accent-vermilion)] font-semibold">Ready</span>
+      </div>
+      <div id="pkInlineAiPreviewText" class="text-xs text-[var(--text-primary)] max-h-48 overflow-y-auto p-2 bg-[var(--bg-canvas)] rounded border border-[var(--border-hairline)] font-sans whitespace-pre-wrap select-text"></div>
+      <div class="flex items-center justify-end gap-1.5 pt-1">
+        <button type="button" onclick="discardInlineAiResult()" class="px-2.5 py-1 rounded text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] cursor-pointer">Discard</button>
+        <button type="button" onclick="applyInlineAiResult('replace')" class="px-2.5 py-1 rounded text-[10px] bg-[var(--bg-canvas)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] cursor-pointer">Replace Block</button>
+        <button type="button" onclick="applyInlineAiResult('insert_below')" class="px-2.5 py-1 rounded text-[10px] bg-[var(--accent-vermilion)] text-white font-semibold hover:opacity-90 cursor-pointer">Insert Below</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Inline Math Solve Badge (Apple Notes style) -->
   <div id="inlineMathSolveBadge" onclick="applyInlineMathSolution()" class="hidden fixed z-[920] popover-surface px-2.5 py-1 rounded-full border border-[var(--border-strong)] shadow-lg flex items-center gap-1.5 text-xs font-mono cursor-pointer select-none">
     <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-vermilion)] animate-pulse"></span>

@@ -1747,6 +1747,17 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
     '41. Open Special Studio workbench:\n```pk-action\n{"action":"open_studio"}\n```\n' +
     '42. Toggle split pane editor:\n```pk-action\n{"action":"toggle_split"}\n```\n' +
     '43. Toggle sidebar:\n```pk-action\n{"action":"toggle_sidebar"}\n```\n' +
+    '44. Deep Vault Research & Cross-Note Synthesis:\n```pk-action\n{"action":"vault_research","query":"quarterly roadmap"}\n```\n' +
+    '45. Autonomous Multi-Step Batch Workflow:\n```pk-action\n{"action":"batch_workflow","workflow_name":"Project Launch","steps":[{"action":"create_folder","folder":"Projects/Launch"},{"action":"create_note","title":"Launch Plan","folder":"Projects/Launch","content":"# Launch Plan\\n- [ ] Release"}]}\n```\n' +
+    '46. Dynamic Study Deck Flashcards Generator:\n```pk-action\n{"action":"generate_flashcards","cards":[{"front":"Question","back":"Answer","tag":"Study"}]}\n```\n' +
+    '47. Interactive AI Tutor & Oral Exam Mode:\n```pk-action\n{"action":"ai_tutor","topic":"Biology","command":"start"}\n```\n' +
+    '48. Smart Document Architect & Structured Template:\n```pk-action\n{"action":"apply_template","template":"meeting_notes","title":"Product Sync","mode":"new_note"}\n```\n' +
+    'MAJOR AGENT CAPABILITIES:\n' +
+    '- Vault Research: When asked to search, synthesize, or compare information across notes in the vault, call action "vault_research" with query terms.\n' +
+    '- Batch Workflows: When asked to scaffold projects, organize the vault, or perform multi-step routines, plan and emit an action "batch_workflow" containing all steps.\n' +
+    '- Study Flashcards: When asked to create study cards from notes, call action "generate_flashcards".\n' +
+    '- AI Tutor Mode: When asked to quiz, tutor, or test the user, call action "ai_tutor" with the topic.\n' +
+    '- Structured Templates: When asked to format or scaffold structured notes (Meeting Notes, Cornell Notes, Technical Spec RFC, Weekly Retrospective, Executive Brief), call action "apply_template".\n' +
     'You may output multiple action blocks in sequence if the user asks for multiple tasks. Keep the conversational reply helpful, direct, and concise.',
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
@@ -1881,6 +1892,18 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
 
     parts.push(`\nVAULT NOTES (${(state.notes || []).length} total):\n${noteSummaries || '(no notes)'}`);
     parts.push(`\nUPCOMING SCHEDULE:\n${upcomingEvents || '(no upcoming events)'}`);
+  }
+
+  if (typeof pkKonTutorState !== 'undefined' && pkKonTutorState.active) {
+    parts.push([
+      `\nINTERACTIVE AI TUTOR MODE IS CURRENTLY ACTIVE:`,
+      `- Subject / Topic: "${pkKonTutorState.topic}"`,
+      `- Current Progress: Question ${pkKonTutorState.questionIdx} of ${pkKonTutorState.totalQuestions}`,
+      `TUTOR DIRECTIVES:`,
+      `1. If user is answering your previous question: Evaluate their answer (Score: X/100), give brief constructive feedback, then ask Question ${Math.min(pkKonTutorState.questionIdx + 1, pkKonTutorState.totalQuestions)}.`,
+      `2. If Question is ${pkKonTutorState.totalQuestions}: Deliver a Final Mastery Assessment, highlight key concepts to review, and schedule a spaced repetition reminder.`,
+      `3. Be encouraging, precise, and educational. Zero emojis.`
+    ].join('\n'));
   }
 
   return parts.join('\n');
@@ -2865,6 +2888,41 @@ function executeKonAction(actionObj) {
     }
   }
 
+  // 44. Deep Vault Research & Cross-Note Synthesis
+  if (actionType === 'vault_research' || actionType === 'cross_note_synthesis') {
+    if (typeof performVaultResearch === 'function') {
+      return performVaultResearch(actionObj.query || actionObj.topic, actionObj);
+    }
+  }
+
+  // 45. Autonomous Multi-Step Batch Workflow
+  if (actionType === 'batch_workflow' || actionType === 'multi_step_workflow') {
+    if (typeof executeBatchWorkflow === 'function') {
+      return executeBatchWorkflow(actionObj);
+    }
+  }
+
+  // 46. Dynamic Study Deck Flashcards Generator
+  if (actionType === 'generate_flashcards' || actionType === 'create_flashcards') {
+    if (typeof executeGenerateFlashcards === 'function') {
+      return executeGenerateFlashcards(actionObj);
+    }
+  }
+
+  // 47. Interactive AI Tutor & Oral Exam Mode
+  if (actionType === 'ai_tutor' || actionType === 'quiz_me') {
+    if (typeof startAiTutorMode === 'function') {
+      return startAiTutorMode(actionObj.topic || actionObj.subject);
+    }
+  }
+
+  // 48. Smart Document Architect & Structured Template
+  if (actionType === 'apply_template' || actionType === 'insert_template') {
+    if (typeof executeApplyTemplate === 'function') {
+      return executeApplyTemplate(actionObj);
+    }
+  }
+
   return null;
 }
 
@@ -2879,6 +2937,810 @@ function undoKonAction(msgIdx, actIdx) {
   }
 }
 window.undoKonAction = undoKonAction;
+
+// ============================================================================
+// 5 MAJOR KON FEATURES: INLINE COPILOT, VAULT RAG, BATCH WORKFLOWS, AI TUTOR, TEMPLATES
+// ============================================================================
+
+// --- 1. SMART DOCUMENT TEMPLATES ---
+const PK_SMART_TEMPLATES = {
+  meeting_notes: {
+    name: 'Meeting Notes',
+    description: 'Structured agenda, discussion points, decisions, and action items table',
+    blocks: (title = 'Meeting Notes') => [
+      { id: generateId('b'), type: 'h1', content: title },
+      { id: generateId('b'), type: 'callout', content: `Date: ${new Date().toLocaleDateString()} | Attendees: Lead, Team | Objective: Align on milestones` },
+      { id: generateId('b'), type: 'h2', content: 'Agenda & Discussion' },
+      { id: generateId('b'), type: 'bullet', content: 'Status update on current deliverables' },
+      { id: generateId('b'), type: 'bullet', content: 'Architecture and technical constraints' },
+      { id: generateId('b'), type: 'bullet', content: 'Timeline and milestone check' },
+      { id: generateId('b'), type: 'h2', content: 'Key Decisions' },
+      { id: generateId('b'), type: 'quote', content: 'Decision: Approved architecture approach with client-side local caching.' },
+      { id: generateId('b'), type: 'h2', content: 'Action Items' },
+      {
+        id: generateId('b'),
+        type: 'table',
+        rows: [
+          ['Task', 'Owner', 'Due Date', 'Status'],
+          ['Finalize API specification', 'Engineering', 'End of Week', 'In Progress'],
+          ['Draft documentation updates', 'Docs Team', 'Next Monday', 'Not Started'],
+          ['Schedule review session', 'PM', 'Tomorrow', 'Done']
+        ]
+      }
+    ]
+  },
+  cornell_notes: {
+    name: 'Cornell Note-Taking System',
+    description: 'Cues & keywords column, main notes, and bottom summary block',
+    blocks: (title = 'Cornell Notes') => [
+      { id: generateId('b'), type: 'h1', content: title },
+      { id: generateId('b'), type: 'callout', content: `Subject: Research | Date: ${new Date().toLocaleDateString()}` },
+      { id: generateId('b'), type: 'h2', content: 'Cues & Questions' },
+      { id: generateId('b'), type: 'bullet', content: 'What is the primary problem statement?' },
+      { id: generateId('b'), type: 'bullet', content: 'How does this compare to legacy approaches?' },
+      { id: generateId('b'), type: 'bullet', content: 'What are the main performance trade-offs?' },
+      { id: generateId('b'), type: 'h2', content: 'Detailed Notes' },
+      { id: generateId('b'), type: 'paragraph', content: 'Record comprehensive notes, facts, and equations during reading or discussion.' },
+      { id: generateId('b'), type: 'h2', content: 'Summary' },
+      { id: generateId('b'), type: 'quote', content: 'Distill the core essence of the entire document into 2-3 essential sentences.' }
+    ]
+  },
+  technical_spec: {
+    name: 'Technical Specification (RFC)',
+    description: 'Context, goals, architecture, data schemas, and rollout milestones',
+    blocks: (title = 'Technical Spec') => [
+      { id: generateId('b'), type: 'h1', content: title },
+      { id: generateId('b'), type: 'callout', content: `Status: Draft | Author: Engineering Team | Review Date: ${new Date().toLocaleDateString()}` },
+      { id: generateId('b'), type: 'h2', content: '1. Context & Problem Statement' },
+      { id: generateId('b'), type: 'paragraph', content: 'Provide background on what exists today and why this change is necessary.' },
+      { id: generateId('b'), type: 'h2', content: '2. Goals & Non-Goals' },
+      { id: generateId('b'), type: 'bullet', content: 'Goal: Deliver fast, offline-first client performance.' },
+      { id: generateId('b'), type: 'bullet', content: 'Non-Goal: Heavy server-side database requirements.' },
+      { id: generateId('b'), type: 'h2', content: '3. Proposed Architecture' },
+      { id: generateId('b'), type: 'paragraph', content: 'Describe component interactions, data flow, and error recovery strategies.' },
+      { id: generateId('b'), type: 'h2', content: '4. Implementation Milestones' },
+      { id: generateId('b'), type: 'todo', content: 'Milestone 1: Prototype core engine contracts' },
+      { id: generateId('b'), type: 'todo', content: 'Milestone 2: Multi-agent verification and adversarial testing' },
+      { id: generateId('b'), type: 'todo', content: 'Milestone 3: Production build and live deployment' }
+    ]
+  },
+  weekly_retrospective: {
+    name: 'Weekly Retrospective',
+    description: 'Wins, blockers, key lessons, and top 3 commitments for next week',
+    blocks: (title = 'Weekly Retrospective') => [
+      { id: generateId('b'), type: 'h1', content: title },
+      { id: generateId('b'), type: 'callout', content: `Week ending: ${new Date().toLocaleDateString()} | Focus: Quality & Execution` },
+      { id: generateId('b'), type: 'h2', content: 'Highlights & Wins' },
+      { id: generateId('b'), type: 'bullet', content: 'Major milestones reached on schedule' },
+      { id: generateId('b'), type: 'bullet', content: 'Codebase streamlined and dead code purged' },
+      { id: generateId('b'), type: 'h2', content: 'Blockers & Challenges' },
+      { id: generateId('b'), type: 'bullet', content: 'Identified areas needing clearer documentation' },
+      { id: generateId('b'), type: 'h2', content: 'Key Takeaways' },
+      { id: generateId('b'), type: 'quote', content: 'Simplicity and reliability always win over unnecessary complexity.' },
+      { id: generateId('b'), type: 'h2', content: 'Next Week Top 3 Commitments' },
+      { id: generateId('b'), type: 'todo', content: 'Deliver next iteration of features' },
+      { id: generateId('b'), type: 'todo', content: 'Verify end-to-end responsiveness' },
+      { id: generateId('b'), type: 'todo', content: 'Publish production release' }
+    ]
+  },
+  executive_brief: {
+    name: 'Executive Brief',
+    description: '1-paragraph TL;DR, context, data table, and strategic recommendations',
+    blocks: (title = 'Executive Brief') => [
+      { id: generateId('b'), type: 'h1', content: title },
+      { id: generateId('b'), type: 'callout', content: 'Executive Summary: 3-sentence distillation of findings and proposed decisions.' },
+      { id: generateId('b'), type: 'h2', content: 'Background & Strategic Context' },
+      { id: generateId('b'), type: 'paragraph', content: 'High-level framing of market and technical dynamics.' },
+      { id: generateId('b'), type: 'h2', content: 'Key Metrics & Data' },
+      {
+        id: generateId('b'),
+        type: 'table',
+        rows: [
+          ['Metric', 'Current Baseline', 'Target', 'Impact'],
+          ['Performance', '120ms', '<50ms', 'High'],
+          ['Reliability', '99.2%', '99.9%', 'Critical'],
+          ['Adoption', '500 users', '2500 users', 'High']
+        ]
+      },
+      { id: generateId('b'), type: 'h2', content: 'Strategic Recommendations' },
+      { id: generateId('b'), type: 'bullet', content: 'Proceed with prioritized implementation roadmap' },
+      { id: generateId('b'), type: 'bullet', content: 'Maintain client-side offline autonomy' }
+    ]
+  }
+};
+
+function executeApplyTemplate(actionObj) {
+  const templateKey = String(actionObj.template || actionObj.template_type || 'meeting_notes').toLowerCase().replace(/\s+/g, '_');
+  const tmpl = PK_SMART_TEMPLATES[templateKey] || PK_SMART_TEMPLATES.meeting_notes;
+  const noteTitle = actionObj.title || tmpl.name;
+  const mode = actionObj.mode === 'active_note' ? 'active_note' : 'new_note';
+
+  const note = mode === 'active_note'
+    ? (typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null))
+    : null;
+
+  if (mode === 'active_note' && note) {
+    const prevBlocks = JSON.parse(JSON.stringify(note.blocks || []));
+    note.blocks = tmpl.blocks(note.title || noteTitle);
+    note.updatedAt = Date.now();
+
+    const undo = () => {
+      note.blocks = prevBlocks;
+      note.updatedAt = Date.now();
+      if (typeof renderBlocks === 'function') renderBlocks(note);
+      if (typeof persistState === 'function') persistState();
+      if (typeof showToast === 'function') showToast('Restored previous note structure', 'ochre');
+    };
+
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    return {
+      success: true,
+      action: 'apply_template',
+      template: tmpl.name,
+      noteId: note.id,
+      description: `Structured active note with "${tmpl.name}" template`,
+      undo
+    };
+  } else {
+    if (typeof state === 'undefined' || !Array.isArray(state.notes)) return null;
+    const folder = actionObj.folder || 'Templates';
+    if (!Array.isArray(state.folders)) state.folders = ['General'];
+    if (!state.folders.includes(folder)) state.folders.push(folder);
+
+    const newNote = {
+      id: generateId('note'),
+      title: noteTitle,
+      folder,
+      tags: ['template', templateKey],
+      blocks: tmpl.blocks(noteTitle),
+      updatedAt: Date.now(),
+      createdAt: Date.now()
+    };
+
+    state.notes.unshift(newNote);
+    if (!state.expandedFolders) state.expandedFolders = {};
+    state.expandedFolders[folder] = true;
+    if (typeof persistState === 'function') persistState();
+    if (typeof selectNote === 'function') selectNote(newNote.id);
+    if (typeof setAppMode === 'function') setAppMode('workspace');
+
+    const undo = () => {
+      const idx = state.notes.findIndex(n => n.id === newNote.id);
+      if (idx !== -1) {
+        state.notes.splice(idx, 1);
+        if (typeof persistState === 'function') persistState();
+        if (typeof renderSidebarTree === 'function') renderSidebarTree();
+        if (typeof showToast === 'function') showToast(`Removed template note "${noteTitle}"`, 'ochre');
+      }
+    };
+
+    return {
+      success: true,
+      action: 'apply_template',
+      template: tmpl.name,
+      noteId: newNote.id,
+      description: `Created new note "${noteTitle}" with "${tmpl.name}" template`,
+      undo
+    };
+  }
+}
+window.executeApplyTemplate = executeApplyTemplate;
+
+// --- 2. DEEP VAULT RESEARCH & CROSS-NOTE SYNTHESIS ---
+function performVaultResearch(query, options = {}) {
+  if (typeof state === 'undefined' || !Array.isArray(state.notes) || state.notes.length === 0) {
+    return {
+      success: false,
+      error: 'Vault has no notes to research'
+    };
+  }
+
+  const cleanQuery = String(query || '').trim().toLowerCase();
+  if (!cleanQuery) {
+    return {
+      success: false,
+      error: 'Query is empty'
+    };
+  }
+
+  const queryTokens = cleanQuery.split(/\s+/).filter(t => t.length > 2);
+  const scoredNotes = [];
+
+  for (const n of state.notes) {
+    if (n.trash) continue;
+    let score = 0;
+    const titleLower = String(n.title || '').toLowerCase();
+    const folderLower = String(n.folder || '').toLowerCase();
+    const tagsLower = Array.isArray(n.tags) ? n.tags.map(t => String(t).toLowerCase()) : [];
+    
+    for (const t of queryTokens) {
+      if (titleLower.includes(t)) score += 10;
+      if (folderLower.includes(t)) score += 5;
+      if (tagsLower.some(tg => tg.includes(t))) score += 7;
+    }
+
+    let allContent = '';
+    if (Array.isArray(n.blocks)) {
+      for (const b of n.blocks) {
+        if (b.content) allContent += ' ' + b.content.toLowerCase();
+        if (b.body) allContent += ' ' + b.body.toLowerCase();
+        if (Array.isArray(b.rows)) allContent += ' ' + b.rows.flat().join(' ').toLowerCase();
+      }
+    }
+    for (const t of queryTokens) {
+      const occurrences = (allContent.match(new RegExp(t, 'g')) || []).length;
+      score += Math.min(occurrences * 2, 20);
+    }
+
+    if (score > 0) {
+      scoredNotes.push({
+        id: n.id,
+        title: n.title || 'Untitled',
+        folder: n.folder || 'General',
+        tags: n.tags || [],
+        score,
+        snippet: allContent.slice(0, 200).trim()
+      });
+    }
+  }
+
+  scoredNotes.sort((a, b) => b.score - a.score);
+  const topNotes = scoredNotes.slice(0, 5);
+
+  if (topNotes.length === 0) {
+    return {
+      success: true,
+      action: 'vault_research',
+      query: cleanQuery,
+      totalMatches: 0,
+      description: `Vault research for "${query}": No matching notes found`
+    };
+  }
+
+  const citations = topNotes.map(n => ({
+    id: n.id,
+    title: n.title,
+    folder: n.folder,
+    score: n.score
+  }));
+
+  const citationListHtml = topNotes.map(n => `
+    <div class="flex items-center justify-between p-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[10px]">
+      <div class="truncate mr-2">
+        <span class="font-semibold text-[var(--text-primary)]">[[${escapeHtml(n.title)}]]</span>
+        <span class="text-[var(--text-tertiary)] ml-1">in ${escapeHtml(n.folder)}</span>
+      </div>
+      <button type="button" onclick="selectNote('${n.id}'); if(typeof setAppMode==='function') setAppMode('workspace');" class="shrink-0 px-2 py-0.5 rounded bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--accent-vermilion)] border border-[var(--border-hairline)] cursor-pointer">Open</button>
+    </div>
+  `).join('');
+
+  const description = `Vault research for "${query}": Found ${topNotes.length} matching notes (${topNotes.map(n => n.title).join(', ')})`;
+  const citationsAttr = JSON.stringify(citations).replace(/"/g, '&quot;');
+
+  return {
+    success: true,
+    action: 'vault_research',
+    query: cleanQuery,
+    totalMatches: scoredNotes.length,
+    citations,
+    description,
+    customHtml: `
+      <div class="mt-2 p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] space-y-2 font-mono">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-semibold text-[var(--text-primary)]">Vault Research: "${escapeHtml(query)}"</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">${topNotes.length} source notes cited</span>
+        </div>
+        <div class="space-y-1">
+          ${citationListHtml}
+        </div>
+        <div class="pt-1 flex items-center justify-end">
+          <button type="button" onclick="saveVaultResearchAsNote('${escapeHtml(cleanQuery)}', ${citationsAttr})" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-sans hover:opacity-90 cursor-pointer">Save as Synthesis Note</button>
+        </div>
+      </div>
+    `
+  };
+}
+window.performVaultResearch = performVaultResearch;
+
+function saveVaultResearchAsNote(query, citations) {
+  if (typeof state === 'undefined' || !Array.isArray(state.notes)) return;
+  const parsedCitations = Array.isArray(citations) ? citations : [];
+  const title = `Research: ${query}`;
+  const folder = 'Research';
+  if (!Array.isArray(state.folders)) state.folders = ['General'];
+  if (!state.folders.includes(folder)) state.folders.push(folder);
+
+  const wikilinks = parsedCitations.map(c => `- [[${c.title}]] (in ${c.folder})`).join('\n');
+  const content = `# Research: ${query}\n\n## Synthesis Summary\nSynthesized knowledge across vault notes regarding "${query}".\n\n## Cited Sources\n${wikilinks || 'No direct notes cited'}\n\n## Key Findings\n- Extracted insights and cross-references.\n- Generated automatically by Kon Vault Research.\n`;
+
+  const newNote = {
+    id: generateId('note'),
+    title,
+    folder,
+    tags: ['research', 'synthesis', 'kon-ai'],
+    blocks: parseMarkdownToPKBlocks(content),
+    updatedAt: Date.now(),
+    createdAt: Date.now()
+  };
+
+  state.notes.unshift(newNote);
+  if (!state.expandedFolders) state.expandedFolders = {};
+  state.expandedFolders[folder] = true;
+  if (typeof persistState === 'function') persistState();
+  if (typeof selectNote === 'function') selectNote(newNote.id);
+  if (typeof setAppMode === 'function') setAppMode('workspace');
+  if (typeof showToast === 'function') showToast(`Created research synthesis note: ${title}`, 'blue');
+}
+window.saveVaultResearchAsNote = saveVaultResearchAsNote;
+
+// --- 3. AUTONOMOUS MULTI-STEP AGENT WORKFLOWS ---
+function executeBatchWorkflow(actionObj) {
+  if (!actionObj) return null;
+  const name = actionObj.workflow_name || actionObj.name || 'Autonomous Workflow';
+  let steps = Array.isArray(actionObj.steps) ? actionObj.steps : [];
+
+  if (steps.length === 0 && actionObj.routine) {
+    const routine = String(actionObj.routine).toLowerCase();
+    if (routine === 'project_scaffold') {
+      const projName = actionObj.project_name || 'New Project';
+      const folder = actionObj.folder || `Projects/${projName}`;
+      steps = [
+        { action: 'create_folder', folder },
+        {
+          action: 'create_note',
+          title: `${projName} - Project Overview`,
+          folder,
+          tags: ['project', 'overview'],
+          content: `# ${projName} - Overview\n\n## Objectives\n- Define core milestones and deliverables.\n\n## Tech Stack & Architecture\n- Client-first architecture with local persistence.\n\n## Team & Ownership\n- Lead: User\n`
+        },
+        {
+          action: 'create_note',
+          title: `${projName} - Task Checklist`,
+          folder,
+          tags: ['project', 'tasks'],
+          content: `# ${projName} - Tasks\n\n## Sprint 1\n- [ ] Initial requirements sign-off\n- [ ] Architecture design review\n- [ ] Core prototype implementation\n- [ ] Quality verification and testing\n`
+        },
+        {
+          action: 'create_event',
+          title: `${projName} Sprint Kickoff`,
+          date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+          time: '10:00'
+        }
+      ];
+    } else if (routine === 'vault_organize') {
+      if (typeof state !== 'undefined' && Array.isArray(state.notes)) {
+        const generalNotes = state.notes.filter(n => !n.trash && (n.folder === 'General' || !n.folder));
+        if (generalNotes.length > 0) {
+          const moveTarget = actionObj.target_folder || 'Inbox';
+          steps.push({ action: 'create_folder', folder: moveTarget });
+          for (const gn of generalNotes.slice(0, 5)) {
+            steps.push({ action: 'move_note', note_id: gn.id, folder: moveTarget });
+          }
+        }
+      }
+    } else if (routine === 'daily_rollover') {
+      steps.push({ action: 'open_daily_note' });
+      steps.push({
+        action: 'append_content',
+        content: `\n\n## Rollover Tasks\n- [ ] Review pending items from yesterday\n- [ ] Plan today top priorities\n`
+      });
+    }
+  }
+
+  if (steps.length === 0) {
+    return {
+      success: false,
+      error: 'Workflow contains no executable steps'
+    };
+  }
+
+  const executedSteps = [];
+  const undoClosures = [];
+
+  for (let i = 0; i < steps.length; i++) {
+    try {
+      const stepRes = executeKonAction(steps[i]);
+      if (stepRes && stepRes.success) {
+        executedSteps.push(stepRes);
+        if (typeof stepRes.undo === 'function') {
+          undoClosures.push(stepRes.undo);
+        }
+      }
+    } catch (err) {
+      console.warn('Batch workflow step failed:', steps[i], err);
+    }
+  }
+
+  const masterUndo = () => {
+    for (let j = undoClosures.length - 1; j >= 0; j--) {
+      try { undoClosures[j](); } catch (e) { console.warn('Undo step failed:', e); }
+    }
+    if (typeof showToast === 'function') showToast(`Rolled back workflow: ${name}`, 'ochre');
+  };
+
+  const stepsListHtml = executedSteps.map((s, idx) => `
+    <div class="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]">
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-vermilion)]"></span>
+      <span class="font-mono">Step ${idx + 1}:</span>
+      <span class="text-[var(--text-primary)] truncate">${escapeHtml(s.description || s.action)}</span>
+    </div>
+  `).join('');
+
+  return {
+    success: true,
+    action: 'batch_workflow',
+    workflow_name: name,
+    executedCount: executedSteps.length,
+    description: `Workflow "${name}": Completed ${executedSteps.length} of ${steps.length} steps`,
+    undo: masterUndo,
+    customHtml: `
+      <div class="mt-2 p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--accent-vermilion)]/40 space-y-2 font-mono">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-semibold text-[var(--accent-vermilion)]">${escapeHtml(name)}</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">${executedSteps.length}/${steps.length} steps executed</span>
+        </div>
+        <div class="space-y-1">
+          ${stepsListHtml}
+        </div>
+      </div>
+    `
+  };
+}
+window.executeBatchWorkflow = executeBatchWorkflow;
+
+// --- 4. DYNAMIC FLASHCARDS & AI TUTOR MODE ---
+function executeGenerateFlashcards(actionObj) {
+  const cards = Array.isArray(actionObj.cards) ? actionObj.cards : [];
+  if (cards.length === 0) {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    if (note && Array.isArray(note.blocks)) {
+      const textBlocks = note.blocks.filter(b => b.content && b.content.length > 20);
+      for (let i = 0; i < Math.min(textBlocks.length, 5); i++) {
+        const b = textBlocks[i];
+        cards.push({
+          front: `What is the key takeaway of: "${b.content.slice(0, 60)}..."?`,
+          back: b.content,
+          tag: note.title || 'Study'
+        });
+      }
+    }
+  }
+
+  if (cards.length === 0) {
+    return {
+      success: false,
+      error: 'No content available to create flashcards'
+    };
+  }
+
+  let customCards = [];
+  try {
+    const raw = localStorage.getItem('pk_custom_study_cards');
+    if (raw) customCards = JSON.parse(raw);
+  } catch (e) {}
+
+  const addedIds = [];
+  for (const c of cards) {
+    const cardId = 'ai_card_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const newCard = {
+      id: cardId,
+      front: c.front || 'Question',
+      back: c.back || 'Answer',
+      tag: c.tag || 'Kon AI',
+      level: 0,
+      due: Date.now()
+    };
+    customCards.push(newCard);
+    addedIds.push(cardId);
+    if (typeof pkStudyCards !== 'undefined' && Array.isArray(pkStudyCards)) {
+      pkStudyCards.push(newCard);
+    }
+  }
+
+  localStorage.setItem('pk_custom_study_cards', JSON.stringify(customCards));
+
+  const undo = () => {
+    try {
+      let current = JSON.parse(localStorage.getItem('pk_custom_study_cards') || '[]');
+      current = current.filter(c => !addedIds.includes(c.id));
+      localStorage.setItem('pk_custom_study_cards', JSON.stringify(current));
+      if (typeof pkStudyCards !== 'undefined' && Array.isArray(pkStudyCards)) {
+        for (const id of addedIds) {
+          const idx = pkStudyCards.findIndex(c => c.id === id);
+          if (idx !== -1) pkStudyCards.splice(idx, 1);
+        }
+      }
+      if (typeof renderStudyDeckCard === 'function') renderStudyDeckCard();
+      if (typeof showToast === 'function') showToast('Removed generated flashcards', 'ochre');
+    } catch (e) {}
+  };
+
+  const previewHtml = cards.slice(0, 3).map((c, i) => `
+    <div class="p-1.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[10px]">
+      <div class="font-semibold text-[var(--text-primary)]">Q${i + 1}: ${escapeHtml(c.front)}</div>
+      <div class="text-[var(--text-secondary)] mt-0.5 truncate">A: ${escapeHtml(c.back)}</div>
+    </div>
+  `).join('');
+
+  return {
+    success: true,
+    action: 'generate_flashcards',
+    count: cards.length,
+    description: `Generated ${cards.length} study flashcards for Study Deck`,
+    undo,
+    customHtml: `
+      <div class="mt-2 p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] space-y-2 font-mono">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-semibold text-[var(--accent-vermilion)]">Study Deck Cards Generated</span>
+          <span class="text-[10px] text-[var(--text-tertiary)]">${cards.length} cards saved</span>
+        </div>
+        <div class="space-y-1">
+          ${previewHtml}
+        </div>
+        <div class="pt-1 flex items-center justify-end">
+          <button type="button" onclick="if(typeof openStudyDeckModal==='function') openStudyDeckModal();" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] text-white text-[10px] font-sans hover:opacity-90 cursor-pointer">Open in Study Deck</button>
+        </div>
+      </div>
+    `
+  };
+}
+window.executeGenerateFlashcards = executeGenerateFlashcards;
+
+let pkKonTutorState = {
+  active: false,
+  topic: '',
+  score: 0,
+  questionIdx: 0,
+  totalQuestions: 5
+};
+
+function startAiTutorMode(topic) {
+  const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+  const cleanTopic = topic || (note ? note.title : 'General Knowledge');
+  pkKonTutorState = {
+    active: true,
+    topic: cleanTopic,
+    score: 0,
+    questionIdx: 1,
+    totalQuestions: 5
+  };
+  return {
+    success: true,
+    action: 'ai_tutor',
+    topic: cleanTopic,
+    description: `Started Interactive AI Tutor on "${cleanTopic}" (Question 1/5)`,
+    customHtml: `
+      <div class="mt-2 p-2.5 rounded-lg bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 space-y-1.5 font-mono text-xs">
+        <div class="flex items-center justify-between text-[var(--accent-vermilion)] font-semibold">
+          <span>AI Tutor Session Active</span>
+          <span class="text-[10px]">Question 1/5</span>
+        </div>
+        <p class="text-[var(--text-secondary)] text-[11px] font-sans">Topic: <strong>${escapeHtml(cleanTopic)}</strong>. Answer in chat to test your mastery!</p>
+        <div class="flex items-center justify-end pt-1">
+          <button type="button" onclick="exitAiTutorMode()" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] text-[var(--text-tertiary)] hover:text-rose-500 border border-[var(--border-hairline)] text-[10px] cursor-pointer">End Session</button>
+        </div>
+      </div>
+    `
+  };
+}
+window.startAiTutorMode = startAiTutorMode;
+
+function exitAiTutorMode() {
+  pkKonTutorState.active = false;
+  if (typeof showToast === 'function') showToast('Exited AI Tutor session', 'ochre');
+  if (typeof renderGroqMessages === 'function') renderGroqMessages();
+}
+window.exitAiTutorMode = exitAiTutorMode;
+
+// --- 5. INLINE EDITOR AI COPILOT CONTROLLER ---
+let pkInlineAiTargetBlockId = null;
+let pkInlineAiPendingResult = '';
+
+function triggerKonInlineCopilot() {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+  if (!note || !Array.isArray(note.blocks) || note.blocks.length === 0) {
+    if (typeof showToast === 'function') showToast('Open an editable note first', 'ochre');
+    return;
+  }
+  let blockId = typeof activeEditingBlockId !== 'undefined' ? activeEditingBlockId : null;
+  if (!blockId && note.blocks.length > 0) {
+    blockId = note.blocks[0].id;
+  }
+  openInlineAiCopilot(blockId);
+}
+window.triggerKonInlineCopilot = triggerKonInlineCopilot;
+
+function openInlineAiCopilot(blockId) {
+  const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+  if (!note) return;
+  pkInlineAiTargetBlockId = blockId || (note.blocks && note.blocks[0] ? note.blocks[0].id : null);
+
+  const copilotEl = document.getElementById('pkInlineAiCopilot');
+  if (!copilotEl) return;
+
+  let top = 140;
+  let left = Math.max(16, (window.innerWidth - 384) / 2);
+  if (pkInlineAiTargetBlockId) {
+    const blockEl = document.querySelector(`[data-block-id="${pkInlineAiTargetBlockId}"]`);
+    if (blockEl) {
+      const rect = blockEl.getBoundingClientRect();
+      top = Math.min(window.innerHeight - 320, Math.max(70, rect.bottom + 8));
+      left = Math.min(window.innerWidth - 400, Math.max(16, rect.left));
+    }
+  }
+
+  copilotEl.style.top = `${top}px`;
+  copilotEl.style.left = `${left}px`;
+  copilotEl.classList.remove('hidden');
+
+  const inputEl = document.getElementById('pkInlineAiInput');
+  if (inputEl) {
+    inputEl.value = '';
+    setTimeout(() => inputEl.focus(), 50);
+  }
+  const previewContainer = document.getElementById('pkInlineAiPreviewContainer');
+  if (previewContainer) previewContainer.classList.add('hidden');
+  const previewText = document.getElementById('pkInlineAiPreviewText');
+  if (previewText) previewText.textContent = '';
+  pkInlineAiPendingResult = '';
+}
+window.openInlineAiCopilot = openInlineAiCopilot;
+
+function closeInlineAiCopilot() {
+  const copilotEl = document.getElementById('pkInlineAiCopilot');
+  if (copilotEl) copilotEl.classList.add('hidden');
+  pkInlineAiTargetBlockId = null;
+  pkInlineAiPendingResult = '';
+}
+window.closeInlineAiCopilot = closeInlineAiCopilot;
+
+function handleInlineAiInputKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeInlineAiCopilot();
+  } else if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    submitInlineAiPrompt();
+  }
+}
+window.handleInlineAiInputKeydown = handleInlineAiInputKeydown;
+
+function runInlineAiQuickAction(actionType) {
+  const inputEl = document.getElementById('pkInlineAiInput');
+  const prompts = {
+    continue: 'Continue writing and expand the narrative logically from here.',
+    summarize: 'Summarize the core points concisely into 2-3 crisp sentences.',
+    rewrite_pro: 'Rewrite this content in a polished, professional executive tone.',
+    bullets: 'Convert this into a clear, structured bulleted list of key takeaways.',
+    table: 'Organize this information into a clean Markdown table with headers.',
+    grammar: 'Fix all grammar, punctuation, and awkward phrasing while preserving meaning.'
+  };
+  const prompt = prompts[actionType] || 'Polish and improve this text.';
+  if (inputEl) inputEl.value = prompt;
+  submitInlineAiPrompt(prompt);
+}
+window.runInlineAiQuickAction = runInlineAiQuickAction;
+
+async function submitInlineAiPrompt(customPrompt) {
+  const inputEl = document.getElementById('pkInlineAiInput');
+  const promptText = (customPrompt || (inputEl ? inputEl.value : '') || '').trim();
+  if (!promptText) return;
+
+  const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+  if (!note) return;
+
+  const block = (note.blocks || []).find(b => b.id === pkInlineAiTargetBlockId);
+  const blockContent = block ? (block.content || '') : '';
+
+  const cfg = loadAiConfig();
+  const { spec, data } = getActiveProviderSpec(cfg);
+
+  if (!isProviderReady(cfg.provider, data)) {
+    if (typeof showToast === 'function') showToast(`Configure ${spec.shortName} in AI Settings first`, 'ochre');
+    if (typeof openGroqSettingsModal === 'function') openGroqSettingsModal();
+    return;
+  }
+
+  const previewContainer = document.getElementById('pkInlineAiPreviewContainer');
+  const previewText = document.getElementById('pkInlineAiPreviewText');
+  const statusEl = document.getElementById('pkInlineAiStatus');
+
+  if (previewContainer) previewContainer.classList.remove('hidden');
+  if (statusEl) statusEl.textContent = 'Generating...';
+  if (previewText) previewText.textContent = 'Thinking...';
+
+  const systemPrompt = [
+    'You are Kon Inline Copilot, the precise AI co-writer inside PK Note.',
+    'TASK: Execute the user writing instruction directly on the target content.',
+    'RULES:',
+    '1. Return ONLY the resulting text to insert or replace. No conversational preambles, no quotes around the output, no commentary.',
+    '2. Strictly preserve all facts, numbers, dates, and wikilinks [[...]].',
+    '3. Strictly zero emojis anywhere in output.'
+  ].join('\n');
+
+  const userContent = blockContent 
+    ? `INSTRUCTION: ${promptText}\n\nTARGET BLOCK CONTENT:\n"""\n${blockContent}\n"""`
+    : `INSTRUCTION: ${promptText}\n\nNOTE TITLE: ${note.title || 'Untitled'}`;
+
+  try {
+    const endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
+    const activeModel = data.model || spec.defaultModel;
+
+    const res = await fetch(endpoints.chatUrl, {
+      method: 'POST',
+      headers: buildAuthHeaders(data.apiKey),
+      body: JSON.stringify({
+        model: activeModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent }
+        ],
+        stream: false,
+        temperature: 0.4,
+        max_tokens: 2048
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      const msg = errJson?.error?.message || errJson?.detail || `${spec.shortName} error (${res.status})`;
+      if (statusEl) statusEl.textContent = 'Failed';
+      if (previewText) previewText.textContent = `Error: ${msg}`;
+      return;
+    }
+
+    const json = await res.json();
+    let reply = json.choices?.[0]?.message?.content || '';
+    reply = cleanAiTextForInsertion(reply);
+
+    pkInlineAiPendingResult = reply;
+    if (statusEl) statusEl.textContent = 'Ready';
+    if (previewText) previewText.textContent = reply;
+  } catch (err) {
+    if (statusEl) statusEl.textContent = 'Network Error';
+    if (previewText) previewText.textContent = `Error: ${err.message || 'Connection failed'}`;
+  }
+}
+window.submitInlineAiPrompt = submitInlineAiPrompt;
+
+function discardInlineAiResult() {
+  const previewContainer = document.getElementById('pkInlineAiPreviewContainer');
+  if (previewContainer) previewContainer.classList.add('hidden');
+  const previewText = document.getElementById('pkInlineAiPreviewText');
+  if (previewText) previewText.textContent = '';
+  pkInlineAiPendingResult = '';
+}
+window.discardInlineAiResult = discardInlineAiResult;
+
+function applyInlineAiResult(mode) {
+  if (!pkInlineAiPendingResult || !pkInlineAiPendingResult.trim()) {
+    if (typeof showToast === 'function') showToast('No generated text to apply', 'ochre');
+    return;
+  }
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+  if (!note || !Array.isArray(note.blocks)) return;
+
+  const targetIdx = note.blocks.findIndex(b => b.id === pkInlineAiTargetBlockId);
+
+  if (mode === 'replace' && targetIdx !== -1) {
+    note.blocks[targetIdx].content = pkInlineAiPendingResult;
+  } else {
+    const newBlocks = parseMarkdownToPKBlocks(pkInlineAiPendingResult);
+    const insertIdx = targetIdx !== -1 ? targetIdx + 1 : note.blocks.length;
+    note.blocks.splice(insertIdx, 0, ...newBlocks);
+  }
+
+  if (typeof recordNoteHistoryState === 'function') {
+    recordNoteHistoryState(note, 'Kon Inline AI Insertion');
+  }
+
+  closeInlineAiCopilot();
+  if (typeof renderBlocks === 'function') renderBlocks(note);
+  if (typeof persistState === 'function') persistState();
+  if (typeof showToast === 'function') showToast('Applied by Kon Copilot', 'blue');
+}
+window.applyInlineAiResult = applyInlineAiResult;
 
 function extractEventPayloadsFromText(text) {
   const events = [];
@@ -3512,6 +4374,7 @@ function renderGroqMessages() {
           ${typeof act.undo === 'function' ? `<button type="button" onclick="undoKonAction(${idx}, ${actIdx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-rose-500 hover:text-rose-600 cursor-pointer">Undo</button>` : ''}
         </div>
       </div>
+      ${act.customHtml || ''}
     `).join('');
 
     const eventCards = (m.eventPayloads || []).map((ev, ei) => `
@@ -3694,6 +4557,17 @@ async function sendGroqPrompt(overrideText) {
   const userText = (typeof overrideText === 'string' ? overrideText : (promptEl ? promptEl.value : '')).trim();
   if (!userText) return;
   if (!overrideText && promptEl) promptEl.value = '';
+
+  if (typeof pkKonTutorState !== 'undefined' && pkKonTutorState.active) {
+    if (/^(exit|stop|quit|end)\s*(tutor|quiz|exam)/i.test(userText.trim())) {
+      exitAiTutorMode();
+      return;
+    }
+    pkKonTutorState.questionIdx++;
+    if (pkKonTutorState.questionIdx > pkKonTutorState.totalQuestions) {
+      pkKonTutorState.active = false;
+    }
+  }
 
   let promptTargetSelection = pkAiTargetSelection;
   let promptTargetBlockId = pkAiTargetBlockId;

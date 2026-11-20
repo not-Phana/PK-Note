@@ -518,6 +518,7 @@ const SLASH_COMMANDS = [
   { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
   { type: 'fix', label: 'Quick Fix Block (No AI)', desc: 'Fix typos, punctuation & spacing instantly', glyph: 'sparkles', shortcut: '/fix' },
   { type: 'polish', label: '1-Tap AI Polish Block', desc: 'In-place AI rewrite & polish without opening chat', glyph: 'sparkles', shortcut: '/polish' },
+  { type: 'ai', label: 'Kon Inline AI Copilot', desc: 'Ask Kon to write, edit, summarize, or format here (Ctrl+J)', glyph: 'sparkles', shortcut: '/ai' },
 ];
 
 let pendingStateDirty = false;
@@ -4322,6 +4323,13 @@ function applySlashCommand(newType) {
     openSmartDrawModal(targetId);
     return;
   }
+  if (newType === 'ai' || newType === 'kon') {
+    closeSlashMenu();
+    if (typeof openInlineAiCopilot === 'function') {
+      openInlineAiCopilot(targetId);
+    }
+    return;
+  }
 
   if (block) {
     block.type = newType;
@@ -6702,8 +6710,19 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // Cmd/Ctrl + J: Kon Inline Editor AI Copilot
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
+    e.preventDefault();
+    if (typeof triggerKonInlineCopilot === 'function') {
+      triggerKonInlineCopilot();
+    }
+    return;
+  }
+
   // Visual Modals Escape Key Handler
   if (e.key === 'Escape') {
+    const ic = document.getElementById('pkInlineAiCopilot');
+    if (ic && !ic.classList.contains('hidden')) { if (typeof closeInlineAiCopilot === 'function') closeInlineAiCopilot(); return; }
     const sd = document.getElementById('smartDrawModal');
     if (sd && !sd.classList.contains('hidden')) { closeSmartDrawModal(); return; }
     const imp = document.getElementById('inlineMathPopover');

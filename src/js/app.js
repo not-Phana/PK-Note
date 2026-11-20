@@ -543,6 +543,7 @@ document.addEventListener('visibilitychange', () => {
 
 function persistState() {
   pendingStateDirty = true;
+  if (typeof invalidateVaultLinksCache === 'function') invalidateVaultLinksCache();
   const indicator = document.getElementById('saveIndicator');
   if (indicator) {
     indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-[1px] bg-[var(--accent-ochre)]"></span>SAVING`;
@@ -800,22 +801,39 @@ function naturalMathToLatex(raw) {
   return s;
 }
 
+const pkKatexFormulaCache = new Map();
+const PK_MAX_KATEX_CACHE = 500;
+
 function renderLatexToHtml(latex, displayMode = false) {
   if (!latex || !String(latex).trim()) return '';
+  const cleanKey = (displayMode ? 'D:' : 'I:') + String(latex).trim();
+  if (pkKatexFormulaCache.has(cleanKey)) {
+    return pkKatexFormulaCache.get(cleanKey);
+  }
+
   const parsedLatex = naturalMathToLatex(String(latex).trim());
+  let rendered = '';
   if (typeof katex !== 'undefined' && katex.renderToString) {
     try {
-      return katex.renderToString(parsedLatex, {
+      rendered = katex.renderToString(parsedLatex, {
         displayMode: displayMode,
         throwOnError: false,
         trust: true,
         strict: false
       });
     } catch (e) {
-      return `<code class="text-rose-500 font-mono text-xs">${escapeHtml(parsedLatex)}</code>`;
+      rendered = `<code class="text-rose-500 font-mono text-xs">${escapeHtml(parsedLatex)}</code>`;
     }
+  } else {
+    rendered = `<span class="katex-fallback font-mono text-[13px] bg-[var(--bg-panel)] px-1.5 py-0.5 rounded border border-[var(--border-hairline)]">${escapeHtml(parsedLatex)}</span>`;
   }
-  return `<span class="katex-fallback font-mono text-[13px] bg-[var(--bg-panel)] px-1.5 py-0.5 rounded border border-[var(--border-hairline)]">${escapeHtml(parsedLatex)}</span>`;
+
+  if (pkKatexFormulaCache.size >= PK_MAX_KATEX_CACHE) {
+    const firstKey = pkKatexFormulaCache.keys().next().value;
+    pkKatexFormulaCache.delete(firstKey);
+  }
+  pkKatexFormulaCache.set(cleanKey, rendered);
+  return rendered;
 }
 
 // =========================================================================
@@ -1037,7 +1055,19 @@ function serializeEditableBlock(el) {
   return result;
 }
 
+let pkVaultLinksCache = null;
+let pkVaultLinksDirty = true;
+
+function invalidateVaultLinksCache() {
+  pkVaultLinksDirty = true;
+  pkVaultLinksCache = null;
+}
+window.invalidateVaultLinksCache = invalidateVaultLinksCache;
+
 function computeVaultConnections() {
+  if (!pkVaultLinksDirty && pkVaultLinksCache) {
+    return pkVaultLinksCache;
+  }
   const links = [];
   const titleMap = new Map();
   state.notes.forEach(n => titleMap.set(n.title.toLowerCase().trim(), n));
@@ -1057,6 +1087,8 @@ function computeVaultConnections() {
       }
     });
   });
+  pkVaultLinksCache = links;
+  pkVaultLinksDirty = false;
   return links;
 }
 
@@ -3061,7 +3093,13 @@ function updateWordCount(note) {
     return b.content || '';
   });
   const fullText = [note.title || '', ...blockTexts].join(' ').replace(/<[^>]+>/g, ' ').trim();
-  const words = fullText ? fullText.split(/\s+/).filter(Boolean).length : 0;
+  let words = 0;
+  if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.analyzeTextStats === 'function') {
+    const stats = window.PKWasm.analyzeTextStats(fullText);
+    words = stats && typeof stats.words === 'number' ? stats.words : (fullText ? fullText.split(/\s+/).filter(Boolean).length : 0);
+  } else {
+    words = fullText ? fullText.split(/\s+/).filter(Boolean).length : 0;
+  }
   const wcEl = document.getElementById('docWordCount');
   if (wcEl) wcEl.textContent = words;
   const mins = Math.max(1, Math.ceil(words / 220));
@@ -4654,9 +4692,15 @@ function removeTag(tag) {
   persistState();
 }
 
+let sidebarFilterRafId = null;
+
 function handleSidebarFilter(val) {
   sidebarSearchQuery = val;
-  renderSidebar();
+  if (sidebarFilterRafId) cancelAnimationFrame(sidebarFilterRafId);
+  sidebarFilterRafId = requestAnimationFrame(() => {
+    renderSidebar();
+    sidebarFilterRafId = null;
+  });
 }
 
 function toggleTagFilter(tag) {

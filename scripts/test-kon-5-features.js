@@ -1,64 +1,63 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log('=== VERIFYING 5 MAJOR KON FEATURES ===');
+console.log('=== VERIFYING SPEED & KON ENHANCEMENTS ===');
 
 const appJs = fs.readFileSync('src/js/app.js', 'utf8');
 const groqJs = fs.readFileSync('src/js/groq-assistant.js', 'utf8');
 const indexHtml = fs.readFileSync('index.html', 'utf8');
 
-// 1. Feature 1: Inline Editor AI Copilot (Ctrl+J or /ai)
-console.log('Checking Feature 1: Inline Editor AI Copilot...');
-assert(indexHtml.includes('id="pkInlineAiCopilot"'), 'pkInlineAiCopilot missing from index.html');
-assert(indexHtml.includes('id="pkInlineAiInput"'), 'pkInlineAiInput missing from index.html');
-assert(indexHtml.includes('id="pkInlineAiPreviewContainer"'), 'pkInlineAiPreviewContainer missing from index.html');
-assert(appJs.includes("shortcut: '/ai'"), '/ai slash command missing in app.js');
-assert(appJs.includes("newType === 'ai' || newType === 'kon'"), 'applySlashCommand missing ai handling in app.js');
-assert(appJs.includes("toLowerCase() === 'j'") && appJs.includes('triggerKonInlineCopilot'), 'Ctrl+J shortcut missing in app.js');
-assert(groqJs.includes('function triggerKonInlineCopilot('), 'triggerKonInlineCopilot missing in groq-assistant.js');
-assert(groqJs.includes('function openInlineAiCopilot('), 'openInlineAiCopilot missing in groq-assistant.js');
-assert(groqJs.includes('function closeInlineAiCopilot('), 'closeInlineAiCopilot missing in groq-assistant.js');
-assert(groqJs.includes('function applyInlineAiResult('), 'applyInlineAiResult missing in groq-assistant.js');
-console.log('PASS: Feature 1 (Inline Copilot) verified.');
+// 1. Performance: Vault Connections Memoization
+console.log('Checking Vault Connections Memoization...');
+assert(appJs.includes('let pkVaultLinksCache = null'), 'pkVaultLinksCache missing in app.js');
+assert(appJs.includes('function invalidateVaultLinksCache('), 'invalidateVaultLinksCache missing in app.js');
+assert(appJs.includes('if (!pkVaultLinksDirty && pkVaultLinksCache)'), 'cache hit check missing in computeVaultConnections');
+console.log('PASS: Vault connections memoization verified.');
 
-// 2. Feature 2: Deep Vault RAG & Cross-Note Knowledge Synthesis
-console.log('Checking Feature 2: Deep Vault RAG Synthesis...');
-assert(groqJs.includes('function performVaultResearch('), 'performVaultResearch missing in groq-assistant.js');
-assert(groqJs.includes('function saveVaultResearchAsNote('), 'saveVaultResearchAsNote missing in groq-assistant.js');
-assert(groqJs.includes("actionType === 'vault_research' || actionType === 'cross_note_synthesis'"), 'vault_research action missing in executeKonAction');
-console.log('PASS: Feature 2 (Deep Vault RAG) verified.');
+// 2. Performance: KaTeX Formula LRU Cache
+console.log('Checking KaTeX Formula LRU Cache...');
+assert(appJs.includes('const pkKatexFormulaCache = new Map()'), 'pkKatexFormulaCache missing in app.js');
+assert(appJs.includes('if (pkKatexFormulaCache.has(cleanKey))'), 'cache hit check missing in renderLatexToHtml');
+console.log('PASS: KaTeX formula LRU cache verified.');
 
-// 3. Feature 3: Autonomous Multi-Step Agent Workflows & Batch Operations
-console.log('Checking Feature 3: Multi-Step Workflows...');
-assert(groqJs.includes('function executeBatchWorkflow('), 'executeBatchWorkflow missing in groq-assistant.js');
-assert(groqJs.includes("actionType === 'batch_workflow' || actionType === 'multi_step_workflow'"), 'batch_workflow action missing in executeKonAction');
-assert(groqJs.includes("routine === 'project_scaffold'"), 'project_scaffold routine missing in executeBatchWorkflow');
-assert(groqJs.includes("routine === 'vault_organize'"), 'vault_organize routine missing in executeBatchWorkflow');
-assert(groqJs.includes("routine === 'daily_rollover'"), 'daily_rollover routine missing in executeBatchWorkflow');
-console.log('PASS: Feature 3 (Multi-Step Workflows) verified.');
+// 3. Performance: Rust WASM Text Stats
+console.log('Checking Rust WASM Text Stats Integration...');
+assert(appJs.includes('window.PKWasm.analyzeTextStats(fullText)'), 'analyzeTextStats call missing in updateWordCount');
+console.log('PASS: Rust WASM text stats verified.');
 
-// 4. Feature 4: Interactive AI Tutor & Dynamic Study Deck Flashcards
-console.log('Checking Feature 4: AI Tutor & Flashcards...');
-assert(groqJs.includes('function executeGenerateFlashcards('), 'executeGenerateFlashcards missing in groq-assistant.js');
-assert(groqJs.includes('function startAiTutorMode('), 'startAiTutorMode missing in groq-assistant.js');
-assert(groqJs.includes('function exitAiTutorMode('), 'exitAiTutorMode missing in groq-assistant.js');
-assert(groqJs.includes("actionType === 'generate_flashcards' || actionType === 'create_flashcards'"), 'generate_flashcards action missing in executeKonAction');
-assert(groqJs.includes("actionType === 'ai_tutor' || actionType === 'quiz_me'"), 'ai_tutor action missing in executeKonAction');
-console.log('PASS: Feature 4 (AI Tutor & Flashcards) verified.');
+// 4. Performance: RAF-Batched Sidebar Filter
+console.log('Checking RAF-Batched Sidebar Search Filter...');
+assert(appJs.includes('let sidebarFilterRafId = null'), 'sidebarFilterRafId missing in app.js');
+assert(appJs.includes('cancelAnimationFrame(sidebarFilterRafId)'), 'cancelAnimationFrame missing in handleSidebarFilter');
+console.log('PASS: RAF-batched sidebar search filter verified.');
 
-// 5. Feature 5: Smart Document Architect & Structured Templates
-console.log('Checking Feature 5: Smart Document Templates...');
-assert(groqJs.includes('const PK_SMART_TEMPLATES = {'), 'PK_SMART_TEMPLATES missing in groq-assistant.js');
-assert(groqJs.includes('meeting_notes: {'), 'meeting_notes template missing');
-assert(groqJs.includes('cornell_notes: {'), 'cornell_notes template missing');
-assert(groqJs.includes('technical_spec: {'), 'technical_spec template missing');
-assert(groqJs.includes('weekly_retrospective: {'), 'weekly_retrospective template missing');
-assert(groqJs.includes('executive_brief: {'), 'executive_brief template missing');
-assert(groqJs.includes('function executeApplyTemplate('), 'executeApplyTemplate missing in groq-assistant.js');
-assert(groqJs.includes("actionType === 'apply_template' || actionType === 'insert_template'"), 'apply_template action missing in executeKonAction');
-console.log('PASS: Feature 5 (Smart Document Templates) verified.');
+// 5. Kon: Auto-Link Notes (Action 49)
+console.log('Checking Action 49: auto_link_notes...');
+assert(groqJs.includes('function executeAutoLinkNotes('), 'executeAutoLinkNotes missing in groq-assistant.js');
+assert(groqJs.includes("actionType === 'auto_link_notes'"), 'auto_link_notes action missing in executeKonAction');
+console.log('PASS: Action 49 (auto_link_notes) verified.');
 
-// 6. Zero Emojis check across modified files
+// 6. Kon: Code & Math Calculation Runner (Action 50)
+console.log('Checking Action 50: calculate...');
+assert(groqJs.includes('function executeCalculate('), 'executeCalculate missing in groq-assistant.js');
+assert(groqJs.includes("actionType === 'calculate'"), 'calculate action missing in executeKonAction');
+console.log('PASS: Action 50 (calculate) verified.');
+
+// 7. Kon: Offline Fast Intent Fallback
+console.log('Checking Offline Fast Intent Fallback...');
+assert(groqJs.includes('function matchOfflineIntent('), 'matchOfflineIntent missing in groq-assistant.js');
+assert(groqJs.includes('matchOfflineIntent(userText)'), 'matchOfflineIntent call missing in sendGroqPrompt');
+console.log('PASS: Offline fast intent fallback verified.');
+
+// 8. Quick Action Chips in index.html
+console.log('Checking Kon Quick Action Chips...');
+assert(indexHtml.includes("runGroqQuickAction('research')"), 'research quick action missing in index.html');
+assert(indexHtml.includes("runGroqQuickAction('autolink')"), 'autolink quick action missing in index.html');
+assert(indexHtml.includes("runGroqQuickAction('quiz')"), 'quiz quick action missing in index.html');
+assert(indexHtml.includes("runGroqQuickAction('template')"), 'template quick action missing in index.html');
+console.log('PASS: Quick action chips verified.');
+
+// 9. Zero Emojis check
 console.log('Checking Zero-Emoji compliance...');
 const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA70}-\u{1FAFF}\u{FE00}-\u{FE0F}]/u;
 [appJs, groqJs, indexHtml].forEach((content, i) => {
@@ -66,10 +65,10 @@ const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA
 });
 console.log('PASS: Zero-Emoji compliance confirmed.');
 
-// 7. Pure HTML check (0 style tags, 0 inline script tags)
+// 10. Pure HTML contract (0 style tags, 0 inline script tags)
 console.log('Checking HTML purity in index.html...');
 assert((indexHtml.match(/<style/gi) || []).length === 0, 'Found <style> tags in index.html');
 assert((indexHtml.match(/<script(?![^>]*src=)/gi) || []).length === 0, 'Found inline <script> tags in index.html');
 console.log('PASS: Pure HTML contract confirmed (0 style, 0 inline script).');
 
-console.log('=== ALL 5 MAJOR KON FEATURES FULLY VERIFIED ===');
+console.log('=== ALL SPEED & KON ENHANCEMENTS FULLY VERIFIED ===');

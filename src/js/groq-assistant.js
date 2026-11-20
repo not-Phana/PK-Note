@@ -1752,12 +1752,16 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
     '46. Dynamic Study Deck Flashcards Generator:\n```pk-action\n{"action":"generate_flashcards","cards":[{"front":"Question","back":"Answer","tag":"Study"}]}\n```\n' +
     '47. Interactive AI Tutor & Oral Exam Mode:\n```pk-action\n{"action":"ai_tutor","topic":"Biology","command":"start"}\n```\n' +
     '48. Smart Document Architect & Structured Template:\n```pk-action\n{"action":"apply_template","template":"meeting_notes","title":"Product Sync","mode":"new_note"}\n```\n' +
+    '49. Auto-Link Matching Note Titles:\n```pk-action\n{"action":"auto_link_notes"}\n```\n' +
+    '50. Math & Code Calculation Runner:\n```pk-action\n{"action":"calculate","expression":"(14500 * 1.15) / 12","label":"Monthly Projection"}\n```\n' +
     'MAJOR AGENT CAPABILITIES:\n' +
     '- Vault Research: When asked to search, synthesize, or compare information across notes in the vault, call action "vault_research" with query terms.\n' +
     '- Batch Workflows: When asked to scaffold projects, organize the vault, or perform multi-step routines, plan and emit an action "batch_workflow" containing all steps.\n' +
     '- Study Flashcards: When asked to create study cards from notes, call action "generate_flashcards".\n' +
     '- AI Tutor Mode: When asked to quiz, tutor, or test the user, call action "ai_tutor" with the topic.\n' +
     '- Structured Templates: When asked to format or scaffold structured notes (Meeting Notes, Cornell Notes, Technical Spec RFC, Weekly Retrospective, Executive Brief), call action "apply_template".\n' +
+    '- Auto-Link Notes: When asked to connect or link notes in the vault, call action "auto_link_notes".\n' +
+    '- Calculations: When asked to calculate, evaluate math, or compute numbers, call action "calculate".\n' +
     'You may output multiple action blocks in sequence if the user asks for multiple tasks. Keep the conversational reply helpful, direct, and concise.',
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
@@ -1862,15 +1866,10 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
       }
     }
   } else if (pkGroqContextScope === 'vault' && typeof state !== 'undefined') {
-    const noteSummaries = (state.notes || []).slice(0, 18).map(n => {
+    const noteSummaries = (state.notes || []).slice(0, 16).map(n => {
       const preview = n.encryptedPayload
         ? '[Encrypted AES-256-GCM note]'
-        : (n.blocks || []).map(b => {
-            if (!b || b.type === 'divider' || b.type === 'sketch') return '';
-            if (b.type === 'toggle') return [pkCleanBlockText(b.content), pkCleanBlockText(b.body)].filter(Boolean).join(' ');
-            if (b.type === 'table' && Array.isArray(b.rows)) return b.rows.flat().map(c => pkCleanBlockText(c)).filter(Boolean).join(' ');
-            return pkCleanBlockText(b.content);
-          }).filter(Boolean).join(' ').slice(0, 220);
+        : (n.blocks || []).slice(0, 3).map(b => pkCleanBlockText(b.content || '')).filter(Boolean).join(' ').slice(0, 110);
       return `- "${n.title || 'Untitled'}" [${n.folder || 'General'}]${n.id === state.activeNoteId ? ' (ACTIVE)' : ''}: ${preview}`;
     }).join('\n');
 
@@ -2923,6 +2922,20 @@ function executeKonAction(actionObj) {
     }
   }
 
+  // 49. Auto-Link Matching Note Titles
+  if (actionType === 'auto_link_notes' || actionType === 'autolink_notes' || actionType === 'link_notes') {
+    if (typeof executeAutoLinkNotes === 'function') {
+      return executeAutoLinkNotes();
+    }
+  }
+
+  // 50. Code & Math Calculation Runner
+  if (actionType === 'calculate' || actionType === 'run_calculation' || actionType === 'evaluate_math') {
+    if (typeof executeCalculate === 'function') {
+      return executeCalculate(actionObj);
+    }
+  }
+
   return null;
 }
 
@@ -3126,6 +3139,203 @@ function executeApplyTemplate(actionObj) {
   }
 }
 window.executeApplyTemplate = executeApplyTemplate;
+
+// --- 6. AUTO-LINK VAULT NOTES ---
+function executeAutoLinkNotes() {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+  if (!note || !Array.isArray(note.blocks) || typeof state === 'undefined' || !Array.isArray(state.notes)) {
+    return { success: false, error: 'No active editable note' };
+  }
+
+  const otherTitles = state.notes
+    .filter(n => n.id !== note.id && n.title && n.title.trim().length > 3 && !n.trash)
+    .map(n => n.title.trim())
+    .sort((a, b) => b.length - a.length);
+
+  if (otherTitles.length === 0) {
+    return {
+      success: true,
+      action: 'auto_link_notes',
+      description: 'No other note titles in vault to link',
+      count: 0
+    };
+  }
+
+  const prevBlocks = JSON.parse(JSON.stringify(note.blocks));
+  let linkCount = 0;
+  const linkedTitles = new Set();
+
+  for (const block of note.blocks) {
+    if (block.type === 'code' || block.type === 'divider' || block.type === 'sketch') continue;
+    let content = block.content || '';
+    for (const title of otherTitles) {
+      const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`(?<!\\[\\[)\\b(${escapedTitle})\\b(?!\\]\\])`, 'gi');
+      if (re.test(content)) {
+        content = content.replace(re, '[[$1]]');
+        linkCount++;
+        linkedTitles.add(title);
+      }
+    }
+    block.content = content;
+  }
+
+  if (linkCount === 0) {
+    return {
+      success: true,
+      action: 'auto_link_notes',
+      description: 'All relevant note references in this note are already linked',
+      count: 0
+    };
+  }
+
+  note.updatedAt = Date.now();
+  if (typeof renderBlocks === 'function') renderBlocks(note);
+  if (typeof persistState === 'function') persistState();
+
+  const undo = () => {
+    note.blocks = prevBlocks;
+    note.updatedAt = Date.now();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast('Reverted auto-linked references', 'ochre');
+  };
+
+  const titlesArray = Array.from(linkedTitles);
+  return {
+    success: true,
+    action: 'auto_link_notes',
+    count: linkCount,
+    titles: titlesArray,
+    description: `Auto-linked ${linkCount} reference${linkCount === 1 ? '' : 's'} across vault: ${titlesArray.map(t => '[[' + t + ']]').join(', ')}`,
+    undo
+  };
+}
+window.executeAutoLinkNotes = executeAutoLinkNotes;
+
+// --- 7. FAST CODE & MATH CALCULATION RUNNER ---
+function executeCalculate(actionObj) {
+  const expr = String(actionObj.expression || actionObj.formula || actionObj.math || '').trim();
+  const label = actionObj.label || 'Calculation';
+  if (!expr) {
+    return { success: false, error: 'No expression provided to calculate' };
+  }
+
+  const safeExpr = expr
+    .replace(/\^/g, '**')
+    .replace(/\bpi\b/gi, 'Math.PI')
+    .replace(/\be\b/gi, 'Math.E')
+    .replace(/\bsqrt\b/gi, 'Math.sqrt')
+    .replace(/\babs\b/gi, 'Math.abs')
+    .replace(/\bround\b/gi, 'Math.round')
+    .replace(/\bfloor\b/gi, 'Math.floor')
+    .replace(/\bceil\b/gi, 'Math.ceil')
+    .replace(/\bsin\b/gi, 'Math.sin')
+    .replace(/\bcos\b/gi, 'Math.cos')
+    .replace(/\btan\b/gi, 'Math.tan')
+    .replace(/\blog\b/gi, 'Math.log10')
+    .replace(/\bln\b/gi, 'Math.log');
+
+  if (!/^[0-9\s\+\-\*\/\%\(\)\.\,\MathPIEsqrtabsroundfloorceilsincostanlog]+$/.test(safeExpr)) {
+    return { success: false, error: 'Expression contains unsupported characters' };
+  }
+
+  try {
+    const fn = new Function(`return (${safeExpr});`);
+    const rawResult = fn();
+    const formattedResult = typeof rawResult === 'number'
+      ? (Number.isInteger(rawResult) ? String(rawResult) : String(Number(rawResult.toFixed(4))))
+      : String(rawResult);
+
+    return {
+      success: true,
+      action: 'calculate',
+      expression: expr,
+      result: formattedResult,
+      description: `${label}: ${expr} = ${formattedResult}`,
+      customHtml: `
+        <div class="mt-2 p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] space-y-1.5 font-mono text-xs">
+          <div class="flex items-center justify-between text-[var(--accent-vermilion)] font-semibold">
+            <span>${escapeHtml(label)}</span>
+            <span class="text-[10px] text-[var(--text-tertiary)]">Evaluated</span>
+          </div>
+          <div class="text-[var(--text-secondary)] text-[11px]">${escapeHtml(expr)}</div>
+          <div class="text-base font-bold text-[var(--text-primary)]">= ${escapeHtml(formattedResult)}</div>
+        </div>
+      `
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: `Could not evaluate expression: ${err.message}`
+    };
+  }
+}
+window.executeCalculate = executeCalculate;
+
+// --- 8. OFFLINE FAST INTENT PARSER ---
+function matchOfflineIntent(text) {
+  if (!text || typeof text !== 'string') return null;
+  const t = text.trim().toLowerCase();
+
+  // Theme & font
+  if (/^(dark theme|switch to dark|dark mode)/i.test(t)) {
+    return { action: 'set_theme', theme: 'dark' };
+  }
+  if (/^(light theme|switch to light|light mode)/i.test(t)) {
+    return { action: 'set_theme', theme: 'light' };
+  }
+  if (/^(serif font|font serif)/i.test(t)) {
+    return { action: 'set_font', font: 'serif' };
+  }
+  if (/^(sans font|font sans)/i.test(t)) {
+    return { action: 'set_font', font: 'sans' };
+  }
+
+  // Create note
+  const newNoteMatch = t.match(/^(?:create|new|make)\s+note\s+(?:about|titled|named\s+)?(.+)/i);
+  if (newNoteMatch) {
+    return { action: 'create_note', title: newNoteMatch[1].trim(), content: `# ${newNoteMatch[1].trim()}\n\n` };
+  }
+
+  // Todos
+  if (/^(check all todos|finish all todos)/i.test(t)) {
+    return { action: 'check_all_todos' };
+  }
+  if (/^(clear completed todos|clean todos)/i.test(t)) {
+    return { action: 'clear_completed_todos' };
+  }
+  const addTodoMatch = t.match(/^(?:add|create)\s+todo(?:s)?\s*[:\-]?\s*(.+)/i);
+  if (addTodoMatch) {
+    return { action: 'add_todos', todos: [addTodoMatch[1].trim()] };
+  }
+
+  // Templates
+  if (/(meeting notes|cornell notes|technical spec|weekly retro)/i.test(t)) {
+    const tmpl = t.includes('meeting') ? 'meeting_notes' : (t.includes('cornell') ? 'cornell_notes' : (t.includes('spec') ? 'technical_spec' : 'weekly_retrospective'));
+    return { action: 'apply_template', template: tmpl, mode: 'active_note' };
+  }
+
+  // Research
+  const resMatch = t.match(/^(?:research|find in vault|search vault for)\s+(.+)/i);
+  if (resMatch) {
+    return { action: 'vault_research', query: resMatch[1].trim() };
+  }
+
+  // Auto-link
+  if (/(auto[- ]?link|link notes|wikilink)/i.test(t)) {
+    return { action: 'auto_link_notes' };
+  }
+
+  // Math calculation
+  const mathMatch = t.match(/^(?:calc|calculate|evaluate|what is)\s+([0-9\s\+\-\*\/\%\(\)\.\^]+)$/i);
+  if (mathMatch) {
+    return { action: 'calculate', expression: mathMatch[1].trim() };
+  }
+
+  return null;
+}
+window.matchOfflineIntent = matchOfflineIntent;
 
 // --- 2. DEEP VAULT RESEARCH & CROSS-NOTE SYNTHESIS ---
 function performVaultResearch(query, options = {}) {
@@ -4496,11 +4706,15 @@ function runGroqQuickAction(kind) {
     summarize: 'Provide a concise, thoughtful summary of this note. Focus on the core ideas directly and clearly, without generic AI boilerplate.',
     polish: 'Polish this note so it reads naturally, clearly, and professionally. Smooth out awkward sentences and eliminate stiff phrasing while keeping the original voice and meaning intact. Return ONLY the updated text.',
     todos: 'Extract actionable tasks from this note and add them directly to this note using a ```pk-action {"action":"add_todos","todos":[...]}``` block.',
-    flashcards: 'Extract key concepts from this note into clear, effective study flashcards. Format each on its own line as: Question :: Answer',
+    flashcards: 'Extract key concepts from this note into clear, effective study flashcards using action "generate_flashcards".',
     continue: 'Continue writing the next 1-2 paragraphs seamlessly in the same natural, professional voice and train of thought.',
-    schedule: 'Review my schedule and notes, synthesize a clear plan for today, and schedule any recommended events using ```pk-action {"action":"create_event",...}```.'
+    schedule: 'Review my schedule and notes, synthesize a clear plan for today, and schedule any recommended events using ```pk-action {"action":"create_event",...}```.',
+    research: 'Perform a comprehensive vault research query on the primary themes in my notes. Synthesize the findings and cite matching notes using action "vault_research".',
+    autolink: 'Scan this active note against all other note titles across my vault, and auto-link matching concept references into bidirectional [[wikilinks]] using action "auto_link_notes".',
+    quiz: 'Start an interactive oral exam tutor session on this note. Ask me questions one by one and grade my answers using action "ai_tutor".',
+    template: 'Structure this note into a clean, professional template (such as Meeting Notes, Cornell Notes, or Technical Spec) using action "apply_template".'
   };
-  if (kind === 'schedule') setGroqContextScope('vault');
+  if (kind === 'schedule' || kind === 'research') setGroqContextScope('vault');
   else if (pkGroqContextScope === 'general') setGroqContextScope('note');
   sendGroqPrompt(prompts[kind] || prompts.summarize);
 }
@@ -4544,7 +4758,30 @@ async function sendGroqPrompt(overrideText) {
   const cfg = loadAiConfig();
   const { spec, data } = getActiveProviderSpec(cfg);
 
+  const promptEl = document.getElementById('pkGroqPromptInput');
+  const userText = (typeof overrideText === 'string' ? overrideText : (promptEl ? promptEl.value : '')).trim();
+  if (!userText) return;
+
   if (spec.requiresKey && !data.apiKey) {
+    if (typeof matchOfflineIntent === 'function') {
+      const offlineAction = matchOfflineIntent(userText);
+      if (offlineAction) {
+        if (!overrideText && promptEl) promptEl.value = '';
+        pkGroqHistory.push({ role: 'user', content: userText });
+        const actRes = executeKonAction(offlineAction);
+        const executedActions = actRes && actRes.success ? [actRes] : [];
+        pkGroqHistory.push({
+          role: 'assistant',
+          content: `Kon executed offline: ${offlineAction.action.replace(/_/g, ' ')}.`,
+          executedActions,
+          isOfflineResolved: true
+        });
+        renderGroqMessages();
+        if (typeof persistState === 'function') persistState();
+        return;
+      }
+    }
+
     const panel = document.getElementById('pkGroqSettingsPanel');
     if (panel) panel.classList.remove('hidden');
     const inp = document.getElementById('pkGroqApiKeyInput');
@@ -4553,9 +4790,6 @@ async function sendGroqPrompt(overrideText) {
     return;
   }
 
-  const promptEl = document.getElementById('pkGroqPromptInput');
-  const userText = (typeof overrideText === 'string' ? overrideText : (promptEl ? promptEl.value : '')).trim();
-  if (!userText) return;
   if (!overrideText && promptEl) promptEl.value = '';
 
   if (typeof pkKonTutorState !== 'undefined' && pkKonTutorState.active) {

@@ -1694,7 +1694,77 @@ function pkCleanBlockText(raw) {
     .trim();
 }
 
-function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetBlockId = null) {
+// --- DYNAMIC VAULT RAG (RETRIEVAL AUGMENTED GENERATION) ---
+function retrieveRelevantVaultSnippets(query, excludeNoteId = null, maxCount = 4) {
+  if (typeof state === 'undefined' || !Array.isArray(state.notes) || state.notes.length === 0) return [];
+  const cleanQ = String(query || '').trim().toLowerCase();
+  if (!cleanQ) return [];
+
+  const STOPWORDS = new Set([
+    'the','and','is','in','it','of','to','for','with','on','at','from','by','about',
+    'as','an','or','be','this','that','how','what','where','when','who','why','which',
+    'can','you','please','show','tell','me','my','do','does','did','have','has','had',
+    'are','was','were','will','would','could','should','kon','note','notes','pk'
+  ]);
+
+  const rawTokens = cleanQ.split(/[^a-zA-Z0-9_\-]+/).map(t => t.trim().toLowerCase()).filter(t => t.length >= 3 && !STOPWORDS.has(t));
+  if (rawTokens.length === 0) return [];
+
+  const candidates = state.notes.filter(n => n && n.id !== excludeNoteId && !n.trash && !n.encryptedPayload);
+  if (candidates.length === 0) return [];
+
+  const scored = [];
+  for (const n of candidates) {
+    let score = 0;
+    const titleLower = String(n.title || '').toLowerCase();
+    const folderLower = String(n.folder || '').toLowerCase();
+    const tagsLower = Array.isArray(n.tags) ? n.tags.map(t => String(t).toLowerCase()) : [];
+
+    rawTokens.forEach(tok => {
+      if (titleLower.includes(tok)) score += 18;
+      if (folderLower.includes(tok)) score += 6;
+      if (tagsLower.some(tg => tg.includes(tok))) score += 10;
+    });
+
+    const blocks = Array.isArray(n.blocks) ? n.blocks : [];
+    let bestBlockText = '';
+    let bestBlockScore = 0;
+
+    for (const b of blocks) {
+      if (!b) continue;
+      const bText = (b.content || b.body || (Array.isArray(b.rows) ? b.rows.flat().join(' ') : '')).trim();
+      if (!bText) continue;
+      const bLower = bText.toLowerCase();
+      let matchCount = 0;
+      rawTokens.forEach(tok => {
+        if (bLower.includes(tok)) matchCount++;
+      });
+      if (matchCount > bestBlockScore) {
+        bestBlockScore = matchCount;
+        bestBlockText = bText;
+      }
+    }
+
+    score += bestBlockScore * 8;
+
+    if (score >= 12) {
+      const snippet = bestBlockText ? bestBlockText.slice(0, 320).replace(/\s+/g, ' ') : titleLower;
+      scored.push({
+        id: n.id,
+        title: n.title || 'Untitled',
+        folder: n.folder || 'General',
+        score,
+        snippet
+      });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, maxCount);
+}
+window.retrieveRelevantVaultSnippets = retrieveRelevantVaultSnippets;
+
+function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetBlockId = null, relevantVaultSnippets = []) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const autoMemOn = !window.PKMemory || (typeof window.PKMemory.getSettings === 'function' ? window.PKMemory.getSettings().autoSave : true);
   const parts = [
@@ -1754,6 +1824,7 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
     '48. Smart Document Architect & Structured Template:\n```pk-action\n{"action":"apply_template","template":"meeting_notes","title":"Product Sync","mode":"new_note"}\n```\n' +
     '49. Auto-Link Matching Note Titles:\n```pk-action\n{"action":"auto_link_notes"}\n```\n' +
     '50. Math & Code Calculation Runner:\n```pk-action\n{"action":"calculate","expression":"(14500 * 1.15) / 12","label":"Monthly Projection"}\n```\n' +
+    '51. Deep Vault Synthesis & Connectivity Analyzer:\n```pk-action\n{"action":"analyze_vault_connections"}\n```\n' +
     'MAJOR AGENT CAPABILITIES:\n' +
     '- Vault Research: When asked to search, synthesize, or compare information across notes in the vault, call action "vault_research" with query terms.\n' +
     '- Batch Workflows: When asked to scaffold projects, organize the vault, or perform multi-step routines, plan and emit an action "batch_workflow" containing all steps.\n' +
@@ -1762,6 +1833,7 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
     '- Structured Templates: When asked to format or scaffold structured notes (Meeting Notes, Cornell Notes, Technical Spec RFC, Weekly Retrospective, Executive Brief), call action "apply_template".\n' +
     '- Auto-Link Notes: When asked to connect or link notes in the vault, call action "auto_link_notes".\n' +
     '- Calculations: When asked to calculate, evaluate math, or compute numbers, call action "calculate".\n' +
+    '- Vault Insights & Connectivity: When asked to analyze connections, inspect broken/ghost links, or evaluate note connectivity, call action "analyze_vault_connections".\n' +
     'You may output multiple action blocks in sequence if the user asks for multiple tasks. Keep the conversational reply helpful, direct, and concise.',
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
@@ -1903,6 +1975,11 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
       `2. If Question is ${pkKonTutorState.totalQuestions}: Deliver a Final Mastery Assessment, highlight key concepts to review, and schedule a spaced repetition reminder.`,
       `3. Be encouraging, precise, and educational. Zero emojis.`
     ].join('\n'));
+  }
+
+  if (Array.isArray(relevantVaultSnippets) && relevantVaultSnippets.length > 0) {
+    const ragLines = relevantVaultSnippets.map(s => `- [[${s.title}]] [${s.folder}]: "${s.snippet}"`).join('\n');
+    parts.push(`\nRELEVANT VAULT KNOWLEDGE (retrieved dynamically from user's vault notes based on prompt):\n${ragLines}\nUse this retrieved knowledge to answer accurately. Citing source notes as [[Note Title]] when mentioning concepts from them is encouraged.`);
   }
 
   return parts.join('\n');
@@ -2936,6 +3013,13 @@ function executeKonAction(actionObj) {
     }
   }
 
+  // 51. Deep Vault Synthesis & Connectivity Analyzer
+  if (actionType === 'analyze_vault_connections' || actionType === 'vault_insights' || actionType === 'note_insights') {
+    if (typeof executeAnalyzeVaultConnections === 'function') {
+      return executeAnalyzeVaultConnections(actionObj);
+    }
+  }
+
   return null;
 }
 
@@ -3329,36 +3413,256 @@ function executeCalculate(actionObj) {
 }
 window.executeCalculate = executeCalculate;
 
-// --- 8. OFFLINE FAST INTENT PARSER ---
+// --- DEEP VAULT SYNTHESIS & CONNECTIVITY ANALYZER ---
+function executeAnalyzeVaultConnections(actionObj = {}) {
+  const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+  if (!note) {
+    return { success: false, error: 'No active note open to analyze' };
+  }
+
+  const plainLines = typeof noteToPlainLines === 'function'
+    ? noteToPlainLines(note)
+    : (note.blocks || []).map(b => b.content || '').filter(Boolean);
+  const fullText = plainLines.join('\n');
+
+  // 1. Rust WASM text stats
+  let stats = null;
+  if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.analyzeTextFull === 'function') {
+    stats = window.PKWasm.analyzeTextFull(fullText);
+  } else if (typeof analyzeNoteStatsWithWasm === 'function') {
+    stats = analyzeNoteStatsWithWasm(fullText);
+  }
+
+  // 2. Extract outgoing wikilinks
+  let wikilinks = [];
+  if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.extractWikilinks === 'function') {
+    wikilinks = window.PKWasm.extractWikilinks(fullText, 64) || [];
+  } else {
+    const matches = fullText.match(/\[\[([^\]]+)\]\]/g) || [];
+    wikilinks = matches.map(m => m.slice(2, -2).trim()).filter(Boolean);
+  }
+
+  const allNotes = typeof state !== 'undefined' && Array.isArray(state.notes) ? state.notes : [];
+  const existingTitles = new Set(allNotes.map(n => (n.title || '').toLowerCase()));
+
+  const resolvedLinks = [];
+  const ghostLinks = [];
+  for (const link of wikilinks) {
+    if (existingTitles.has(link.toLowerCase())) {
+      resolvedLinks.push(link);
+    } else {
+      ghostLinks.push(link);
+    }
+  }
+
+  // 3. Recommended unlinked mentions
+  const otherTitles = allNotes
+    .map(n => n.title)
+    .filter(t => t && t.length > 2 && t !== note.title && !wikilinks.some(w => w.toLowerCase() === t.toLowerCase()));
+
+  let unlinkedMatches = [];
+  if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.findTitleMatches === 'function') {
+    const rawMatches = window.PKWasm.findTitleMatches(fullText, otherTitles, 16) || [];
+    unlinkedMatches = [...new Set(rawMatches.map(m => m.title))];
+  } else {
+    for (const ot of otherTitles.slice(0, 30)) {
+      if (fullText.toLowerCase().includes(ot.toLowerCase())) {
+        unlinkedMatches.push(ot);
+        if (unlinkedMatches.length >= 8) break;
+      }
+    }
+  }
+
+  const words = stats ? (stats.words || 0) : fullText.split(/\s+/).filter(Boolean).length;
+  const readingSecs = stats && stats.readingTimeSecs ? Math.ceil(stats.readingTimeSecs) : Math.ceil(words / 3.3);
+  const readingTime = readingSecs > 60 ? `${Math.floor(readingSecs / 60)}m ${readingSecs % 60}s` : `${readingSecs}s`;
+  const flesch = stats && stats.fleschEase ? Number(stats.fleschEase).toFixed(1) : '70.0';
+
+  // Compute connectivity score: link ratio + unlinked resolution
+  const connScore = Math.max(10, Math.min(100, Math.round((resolvedLinks.length * 15) + (words > 50 ? 25 : 10) - (ghostLinks.length * 5) + (unlinkedMatches.length > 0 ? 10 : 0))));
+
+  const customHtml = `
+    <div class="mt-2.5 p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] space-y-2.5 font-mono text-xs">
+      <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-hairline)]">
+        <span class="font-bold text-[var(--accent-vermilion)]">Insight: "${escapeHtml(note.title)}"</span>
+        <span class="px-2 py-0.5 rounded bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] font-bold text-[10.5px]">${connScore}% Connected</span>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-[10px] text-[var(--text-secondary)] py-1 bg-[var(--bg-canvas)] p-2 rounded border border-[var(--border-hairline)]">
+        <div>Words: <strong class="text-[var(--text-primary)]">${words}</strong></div>
+        <div>Reading: <strong class="text-[var(--text-primary)]">${readingTime}</strong></div>
+        <div>Readability: <strong class="text-[var(--text-primary)]">${flesch}</strong></div>
+      </div>
+      ${resolvedLinks.length > 0 ? `
+        <div class="text-[10.5px] space-y-1">
+          <span class="text-[var(--text-tertiary)] font-semibold">Active Bidirectional Links (${resolvedLinks.length}):</span>
+          <div class="flex flex-wrap gap-1">
+            ${resolvedLinks.map(l => `<span class="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)]">[[${escapeHtml(l)}]]</span>`).join('')}
+          </div>
+        </div>
+      ` : ''}
+      ${ghostLinks.length > 0 ? `
+        <div class="text-[10.5px] space-y-1">
+          <span class="text-rose-400 font-semibold">Uncreated References (${ghostLinks.length}):</span>
+          <div class="flex flex-wrap gap-1">
+            ${ghostLinks.map(l => `<button type="button" onclick="sendGroqPrompt('create note titled ${escapeHtml(l)}')" class="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:text-white cursor-pointer">+ Create [[${escapeHtml(l)}]]</button>`).join('')}
+          </div>
+        </div>
+      ` : ''}
+      ${unlinkedMatches.length > 0 ? `
+        <div class="text-[10.5px] space-y-1">
+          <span class="text-[var(--accent-ochre)] font-semibold">Unlinked Mentions Available (${unlinkedMatches.length}):</span>
+          <div class="flex flex-wrap gap-1">
+            ${unlinkedMatches.map(m => `<span class="px-1.5 py-0.5 rounded bg-[var(--accent-ochre)]/10 border border-[var(--accent-ochre)]/30 text-[var(--accent-ochre)]">"${escapeHtml(m)}"</span>`).join('')}
+          </div>
+          <button type="button" onclick="executeKonAction({ action: 'auto_link_notes' })" class="mt-1.5 w-full py-1.5 rounded bg-[var(--accent-vermilion)] text-white text-[10.5px] font-semibold cursor-pointer">Auto-Link All Mentions Into Wikilinks</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  return {
+    success: true,
+    action: 'analyze_vault_connections',
+    description: `Analyzed connectivity for "${note.title}": ${resolvedLinks.length} active links, ${ghostLinks.length} uncreated, ${unlinkedMatches.length} unlinked mentions (Score: ${connScore}%)`,
+    customHtml
+  };
+}
+window.executeAnalyzeVaultConnections = executeAnalyzeVaultConnections;
+
+// --- 8. OFFLINE FAST INTENT PARSER (FULL-SPECTRUM DESKTOP AGENT) ---
 function matchOfflineIntent(text) {
   if (!text || typeof text !== 'string') return null;
-  const t = text.trim().toLowerCase();
+  const t = text.trim();
+  const lower = t.toLowerCase();
 
-  // Theme & font
-  if (/^(dark theme|switch to dark|dark mode)/i.test(t)) {
+  // 1. Theme & font
+  if (/^(?:dark theme|switch to dark|dark mode|set dark)/i.test(lower)) {
     return { action: 'set_theme', theme: 'dark' };
   }
-  if (/^(light theme|switch to light|light mode)/i.test(t)) {
+  if (/^(?:light theme|switch to light|light mode|set light)/i.test(lower)) {
     return { action: 'set_theme', theme: 'light' };
   }
-  if (/^(serif font|font serif)/i.test(t)) {
+  if (/^(?:serif font|font serif|use serif)/i.test(lower)) {
     return { action: 'set_font', font: 'serif' };
   }
-  if (/^(sans font|font sans)/i.test(t)) {
+  if (/^(?:sans font|font sans|use sans)/i.test(lower)) {
     return { action: 'set_font', font: 'sans' };
   }
 
-  // Create note
+  // 2. Open specific note by title
+  const openNoteMatch = t.match(/^(?:open|go to|view|show|find)\s+note\s+(?:titled\s+|named\s+)?(.+)/i) ||
+                        t.match(/^(?:open|go to)\s+\[\[([^\]]+)\]\]/i);
+  if (openNoteMatch) {
+    return { action: 'open_note', query: openNoteMatch[1].trim() };
+  }
+
+  // 3. Create note
   const newNoteMatch = t.match(/^(?:create|new|make)\s+note\s+(?:about|titled|named\s+)?(.+)/i);
   if (newNoteMatch) {
     return { action: 'create_note', title: newNoteMatch[1].trim(), content: `# ${newNoteMatch[1].trim()}\n\n` };
   }
 
-  // Todos
-  if (/^(check all todos|finish all todos)/i.test(t)) {
+  // 4. Daily Note
+  if (/^(?:open\s+)?(?:today'?s\s+note|daily\s+note|daily\s+log|today'?s\s+log)/i.test(lower)) {
+    return { action: 'open_daily_note' };
+  }
+
+  // 5. Calendar / Schedule
+  if (/^(?:open\s+|view\s+|show\s+)?(?:calendar|schedule|my\s+calendar|events)/i.test(lower)) {
+    return { action: 'open_calendar' };
+  }
+
+  // 6. Study Deck / Flashcards
+  if (/^(?:open\s+|view\s+|show\s+)?(?:study\s+deck|flashcards|study\s+cards|review\s+cards)/i.test(lower)) {
+    return { action: 'open_study_deck' };
+  }
+
+  // 7. Smart Draw / Canvas
+  if (/^(?:open\s+|start\s+)?(?:smart\s+draw|canvas|draw|sketch|whiteboard)/i.test(lower)) {
+    return { action: 'open_smart_draw' };
+  }
+
+  // 8. Scratchpad drawer
+  if (/^(?:open\s+|toggle\s+)?(?:scratchpad|quick\s+pad|quick\s+note)/i.test(lower)) {
+    return { action: 'open_scratchpad' };
+  }
+
+  // 9. Knowledge Graph
+  if (/^(?:open\s+|show\s+|view\s+)?(?:knowledge\s+graph|graph\s+view|vault\s+graph|graph)/i.test(lower)) {
+    return { action: 'open_graph' };
+  }
+
+  // 10. Vault Pulse / Statistics
+  if (/^(?:open\s+|show\s+|view\s+)?(?:vault\s+pulse|statistics|analytics|vault\s+stats)/i.test(lower)) {
+    return { action: 'open_vault_pulse' };
+  }
+
+  // 11. Read Aloud / Text-to-Speech
+  if (/^(?:read\s+aloud|read\s+note|speak\s+note|listen\s+to\s+note)/i.test(lower)) {
+    return { action: 'read_aloud' };
+  }
+  if (/^(?:stop\s+reading|stop\s+speech|stop\s+speaking|stop\s+audio|mute\s+speech)/i.test(lower)) {
+    return { action: 'stop_speech' };
+  }
+
+  // 12. Star / Favorite note
+  if (/^(?:star\s+note|favorite\s+note|bookmark\s+note)/i.test(lower)) {
+    return { action: 'star_note', favorite: true };
+  }
+  if (/^(?:unstar\s+note|unfavorite\s+note)/i.test(lower)) {
+    return { action: 'star_note', favorite: false };
+  }
+
+  // 13. Duplicate note
+  if (/^(?:duplicate\s+note|clone\s+note|copy\s+note)/i.test(lower)) {
+    return { action: 'duplicate_note' };
+  }
+
+  // 14. Version Snapshot
+  const snapMatch = t.match(/^(?:create\s+snapshot|save\s+version|backup\s+note)(?:\s+(?:named|labeled)\s+(.+))?/i);
+  if (snapMatch) {
+    return { action: 'create_snapshot', label: snapMatch[1] ? snapMatch[1].trim() : 'Manual Backup' };
+  }
+
+  // 15. Settings & Command Palette
+  if (/^(?:open\s+)?(?:settings|ai\s+settings|preferences)/i.test(lower)) {
+    return { action: 'open_settings' };
+  }
+  if (/^(?:open\s+)?(?:command\s+palette|palette)/i.test(lower)) {
+    return { action: 'open_command_palette' };
+  }
+
+  // 16. Split view & Sidebar
+  if (/^(?:toggle\s+|open\s+)?(?:split\s+view|split\s+pane|split)/i.test(lower)) {
+    return { action: 'toggle_split' };
+  }
+  if (/^(?:toggle\s+)?sidebar/i.test(lower)) {
+    return { action: 'toggle_sidebar' };
+  }
+
+  // 17. Ambient focus sound
+  if (/^(?:open\s+|toggle\s+)?(?:soundscape|ambient\s+sound|focus\s+audio)/i.test(lower)) {
+    return { action: 'open_soundscape' };
+  }
+
+  // 18. Math Studio & LaTeX symbols
+  if (/^(?:open\s+)?(?:math\s+studio|latex\s+symbols|math\s+symbols)/i.test(lower)) {
+    return { action: 'open_math_studio' };
+  }
+
+  // 19. Export note
+  if (/^(?:export\s+note|export\s+as\s+markdown|export\s+markdown)/i.test(lower)) {
+    return { action: 'export_note', format: 'markdown' };
+  }
+  if (/^(?:export\s+as\s+html|export\s+html)/i.test(lower)) {
+    return { action: 'export_note', format: 'html' };
+  }
+
+  // 20. Todos
+  if (/^(?:check\s+all\s+todos|finish\s+all\s+todos|complete\s+all\s+todos)/i.test(lower)) {
     return { action: 'check_all_todos' };
   }
-  if (/^(clear completed todos|clean todos)/i.test(t)) {
+  if (/^(?:clear\s+completed\s+todos|clean\s+todos|remove\s+checked\s+todos)/i.test(lower)) {
     return { action: 'clear_completed_todos' };
   }
   const addTodoMatch = t.match(/^(?:add|create)\s+todo(?:s)?\s*[:\-]?\s*(.+)/i);
@@ -3366,27 +3670,32 @@ function matchOfflineIntent(text) {
     return { action: 'add_todos', todos: [addTodoMatch[1].trim()] };
   }
 
-  // Templates
-  if (/(meeting notes|cornell notes|technical spec|weekly retro)/i.test(t)) {
-    const tmpl = t.includes('meeting') ? 'meeting_notes' : (t.includes('cornell') ? 'cornell_notes' : (t.includes('spec') ? 'technical_spec' : 'weekly_retrospective'));
+  // 21. Templates
+  if (/(?:meeting\s+notes|cornell\s+notes|technical\s+spec|weekly\s+retro)/i.test(lower)) {
+    const tmpl = lower.includes('meeting') ? 'meeting_notes' : (lower.includes('cornell') ? 'cornell_notes' : (lower.includes('spec') ? 'technical_spec' : 'weekly_retrospective'));
     return { action: 'apply_template', template: tmpl, mode: 'active_note' };
   }
 
-  // Research
-  const resMatch = t.match(/^(?:research|find in vault|search vault for)\s+(.+)/i);
+  // 22. Deep Research
+  const resMatch = t.match(/^(?:research|find\s+in\s+vault|search\s+vault\s+for)\s+(.+)/i);
   if (resMatch) {
     return { action: 'vault_research', query: resMatch[1].trim() };
   }
 
-  // Auto-link
-  if (/(auto[- ]?link|link notes|wikilink)/i.test(t)) {
+  // 23. Auto-link
+  if (/(?:auto[- ]?link|link\s+notes|wikilink\s+notes)/i.test(lower)) {
     return { action: 'auto_link_notes' };
   }
 
-  // Math calculation
-  const mathMatch = t.match(/^(?:calc|calculate|evaluate|what is)\s+([0-9\s\+\-\*\/\%\(\)\.\^]+)$/i);
+  // 24. Math calculation (support calc, what is, compute, evaluate, math)
+  const mathMatch = t.match(/^(?:calc|calculate|evaluate|what\s+is|compute)\s+([0-9\s\+\-\*\/\%\(\)\.\^\sqrtabssincostanpie]+)$/i);
   if (mathMatch) {
     return { action: 'calculate', expression: mathMatch[1].trim() };
+  }
+
+  // 25. Vault Connectivity & Quality Insights
+  if (/^(?:analyze\s+note|note\s+insights|vault\s+insights|analyze\s+vault|connectivity\s+score)/i.test(lower)) {
+    return { action: 'analyze_vault_connections' };
   }
 
   return null;
@@ -3908,6 +4217,70 @@ async function submitInlineAiPrompt(customPrompt) {
 
   const block = (note.blocks || []).find(b => b.id === pkInlineAiTargetBlockId);
   const blockContent = block ? (block.content || '') : '';
+
+  // Fast offline text transformations in Inline Copilot
+  const pLower = promptText.toLowerCase();
+  let offlineTransformed = null;
+
+  // Math calculation
+  const mathMatch = pLower.match(/^(?:calc|calculate|what is|compute)\s+([0-9\s\+\-\*\/\%\(\)\.\^\sqrtabssincostanpie]+)$/i) ||
+                    pLower.match(/^([0-9\s\+\-\*\/\%\(\)\.\^]{3,})$/);
+  if (mathMatch) {
+    const expr = mathMatch[1].trim();
+    if (window.PKWasm && window.PKWasm.ready && typeof window.PKWasm.calculate === 'function') {
+      const res = window.PKWasm.calculate(expr);
+      if (res && res.ok) offlineTransformed = `${expr} = ${res.result}`;
+    }
+    if (!offlineTransformed) {
+      try {
+        const val = (new Function(`return (${expr.replace(/\^/g, '**')});`))();
+        if (typeof val === 'number' && Number.isFinite(val)) offlineTransformed = `${expr} = ${val}`;
+      } catch (_) {}
+    }
+  }
+
+  // Bulletize
+  if (!offlineTransformed && /^(?:bullets?|bulletize|make\s+bullets?|list)$/i.test(pLower)) {
+    const src = blockContent || promptText;
+    offlineTransformed = src.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => l.startsWith('- ') ? l : `- ${l}`).join('\n');
+  }
+
+  // Numbered list
+  if (!offlineTransformed && /^(?:numbered?|numbers?|make\s+numbered)$/i.test(pLower)) {
+    const src = blockContent || promptText;
+    offlineTransformed = src.split(/\n+/).map(l => l.trim()).filter(Boolean).map((l, i) => `${i + 1}. ${l.replace(/^[0-9]+\.\s*/, '')}`).join('\n');
+  }
+
+  // Casing
+  if (!offlineTransformed && /^(?:uppercase|all\s+caps)$/i.test(pLower) && blockContent) {
+    offlineTransformed = blockContent.toUpperCase();
+  }
+  if (!offlineTransformed && /^(?:lowercase)$/i.test(pLower) && blockContent) {
+    offlineTransformed = blockContent.toLowerCase();
+  }
+  if (!offlineTransformed && /^(?:title\s+case)$/i.test(pLower) && blockContent) {
+    offlineTransformed = blockContent.replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // Quick fix offline typos & formatting
+  if (!offlineTransformed && /^(?:fix|clean|proofread|grammar)$/i.test(pLower) && blockContent) {
+    offlineTransformed = blockContent
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([,.:;?!])/g, '$1')
+      .replace(/([.?!])\s*([a-z])/g, (_, p, c) => `${p} ${c.toUpperCase()}`)
+      .trim();
+  }
+
+  if (offlineTransformed) {
+    const previewContainer = document.getElementById('pkInlineAiPreviewContainer');
+    const previewText = document.getElementById('pkInlineAiPreviewText');
+    const statusEl = document.getElementById('pkInlineAiStatus');
+    if (previewContainer) previewContainer.classList.remove('hidden');
+    if (statusEl) statusEl.textContent = 'Ready (Offline)';
+    if (previewText) previewText.textContent = offlineTransformed;
+    pkInlineAiPendingResult = offlineTransformed;
+    return;
+  }
 
   const cfg = loadAiConfig();
   const { spec, data } = getActiveProviderSpec(cfg);
@@ -4593,8 +4966,62 @@ function retryLastAiPrompt(msgIdx) {
 }
 
 // ============================================================================
-// MESSAGE RENDERING & SMOOTH RAF-BATCHED SSE STREAMING
+// MESSAGE RENDERING & PROACTIVE CONTEXTUAL ACTION CHIPS
 // ============================================================================
+function getSuggestedFollowUps(msg, idx) {
+  if (!msg || msg.streaming || msg.isError) return [];
+  const suggestions = [];
+
+  const actions = msg.executedActions || [];
+  if (actions.length > 0) {
+    for (const act of actions) {
+      if (act.action === 'create_note') {
+        if (act.noteId) suggestions.push({ label: 'Open Note', action: `selectNote('${escapeHtml(act.noteId)}'); if(typeof setAppMode==='function') setAppMode('workspace');` });
+        suggestions.push({ label: 'Auto-Link Notes', prompt: 'Auto-link references in the newly created note' });
+        suggestions.push({ label: 'Create Flashcards', prompt: 'Generate flashcards for this note' });
+      } else if (act.action === 'calculate') {
+        suggestions.push({ label: 'Insert Result Below', action: `insertGroqReplyIntoNote(${idx}, false)` });
+        suggestions.push({ label: 'Copy Result', action: `copyGroqReply(${idx})` });
+      } else if (act.action === 'add_todos' || act.action === 'check_all_todos') {
+        suggestions.push({ label: 'Clear Completed', prompt: 'Clear completed todos' });
+        suggestions.push({ label: 'Plan In Calendar', action: `if(typeof setAppMode==='function') setAppMode('calendar');` });
+      } else if (act.action === 'apply_template') {
+        suggestions.push({ label: 'Auto-Link', prompt: 'Auto-link notes in this template' });
+        suggestions.push({ label: 'Deep Research', prompt: 'Research related ideas in the vault' });
+      } else if (act.action === 'vault_research') {
+        suggestions.push({ label: 'Knowledge Graph', action: `if(typeof openExpandedGraphModal==='function') openExpandedGraphModal();` });
+        suggestions.push({ label: 'Make Flashcards', prompt: 'Create study flashcards from this research' });
+      } else if (act.action === 'auto_link_notes') {
+        suggestions.push({ label: 'View Knowledge Graph', action: `if(typeof openExpandedGraphModal==='function') openExpandedGraphModal();` });
+      } else if (act.action === 'analyze_vault_connections') {
+        suggestions.push({ label: 'Auto-Link All', prompt: 'Auto-link matching notes across my vault' });
+        suggestions.push({ label: 'Open Graph', action: `if(typeof openExpandedGraphModal==='function') openExpandedGraphModal();` });
+      }
+    }
+  } else {
+    const text = (msg.content || '').toLowerCase();
+    if (text.includes('::')) {
+      suggestions.push({ label: 'Study Deck', action: `sendGroqFlashcardsToStudyDeck(${idx})` });
+    }
+    if (text.includes('- [ ]') || text.includes('todo')) {
+      suggestions.push({ label: 'Add to Note', action: `insertGroqReplyIntoNote(${idx}, false)` });
+    }
+    suggestions.push({ label: 'Create Note', action: `createNewNoteFromGroqReply(${idx})` });
+    suggestions.push({ label: 'Quiz Me', prompt: 'Quiz me on key concepts from your response' });
+  }
+
+  // Deduplicate by label and cap at 3
+  const seen = new Set();
+  const deduped = [];
+  for (const s of suggestions) {
+    if (!seen.has(s.label) && deduped.length < 3) {
+      seen.add(s.label);
+      deduped.push(s);
+    }
+  }
+  return deduped;
+}
+
 function renderGroqMessages() {
   const box = document.getElementById('pkGroqMessages');
   if (!box) return;
@@ -4714,6 +5141,18 @@ function renderGroqMessages() {
       ? `<div class="mt-1.5 font-mono text-[9px] text-[var(--text-tertiary)]">${escapeHtml(m.recalledMeta)}</div>`
       : '';
 
+    const followUps = getSuggestedFollowUps(m, idx);
+    const followUpHtml = followUps.length > 0 ? `
+      <div class="mt-2 pt-1.5 border-t border-[var(--border-hairline)] flex flex-wrap items-center gap-1.5 font-mono text-[9.5px]">
+        <span class="text-[var(--text-tertiary)] uppercase tracking-wider text-[8.5px]">Suggested:</span>
+        ${followUps.map(fu => fu.action ? `
+          <button type="button" onclick="${fu.action}" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">${escapeHtml(fu.label)}</button>
+        ` : `
+          <button type="button" onclick="sendGroqPrompt('${escapeHtml(fu.prompt)}')" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--accent-vermilion)] cursor-pointer">${escapeHtml(fu.label)}</button>
+        `).join('')}
+      </div>
+    ` : '';
+
     return `
       <div class="flex justify-start">
         <div class="max-w-[94%] w-full px-3 py-2.5 rounded-xl rounded-bl-[3px] border ${bubbleBorder} text-[var(--text-primary)]">
@@ -4722,6 +5161,7 @@ function renderGroqMessages() {
           ${memoryBadges}
           ${eventCards}
           ${recalledNote}
+          ${followUpHtml}
           ${actionsBar}
         </div>
       </div>
@@ -4757,6 +5197,20 @@ function handleGroqPromptKeydown(e) {
 function runGroqQuickAction(kind) {
   if (kind === 'scankeys') {
     openApiKeyScannerModal(true);
+    return;
+  }
+  if (kind === 'insights') {
+    const actRes = executeKonAction({ action: 'analyze_vault_connections' });
+    if (actRes && actRes.success) {
+      pkGroqHistory.push({
+        role: 'assistant',
+        content: `Kon analyzed connectivity and insights for your active note.`,
+        executedActions: [actRes],
+        isOfflineResolved: true
+      });
+      renderGroqMessages();
+      if (typeof persistState === 'function') persistState();
+    }
     return;
   }
   const currentSel = typeof getReadableSelectedText === 'function' ? getReadableSelectedText(true) : '';
@@ -4916,8 +5370,17 @@ async function sendGroqPrompt(overrideText) {
     } catch (_) {}
   }
 
-  // Build subtle recall metadata tag if memory/cross-chat was used
+  // Dynamic Smart Vault RAG: Retrieve top relevant note snippets across the vault
+  let relevantVaultSnippets = [];
+  if (typeof state !== 'undefined' && Array.isArray(state.notes) && state.notes.length > 0) {
+    try {
+      relevantVaultSnippets = retrieveRelevantVaultSnippets(userText, state.activeNoteId, 4);
+    } catch (_) {}
+  }
+
+  // Build subtle recall metadata tag if memory/cross-chat or vault RAG was used
   const metaParts = [];
+  if (relevantVaultSnippets.length > 0) metaParts.push(`${relevantVaultSnippets.length} vault note${relevantVaultSnippets.length === 1 ? '' : 's'}`);
   if (recalledCtx.memories.length > 0) metaParts.push(`${recalledCtx.memories.length} mem`);
   if (recalledCtx.earlierInThisChat.length > 0) metaParts.push(`${recalledCtx.earlierInThisChat.length} earlier turn`);
   if (recalledCtx.acrossChats.length > 0) metaParts.push(`${recalledCtx.acrossChats.length} past chat`);
@@ -4925,13 +5388,13 @@ async function sendGroqPrompt(overrideText) {
     pkGroqHistory[assistantIdx].recalledMeta = `Recalled: ${metaParts.join(' · ')}`;
   }
 
-  // Send recent 16 messages verbatim + whole-chat & cross-chat Orama recall in system prompt
+  // Send recent 16 messages verbatim + whole-chat & cross-chat Orama recall + vault RAG in system prompt
   const recentTurns = cleanFullChat
     .slice(-RECENT_WINDOW)
     .map(m => ({ role: m.role, content: stripSpecialBlocksForDisplay(m.content, false) || m.content }));
 
   const messages = [
-    { role: 'system', content: buildGroqSystemPrompt(recalledCtx, promptTargetSelection, promptTargetBlockId) },
+    { role: 'system', content: buildGroqSystemPrompt(recalledCtx, promptTargetSelection, promptTargetBlockId, relevantVaultSnippets) },
     ...recentTurns
   ];
 

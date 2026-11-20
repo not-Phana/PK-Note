@@ -292,7 +292,7 @@
           </button>
 
           <!-- Real-Time Dictate -->
-          <button onclick="toggleVoiceDictation()" id="desktopDictateBtn" title="Real-Time Voice Dictation" class="w-8 h-8 md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] font-mono text-[10px] flex items-center justify-center gap-1 cursor-pointer">
+          <button onclick="toggleVoiceDictation()" id="desktopDictateBtn" title="Real-Time Voice Dictation" class="hidden sm:flex md:w-auto md:h-auto md:px-2 md:py-1 rounded-md md:rounded-[3px] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] hover:bg-[var(--bg-hover)] font-mono text-[10px] items-center justify-center gap-1 cursor-pointer">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -511,7 +511,7 @@
           </div>
         </div>
       <!-- Configurable Reading Measure Container (Full-width clean symmetric padding on phones!) -->
-      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto px-4 sm:px-10 pt-4 sm:pt-7 pb-32 w-full">
+      <div id="documentContentContainer" class="relative z-[1] max-w-[680px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 pt-4 sm:pt-7 pb-32 w-full">
 
         <!-- Document Icon & Cover Selector (Desktop/Tablet) -->
         <div class="hidden sm:flex items-center gap-2 mb-2.5 relative">
@@ -1992,7 +1992,7 @@
   </div>
 
   <!-- Kon Inline Editor AI Copilot (Ctrl+J or /ai) -->
-  <div id="pkInlineAiCopilot" class="hidden fixed z-[930] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl p-3.5 w-96 max-w-[96vw] space-y-2.5 font-mono select-none animate-menu">
+  <div id="pkInlineAiCopilot" class="hidden fixed z-[930] popover-surface rounded-xl border border-[var(--border-strong)] shadow-2xl p-3.5 w-96 max-w-[calc(100vw-24px)] box-border space-y-2.5 font-mono select-none animate-menu">
     <div class="flex items-center justify-between border-b border-[var(--border-hairline)] pb-2">
       <div class="flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)] animate-pulse"></span>
@@ -3909,7 +3909,7 @@
       </div>
 
       <!-- Prompt Input Composer (Includes 1-Tap Key/Provider + Model Quick Switcher & Active Selection Target) -->
-      <div class="p-3 border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0 space-y-2">
+      <div class="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-[var(--border-hairline)] bg-[var(--bg-canvas)] shrink-0 space-y-2">
         <div class="flex items-center gap-1.5 font-mono text-[10px]">
           <select id="pkAiQuickKeySelect" onchange="handleQuickAiKeySwitch(this.value)" title="Switch active API key / provider instantly" class="w-[44%] min-w-0 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)] cursor-pointer truncate"></select>
           <select id="pkAiQuickModelSelect" onchange="handleQuickAiModelSwitch(this.value)" title="Switch AI model instantly" class="flex-1 min-w-0 px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-vermilion)] cursor-pointer truncate"></select>

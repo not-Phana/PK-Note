@@ -3814,17 +3814,22 @@ function openInlineAiCopilot(blockId) {
   const copilotEl = document.getElementById('pkInlineAiCopilot');
   if (!copilotEl) return;
 
-  let top = 140;
-  let left = Math.max(16, (window.innerWidth - 384) / 2);
+  const copilotWidth = Math.min(384, window.innerWidth - 24);
+  const minLeft = 12;
+  const maxLeft = Math.max(minLeft, window.innerWidth - copilotWidth - 12);
+  let left = Math.max(minLeft, (window.innerWidth - copilotWidth) / 2);
+  let top = Math.min(window.innerHeight - 340, Math.max(80, window.innerHeight * 0.25));
+
   if (pkInlineAiTargetBlockId) {
     const blockEl = document.querySelector(`[data-block-id="${pkInlineAiTargetBlockId}"]`);
     if (blockEl) {
       const rect = blockEl.getBoundingClientRect();
-      top = Math.min(window.innerHeight - 320, Math.max(70, rect.bottom + 8));
-      left = Math.min(window.innerWidth - 400, Math.max(16, rect.left));
+      top = Math.min(window.innerHeight - 340, Math.max(70, rect.bottom + 8));
+      left = Math.min(maxLeft, Math.max(minLeft, rect.left));
     }
   }
 
+  copilotEl.style.width = `${copilotWidth}px`;
   copilotEl.style.top = `${top}px`;
   copilotEl.style.left = `${left}px`;
   copilotEl.classList.remove('hidden');

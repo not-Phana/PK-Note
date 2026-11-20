@@ -612,6 +612,7 @@ function toUiMessage(r) {
     provider: r.provider || '',
     eventPayloads: Array.isArray(r.eventPayloads) ? r.eventPayloads : [],
     savedMemories: Array.isArray(r.savedMemories) ? r.savedMemories : [],
+    executedActions: Array.isArray(r.executedActions) ? r.executedActions : [],
     createdAt: r.createdAt || Date.now(),
     isError: false,
     streaming: false
@@ -653,6 +654,13 @@ async function saveChatHistory(historyArr) {
       provider: m.provider || '',
       eventPayloads: Array.isArray(m.eventPayloads) ? m.eventPayloads : [],
       savedMemories: Array.isArray(m.savedMemories) ? m.savedMemories : [],
+      executedActions: Array.isArray(m.executedActions)
+        ? m.executedActions.map(a => ({
+            action: a.action,
+            description: a.description,
+            noteId: a.noteId || null
+          }))
+        : [],
       createdAt: m.createdAt || Date.now()
     }));
 

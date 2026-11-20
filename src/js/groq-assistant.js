@@ -1877,9 +1877,23 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
   const todayIso = new Date().toISOString().slice(0, 10);
   const autoMemOn = !window.PKMemory || window.PKMemory.getSettings().autoSave;
   const parts = [
-    'You are the built-in AI helper inside PK Note.',
+    'You are Kon, the personal AI assistant and proactive workspace agent inside PK Note.',
     `Today's date is ${todayIso}.`,
-    'Tone & Persona: Communicate naturally and directly, like a sharp, professional colleague in a focused conversation. Avoid sounding like a formulaic AI chatbot: do not use robotic greetings, canned flattery, repetitive filler, or rigid textbook structures. Write with clarity, nuance, and professional substance without being stiff, corporate, or overly academic. In chat conversation, you can naturally use emojis to add warmth, tone, and expression when appropriate. However, never insert unwanted emojis into document text or note replacements unless the user specifically asked for emojis in their note. Use formatting only when it genuinely improves readability.',
+    'Tone & Persona: You are Kon. Communicate naturally, concisely, and directly, like a sharp, highly capable colleague and personal executive assistant. Avoid sounding like a formulaic AI chatbot: do not use robotic greetings, canned flattery, repetitive filler, or rigid textbook structures. Write with clarity, nuance, and professional substance without being stiff or corporate. Zero emojis unless specifically requested by the user.',
+    'ACTION CAPABILITIES (YOU CAN DO THINGS FOR THE USER): You have full power to take real workspace actions directly in PK Note. When the user asks you to create a note, add todos, append notes, rename a note, tag a note, schedule an event, open a note, switch theme, or clear finished tasks: describe what you did concisely and append one or more executable action blocks at the very end of your response.\n' +
+    'ACTION SPECIFICATION:\n' +
+    'Append valid JSON inside ```pk-action ... ``` at the end of your response:\n' +
+    '1. Create a note:\n```pk-action\n{"action":"create_note","title":"Meeting Notes","folder":"Work","tags":["project"],"content":"## Discussion\\n- Key points here"}\n```\n' +
+    '2. Add todos to active note:\n```pk-action\n{"action":"add_todos","todos":["Buy groceries","Draft email to client","Review PR"]}\n```\n' +
+    '3. Append content to active note:\n```pk-action\n{"action":"append_content","content":"### New Ideas\\n- Point one\\n- Point two"}\n```\n' +
+    '4. Rename active note title:\n```pk-action\n{"action":"update_title","title":"New Note Title"}\n```\n' +
+    '5. Add tags to active note:\n```pk-action\n{"action":"add_tags","tags":["urgent","client"]}\n```\n' +
+    '6. Schedule calendar event:\n```pk-action\n{"action":"create_event","title":"Dentist Appointment","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":"Clinic"}\n```\n' +
+    '7. Open existing note:\n```pk-action\n{"action":"open_note","query":"workout"}\n```\n' +
+    '8. Switch theme:\n```pk-action\n{"action":"set_theme","theme":"dark"}\n``` (or "light")\n' +
+    '9. Clear completed todos in active note:\n```pk-action\n{"action":"clear_completed_todos"}\n```\n' +
+    '10. Star / favorite active note:\n```pk-action\n{"action":"star_note","favorite":true}\n```\n' +
+    'Always output valid JSON inside ```pk-action ... ```. Keep your conversational reply concise and helpful.',
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
     'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```',
@@ -2014,8 +2028,376 @@ function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetB
 }
 
 // ============================================================================
-// WORKSPACE INTEGRATION: MARKDOWN -> BLOCKS, FLASHCARDS, CALENDAR EVENTS, VOICE
+// WORKSPACE INTEGRATION: ACTIONS (KON DOING THINGS), MARKDOWN -> BLOCKS, CALENDAR, MEMORY
 // ============================================================================
+function extractActionPayloadsFromText(text) {
+  const actions = [];
+  const re = /```pk-action\s*([\s\S]*?)```/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    try {
+      const parsed = JSON.parse(m[1].trim());
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      items.forEach(obj => {
+        if (obj && typeof obj.action === 'string') {
+          actions.push(obj);
+        }
+      });
+    } catch (_) {}
+  }
+  return actions;
+}
+
+function executeKonAction(actionObj) {
+  if (!actionObj || !actionObj.action) return null;
+  const actionType = String(actionObj.action).toLowerCase().trim();
+
+  // 1. Create a new note
+  if (actionType === 'create_note' || actionType === 'new_note') {
+    if (typeof state === 'undefined' || !Array.isArray(state.notes)) return null;
+    const folder = (actionObj.folder && String(actionObj.folder).trim()) || 'General';
+    if (!Array.isArray(state.folders)) state.folders = ['General'];
+    if (!state.folders.includes(folder)) state.folders.push(folder);
+    if (!state.expandedFolders) state.expandedFolders = {};
+    state.expandedFolders[folder] = true;
+
+    const rawContent = actionObj.content || '';
+    const blocks = parseMarkdownToPKBlocks(rawContent);
+    const nextNum = String(state.notes.length + 1).padStart(2, '0');
+    const noteTitle = (actionObj.title && String(actionObj.title).trim()) || 'Untitled Note';
+    const tags = Array.isArray(actionObj.tags)
+      ? actionObj.tags
+      : (typeof actionObj.tags === 'string' ? actionObj.tags.split(',').map(t => t.trim()).filter(Boolean) : ['draft']);
+
+    const newNote = {
+      id: generateId('note'),
+      code: `DOC-${nextNum}`,
+      title: noteTitle,
+      glyph: 'document',
+      folder: folder,
+      favorite: false,
+      tags: tags,
+      updatedAt: new Date().toISOString().slice(0, 10),
+      blocks: blocks.length > 0 ? blocks : [{ id: generateId('b'), type: 'paragraph', content: '' }]
+    };
+
+    state.notes.unshift(newNote);
+    if (typeof selectNote === 'function') selectNote(newNote.id);
+    if (typeof setAppMode === 'function') setAppMode('workspace');
+    if (typeof renderAll === 'function') renderAll();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon created note: "${newNote.title}"`);
+
+    return {
+      success: true,
+      action: 'create_note',
+      description: `Created note "${newNote.title}" in ${folder}`,
+      noteId: newNote.id,
+      undo: () => {
+        const idx = state.notes.findIndex(n => n.id === newNote.id);
+        if (idx !== -1) {
+          state.notes.splice(idx, 1);
+          if (state.notes.length > 0 && typeof selectNote === 'function') selectNote(state.notes[0].id);
+          if (typeof renderAll === 'function') renderAll();
+          if (typeof persistState === 'function') persistState();
+          if (typeof showToast === 'function') showToast(`Undid created note "${newNote.title}"`);
+        }
+      }
+    };
+  }
+
+  // 2. Add todo checklist items to active note
+  if (actionType === 'add_todos' || actionType === 'add_todo' || actionType === 'create_todos') {
+    let note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) {
+      if (typeof createNewNote === 'function') createNewNote('General');
+      note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    }
+    if (!note || !Array.isArray(note.blocks)) return null;
+
+    const rawTodos = Array.isArray(actionObj.todos)
+      ? actionObj.todos
+      : (typeof actionObj.todos === 'string' ? actionObj.todos.split('\n') : [actionObj.text || actionObj.todo || '']);
+
+    const addedBlockIds = [];
+    rawTodos.forEach(item => {
+      const t = String(item || '').replace(/^[-*•]\s*(\[[ xX]\])?\s*/, '').trim();
+      if (t) {
+        const bId = generateId('b');
+        note.blocks.push({ id: bId, type: 'todo', checked: false, content: t });
+        addedBlockIds.push(bId);
+      }
+    });
+
+    if (addedBlockIds.length === 0) return null;
+    note.updatedAt = new Date().toISOString();
+    if (typeof setAppMode === 'function') setAppMode('workspace');
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon added ${addedBlockIds.length} todo item(s)`);
+
+    return {
+      success: true,
+      action: 'add_todos',
+      description: `Added ${addedBlockIds.length} todo(s) to "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.blocks = note.blocks.filter(b => !addedBlockIds.includes(b.id));
+        if (typeof renderBlocks === 'function') renderBlocks(note);
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast('Undid added todos');
+      }
+    };
+  }
+
+  // 3. Append markdown content to active note
+  if (actionType === 'append_content' || actionType === 'append_text' || actionType === 'insert_content') {
+    let note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) {
+      if (typeof createNewNote === 'function') createNewNote('General');
+      note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    }
+    if (!note || !Array.isArray(note.blocks)) return null;
+
+    const content = actionObj.content || actionObj.text || '';
+    const newBlocks = parseMarkdownToPKBlocks(content);
+    if (newBlocks.length === 0) return null;
+
+    const addedIds = newBlocks.map(b => b.id);
+    note.blocks.push(...newBlocks);
+    note.updatedAt = new Date().toISOString();
+    if (typeof setAppMode === 'function') setAppMode('workspace');
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon added content to "${note.title}"`);
+
+    return {
+      success: true,
+      action: 'append_content',
+      description: `Added ${newBlocks.length} block(s) to "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.blocks = note.blocks.filter(b => !addedIds.includes(b.id));
+        if (typeof renderBlocks === 'function') renderBlocks(note);
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast('Undid appended content');
+      }
+    };
+  }
+
+  // 4. Update title of active note
+  if (actionType === 'update_title' || actionType === 'set_title' || actionType === 'rename_note') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !actionObj.title) return null;
+    const oldTitle = note.title;
+    const newTitle = String(actionObj.title).trim();
+    note.title = newTitle;
+    note.updatedAt = new Date().toISOString();
+
+    const titleEl = document.getElementById('docTitleInput');
+    if (titleEl) titleEl.value = newTitle;
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon renamed note to "${newTitle}"`);
+
+    return {
+      success: true,
+      action: 'update_title',
+      description: `Renamed note to "${newTitle}"`,
+      noteId: note.id,
+      undo: () => {
+        note.title = oldTitle;
+        if (titleEl) titleEl.value = oldTitle;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast(`Restored title "${oldTitle}"`);
+      }
+    };
+  }
+
+  // 5. Add or set tags on active note
+  if (actionType === 'add_tags' || actionType === 'set_tags') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) return null;
+    const oldTags = [...(note.tags || [])];
+    const newTags = Array.isArray(actionObj.tags)
+      ? actionObj.tags
+      : String(actionObj.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+    if (newTags.length === 0) return null;
+    if (!Array.isArray(note.tags)) note.tags = [];
+    newTags.forEach(t => {
+      if (!note.tags.includes(t)) note.tags.push(t);
+    });
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon added tags: ${newTags.join(', ')}`);
+
+    return {
+      success: true,
+      action: 'add_tags',
+      description: `Added tags [${newTags.join(', ')}] to "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.tags = oldTags;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast('Restored tags');
+      }
+    };
+  }
+
+  // 6. Schedule calendar event
+  if (actionType === 'create_event' || actionType === 'schedule_event') {
+    if (typeof state === 'undefined' || !Array.isArray(state.events)) return null;
+    const title = String(actionObj.title || 'Scheduled Event').slice(0, 80);
+    const dateKey = /^\d{4}-\d{2}-\d{2}$/.test(actionObj.date || '') ? actionObj.date : new Date().toISOString().slice(0, 10);
+    const startTime = /^\d{2}:\d{2}$/.test(actionObj.start || '') ? actionObj.start : '09:00';
+    const endTime = /^\d{2}:\d{2}$/.test(actionObj.end || '') ? actionObj.end : '10:00';
+
+    const newEvt = {
+      id: generateId('evt'),
+      title: title,
+      start_datetime: `${dateKey}T${startTime}:00`,
+      end_datetime: `${dateKey}T${endTime}:00`,
+      all_day: !actionObj.start,
+      location: actionObj.location || '',
+      notes: 'Scheduled by Kon',
+      color_code: '#D95338'
+    };
+
+    state.events.push(newEvt);
+    if (typeof renderAll === 'function') renderAll();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon scheduled "${title}" on ${dateKey} at ${startTime}`);
+
+    return {
+      success: true,
+      action: 'create_event',
+      description: `Scheduled "${title}" on ${dateKey} at ${startTime}`,
+      undo: () => {
+        const eIdx = state.events.findIndex(e => e.id === newEvt.id);
+        if (eIdx !== -1) {
+          state.events.splice(eIdx, 1);
+          if (typeof renderAll === 'function') renderAll();
+          if (typeof persistState === 'function') persistState();
+          if (typeof showToast === 'function') showToast(`Removed scheduled event "${title}"`);
+        }
+      }
+    };
+  }
+
+  // 7. Open an existing note
+  if (actionType === 'open_note' || actionType === 'find_note') {
+    if (typeof state === 'undefined' || !Array.isArray(state.notes)) return null;
+    const q = String(actionObj.query || actionObj.title || '').trim().toLowerCase();
+    if (!q) return null;
+    const found = state.notes.find(n => (n.title || '').toLowerCase().includes(q))
+      || state.notes.find(n => (n.blocks || []).some(b => (b.content || '').toLowerCase().includes(q)));
+    if (found) {
+      if (typeof selectNote === 'function') selectNote(found.id);
+      if (typeof setAppMode === 'function') setAppMode('workspace');
+      if (typeof showToast === 'function') showToast(`Kon opened: "${found.title}"`);
+      return {
+        success: true,
+        action: 'open_note',
+        description: `Opened note "${found.title}"`,
+        noteId: found.id
+      };
+    }
+    return null;
+  }
+
+  // 8. Switch theme
+  if (actionType === 'set_theme' || actionType === 'switch_theme') {
+    if (typeof state === 'undefined') return null;
+    const target = String(actionObj.theme || '').toLowerCase();
+    const prevTheme = state.theme;
+    if ((target === 'dark' && state.theme !== 'dark') || (target === 'light' && state.theme !== 'light')) {
+      if (typeof toggleTheme === 'function') toggleTheme();
+      if (typeof showToast === 'function') showToast(`Kon switched theme to ${target}`);
+      return {
+        success: true,
+        action: 'set_theme',
+        description: `Switched theme to ${target}`,
+        undo: () => {
+          if (state.theme !== prevTheme && typeof toggleTheme === 'function') toggleTheme();
+        }
+      };
+    }
+    return null;
+  }
+
+  // 9. Clear completed todos in active note
+  if (actionType === 'clear_completed_todos' || actionType === 'clean_todos') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !Array.isArray(note.blocks)) return null;
+    const removed = [];
+    note.blocks = note.blocks.filter(b => {
+      if (b && b.type === 'todo' && b.checked) {
+        removed.push(b);
+        return false;
+      }
+      return true;
+    });
+    if (removed.length === 0) return null;
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon cleared ${removed.length} completed todo(s)`);
+
+    return {
+      success: true,
+      action: 'clear_completed_todos',
+      description: `Cleared ${removed.length} completed todo item(s)`,
+      noteId: note.id,
+      undo: () => {
+        note.blocks.push(...removed);
+        if (typeof renderBlocks === 'function') renderBlocks(note);
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast('Restored cleared todos');
+      }
+    };
+  }
+
+  // 10. Star / favorite active note
+  if (actionType === 'star_note' || actionType === 'favorite_note') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) return null;
+    const prev = note.favorite;
+    note.favorite = actionObj.favorite !== false;
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon ${note.favorite ? 'starred' : 'unstarred'} "${note.title}"`);
+    return {
+      success: true,
+      action: 'star_note',
+      description: `${note.favorite ? 'Starred' : 'Unstarred'} "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.favorite = prev;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+      }
+    };
+  }
+
+  return null;
+}
+
+function undoKonAction(msgIdx, actIdx) {
+  const msg = pkGroqHistory[msgIdx];
+  if (!msg || !msg.executedActions || !msg.executedActions[actIdx]) return;
+  const act = msg.executedActions[actIdx];
+  if (typeof act.undo === 'function') {
+    act.undo();
+    msg.executedActions.splice(actIdx, 1);
+    renderGroqMessages();
+  }
+}
+window.undoKonAction = undoKonAction;
+
 function extractEventPayloadsFromText(text) {
   const events = [];
   const re = /```pk-event\s*([\s\S]*?)```/gi;
@@ -2050,13 +2432,14 @@ function extractMemoryPayloadsFromText(text) {
 function stripSpecialBlocksForDisplay(text, isStreaming = false) {
   let out = String(text || '')
     .replace(/<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>/gi, '')
+    .replace(/```pk-action[\s\S]*?```/gi, '')
     .replace(/```pk-event[\s\S]*?```/gi, '')
     .replace(/```pk-memory[\s\S]*?```/gi, '');
-  // Hide unclosed <think>/<thought> or hidden pk-memory / pk-event block while streaming
+  // Hide unclosed <think>/<thought> or hidden pk-action / pk-memory / pk-event block while streaming
   if (isStreaming) {
     out = out
       .replace(/<(?:think|thought)>[\s\S]*$/gi, '')
-      .replace(/```pk-(?:memory|event)[\s\S]*$/gi, '');
+      .replace(/```pk-(?:action|memory|event)[\s\S]*$/gi, '');
   }
   return out.trim();
 }
@@ -2530,7 +2913,7 @@ function readGroqReplyAloud(msgIdx) {
   if (!msg || !msg.content || msg.isError) return;
   const clean = stripSpecialBlocksForDisplay(msg.content, false);
   if (clean && typeof readTextAloud === 'function') {
-    readTextAloud(clean, 'AI Assistant');
+    readTextAloud(clean, 'Kon');
   }
 }
 
@@ -2562,7 +2945,7 @@ function addGroqSuggestedEvent(msgIdx, evtIdx) {
       end_datetime: `${dateKey}T${endTime}:00`,
       all_day: !payload.start,
       location: payload.location || '',
-      notes: `Created via PK AI Assistant (${providerLabel})`,
+      notes: `Created via Kon (${providerLabel})`,
       color_code: '#D95338'
     };
     state.events.push(newEvt);
@@ -2615,8 +2998,8 @@ function renderGroqMessages() {
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>
         </div>
         <div class="space-y-1">
-          <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Your PK Note AI Partner</div>
-          <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-relaxed max-w-xs mx-auto">${escapeHtml(helperCopy)}</div>
+          <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Kon is Ready</div>
+          <div class="font-mono text-[10px] text-[var(--text-tertiary)] leading-relaxed max-w-xs mx-auto">Ask Kon anything, or tell Kon to create notes, organize todos, plan your calendar, switch themes, or search your vault.</div>
         </div>
       </div>
     `;
@@ -2634,6 +3017,21 @@ function renderGroqMessages() {
 
     const display = stripSpecialBlocksForDisplay(m.content, !!m.streaming);
     const hasFlashcards = !m.isError && display.includes('::');
+    const actionCards = (m.executedActions || []).map((act, actIdx) => `
+      <div class="mt-2 px-3 py-2 rounded-lg bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 flex items-center justify-between gap-2 font-mono text-[10px]">
+        <div class="min-w-0">
+          <div class="text-[var(--accent-vermilion)] font-semibold flex items-center gap-1">
+            <span>Kon executed:</span>
+          </div>
+          <div class="text-[var(--text-primary)] font-serif text-xs truncate mt-0.5">${escapeHtml(act.description || act.action)}</div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          ${act.noteId ? `<button type="button" onclick="selectNote('${escapeHtml(act.noteId)}'); if(typeof setAppMode==='function') setAppMode('workspace');" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-primary)] cursor-pointer">Open</button>` : ''}
+          ${typeof act.undo === 'function' ? `<button type="button" onclick="undoKonAction(${idx}, ${actIdx})" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-rose-500 hover:text-rose-600 cursor-pointer">Undo</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+
     const eventCards = (m.eventPayloads || []).map((ev, ei) => `
       <button type="button" onclick="addGroqSuggestedEvent(${idx}, ${ei})"
               class="w-full mt-2 px-3 py-2 rounded-lg bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/50 text-left flex items-center justify-between gap-2 cursor-pointer">
@@ -2699,6 +3097,7 @@ function renderGroqMessages() {
       <div class="flex justify-start">
         <div class="max-w-[94%] w-full px-3 py-2.5 rounded-xl rounded-bl-[3px] border ${bubbleBorder} text-[var(--text-primary)]">
           <div id="pkGroqMsgBody_${idx}" class="text-xs leading-relaxed whitespace-pre-wrap break-words font-sans">${escapeHtml(display || placeholderStatus)}</div>
+          ${actionCards}
           ${memoryBadges}
           ${eventCards}
           ${recalledNote}
@@ -2751,10 +3150,10 @@ function runGroqQuickAction(kind) {
   const prompts = {
     summarize: 'Provide a concise, thoughtful summary of this note. Focus on the core ideas directly and clearly, without generic AI boilerplate.',
     polish: 'Polish this note so it reads naturally, clearly, and professionally. Smooth out awkward sentences and eliminate stiff phrasing while keeping the original voice and meaning intact. Return ONLY the updated text.',
-    todos: 'Extract actionable items from this note as a clean checkbox list (- [ ] ...). Keep each task clear and concise.',
+    todos: 'Extract actionable tasks from this note and add them directly to this note using a ```pk-action {"action":"add_todos","todos":[...]}``` block.',
     flashcards: 'Extract key concepts from this note into clear, effective study flashcards. Format each on its own line as: Question :: Answer',
     continue: 'Continue writing the next 1-2 paragraphs seamlessly in the same natural, professional voice and train of thought.',
-    schedule: 'Review my schedule and notes, and synthesize a clear, realistic plan for today.'
+    schedule: 'Review my schedule and notes, synthesize a clear plan for today, and schedule any recommended events using ```pk-action {"action":"create_event",...}```.'
   };
   if (kind === 'schedule') setGroqContextScope('vault');
   else if (pkGroqContextScope === 'general') setGroqContextScope('note');
@@ -2839,7 +3238,8 @@ async function sendGroqPrompt(overrideText) {
     retryPrompt: userText,
     targetSelection: promptTargetSelection,
     targetBlockId: promptTargetBlockId,
-    eventPayloads: []
+    eventPayloads: [],
+    executedActions: []
   });
   renderGroqMessages();
 
@@ -3071,6 +3471,24 @@ async function sendGroqPrompt(overrideText) {
     pkGroqHistory[assistantIdx].eventPayloads = pkGroqHistory[assistantIdx].isError
       ? []
       : extractEventPayloadsFromText(pkGroqHistory[assistantIdx].content);
+
+    // Extract and execute Kon actions
+    const actionPayloads = pkGroqHistory[assistantIdx].isError
+      ? []
+      : extractActionPayloadsFromText(pkGroqHistory[assistantIdx].content);
+
+    const executedActions = [];
+    for (let i = 0; i < actionPayloads.length; i++) {
+      try {
+        const res = executeKonAction(actionPayloads[i]);
+        if (res && res.success) {
+          executedActions.push(res);
+        }
+      } catch (err) {
+        console.warn('Kon action failed:', err);
+      }
+    }
+    pkGroqHistory[assistantIdx].executedActions = executedActions;
 
     // Save extracted AI memories + explicit user "remember that..." statements into Dexie + Orama
     const savedMemList = [];

@@ -574,10 +574,6 @@ function stampNoteSnapshot(notify = false, customLabel = '') {
   if (notify && typeof showToast === 'function') {
     showToast(`Snapshot stamped (${words} words)`);
   }
-  const modal = document.getElementById('pkTimeCapsuleBackdrop');
-  if (modal && !modal.classList.contains('hidden')) {
-    renderTimeCapsuleModal();
-  }
   return snap;
 }
 
@@ -617,7 +613,7 @@ function renderTimeCapsuleModal() {
         </div>
         <div class="flex items-center gap-1.5 shrink-0">
           <span class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)]">Diff</span>
-          <button type="button" onclick="event.stopPropagation(); deleteNoteSnapshot('${s.id}')" title="Delete Snapshot" class="px-1.5 py-0.5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] cursor-pointer">✕</button>
+          <button type="button" onclick="event.stopPropagation(); deleteNoteSnapshot('${s.id}')" title="Delete Snapshot" class="px-1.5 py-0.5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] cursor-pointer">x</button>
         </div>
       </div>
     `;
@@ -699,15 +695,15 @@ function deleteNoteSnapshot(snapId) {
 }
 
 function openTimeCapsuleModal() {
-  pkSelectedSnapshotId = null;
-  renderTimeCapsuleModal();
-  const el = document.getElementById('pkTimeCapsuleBackdrop');
-  if (el) el.classList.remove('hidden');
+  if (typeof openRevisionHistoryModal === 'function') {
+    openRevisionHistoryModal();
+  }
 }
 
 function closeTimeCapsuleModal() {
-  const el = document.getElementById('pkTimeCapsuleBackdrop');
-  if (el) el.classList.add('hidden');
+  if (typeof closeRevisionHistoryModal === 'function') {
+    closeRevisionHistoryModal();
+  }
 }
 
 // ============================================================================

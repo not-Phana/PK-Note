@@ -965,7 +965,7 @@ function renderDocKnowledgeRadar(note) {
       ${linkedNotes.map(n => `
         <div class="group/pill inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] hover:border-[var(--accent-vermilion)] text-xs text-[var(--text-primary)] transition-colors">
           <button onclick="selectNote('${n.id}')" class="hover:underline font-serif text-[12px] truncate max-w-[160px] cursor-pointer">${escapeHtml(n.title)}</button>
-          ${!isLocked ? `<button onclick="disconnectNotes('${note.id}', '${n.id}'); disconnectNotes('${n.id}', '${note.id}')" title="Unlink" class="opacity-60 hover:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">✕</button>` : ''}
+          ${!isLocked ? `<button onclick="disconnectNotes('${note.id}', '${n.id}'); disconnectNotes('${n.id}', '${note.id}')" title="Unlink" class="opacity-60 hover:opacity-100 hover:text-red-500 text-[var(--text-tertiary)] transition-opacity cursor-pointer text-[10px]">x</button>` : ''}
         </div>
       `).join('')}
       <button onclick="openRightInspector('graph')" class="ml-auto px-2 py-0.5 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[10px] transition-colors cursor-pointer">
@@ -5026,7 +5026,7 @@ function connectNotes(sourceId, targetId, makeBidirectional = false, screenX = n
   if (alreadyLinked) {
     showToast(`Already linked: "${sourceNote.title}" & "${targetNote.title}"`);
   } else {
-    showToast(`Linked "${sourceNote.title}" ↔ "${targetNote.title}" (inserted [[${targetTitleClean}]])`);
+    showToast(`Linked "${sourceNote.title}" <-> "${targetNote.title}" (inserted [[${targetTitleClean}]])`);
   }
 
   persistState();
@@ -5924,7 +5924,7 @@ function drawGraphOnCanvas(canvas, isExpanded = false) {
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('✕', midX, midY);
+      ctx.fillText('x', midX, midY);
     }
   });
 
@@ -6303,9 +6303,6 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: 'Graph: Connect Document (Link Picker)', hint: 'Insert wikilink to another note', glyph: 'link', shortcut: 'Connect', run: () => openLinkNotePicker() },
     { kind: 'action', label: 'Toggle Zen Focus Mode', hint: 'Distraction-free writing sanctuary with block focus', glyph: 'alert', shortcut: '⌘D', run: () => toggleZenMode() },
     { kind: 'action', label: 'Toggle Tactile Haptic Audio', hint: 'Mechanical switch & chime micro-feedback', glyph: 'sliders', shortcut: 'Audio', run: () => toggleSoundSetting() },
-    { kind: 'action', label: 'Toggle Dynamic Ambient Aura', hint: 'Breathing atmospheric hero glow lighting', glyph: 'sliders', shortcut: 'Aura', run: () => toggleAmbientAura() },
-    { kind: 'action', label: 'Trigger Confetti Celebration', hint: 'Physics particle burst celebration', glyph: 'sparkles', shortcut: 'Burst', run: () => triggerCelebration(window.innerWidth / 2, window.innerHeight / 2, 60) },
-    { kind: 'action', label: 'Toggle Magnetic Cursor Spotlight', hint: 'Luminous ambient spotlight following cursor', glyph: 'sun', shortcut: 'Spotlight', run: () => toggleCursorSpotlight() },
     { kind: 'action', label: 'Toggle Mechanical Typing Audio', hint: 'Tactile switch audio feedback while typing', glyph: 'terminal', shortcut: 'Typing', run: () => toggleMechanicalTyping() },
     { kind: 'action', label: 'Voice Synthesis Studio: Kokoro-82M Voices', hint: 'Switch Cute, Female & Male Kokoro-82M voices, speed & tone', glyph: 'sliders', shortcut: 'Voice', run: () => openVoiceModelModal() },
     { kind: 'action', label: 'Read Document Aloud (Kokoro-82M Voice)', hint: 'Natural neural audiobook speech from active note or selection', glyph: 'volume', shortcut: 'Voice', run: () => toggleReadingNoteAloud() },
@@ -6314,7 +6311,7 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: 'Find & Replace in Active Note', hint: 'Search text across all blocks with match navigation & replace all', glyph: 'search', shortcut: 'Ctrl+H', run: () => openFindReplaceBar() },
     { kind: 'action', label: 'Note Templates Gallery', hint: 'Create or insert structured Meeting, Journal, Study, Project & Book templates', glyph: 'document', shortcut: 'Tpl', run: () => openTemplatesModal() },
     { kind: 'action', label: 'Pomodoro Focus Timer', hint: '25m / 50m study & deep work timer with chime & session tracker', glyph: 'clock', shortcut: 'Timer', run: () => openFocusTimerModal() },
-    { kind: 'action', label: 'Notion Database View: Table & Kanban Board', hint: 'Manage all notes in a sortable Notion table or Kanban status board (Alt+D)', glyph: 'grid', shortcut: 'Alt+D', run: () => openDatabaseModal() },
+    { kind: 'action', label: 'Notion Database View: Table & Kanban Board', hint: 'Manage all notes in a sortable Notion table or Kanban status board', glyph: 'grid', shortcut: 'Database', run: () => openDatabaseModal() },
     { kind: 'action', label: 'Obsidian Split View: Dual Side-by-Side Notes', hint: 'Edit two notes side-by-side at the same time (Alt+\\)', glyph: 'layers', shortcut: 'Alt+\\', run: () => toggleSplitNotePane() },
     { kind: 'action', label: 'PK Special Studio (Vault · Habits · Sketch · Cinema)', hint: 'AES-256 Vault Lock, Daily Habits, Canvas Sketchpad & Spotlight Teleprompter (Alt+P)', glyph: 'sparkles', shortcut: 'Alt+P', run: () => openSpecialStudio() },
     { kind: 'action', label: 'Special: Secret Vault Lock (AES-256-GCM)', hint: 'Encrypt or decrypt active note with real Web Crypto passphrase protection', glyph: 'alert', shortcut: 'Vault', run: () => openSpecialStudio('vault') },
@@ -6323,7 +6320,7 @@ function renderCommandPaletteResults(query) {
     { kind: 'action', label: 'Special: Spotlight Teleprompter Reader', hint: 'Full-screen auto-scroll cinema reader with mirror mode & voice sync', glyph: 'compass', shortcut: 'Cinema', run: () => launchSpotlightReader() },
     { kind: 'action', label: 'Study Deck: Auto Flashcards from Notes', hint: 'Interactive spaced-recall flashcards generated from your note or vault', glyph: 'grid', shortcut: 'Study', run: () => openStudyDeckModal() },
     { kind: 'action', label: 'Focus Soundscapes (Rain, Fire, Brown Noise)', hint: '0 MB procedural offline Web Audio ambiance for deep focus', glyph: 'volume', shortcut: 'Sound', run: () => openSoundscapeModal() },
-    { kind: 'action', label: 'Time-Capsule: Note Snapshots & Diff', hint: 'Stamp versions, inspect line diffs, and restore any snapshot safely', glyph: 'clock', shortcut: 'History', run: () => openTimeCapsuleModal() },
+    { kind: 'action', label: 'Revision History: Note Snapshots & Diff', hint: 'Inspect version history, line diffs, and restore any snapshot safely', glyph: 'clock', shortcut: 'History', run: () => openRevisionHistoryModal() },
     { kind: 'action', label: 'Vault Pulse: Rust WASM Writing Insights', hint: 'Readability grade, speaking time, streak & 28-day activity heatmap', glyph: 'graph', shortcut: 'Pulse', run: () => openVaultPulseModal() },
     { kind: 'action', label: 'Quick Scratchpad Drawer', hint: 'Persistent sticky capture pad across notes & calendar (Alt+S)', glyph: 'document', shortcut: 'Alt+S', run: () => toggleScratchpadDrawer() },
     { kind: 'action', label: 'Kon AI Assistant (Alt+A)', hint: 'Chat with Kon or ask Kon to create notes, todos & events (Alt+A)', glyph: 'sparkles', shortcut: 'Alt+A', run: () => openGroqAssistant() },
@@ -6828,7 +6825,6 @@ function updateMobileNavState() {
   const navNotes = document.getElementById('mobileNavNotes');
   const navKanban = document.getElementById('mobileNavKanban');
   const navCal = document.getElementById('mobileNavCalendar');
-  const navGraph = document.getElementById('mobileNavGraph');
   if (!navNotes && !navCal) return;
 
   const isCal = state.appMode === 'calendar';
@@ -6841,21 +6837,6 @@ function updateMobileNavState() {
   if (navNotes) navNotes.className = (!isCal && !isKanban && !isGraphOpen) ? activeCls : inactiveCls;
   if (navKanban) navKanban.className = isKanban ? activeCls : inactiveCls;
   if (navCal) navCal.className = isCal ? activeCls : inactiveCls;
-  if (navGraph) navGraph.className = isGraphOpen ? 'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[var(--accent-ochre)] font-medium transition-colors' : inactiveCls;
-}
-
-function openMobileQuickMenu() {
-  if (window.innerWidth < 768) {
-    closeMobileSidebar();
-    closeRightSidebar();
-  }
-  const el = document.getElementById('mobileQuickMenuBackdrop');
-  if (el) el.classList.remove('hidden');
-}
-
-function closeMobileQuickMenu() {
-  const el = document.getElementById('mobileQuickMenuBackdrop');
-  if (el) el.classList.add('hidden');
 }
 
 function appendTodoAtEnd() {
@@ -7572,13 +7553,7 @@ async function generateKokoroAudioData(tts, text, voiceMeta, userRate = 1.0, use
   return { pcm, sampleRate: nativeSr, pitch, cached: false };
 }
 
-// Legacy wrapper kept for full compatibility
-async function generateKokoroWavBlob(tts, text, voiceMeta, userRate = 1.0, userPitch = 1.0) {
-  const data = await generateKokoroAudioData(tts, text, voiceMeta, userRate, userPitch);
-  const blob = encodePcmToWavBlob(data.pcm, data.sampleRate, false);
-  blob._pkPitch = data.pitch;
-  return blob;
-}
+
 
 let localVoiceModels = [];
 let activeVoiceGenderFilter = 'all'; // 'all' | 'male' | 'female'
@@ -8692,10 +8667,7 @@ function isTier1NaturalVoice(voice) {
   return false;
 }
 
-// Strictly identify & remove EVERY robotic / legacy / compact / un-enhanced system voice from PK Note!
-function isRoboticSystemVoice(voice) {
-  return !isTier1NaturalVoice(voice);
-}
+
 
 let voicesCacheReady = false;
 let voicesChangedDebounceTimer = null;
@@ -10130,8 +10102,6 @@ function readTextAloud(text, title = 'Selected Part') {
 function updateHeaderReadAloudState() {
   const btn = document.getElementById('headerReadAloudBtn');
   const label = document.getElementById('headerReadAloudLabel');
-  const mobBtn = document.getElementById('mobileRibbonListenBtn');
-  const mobLabel = document.getElementById('mobileRibbonListenLabel');
   const hasSel = !isSpeechAudioActive && !!getReadableSelectedText(false);
 
   if (btn) {
@@ -10149,12 +10119,6 @@ function updateHeaderReadAloudState() {
       if (label) label.textContent = 'LISTEN';
     }
   }
-  if (mobBtn) {
-    mobBtn.className = isSpeechAudioActive || hasSel
-      ? 'inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-mono text-[11px] font-semibold active:scale-95 transition-all cursor-pointer truncate'
-      : 'inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-strong)] text-[var(--text-primary)] font-mono text-[11px] font-medium active:scale-95 transition-all cursor-pointer truncate';
-  }
-  if (mobLabel) mobLabel.textContent = isSpeechAudioActive ? 'Stop' : (hasSel ? 'Read Sel' : 'Listen');
 }
 
 function toggleReadingNoteAloud() {
@@ -10405,16 +10369,7 @@ function moveBlockRelative(blockId, direction) {
   showToast(direction > 0 ? 'Moved block down' : 'Moved block up', 'info');
 }
 
-function toggleCursorSpotlight() {
-  state.cursorSpotlight = !state.cursorSpotlight;
-  const el = document.getElementById('pkCursorSpotlight');
-  if (el) {
-    el.style.opacity = state.cursorSpotlight ? '1' : '0';
-  }
-  scheduleSave();
-  playMechanicalClick(1.2);
-  showToast(`Magnetic Cursor Spotlight: ${state.cursorSpotlight ? 'ENABLED' : 'DISABLED'}`, 'info');
-}
+
 
 function toggleMechanicalTyping() {
   state.mechanicalTyping = !state.mechanicalTyping;
@@ -10716,7 +10671,7 @@ document.addEventListener('contextmenu', e => {
       badgeIcon = 'link';
       menuItems.push(
         { label: `Unlink: Remove [[${hitEdge.target.title}]]`, shortcut: 'Del', icon: 'minus', danger: true, action: () => disconnectNotes(hitEdge.source.id, hitEdge.target.id) },
-        { label: 'Make Bidirectional Link (⇄)', icon: 'link', action: () => connectNotes(hitEdge.target.id, hitEdge.source.id, true) },
+        { label: 'Make Bidirectional Link (<->)', icon: 'link', action: () => connectNotes(hitEdge.target.id, hitEdge.source.id, true) },
         { type: 'divider' },
         { label: `Open "${hitEdge.source.title}"`, icon: 'document', action: () => selectNote(hitEdge.source.id) },
         { label: `Open "${hitEdge.target.title}"`, icon: 'document', action: () => selectNote(hitEdge.target.id) }
@@ -10729,7 +10684,7 @@ document.addEventListener('contextmenu', e => {
         { label: 'Fit / Center Graph in View', shortcut: 'F', icon: 'compass', action: () => fitGraphView() },
         { label: 'Reset Layout (Reheat)', shortcut: 'R', icon: 'graph', action: () => reheatGraph() },
         { label: `Scope: ${state.graphLocalOnly ? 'Switch to Global' : 'Switch to Local'}`, icon: 'layers', action: () => toggleGraphScope() },
-        { label: 'Expand Fullscreen Graph Studio', shortcut: '⛶', icon: 'grid', action: () => openExpandedGraphModal() },
+        { label: 'Expand Fullscreen Graph Studio', shortcut: 'F11', icon: 'grid', action: () => openExpandedGraphModal() },
         { type: 'divider' },
         { label: 'Create New Note Here', shortcut: '⌘N', icon: 'document', action: () => createNewNote('General') }
       );
@@ -10743,10 +10698,8 @@ document.addEventListener('contextmenu', e => {
       { label: 'New Working Note', shortcut: '⌘N', icon: 'document', action: () => createNewNote('General') },
       { label: 'Quick Event (Natural Prompt)', shortcut: 'C', icon: 'calendar', action: () => openQuickAddPopover(e.clientX, e.clientY) },
       { label: 'Toggle Zen Focus Mode', shortcut: '⌘J', icon: 'compass', action: () => toggleZenMode() },
-      { label: `Spotlight: ${state.cursorSpotlight ? 'Enabled' : 'Disabled'}`, icon: 'sun', action: () => toggleCursorSpotlight() },
       { label: `Mechanical Typing: ${state.mechanicalTyping ? 'Enabled' : 'Disabled'}`, icon: 'terminal', action: () => toggleMechanicalTyping() },
       { label: 'Typography Studio', shortcut: '⌘T', icon: 'sliders', action: () => openTypographyModal() },
-      { label: 'Trigger Confetti Celebration', shortcut: 'Burst', icon: 'sparkles', action: () => triggerCelebration(e.clientX, e.clientY, 60) },
       { type: 'divider' },
       { label: state.appMode === 'workspace' ? 'Switch to Calendar' : 'Switch to Notes', icon: 'grid', action: () => setAppMode(state.appMode === 'workspace' ? 'calendar' : 'workspace') },
       { label: `Theme: ${state.theme === 'dark' ? 'Archival Vellum' : 'Obsidian Carbon'}`, icon: 'sliders', action: () => toggleTheme() },
@@ -13577,16 +13530,7 @@ function applyMobileBlockFormat(type) {
   showToast(`Converted to ${type.toUpperCase()}`);
 }
 
-function insertMobileWikiLink() {
-  const note = guardActiveNoteEditable();
-  if (!note || !note.blocks || note.blocks.length === 0) return;
-  const blockId = activeEditingBlockId || note.blocks[note.blocks.length - 1].id;
-  const el = document.querySelector(`[data-block-id="${blockId}"]`);
-  if (!el) return;
-  if (document.activeElement !== el) focusBlock(blockId, true);
-  document.execCommand('insertText', false, '[[');
-  openWikiLinkMenu(blockId, el, '');
-}
+
 
 function openMobileSlashMenu() {
   const note = guardActiveNoteEditable();
@@ -13623,14 +13567,7 @@ function applyMobileInlineFormat(kind) {
   scheduleSave();
 }
 
-function mobileReadSelectionOrNote() {
-  const sel = getReadableSelectedText(true);
-  if (sel) {
-    readTextAloud(sel, 'Selected Part');
-  } else {
-    toggleReadingNoteAloud();
-  }
-}
+
 
 function dismissMobileKeyboard() {
   if (document.activeElement && document.activeElement.blur) {
@@ -13721,23 +13658,18 @@ if (window.visualViewport) {
     { id: 'pat_linen',      name: 'Japanese Woven Linen', value: 'linear-gradient(90deg, rgba(138,138,133,0.12) 50%, transparent 50%), linear-gradient(rgba(138,138,133,0.12) 50%, transparent 50%)', patternSize: '6px 6px', bgColor: '#1C1B19' }
   ];
 
-  const BANNER_PHOTOS = [
-    { id: 'photo_library', name: 'Archival Library', url: 'https://images.unsplash.com/photo-1507842229451-7f01be8610ce?auto=format&fit=crop&w=1200&q=80' },
-    { id: 'photo_arch',    name: 'Swiss Concrete', url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80' },
-    { id: 'photo_pine',    name: 'Misty Alpine Pine', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80' },
-    { id: 'photo_nebula',  name: 'Deep Nebula', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80' },
-    { id: 'photo_studio',  name: 'Drafting Studio', url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80' },
-    { id: 'photo_ink',     name: 'Fluid Marble Ink', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80' }
-  ];
-
   function renderDocBanner(note) {
     const bannerBg = document.getElementById('ruledHeaderBand');
     const removeBtn = document.getElementById('docBannerRemoveBtn');
     const actionLabel = document.getElementById('docBannerActionLabel');
-    const quickBannerText = document.getElementById('quickBannerText');
     if (!bannerBg) return;
 
     const banner = note && note.banner;
+    // Guard against legacy Unsplash URLs triggering net::ERR_BLOCKED_BY_ORB errors
+    if (banner && typeof banner.value === 'string' && banner.value.includes('unsplash.com')) {
+      banner.value = '';
+    }
+
     if (banner && (banner.value || banner.presetName)) {
       const isPreset = banner.type === 'preset' || !!banner.presetName;
       const presetClass = isPreset ? `banner-preset-${banner.presetName || banner.value}` : '';
@@ -13761,7 +13693,6 @@ if (window.visualViewport) {
       bannerBg.innerHTML = `<div class="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[var(--bg-canvas)] opacity-90 pointer-events-none"></div>`;
       if (removeBtn) removeBtn.classList.remove('hidden');
       if (actionLabel) actionLabel.textContent = 'Change Banner';
-      if (quickBannerText) quickBannerText.textContent = 'Change Banner';
     } else {
       bannerBg.className = 'hidden';
       bannerBg.style.backgroundImage = '';
@@ -13769,7 +13700,6 @@ if (window.visualViewport) {
       bannerBg.innerHTML = '';
       if (removeBtn) removeBtn.classList.add('hidden');
       if (actionLabel) actionLabel.textContent = 'Add Banner';
-      if (quickBannerText) quickBannerText.textContent = 'Add Banner';
     }
   }
 
@@ -14410,26 +14340,11 @@ function renderTypographyPopover() {
             </div>
           </div>
 
-          <!-- Presets 3: Curated Photography -->
-          <div>
-            <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Curated Art & Architecture</label>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              ${BANNER_PHOTOS.map(ph => `
-                <button onclick="applyNoteBanner({ type: 'url', value: '${ph.url}' })" class="group relative h-20 rounded-[4px] overflow-hidden border border-[var(--border-hairline)] hover:border-[var(--border-strong)] transition-all cursor-pointer shadow-sm text-left">
-                  <img src="${ph.url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${ph.name}" loading="lazy" />
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-2">
-                    <span class="text-white font-mono text-[10px] font-medium drop-shadow">${ph.name}</span>
-                  </div>
-                </button>
-              `).join('')}
-            </div>
-          </div>
-
           <!-- Custom URL & File Upload -->
           <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-3">
             <label class="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Custom Image URL or Device Upload</label>
             <div class="flex items-center gap-2">
-              <input id="bannerCustomUrlInput" type="url" placeholder="https://images.unsplash.com/photo-..." class="flex-1 px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none" />
+              <input id="bannerCustomUrlInput" type="url" placeholder="https://example.com/banner.jpg or data:image/..." class="flex-1 px-3 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none" />
               <button onclick="applyBannerUrlInput()" class="px-3 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer">
                 Apply URL
               </button>
@@ -14482,20 +14397,6 @@ function renderTypographyPopover() {
           <div class="p-4 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-hairline)] space-y-3">
             <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Atmospheric & Sensory Controls</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button onclick="toggleAmbientAura()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
-                <div>
-                  <div class="font-mono text-xs text-[var(--text-primary)]">Ambient Breathing Aura</div>
-                  <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Luminous hero backdrop glow</div>
-                </div>
-                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${state.ambientAura ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} font-semibold">${state.ambientAura ? 'ON' : 'OFF'}</span>
-              </button>
-              <button onclick="toggleCursorSpotlight()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
-                <div>
-                  <div class="font-mono text-xs text-[var(--text-primary)]">Cursor Ambient Spotlight</div>
-                  <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Magnetic dynamic canvas glow</div>
-                </div>
-                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${state.cursorSpotlight ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} font-semibold">${state.cursorSpotlight ? 'ON' : 'OFF'}</span>
-              </button>
               <button onclick="toggleMechanicalTyping()" class="p-2.5 rounded border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex items-center justify-between text-left cursor-pointer transition-colors bg-[var(--bg-panel)]">
                 <div>
                   <div class="font-mono text-xs text-[var(--text-primary)]">Mechanical Typing Sound</div>
@@ -15108,28 +15009,9 @@ function renderTypographyPopover() {
     }
   }
 
-  // --- DYNAMIC AMBIENT AURA GLOW TOGGLE ---
-  function toggleAmbientAura() {
-    state.ambientAura = state.ambientAura === false ? true : false;
-    const aura = document.getElementById('ambientAuraGlow');
-    if (aura) {
-      if (state.ambientAura) {
-        aura.classList.remove('hidden');
-      } else {
-        aura.classList.add('hidden');
-      }
-    }
-    persistState();
-    showToast(`Ambient Atmospheric Aura ${state.ambientAura ? 'ENABLED' : 'DISABLED'}`);
-  }
-
   // --- LIVE READING PROGRESS BAR & 3D TILT ENGINE (Throttled & Zero-Reflow on Mobile!) ---
   function init1000xCoolerEffects() {
     updateSoundIconUI();
-    if (state.ambientAura === false || window.PK_LITE_MODE) {
-      const aura = document.getElementById('ambientAuraGlow');
-      if (aura) aura.classList.add('hidden');
-    }
 
     // rAF-Throttled Scroll Progress Listener (Zero scroll jank on 2019 phones!)
     const scrollArea = document.getElementById('documentScrollArea');
@@ -15385,11 +15267,6 @@ function updateMobileUndoButtons() {
   if (!note) return;
   const undoStack = getNoteUndoStack(note.id);
   const redoStack = getNoteRedoStack(note.id);
-
-  const headerUndoBtn = document.getElementById('mobileHeaderUndoBtn');
-  if (headerUndoBtn) {
-    headerUndoBtn.style.opacity = (undoStack.length > 0 || lastDeletedNote) ? '1' : '0.45';
-  }
 
   const accUndoBtn = document.getElementById('mobileUndoBtn');
   if (accUndoBtn) {
@@ -16216,11 +16093,9 @@ async function startVoiceDictation() {
 
   const hud = document.getElementById('pkDictationHUD');
   const timerEl = document.getElementById('pkDictationTimer');
-  const mobileBtn = document.getElementById('mobileDictateBtn');
   const desktopBtn = document.getElementById('desktopDictateBtn');
   if (hud) hud.classList.remove('hidden');
   if (timerEl) timerEl.textContent = '00:00';
-  if (mobileBtn) mobileBtn.classList.add('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
   if (desktopBtn) desktopBtn.classList.add('text-[var(--accent-vermilion)]', 'bg-[var(--accent-vermilion-tint)]');
 
   updateDictationHeaderUI();
@@ -16296,8 +16171,6 @@ function cleanupVoiceDictationUI() {
 
   const hud = document.getElementById('pkDictationHUD');
   if (hud) hud.classList.add('hidden');
-  const mobileBtn = document.getElementById('mobileDictateBtn');
-  if (mobileBtn) mobileBtn.classList.remove('border-[var(--accent-vermilion)]', 'text-[var(--accent-vermilion)]');
   const desktopBtn = document.getElementById('desktopDictateBtn');
   if (desktopBtn) desktopBtn.classList.remove('text-[var(--accent-vermilion)]', 'bg-[var(--accent-vermilion-tint)]');
 }
@@ -17476,7 +17349,7 @@ function attachSwipeDownDismiss(backdropId, closeFn) {
     if (typeof pkSpecialDrawerOpen !== 'undefined' && pkSpecialDrawerOpen) return true;
     const modalIds = [
       'pkDatabaseBackdrop', 'pkSpotlightOverlay', 'commandPaletteBackdrop',
-      'voiceModelModalBackdrop', 'mobileMoreSheetBackdrop', 'mobileQuickMenuBackdrop',
+      'voiceModelModalBackdrop', 'mobileMoreSheetBackdrop',
       'eventModalBackdrop', 'workspaceCustomizerModal', 'expandedGraphModal'
     ];
     for (let i = 0; i < modalIds.length; i++) {
@@ -17679,7 +17552,6 @@ function initFingerControlEngine() {
   attachSwipeDownDismiss('voiceModelModalBackdrop', closeVoiceModelModal);
   attachSwipeDownDismiss('templatesModalBackdrop', closeTemplatesModal);
   attachSwipeDownDismiss('focusTimerModalBackdrop', closeFocusTimerModal);
-  attachSwipeDownDismiss('mobileQuickMenuBackdrop', closeMobileQuickMenu);
 }
 
 if (document.readyState === 'loading') {

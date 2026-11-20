@@ -6,20 +6,20 @@ Designed to run natively across **Computer** (Windows, macOS, Linux) and **Mobil
 
 ---
 
-## 📱 Mobile & Native App Features
+## Mobile and Native App Features
 
-- **📱 Mobile Ergonomic Layout**:
+- **Mobile Ergonomic Layout**:
   - **Bottom Navigation Bar**: One-thumb access to Notes, Calendar, Force-Directed Graph Inspector, and Search.
   - **Quick Action Center (`+`)**: Instant creation of blank working notes, calendar events, today's daily log, or checklist tasks.
   - **Touch Drawers**: Left index sidebar and right knowledge graph inspector slide in as smooth drawers on phones/tablets with background dimming.
   - **Safe-Area Inset Support**: Full compatibility with iPhone notch / dynamic island and Android gesture navigation bars.
   - **Touch-Optimized Editing**: Clear touch gutters and formatting options without relying on desktop mouse hover.
 
-- **💻 Native Desktop Experience**:
+- **Native Desktop Experience**:
   - Wide dual-sidebar layout with Swiss editorial grid and real-time topology physics.
   - **One-Click Windows Launcher**: Double-click [`PK Note.bat`](file:///e:/Code/for%20note/PK%20Note.bat) to launch as a standalone desktop window without browser bars.
 
-- **⚡ Native Cross-Platform Installation (PWA)**:
+- **Native Cross-Platform Installation (PWA)**:
   - **Computer (Windows / Mac / Linux)**: Click the **Install** button in the sidebar or the install icon in your browser address bar (Chrome, Edge, Brave) to install PK Note as a desktop application with desktop shortcuts.
   - **Mobile (Android)**: Open in Chrome/Firefox and tap **Install** or **Add to Home Screen** to install as a native Android app with splash screen and icon.
   - **Mobile (iPhone / iPad)**: Open in Safari, tap **Share** (bottom bar), and choose **Add to Home Screen**. Runs full-screen in standalone app mode with zero Safari browser chrome.
@@ -27,7 +27,7 @@ Designed to run natively across **Computer** (Windows, macOS, Linux) and **Mobil
 
 ---
 
-## 🎨 Visual Identity & Vector Assets
+## Visual Identity and Vector Assets
 
 The visual identity combines the foundational spine of archival ledgers (`P`) with dynamic knowledge graph branching (`K`) and an active Vermilion synthesis node (`#C8462B`):
 
@@ -46,7 +46,7 @@ The visual identity combines the foundational spine of archival ledgers (`P`) wi
 
 ---
 
-## 🚀 Running & Installing
+## Running and Installing
 
 1. **Desktop Web**: Open [`index.html`](file:///e:/Code/for%20note/index.html) or [`pk_note_workspace.html`](file:///e:/Code/for%20note/pk_note_workspace.html) in any modern browser.
 2. **Desktop Native Window**: Double-click [`PK Note.bat`](file:///e:/Code/for%20note/PK%20Note.bat) to launch in dedicated standalone window mode.

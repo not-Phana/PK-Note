@@ -345,10 +345,7 @@
           <div id="desktopToolsMenuPopover" class="hidden absolute right-0 top-10 w-60 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl p-1.5 z-[960] select-none font-sans text-xs">
             <div class="px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">Studio &amp; Visual Tools</div>
             <div class="grid grid-cols-2 gap-1 mb-1.5">
-              <button type="button" onclick="closeDesktopToolsMenu(); openSmartDrawModal()" id="desktopSmartDrawBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer">
-                <svg class="w-3 h-3 text-[var(--accent-vermilion)] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
-                <span class="truncate">Smart Draw</span>
-              </button>
+
               <button type="button" onclick="closeDesktopToolsMenu(); openSpatialWhiteboardModal()" id="desktopWhiteboardBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer">
                 <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-vermilion)] shrink-0"></span><span class="truncate">Whiteboard</span>
               </button>
@@ -457,7 +454,7 @@
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
             <span class="hidden sm:inline">Split</span>
           </button>
-          <button type="button" onclick="openDatabaseModal()" title="Notion Database View: Table &amp; Kanban (Alt+D)" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 cursor-pointer shrink-0">
+          <button type="button" onclick="openDatabaseModal()" title="Vault Database View: Table &amp; Kanban" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center gap-1 cursor-pointer shrink-0">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             <span class="hidden sm:inline">Database</span>
           </button>
@@ -496,10 +493,10 @@
             <span id="pkMobileDualModeLabel">Dual</span>
           </button>
           <button type="button" onclick="swapSplitPaneNotes()" title="Swap Primary and Split Notes" class="px-2 py-1 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
-            ⇄
+            Swap
           </button>
           <button type="button" onclick="closeSplitNotePane()" title="Close Split View" class="w-7 h-7 rounded-[4px] bg-[var(--bg-canvas)] hover:bg-rose-500/10 border border-[var(--border-hairline)] hover:border-rose-500/30 text-[var(--text-tertiary)] hover:text-rose-500 flex items-center justify-center cursor-pointer">
-            ✕
+            x
           </button>
         </div>
       </div>
@@ -524,14 +521,7 @@
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span>Cover</span>
           </button>
-          <button onclick="openMindMapModal()" title="Open Mind Map of this note" class="text-[10px] font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] px-2 py-0.5 rounded-[2px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-center gap-1 cursor-pointer">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v6m0 6v6M3 12h6m6 0h6"/></svg>
-            <span>Mind Map</span>
-          </button>
-          <button onclick="openMathSymbolsModal()" title="Open Math & Science Studio (LaTeX & Chemistry)" class="text-[10px] font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] px-2 py-0.5 rounded-[2px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] flex items-center gap-1 cursor-pointer">
-            <svg class="w-3 h-3 text-[var(--accent-vermilion)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 18h16M14 6l-4 12"/></svg>
-            <span>Math</span>
-          </button>
+
           <span id="docIdStamp" class="hidden font-mono text-[10px] text-[var(--text-tertiary)] uppercase">DOC-01</span>
 
           <!-- Monochrome SVG Glyph Picker Popover -->
@@ -689,7 +679,7 @@
               <span class="hidden sm:inline">Swap</span>
             </button>
             <button type="button" onclick="focusSplitPaneAsPrimary()" title="Open as primary note" class="px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Open</button>
-            <button type="button" onclick="closeSplitNotePane()" title="Close split pane" class="w-6 h-6 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-rose-500/10 border border-[var(--border-hairline)] hover:border-rose-500/30 text-[var(--text-tertiary)] hover:text-rose-500 flex items-center justify-center cursor-pointer">✕</button>
+            <button type="button" onclick="closeSplitNotePane()" title="Close split pane" class="w-6 h-6 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-rose-500/10 border border-[var(--border-hairline)] hover:border-rose-500/30 text-[var(--text-tertiary)] hover:text-rose-500 flex items-center justify-center cursor-pointer">x</button>
           </div>
         </div>
         <input id="pkSplitTitleInput" type="text" oninput="handleSplitTitleInput(this.value)" placeholder="Note title..." class="w-full bg-transparent font-serif text-2xl font-medium text-[var(--text-primary)] focus:outline-none border-b border-transparent focus:border-[var(--border-hairline)] pb-1" />
@@ -941,7 +931,7 @@
             <span id="graphCanvasHUDText" class="truncate font-medium">Drag or click to target note to link</span>
           </div>
           <button onclick="cancelGraphConnection()" title="Cancel connection" class="hover:text-red-400 ml-2 px-1 rounded text-white/70 hover:text-white font-mono text-[10px] cursor-pointer shrink-0">
-            ✕ Esc
+            x Esc
           </button>
         </div>
 
@@ -1375,7 +1365,7 @@
             <p id="revisionHistorySubtitle" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Compare and restore previous document states</p>
           </div>
         </div>
-        <button type="button" onclick="closeRevisionHistoryModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+        <button type="button" onclick="closeRevisionHistoryModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">x</button>
       </div>
 
       <!-- Split Layout: Snapshot List on Left, Diff on Right -->
@@ -1418,7 +1408,7 @@
             <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Publish or backup your notes into open standard formats</p>
           </div>
         </div>
-        <button type="button" onclick="closeVaultExportModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+        <button type="button" onclick="closeVaultExportModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">x</button>
       </div>
 
       <!-- Export Formats Grid -->
@@ -1516,7 +1506,7 @@
           </div>
           <button type="button" onclick="reclusterWhiteboardCards()" title="Auto-Organize" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer shrink-0">Cluster</button>
           <button type="button" onclick="spawnWhiteboardCard()" title="Add Card" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-medium hover:brightness-110 cursor-pointer shrink-0">+ Card</button>
-          <button type="button" onclick="closeSpatialWhiteboardModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm ml-1 shrink-0">✕</button>
+          <button type="button" onclick="closeSpatialWhiteboardModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm ml-1 shrink-0">x</button>
         </div>
       </div>
 
@@ -1565,7 +1555,7 @@
         <div class="flex items-center gap-1.5 font-mono text-[11px]">
           <button type="button" onclick="exportMindMapSvg()" title="Download as SVG Vector" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Export SVG</button>
           <button type="button" onclick="fitMindMapView()" title="Center &amp; Fit View" class="px-2.5 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Fit View</button>
-          <button type="button" onclick="closeMindMapModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm ml-1 shrink-0">✕</button>
+          <button type="button" onclick="closeMindMapModal()" class="w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm ml-1 shrink-0">x</button>
         </div>
       </div>
 
@@ -1593,7 +1583,7 @@
             <p class="font-mono text-[10px] text-[var(--text-tertiary)]">365-day ink consistency matrix &amp; 24-hour diurnal writing rhythm</p>
           </div>
         </div>
-        <button type="button" onclick="closeVaultHeatmapModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+        <button type="button" onclick="closeVaultHeatmapModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">x</button>
       </div>
 
       <!-- Heatmap & Clock Content -->
@@ -1670,7 +1660,7 @@
         <button type="button" onclick="zoomLightboxImage(0.2)" title="Zoom In" class="w-7 h-7 rounded-[3px] bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-mono text-sm cursor-pointer">+</button>
         <button type="button" onclick="zoomLightboxImage(-0.2)" title="Zoom Out" class="w-7 h-7 rounded-[3px] bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-mono text-sm cursor-pointer">-</button>
         <button type="button" onclick="downloadLightboxImage()" title="Download" class="w-7 h-7 rounded-[3px] bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-mono text-xs cursor-pointer">↓</button>
-        <button type="button" onclick="closeImageLightbox()" class="w-7 h-7 rounded-[3px] bg-white/10 hover:bg-red-500/80 text-white flex items-center justify-center font-mono text-sm cursor-pointer">✕</button>
+        <button type="button" onclick="closeImageLightbox()" class="w-7 h-7 rounded-[3px] bg-white/10 hover:bg-red-500/80 text-white flex items-center justify-center font-mono text-sm cursor-pointer">x</button>
       </div>
 
       <img id="lightboxImg" src="" alt="Expanded Preview" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl lightbox-img-active select-none" />
@@ -1694,7 +1684,7 @@
             <p class="font-mono text-[10px] text-[var(--text-tertiary)]">Curated Swiss graphic patterns, drafting grids and atmospheric gradients</p>
           </div>
         </div>
-        <button type="button" onclick="closeBannerPickerModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+        <button type="button" onclick="closeBannerPickerModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">x</button>
       </div>
 
       <!-- Presets Grid -->
@@ -1770,7 +1760,7 @@
           <button type="button" id="sdFullscreenBtn" onclick="toggleSmartDrawFullscreen()" class="hidden sm:flex w-7 h-7 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] items-center justify-center cursor-pointer font-mono text-sm shrink-0" title="Toggle Fullscreen Workspace">
             <svg id="sdFullscreenIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
           </button>
-          <button type="button" onclick="closeSmartDrawModal()" class="w-8 h-8 rounded-md bg-[var(--bg-canvas)] sm:bg-transparent hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-base shrink-0 border border-[var(--border-hairline)] sm:border-0" title="Close (Esc)">✕</button>
+          <button type="button" onclick="closeSmartDrawModal()" class="w-8 h-8 rounded-md bg-[var(--bg-canvas)] sm:bg-transparent hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-base shrink-0 border border-[var(--border-hairline)] sm:border-0" title="Close (Esc)">x</button>
         </div>
       </div>
 
@@ -1915,7 +1905,7 @@
           <button type="button" onclick="insertNewMathBlockIntoNote()" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-mono text-[11px] font-semibold cursor-pointer flex items-center gap-1">
             <span>+ New Math Block</span>
           </button>
-          <button type="button" onclick="closeMathSymbolsModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">✕</button>
+          <button type="button" onclick="closeMathSymbolsModal()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">x</button>
         </div>
       </div>
 
@@ -1962,7 +1952,7 @@
         <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 6h16M4 18h16M14 6l-4 12"/></svg>
         <span>Edit Inline Math</span>
       </span>
-      <button type="button" onclick="closeInlineMathPopover()" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center text-xs cursor-pointer">✕</button>
+      <button type="button" onclick="closeInlineMathPopover()" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center text-xs cursor-pointer">x</button>
     </div>
 
     <!-- Live KaTeX Preview -->
@@ -2236,76 +2226,7 @@
     </button>
   </nav>
 
-  <!-- Mobile Quick Action Sheet -->
-  <div id="mobileQuickMenuBackdrop" onclick="closeMobileQuickMenu()" class="hidden fixed inset-0 bg-black/60 z-[960] flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div onclick="event.stopPropagation()" class="w-full sm:max-w-sm rounded-t-xl sm:rounded-lg bg-[var(--bg-panel)] border border-[var(--border-hairline)] p-4 space-y-3 pb-8 sm:pb-4 shadow-2xl animate-menu">
-      <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
-        <span class="font-mono text-xs uppercase tracking-wider text-[var(--text-primary)] font-semibold">Quick Create</span>
-        <button onclick="closeMobileQuickMenu()" class="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></button>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button onclick="closeMobileQuickMenu(); createNewNote('General')" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">New Note</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Blank working document</span>
-        </button>
 
-        <button onclick="closeMobileQuickMenu(); openEventModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="1"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">New Event</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Add schedule item</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); openOrCreateDailyNote()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">Today's Log</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Daily synthesis note</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); appendTodoAtEnd()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">Add Todo</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Checklist entry</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); toggleReadingNoteAloud()" class="p-3 rounded bg-[var(--accent-vermilion-tint)] border border-[var(--accent-vermilion)]/40 hover:border-[var(--accent-vermilion)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-          <span class="font-medium text-xs text-[var(--accent-vermilion)]">Read Aloud</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Listen with Kokoro-82M</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); openVoiceModelModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">Voice Studio</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Cute, Female & Male voices</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); openTemplatesModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">Templates</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Meeting, study & journal</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); toggleVoiceDictation()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-vermilion)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">Voice Dictate</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Speak to write notes</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); quickFixWholeNoteOffline()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--accent-ochre)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">Quick Fix (No AI)</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Fix typos &amp; spacing in 0ms</span>
-        </button>
-
-        <button onclick="closeMobileQuickMenu(); openApiKeyScannerModal()" class="p-3 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] hover:border-[var(--border-strong)] flex flex-col items-start gap-1 transition-colors text-left">
-          <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-          <span class="font-medium text-xs text-[var(--text-primary)]">API Key Scanner</span>
-          <span class="text-[10px] text-[var(--text-tertiary)]">Scan, categorize &amp; copy</span>
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- In-App PWA Install Dialog / Banner -->
   <div id="pwaInstallModal" onclick="closeInstallModal()" class="hidden fixed inset-0 bg-black/60 z-[985] flex items-center justify-center p-4 animate-backdrop">
@@ -2696,7 +2617,7 @@
             <p id="linkNotePickerSubtitle" class="text-[10px] text-[var(--text-tertiary)] font-mono">Insert wikilink into active document</p>
           </div>
         </div>
-        <button onclick="closeLinkNotePicker()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer font-mono text-xs">✕</button>
+        <button onclick="closeLinkNotePicker()" class="w-6 h-6 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer font-mono text-xs">x</button>
       </div>
       <div class="p-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]">
         <div class="relative flex items-center">
@@ -2728,7 +2649,7 @@
 
           <!-- Close button on Mobile (< sm) -->
           <button onclick="closeExpandedGraphModal()" aria-label="Close Studio" class="sm:hidden w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer font-mono text-sm shrink-0">
-            ✕
+            x
           </button>
         </div>
 
@@ -2771,7 +2692,7 @@
 
           <!-- Close Button on Desktop (sm+) -->
           <button onclick="closeExpandedGraphModal()" aria-label="Close Studio" class="hidden sm:flex w-7 h-7 rounded-[3px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] items-center justify-center transition-colors cursor-pointer font-mono text-sm ml-1 shrink-0">
-            ✕
+            x
           </button>
         </div>
       </div>
@@ -2857,7 +2778,7 @@
           <span class="w-2 h-2 rounded-full bg-[var(--accent-vermilion)]"></span>
           <span>Create Note at Position</span>
         </div>
-        <button onclick="closeCanvasCreateNoteModal()" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button onclick="closeCanvasCreateNoteModal()" class="w-5 h-5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
       </div>
       <div class="space-y-2">
         <label class="block font-mono text-[10px] uppercase text-[var(--text-tertiary)]">Document Title</label>
@@ -2887,7 +2808,7 @@
             <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate" id="mobileSheetDocTitle">Document Tools</div>
             <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Phone Command Deck · All Desktop Tools</div>
           </div>
-          <button onclick="closeMobileMoreSheet()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">✕</button>
+          <button onclick="closeMobileMoreSheet()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">x</button>
         </div>
       </div>
 
@@ -3049,10 +2970,10 @@
               </div>
             </button>
 
-            <button onclick="closeMobileMoreSheet(); openTimeCapsuleModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
+            <button onclick="closeMobileMoreSheet(); openRevisionHistoryModal()" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left transition-colors cursor-pointer">
               <svg class="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
               <div class="min-w-0">
-                <div class="font-medium text-[var(--text-primary)] truncate">Time-Capsule</div>
+                <div class="font-medium text-[var(--text-primary)] truncate">Revision History</div>
                 <div class="font-mono text-[9px] text-[var(--text-tertiary)] truncate">Snapshots &amp; diff</div>
               </div>
             </button>
@@ -3214,7 +3135,7 @@
             <div class="font-mono text-[10px] text-[var(--text-tertiary)] truncate" id="voiceModelSubtitle">Instant 0 MB Natural Voices · Optional Offline AI</div>
           </div>
         </div>
-        <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">✕</button>
+        <button onclick="closeVoiceModelModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer shrink-0">x</button>
       </div>
 
       <!-- Filters & Voice Selector Body -->
@@ -3510,7 +3431,7 @@
           <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Note Templates Gallery</div>
           <div class="font-mono text-[10px] text-[var(--text-tertiary)]">Start a structured note or insert into your current document</div>
         </div>
-        <button onclick="closeTemplatesModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button onclick="closeTemplatesModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
       </div>
       <div class="flex-1 overflow-y-auto p-4 space-y-2.5 text-xs" id="templatesGalleryList"></div>
     </div>
@@ -3524,7 +3445,7 @@
           <div class="font-serif font-semibold text-sm text-[var(--text-primary)]">Focus Timer</div>
           <div class="font-mono text-[10px] text-[var(--text-tertiary)]" id="focusTimerSessionsBadge">Completed sessions today: 0</div>
         </div>
-        <button onclick="closeFocusTimerModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button onclick="closeFocusTimerModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
       </div>
       <div class="p-5 space-y-4 text-center">
         <div class="grid grid-cols-4 gap-1 bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-hairline)] font-mono text-[10px]">
@@ -3586,7 +3507,7 @@
         <div class="flex items-center gap-1.5 shrink-0">
           <button id="pkStudyScopeNoteBtn" onclick="setStudyDeckScope('note')" class="px-2 py-1 rounded-[3px] font-mono text-[10px] font-semibold bg-[var(--accent-vermilion)] text-white cursor-pointer">Note</button>
           <button id="pkStudyScopeVaultBtn" onclick="setStudyDeckScope('vault')" class="px-2 py-1 rounded-[3px] font-mono text-[10px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Vault</button>
-          <button onclick="closeStudyDeckModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+          <button onclick="closeStudyDeckModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
         </div>
       </div>
 
@@ -3656,7 +3577,7 @@
             <div id="pkSoundscapeStatus" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">0 MB procedural audio · Offline ready</div>
           </div>
         </div>
-        <button onclick="closeSoundscapeModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button onclick="closeSoundscapeModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
       </div>
 
       <div class="p-4 space-y-3 overflow-y-auto flex-1">
@@ -3680,37 +3601,7 @@
     </div>
   </div>
 
-  <!-- 3. Time-Capsule Note Snapshots & Visual Diff Modal -->
-  <div id="pkTimeCapsuleBackdrop" onclick="closeTimeCapsuleModal()" class="hidden fixed inset-0 bg-black/65 z-[984] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-    <div onclick="event.stopPropagation()" class="w-full sm:max-w-xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl overflow-hidden">
-      <div class="px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex items-center justify-between gap-2 shrink-0">
-        <div class="flex items-center gap-2 min-w-0">
-          <span class="w-7 h-7 rounded-[4px] bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] flex items-center justify-center shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
-          </span>
-          <div class="min-w-0">
-            <div class="font-serif font-semibold text-sm text-[var(--text-primary)] truncate">Time-Capsule Snapshots</div>
-            <div id="pkTimeCapsuleNoteTitle" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Version history &amp; visual diff</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button onclick="stampNoteSnapshot(true)" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-mono text-[10px] font-semibold cursor-pointer">+ Stamp Now</button>
-          <button onclick="closeTimeCapsuleModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
-        </div>
-      </div>
 
-      <div class="p-4 space-y-3 overflow-y-auto flex-1 text-xs">
-        <div id="pkTimeCapsuleList" class="space-y-2"></div>
-        <div id="pkTimeCapsuleDiffWrap" class="hidden pt-3 border-t border-[var(--border-hairline)] space-y-2">
-          <div class="flex items-center justify-between font-mono text-[10px]">
-            <span id="pkTimeCapsuleDiffHeader" class="uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Diff vs Current</span>
-            <button id="pkTimeCapsuleRestoreBtn" onclick="restoreSelectedSnapshot()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">Restore Snapshot</button>
-          </div>
-          <div id="pkTimeCapsuleDiffBody" class="max-h-56 overflow-y-auto p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[11px] leading-relaxed space-y-1"></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- 4. Vault Pulse & Rust WASM Reading Rhythm Modal -->
   <div id="pkVaultPulseBackdrop" onclick="closeVaultPulseModal()" class="hidden fixed inset-0 bg-black/65 z-[984] flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
@@ -3725,7 +3616,7 @@
             <div id="pkVaultPulseEngineTag" class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">Rust WebAssembly Analytics</div>
           </div>
         </div>
-        <button onclick="closeVaultPulseModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button onclick="closeVaultPulseModal()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
       </div>
 
       <div id="pkVaultPulseBody" class="p-4 space-y-4 overflow-y-auto flex-1 text-xs"></div>
@@ -3740,7 +3631,7 @@
         <span class="font-mono text-[10px] uppercase tracking-wider font-semibold text-[var(--text-primary)]">Quick Scratchpad</span>
         <span id="pkScratchpadCount" class="font-mono text-[9px] text-[var(--text-tertiary)]">0 words</span>
       </div>
-      <button onclick="toggleScratchpadDrawer(false)" class="w-6 h-6 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-mono text-xs flex items-center justify-center cursor-pointer">✕</button>
+      <button onclick="toggleScratchpadDrawer(false)" class="w-6 h-6 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-mono text-xs flex items-center justify-center cursor-pointer">x</button>
     </div>
     <textarea id="pkScratchpadInput"
               oninput="handleScratchpadInput(this.value)"
@@ -3755,7 +3646,7 @@
     </div>
   </div>
 
-  <!-- 6. PK Note AI Assistant Drawer (Groq · NVIDIA AI · Local Model · BYOK · Silky Sidebar-Style Slide Drawer) -->
+  <!-- 6. PK Note AI Assistant Drawer (Gemini · OpenRouter Free · Groq · Local Model · BYOK · Silky Sidebar-Style Slide Drawer) -->
   <div id="pkGroqAssistantBackdrop" onclick="closeGroqAssistant()" aria-hidden="true" class="pk-drawer-backdrop fixed inset-0 bg-black/60 z-[986] flex items-stretch justify-end p-0 select-none opacity-0 pointer-events-none invisible">
     <aside id="pkGroqAssistantPanel" onclick="event.stopPropagation()" class="pk-drawer-panel w-full sm:w-[440px] max-w-full h-full flex flex-col bg-[var(--bg-panel)] border-l border-[var(--border-strong)] shadow-2xl overflow-hidden translate-x-full">
 
@@ -3780,28 +3671,27 @@
             <span id="pkGroqKeyBtnLabel">Setup</span>
           </button>
           <button type="button" onclick="clearGroqConversation()" title="New Chat (keeps saved memories)" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">New</button>
-          <button type="button" onclick="closeGroqAssistant()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+          <button type="button" onclick="closeGroqAssistant()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
         </div>
       </div>
 
-      <!-- Collapsible Multi-Provider AI Settings Panel (Groq · NVIDIA AI · Local Model) -->
+      <!-- Collapsible Multi-Provider AI Settings Panel (Gemini · OpenRouter Free · Groq · Local Model) -->
       <div id="pkGroqSettingsPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[64vh] overflow-y-auto select-text">
-        <!-- 5-Way Free & Local AI Provider Switcher -->
+        <!-- 4-Way Free & Local AI Provider Switcher -->
         <div class="space-y-1">
           <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">AI Provider (Free &amp; Local)</div>
-          <div class="grid grid-cols-5 gap-1 font-mono text-[9.5px]">
+          <div class="grid grid-cols-4 gap-1 font-mono text-[9.5px]">
             <button type="button" id="pkAiProviderTabGemini" onclick="selectAiProvider('gemini')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Gemini</button>
             <button type="button" id="pkAiProviderTabOpenrouter" onclick="selectAiProvider('openrouter')" title="OpenRouter — 15+ Free AI Models (Zero Proxy)" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Free OR</button>
             <button type="button" id="pkAiProviderTabGroq" onclick="selectAiProvider('groq')" class="px-1 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate">Groq</button>
-            <button type="button" id="pkAiProviderTabNvidia" onclick="selectAiProvider('nvidia')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">NVIDIA</button>
             <button type="button" id="pkAiProviderTabLocal" onclick="selectAiProvider('local')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Local</button>
           </div>
         </div>
 
-        <!-- Local / NVIDIA Endpoint URL Row (Hidden on Groq) -->
+        <!-- Local Server Endpoint URL Row (Hidden on Groq / Gemini / OpenRouter) -->
         <div id="pkAiEndpointSection" class="hidden space-y-1.5">
           <div class="flex items-center justify-between gap-2 font-mono text-[10px]">
-            <label for="pkAiBaseUrlInput" id="pkAiBaseUrlLabel" class="uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Server Endpoint URL</label>
+            <label for="pkAiBaseUrlInput" id="pkAiBaseUrlLabel" class="uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Local Server URL (OpenAI-Compatible)</label>
             <button type="button" id="pkAiResetEndpointBtn" onclick="resetAiProviderEndpoint()" class="text-[var(--accent-vermilion)] hover:underline cursor-pointer">Reset default</button>
           </div>
           <!-- Local Server 1-Tap Presets -->
@@ -3821,17 +3711,6 @@
                    placeholder="http://localhost:1234/v1"
                    class="flex-1 min-w-0 select-text px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
             <button type="button" onclick="pasteAiBaseUrl()" class="px-2 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[10px] text-[var(--accent-vermilion)] font-semibold cursor-pointer shrink-0">Paste</button>
-          </div>
-          <!-- NVIDIA CORS Note + 1-Click Server & Cloud Setup -->
-          <div id="pkAiNvidiaCorsHint" class="hidden px-2.5 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed space-y-1.5">
-            <div><strong class="text-[var(--text-primary)]">Using https://not-phana.github.io/PK-Note/?</strong> GitHub Pages is a static host and cannot process API calls. To use AI on GitHub Pages with zero servers, switch to Groq or Gemini (100% direct HTTPS CORS), or deploy a free Cloudflare Worker for NVIDIA NIM.</div>
-
-            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <button type="button" onclick="switchToGroqProvider()" class="px-2 py-0.5 rounded-[3px] bg-[var(--accent-vermilion)]/15 hover:bg-[var(--accent-vermilion)]/25 border border-[var(--accent-vermilion)]/40 text-[var(--accent-vermilion)] font-semibold cursor-pointer">Switch to Groq (0 Servers · GitHub Pages)</button>
-              <button type="button" onclick="switchToGeminiProvider()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold cursor-pointer">Switch to Gemini (0 Servers)</button>
-              <button type="button" onclick="copyNvidiaProxySnippet()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">Copy Cloudflare Worker Code</button>
-              <button type="button" onclick="useNvidiaLocalProxy()" class="px-2 py-0.5 rounded-[3px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] cursor-pointer">Use Local PC Server (:4000)</button>
-            </div>
           </div>
           <!-- Local CORS Hint -->
           <div id="pkAiLocalCorsHint" class="hidden px-2.5 py-1.5 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[9.5px] text-[var(--text-tertiary)] leading-relaxed">
@@ -3875,10 +3754,10 @@
             <button type="button" id="pkAiFetchModelsBtn" onclick="fetchAiProviderModels()" class="text-[var(--accent-vermilion)] hover:underline cursor-pointer">Fetch models</button>
           </div>
           <select id="pkGroqModelSelect" onchange="handleGroqModelSelectChange(this.value)" class="w-full px-2.5 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]">
-            <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Best Overall · 120B)</option>
-            <option value="qwen/qwen3.8-27b">qwen/qwen3.8-27b (Qwen 3.8 · 27B)</option>
-            <option value="openai/gpt-oss-20b">openai/gpt-oss-20b (Ultra-Fast · 20B)</option>
-            <option value="allam-2-7b">allam-2-7b (Compact · 7B)</option>
+            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Flagship 70B · 128K Ctx)</option>
+            <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fastest Instant · 128K Ctx)</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Fast &amp; Multimodal · 1M Ctx)</option>
+            <option value="openrouter/auto">openrouter/auto (Auto-Route Best Available)</option>
             <option value="custom">Custom Model ID...</option>
           </select>
           <input type="text"
@@ -4002,7 +3881,7 @@
             <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span id="pkAiTargetLabel" class="truncate">Target: "..."</span>
           </div>
-          <button type="button" onclick="clearAiTarget()" title="Clear target selection" class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer font-bold px-1">✕</button>
+          <button type="button" onclick="clearAiTarget()" title="Clear target selection" class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer font-bold px-1">x</button>
         </div>
         <div class="flex items-end gap-2">
           <textarea id="pkGroqPromptInput"
@@ -4036,7 +3915,7 @@
             <div class="font-mono text-[9.5px] text-[var(--text-tertiary)] truncate">Vault · Habits · Sketch · Cinema</div>
           </div>
         </div>
-        <button type="button" onclick="closeSpecialStudio()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">✕</button>
+        <button type="button" onclick="closeSpecialStudio()" class="w-7 h-7 rounded-full bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center font-mono text-xs cursor-pointer">x</button>
       </div>
 
       <!-- 4-Way Feature Switcher -->
@@ -4174,7 +4053,7 @@
         <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
           <button type="button" onclick="closeSpecialStudio(); openStudyDeckModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Study Deck</button>
           <button type="button" onclick="closeSpecialStudio(); openSoundscapeModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Soundscapes</button>
-          <button type="button" onclick="closeSpecialStudio(); openTimeCapsuleModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Time-Capsule</button>
+          <button type="button" onclick="closeSpecialStudio(); openRevisionHistoryModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Revision History</button>
           <button type="button" onclick="closeSpecialStudio(); openVaultPulseModal()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Vault Pulse</button>
           <button type="button" onclick="closeSpecialStudio(); toggleScratchpadDrawer()" class="px-2 py-1 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer">Scratchpad</button>
         </div>
@@ -4232,7 +4111,7 @@
           </select>
           <input type="text" id="pkDatabaseSearchInput" oninput="renderDatabaseView()" placeholder="Filter notes..." class="w-32 sm:w-44 px-2 py-1 rounded-[3px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-vermilion)]" />
           <button type="button" onclick="openNewTabNote(); closeDatabaseModal()" class="px-2.5 py-1 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer">+ New</button>
-          <button type="button" onclick="closeDatabaseModal()" class="w-7 h-7 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer">✕</button>
+          <button type="button" onclick="closeDatabaseModal()" class="w-7 h-7 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer">x</button>
         </div>
       </div>
 
@@ -4255,7 +4134,7 @@
             <div class="font-mono text-[9.5px] text-[var(--text-tertiary)]">Detect providers · Remove duplicates · Format &amp; check security</div>
           </div>
         </div>
-        <button type="button" onclick="closeApiKeyScannerModal()" class="w-7 h-7 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-xs">✕</button>
+        <button type="button" onclick="closeApiKeyScannerModal()" class="w-7 h-7 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-xs">x</button>
       </div>
 
       <!-- Body / Scroller -->
@@ -4272,7 +4151,7 @@
           </div>
           <textarea id="pkApiKeyScannerInput" rows="4" placeholder="Paste .env file, JSON, code snippet, or messy text with API keys here (e.g. gsk_..., AIzaSy..., sk-or-v1-..., sk-proj-..., nvapi-..., pplx-..., hf_...)..." class="w-full px-3 py-2 rounded-[4px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-vermilion)] resize-y"></textarea>
           <div class="flex items-center justify-between">
-            <div class="font-mono text-[9.5px] text-[var(--text-tertiary)]">Recognizes Gemini, Groq, OpenRouter, NVIDIA, OpenAI, Claude, DeepSeek, Perplexity &amp; more</div>
+            <div class="font-mono text-[9.5px] text-[var(--text-tertiary)]">Recognizes Gemini, Groq, OpenRouter, OpenAI, Claude, DeepSeek, Perplexity &amp; more</div>
             <button type="button" onclick="runApiKeyScan()" class="px-3.5 py-1.5 rounded-[4px] bg-[var(--accent-vermilion)] hover:opacity-95 text-white font-mono text-xs font-semibold cursor-pointer shadow-xs">Scan &amp; Organize</button>
           </div>
         </div>

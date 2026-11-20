@@ -103,6 +103,11 @@ esbuild.buildSync({
 });
 console.log('4b. AI Memory Engine bundled (Dexie + Orama) -> js/ai-memory.min.js (' + kb(fs.statSync(path.join(ROOT, 'js/ai-memory.min.js')).size) + ')');
 
+// 4c. Sync Web Workers (Kokoro Neural TTS & Whisper Speech-to-Text)
+fs.copyFileSync(path.join(ROOT, 'src/js/kokoro-worker.js'), path.join(ROOT, 'js/kokoro-worker.js'));
+fs.copyFileSync(path.join(ROOT, 'src/js/whisper-worker.js'), path.join(ROOT, 'js/whisper-worker.js'));
+console.log('4c. Web Workers synced -> js/kokoro-worker.js, js/whisper-worker.js');
+
 // 5. Sync HTML workspace copies & verify ZERO <style> and ZERO inline <script>
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const styleTags = (html.match(/<style\b/gi) || []).length;
@@ -111,7 +116,6 @@ if (styleTags > 0 || inlineScripts > 0) {
   throw new Error(`Pure HTML check FAILED! Found ${styleTags} <style> tags and ${inlineScripts} inline <script> blocks!`);
 }
 fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(ROOT, 'pk_note_workspace.html'));
-fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(ROOT, 'aether_archival_knowledge_calendar_workspace.html'));
 console.log('5. Pure HTML verified & synced -> index.html (' + kb(html.length) + ', 0 <style>, 0 inline <script>)');
 
 // 6. Stamp version.json for automatic live-refresh on GitHub Pages (https://not-phana.github.io/PK-Note/)

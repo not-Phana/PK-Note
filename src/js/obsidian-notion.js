@@ -62,7 +62,7 @@ function renderNoteTabsBar() {
         ${statusDot}
         <span class="truncate">${escapeHtml(note.title || 'Untitled')}</span>
         ${isSplit ? '<span class="font-mono text-[8px] px-1 rounded bg-[var(--accent-vermilion-tint)] text-[var(--accent-vermilion)] shrink-0">R</span>' : ''}
-        ${tabs.length > 1 ? `<button type="button" onclick="event.stopPropagation(); closeNoteTab('${escapeHtml(id)}')" title="Close tab" class="opacity-60 group-hover:opacity-100 w-4 h-4 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center justify-center shrink-0 cursor-pointer">✕</button>` : ''}
+        ${tabs.length > 1 ? `<button type="button" onclick="event.stopPropagation(); closeNoteTab('${escapeHtml(id)}')" title="Close tab" class="opacity-60 group-hover:opacity-100 w-4 h-4 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-mono text-[10px] flex items-center justify-center shrink-0 cursor-pointer">x</button>` : ''}
       </div>
     `;
   }).join('');
@@ -300,7 +300,7 @@ function renderSplitPreviewHTML(note) {
     if (b.type === 'h3') return `<h3 class="font-serif text-lg font-medium text-[var(--text-primary)] mt-2.5 mb-1 leading-snug">${rich}</h3>`;
     if (b.type === 'todo') {
       const checked = !!b.checked;
-      return `<div class="flex items-start gap-2 my-1 text-[var(--text-primary)]"><span class="font-mono text-xs ${checked ? 'text-emerald-500' : 'text-[var(--text-tertiary)]'} shrink-0">[${checked ? '✓' : ' '}]</span><span class="${checked ? 'line-through opacity-70' : ''}">${rich}</span></div>`;
+      return `<div class="flex items-start gap-2 my-1 text-[var(--text-primary)]"><span class="font-mono text-xs ${checked ? 'text-emerald-500' : 'text-[var(--text-tertiary)]'} shrink-0">[${checked ? 'x' : ' '}]</span><span class="${checked ? 'line-through opacity-70' : ''}">${rich}</span></div>`;
     }
     if (b.type === 'bullet') return `<div class="flex items-start gap-2 my-1 text-[var(--text-primary)]"><span class="text-[var(--accent-vermilion)] shrink-0">•</span><span>${rich}</span></div>`;
     if (b.type === 'quote') return `<blockquote class="border-l-2 border-[var(--accent-vermilion)] pl-3 my-2 text-[var(--text-secondary)] italic">${rich}</blockquote>`;
@@ -459,7 +459,7 @@ function renderNotePropertiesBar() {
     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono text-[10px]">
       <span class="text-[var(--text-tertiary)] uppercase">${escapeHtml(item.key)}:</span>
       <span class="text-[var(--text-primary)]">${escapeHtml(item.value)}</span>
-      <button type="button" onclick="removeCustomNoteProperty(${idx})" class="text-[var(--text-tertiary)] hover:text-rose-500 ml-0.5 cursor-pointer">✕</button>
+      <button type="button" onclick="removeCustomNoteProperty(${idx})" class="text-[var(--text-tertiary)] hover:text-rose-500 ml-0.5 cursor-pointer">x</button>
     </span>
   `).join('');
 
@@ -819,18 +819,12 @@ function renderDatabaseView() {
 }
 
 // ============================================================================
-// KEYBOARD SHORTCUTS (Alt+\ Split, Alt+D Database, Alt+1..9 Switch Tabs)
+// KEYBOARD SHORTCUTS (Alt+\ Split, Alt+1..9 Switch Tabs)
 // ============================================================================
 document.addEventListener('keydown', (e) => {
   if (e.altKey && (e.key === '\\' || e.code === 'Backslash')) {
     e.preventDefault();
     toggleSplitNotePane();
-    return;
-  }
-  if (e.altKey && (e.key === 'd' || e.key === 'D')) {
-    e.preventDefault();
-    if (pkDatabaseOpen) closeDatabaseModal();
-    else openDatabaseModal();
     return;
   }
   if (e.altKey && e.key >= '1' && e.key <= '9') {
@@ -860,7 +854,6 @@ document.addEventListener('keydown', (e) => {
     ['voiceModelModalBackdrop', 'pk-motion-modal', 180],
     ['pkStudyDeckBackdrop', 'pk-motion-modal', 180],
     ['pkSoundscapeBackdrop', 'pk-motion-modal', 180],
-    ['pkTimeCapsuleBackdrop', 'pk-motion-modal', 180],
     ['pkVaultPulseBackdrop', 'pk-motion-modal', 180],
     ['focusTimerModalBackdrop', 'pk-motion-modal', 180],
     ['templatesModalBackdrop', 'pk-motion-modal', 180],
@@ -875,7 +868,6 @@ document.addEventListener('keydown', (e) => {
 
     // Bottom Sheets (Slide Up / Slide Down + Backdrop Fade)
     ['mobileMoreSheetBackdrop', 'pk-motion-sheet', 190],
-    ['mobileQuickMenuBackdrop', 'pk-motion-sheet', 190],
 
     // Floating Surfaces (Smooth Rise / Glide Down)
     ['pkScratchpadDrawer', 'pk-motion-float', 170],

@@ -1,5 +1,5 @@
 // ============================================================================
-// PK NOTE — MULTI-PROVIDER FREE AI ASSISTANT (Gemini · OpenRouter Free · Groq · NVIDIA · Local)
+// PK NOTE — MULTI-PROVIDER FREE AI ASSISTANT (Gemini · OpenRouter Free · Groq · Local)
 // 100% Client-Side BYOK & Local Server Support, Ranked Free Models, SSE Streaming, Zero Emoji
 // Full PK Note integration: Active Note, Vault, Calendar, Study Deck, Voice
 // ============================================================================
@@ -73,28 +73,6 @@ const PK_AI_PROVIDERS = {
       { id: 'llama-3.2-11b-vision-preview', label: '#9 llama-3.2-11b-vision-preview (Vision Multimodal)' }
     ]
   },
-  nvidia: {
-    id: 'nvidia',
-    name: 'NVIDIA AI',
-    shortName: 'NVIDIA',
-    defaultBaseUrl: 'https://integrate.api.nvidia.com/v1',
-    defaultModel: 'nvidia/nemotron-3.5-bolt-e4b',
-    requiresKey: true,
-    keyPlaceholder: 'nvapi-...',
-    keyLabel: 'NVIDIA API Key (Saved Locally)',
-    keyUrl: 'https://build.nvidia.com/explore/discover',
-    keyLinkText: 'Get free key',
-    models: [
-      { id: 'nvidia/nemotron-3.5-bolt-e4b', label: '#1 nvidia/nemotron-3.5-bolt-e4b (Ultra-Fast Flagship · 128K Ctx)' },
-      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: '#2 nvidia/nemotron-3.5-lightning-30b-a3b (30B Deep Reasoning)' },
-      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: '#3 nvidia/nemotron-3-nano-omni-30b-a3b-reasoning (Omni Reasoning)' },
-      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: '#4 nvidia/nemotron-3-ultra-550b-a55b (550B Frontier)' },
-      { id: 'mistralai/mistral-large-4-1t-a52b', label: '#5 mistralai/mistral-large-4-1t-a52b (Mistral Large 4)' },
-      { id: 'z-ai/glm-5.3-flash', label: '#6 z-ai/glm-5.3-flash (GLM 5.3 Flash)' },
-      { id: 'moonshotai/kimi-k3.1-pro', label: '#7 moonshotai/kimi-k3.1-pro (Kimi K3.1 Pro)' },
-      { id: 'minimaxai/minimax-m3.1-flash', label: '#8 minimaxai/minimax-m3.1-flash (MiniMax M3.1 Flash)' }
-    ]
-  },
   local: {
     id: 'local',
     name: 'Local Model',
@@ -123,30 +101,6 @@ const PK_LOCAL_SERVER_PRESETS = {
   llamacpp: { label: 'llama.cpp', baseUrl: 'http://localhost:8080/v1', defaultModel: 'google/gemma-4-e4b' },
   jan: { label: 'Jan', baseUrl: 'http://localhost:1337/v1', defaultModel: 'google/gemma-4-e4b' }
 };
-
-const PK_NVIDIA_WORKER_SNIPPET = `export default {
-  async fetch(request) {
-    const cors = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    };
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-    const url = new URL(request.url);
-    const path = url.pathname.startsWith('/v1/') ? url.pathname : '/v1' + (url.pathname.startsWith('/') ? url.pathname : '/' + url.pathname);
-    const upstream = await fetch('https://integrate.api.nvidia.com' + path + url.search, {
-      method: request.method,
-      headers: {
-        'Content-Type': request.headers.get('Content-Type') || 'application/json',
-        ...(request.headers.get('Authorization') ? { 'Authorization': request.headers.get('Authorization') } : {})
-      },
-      body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body
-    });
-    const outHeaders = new Headers(upstream.headers);
-    Object.entries(cors).forEach(([k, v]) => outHeaders.set(k, v));
-    return new Response(upstream.body, { status: upstream.status, headers: outHeaders });
-  }
-};`;
 
 let pkGroqHistory = []; // { role: 'user'|'assistant', content: string, eventPayloads?: [], savedMemories?: [], isError?: boolean, provider?: string, retryPrompt?: string }
 let pkGroqContextScope = 'note'; // 'note' | 'vault' | 'general'
@@ -235,7 +189,6 @@ function getDefaultAiConfig() {
     gemini: mk('gemini'),
     openrouter: mk('openrouter'),
     groq: mk('groq'),
-    nvidia: mk('nvidia'),
     local: mk('local')
   };
 }
@@ -259,23 +212,14 @@ const PK_RETIRED_GEMINI_MODELS = new Set([
   'gemini-4-hydrogen'
 ]);
 
-const PK_RETIRED_NVIDIA_MODELS = new Set([
-  'meta/llama-3.3-70b-instruct',
-  'deepseek-ai/deepseek-r1',
-  'mistralai/mistral-large-2-instruct',
-  'nvidia/llama-3.1-nemotron-70b-instruct',
-  'google/gemma-2-27b-it',
-  'qwen/qwen2.5-72b-instruct'
-]);
-
 function loadAiConfig() {
   const def = getDefaultAiConfig();
   try {
     const rawV2 = localStorage.getItem(PK_AI_CONFIG_KEY);
     if (rawV2) {
       const parsed = JSON.parse(rawV2);
-      const provider = PK_AI_PROVIDERS[parsed.provider] ? parsed.provider : 'groq';
-      ['gemini', 'openrouter', 'groq', 'nvidia', 'local'].forEach(pid => {
+      const provider = (parsed.provider === 'nvidia' || !PK_AI_PROVIDERS[parsed.provider]) ? 'groq' : parsed.provider;
+      ['gemini', 'openrouter', 'groq', 'local'].forEach(pid => {
         const src = parsed[pid] || {};
         const normKeys = normalizeProviderKeys(src);
         def[pid] = {
@@ -297,16 +241,6 @@ function loadAiConfig() {
       // Upgrade retired Gemini presets automatically to live active default
       if (PK_RETIRED_GEMINI_MODELS.has(def.gemini.model)) {
         def.gemini.model = PK_AI_PROVIDERS.gemini.defaultModel;
-        migrated = true;
-      }
-      // Upgrade retired NVIDIA models automatically
-      if (PK_RETIRED_NVIDIA_MODELS.has(def.nvidia.model) || !def.nvidia.model) {
-        def.nvidia.model = PK_AI_PROVIDERS.nvidia.defaultModel;
-        migrated = true;
-      }
-      // Clean up any accidental github.io or invalid host URLs that cause HTTP 405
-      if (/github\.io/i.test(def.nvidia.baseUrl) || !def.nvidia.baseUrl) {
-        def.nvidia.baseUrl = PK_AI_PROVIDERS.nvidia.defaultBaseUrl;
         migrated = true;
       }
       // Upgrade OpenRouter legacy preset to openrouter/auto
@@ -359,7 +293,7 @@ function isProviderReady(pid, data) {
 }
 
 // ============================================================================
-// ENDPOINT NORMALIZER (GROQ · NVIDIA / WORKER PROXY · OLLAMA / LM STUDIO)
+// ENDPOINT NORMALIZER (GROQ · LOCAL OLLAMA / LM STUDIO)
 // ============================================================================
 function buildProviderEndpoints(pid, rawBaseUrl) {
   const spec = PK_AI_PROVIDERS[pid] || PK_AI_PROVIDERS.groq;
@@ -399,7 +333,7 @@ function buildProviderEndpoints(pid, rawBaseUrl) {
     };
   }
 
-  // Case 3: Standard base URL (https://api.groq.com/openai/v1, https://integrate.api.nvidia.com/v1, custom worker, http://localhost:1234/v1)
+  // Case 3: Standard base URL (https://api.groq.com/openai/v1, custom base URL, http://localhost:1234/v1)
   return {
     baseUrl: url,
     chatUrl: `${url}/chat/completions`,
@@ -464,7 +398,7 @@ function syncQuickComposerSwitchers(cfg) {
 
   if (quickKeySel) {
     const opts = [];
-    const providerOrder = ['gemini', 'openrouter', 'groq', 'nvidia', 'local'];
+    const providerOrder = ['gemini', 'openrouter', 'groq', 'local'];
     providerOrder.forEach(pid => {
       const pSpec = PK_AI_PROVIDERS[pid];
       const pData = cfg[pid];
@@ -487,7 +421,7 @@ function syncQuickComposerSwitchers(cfg) {
       }
     });
     // Also offer quick jump to unconfigured free providers at the bottom
-    ['gemini', 'openrouter', 'groq', 'nvidia'].forEach(pid => {
+    ['gemini', 'openrouter', 'groq'].forEach(pid => {
       if (pid === cfg.provider) return;
       const pData = cfg[pid];
       const hasAny = pData && Array.isArray(pData.keys) && pData.keys.some(s => s && s.key);
@@ -679,14 +613,12 @@ function populateModelSelectForProvider(pid, data) {
       customInp.classList.remove('hidden');
       customInp.value = data.model || '';
       customInp.placeholder = pid === 'local'
-        ? 'e.g. google/gemma-4-e4b, qwen/qwen3.5-9b...'
-        : pid === 'nvidia'
-          ? 'e.g. nvidia/nemotron-3.5-lightning-30b-a3b'
-          : pid === 'openrouter'
-            ? 'e.g. openrouter/free, google/gemma-4-31b-it:free'
-            : pid === 'gemini'
-              ? 'e.g. gemini-3-flash-preview, gemini-3.5-flash-lite'
-              : 'e.g. openai/gpt-oss-120b';
+        ? 'e.g. llama3.2:latest, deepseek-r1:latest...'
+        : pid === 'openrouter'
+          ? 'e.g. openrouter/auto, deepseek/deepseek-r1:free'
+          : pid === 'gemini'
+            ? 'e.g. gemini-2.0-flash, gemini-1.5-pro'
+            : 'e.g. llama-3.3-70b-versatile';
     }
   }
 }
@@ -703,7 +635,6 @@ function syncGroqHeaderAndSettingsUI() {
     ['gemini', 'pkAiProviderTabGemini'],
     ['openrouter', 'pkAiProviderTabOpenrouter'],
     ['groq', 'pkAiProviderTabGroq'],
-    ['nvidia', 'pkAiProviderTabNvidia'],
     ['local', 'pkAiProviderTabLocal']
   ];
   tabs.forEach(([id, elId]) => {
@@ -733,22 +664,18 @@ function syncGroqHeaderAndSettingsUI() {
     else keyBtnLabel.textContent = ready ? (filledKeys.length > 1 ? `${spec.shortName} (${filledKeys.length})` : spec.shortName) : 'Add Key';
   }
 
-  // Endpoint section (shown for NVIDIA & Local, hidden for direct-CORS Gemini / OpenRouter / Groq)
+  // Endpoint section (shown for Local, hidden for direct-CORS Gemini / OpenRouter / Groq)
   const endpointSec = document.getElementById('pkAiEndpointSection');
   const baseLabel = document.getElementById('pkAiBaseUrlLabel');
   const baseInput = document.getElementById('pkAiBaseUrlInput');
   const localPresets = document.getElementById('pkAiLocalPresetsRow');
-  const nvidiaHint = document.getElementById('pkAiNvidiaCorsHint');
   const localHint = document.getElementById('pkAiLocalCorsHint');
 
-  if (endpointSec) endpointSec.classList.toggle('hidden', spec.id === 'groq' || spec.id === 'gemini' || spec.id === 'openrouter');
+  if (endpointSec) endpointSec.classList.toggle('hidden', spec.id !== 'local');
   if (localPresets) localPresets.classList.toggle('hidden', spec.id !== 'local');
-  if (nvidiaHint) nvidiaHint.classList.toggle('hidden', spec.id !== 'nvidia');
   if (localHint) localHint.classList.toggle('hidden', spec.id !== 'local');
   if (baseLabel) {
-    baseLabel.textContent = spec.id === 'nvidia'
-      ? 'NVIDIA Endpoint / Proxy URL'
-      : 'Local Server URL (OpenAI-Compatible)';
+    baseLabel.textContent = 'Local Server URL (OpenAI-Compatible)';
   }
   if (baseInput) {
     baseInput.value = data.baseUrl || spec.defaultBaseUrl;
@@ -832,88 +759,6 @@ function resetAiProviderEndpoint() {
   syncGroqHeaderAndSettingsUI();
   if (typeof showToast === 'function') {
     showToast(`Reset ${spec.shortName} endpoint to default`);
-  }
-}
-
-function copyNvidiaProxySnippet() {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(PK_NVIDIA_WORKER_SNIPPET).then(() => {
-      if (typeof showToast === 'function') {
-        showToast('Copied Cloudflare Worker code! Deploy on dash.cloudflare.com -> Workers and paste its URL above.');
-      }
-    }).catch(() => {
-      if (typeof showToast === 'function') showToast('Could not access clipboard', 'ochre');
-    });
-  }
-}
-
-let pkServerLanUrl = '';
-
-async function detectServerLanUrl() {
-  const origin = (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http'))
-    ? window.location.origin
-    : 'http://127.0.0.1:4000';
-  try {
-    const res = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(1500) });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.lanIps) && data.lanIps.length > 0) {
-        pkServerLanUrl = `http://${data.lanIps[0].ip}:${data.port || 4000}`;
-        const phoneBadge = document.getElementById('pkAiServerPhoneBadge');
-        if (phoneBadge) {
-          phoneBadge.textContent = pkServerLanUrl;
-        }
-        const container = document.getElementById('pkAiServerPhoneContainer');
-        if (container) container.classList.remove('hidden');
-      }
-    }
-  } catch (_) {}
-}
-
-function copyServerPhoneUrl() {
-  const url = pkServerLanUrl || (window.location && window.location.protocol.startsWith('http') ? window.location.origin : 'http://192.168.1.10:4000');
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(() => {
-      if (typeof showToast === 'function') {
-        showToast(`Copied Phone URL: ${url} — open in Safari or Chrome on your phone!`);
-      }
-    });
-  }
-}
-
-function useNvidiaLocalProxy() {
-  const cfg = loadAiConfig();
-  const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
-  cfg.nvidia.baseUrl = 'http://127.0.0.1:4000/v1';
-  saveAiConfig(cfg);
-  const input = document.getElementById('pkAiBaseUrlInput');
-  if (input) input.value = cfg.nvidia.baseUrl;
-  if (isHttps) {
-    if (typeof showToast === 'function') {
-      showToast('Set to local proxy. On HTTPS (GitHub Pages), browsers block local HTTP. Use a Cloudflare Worker or run PK Note locally via PK Note.bat.', 'ochre');
-    }
-  } else if (typeof showToast === 'function') {
-    showToast(`Set NVIDIA endpoint to ${cfg.nvidia.baseUrl}`);
-  }
-}
-
-function switchToGroqProvider() {
-  const cfg = loadAiConfig();
-  cfg.provider = 'groq';
-  saveAiConfig(cfg);
-  syncGroqHeaderAndSettingsUI();
-  if (typeof showToast === 'function') {
-    showToast('Switched to Groq! 100% serverless, runs directly on phone with 0 servers.');
-  }
-}
-
-function switchToGeminiProvider() {
-  const cfg = loadAiConfig();
-  cfg.provider = 'gemini';
-  saveAiConfig(cfg);
-  syncGroqHeaderAndSettingsUI();
-  if (typeof showToast === 'function') {
-    showToast('Switched to Gemini AI! 100% serverless, runs directly on phone with 0 servers.');
   }
 }
 
@@ -1079,9 +924,6 @@ function toggleGroqSettingsPanel() {
   if (memPanel) memPanel.classList.add('hidden');
   syncGroqHeaderAndSettingsUI();
   panel.classList.toggle('hidden');
-  if (!panel.classList.contains('hidden')) {
-    detectServerLanUrl();
-  }
 }
 
 let pkAiMemoryTab = 'memories'; // 'memories' | 'chats'
@@ -1213,7 +1055,7 @@ async function renderAiMemoryPanel() {
           </div>
           <div class="flex items-center gap-1 shrink-0 pt-0.5">
             <button type="button" onclick="togglePinAiMemory('${escapeHtml(m.id)}')" class="${pinCls}">${m.pinned ? 'Pinned' : 'Pin'}</button>
-            <button type="button" onclick="deleteAiMemory('${escapeHtml(m.id)}')" title="Forget" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer">✕</button>
+            <button type="button" onclick="deleteAiMemory('${escapeHtml(m.id)}')" title="Forget" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer">x</button>
           </div>
         </div>
       `;
@@ -1245,7 +1087,7 @@ async function renderAiMemoryPanel() {
             <div class="font-mono text-[9px] text-[var(--text-tertiary)]">${t.messageCount || 0} msgs · ${dateStr}</div>
             ${t.matchSnippet ? `<div class="text-[10.5px] text-[var(--text-secondary)] line-clamp-2 leading-snug pt-0.5">${escapeHtml(t.matchSnippet)}</div>` : ''}
           </button>
-          <button type="button" onclick="deleteSavedAiChat('${escapeHtml(t.id)}')" title="Delete chat" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer shrink-0">✕</button>
+          <button type="button" onclick="deleteSavedAiChat('${escapeHtml(t.id)}')" title="Delete chat" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] flex items-center justify-center cursor-pointer shrink-0">x</button>
         </div>
       `;
     }).join('');
@@ -1393,7 +1235,7 @@ async function pasteAiApiKey() {
       }
       const cfg = loadAiConfig();
       captureCurrentProviderInputsIntoConfig(cfg);
-      // Smart auto-switch provider if key prefix clearly identifies Gemini, OpenRouter, Groq, or NVIDIA
+      // Smart auto-switch provider if key prefix clearly identifies Gemini, OpenRouter, or Groq
       const prevPid = cfg.provider;
       if (/^(?:AIza|AQ\.)/i.test(cleaned) && cfg.provider !== 'gemini') {
         cfg.provider = 'gemini';
@@ -1401,8 +1243,6 @@ async function pasteAiApiKey() {
         cfg.provider = 'openrouter';
       } else if (/^gsk_/i.test(cleaned) && cfg.provider !== 'groq') {
         cfg.provider = 'groq';
-      } else if (/^nvapi-/i.test(cleaned) && cfg.provider !== 'nvidia') {
-        cfg.provider = 'nvidia';
       }
       const targetProv = cfg[cfg.provider];
       const existingMatch = (targetProv.keys || []).find(s => s.key === cleaned);
@@ -1529,22 +1369,6 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
   );
 
   if (isNetworkOrCors) {
-    if (pid === 'nvidia') {
-      const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
-      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(baseUrl || '');
-      const isDefaultNvidia = /integrate\.api\.nvidia\.com/i.test(baseUrl || '');
-
-      if (isHttps && isLocalhost) {
-        return 'Local proxy (127.0.0.1) cannot be reached from mobile phones or HTTPS pages. For zero-server mobile use, switch to Groq or Gemini (100% serverless with no PC needed), or deploy a free Cloudflare Worker for NVIDIA.';
-      }
-      if (isLocalhost) {
-        return `Local NVIDIA proxy (${baseUrl}) is not running. On PC: double-click "Start NVIDIA Proxy.bat". On mobile or without a PC server: switch to Groq or Gemini (0 servers needed), or use a free Cloudflare Worker.`;
-      }
-      if (isDefaultNvidia) {
-        return 'NVIDIA NIM blocks direct browser CORS. On PC: run "Start NVIDIA Proxy.bat". On phone / without PC: switch to Groq or Gemini (0 servers needed), or deploy a free Cloudflare Worker.';
-      }
-      return `Could not reach NVIDIA proxy (${baseUrl}). Check the URL. For 0-server mobile usage, switch to Groq or Gemini in Settings.`;
-    }
     if (pid === 'local') {
       const isHttpsPage = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
       const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(baseUrl || '');
@@ -1557,9 +1381,6 @@ function formatAiConnectionError(err, pid, baseUrl, model) {
   }
 
   if (/\b405\b/.test(rawMsg)) {
-    if (/github\.io/i.test(baseUrl || '')) {
-      return 'GitHub Pages is a static host and cannot process API requests. Set your NVIDIA Endpoint to a valid proxy (e.g. Cloudflare Worker) or switch to Groq / Gemini.';
-    }
     return `Endpoint returned HTTP 405 (Method Not Allowed). Check your endpoint URL (${baseUrl}).`;
   }
   if (/\b(401|403)\b/.test(rawMsg)) {
@@ -1643,7 +1464,7 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
   const headers = {};
   if (apiKey && apiKey.trim()) headers['Authorization'] = `Bearer ${apiKey.trim()}`;
 
-  // 1. Standard OpenAI-compatible GET /v1/models (supports Gemini, OpenRouter Free, Groq, NVIDIA, Local)
+  // 1. Standard OpenAI-compatible GET /v1/models (supports Gemini, OpenRouter Free, Groq, Local)
   try {
     const res = await fetch(endpoints.modelsUrl, { method: 'GET', headers });
     if (res.ok) {
@@ -1875,31 +1696,69 @@ function pkCleanBlockText(raw) {
 
 function buildGroqSystemPrompt(recalledCtx = null, targetSelection = '', targetBlockId = null) {
   const todayIso = new Date().toISOString().slice(0, 10);
-  const autoMemOn = !window.PKMemory || window.PKMemory.getSettings().autoSave;
+  const autoMemOn = !window.PKMemory || (typeof window.PKMemory.getSettings === 'function' ? window.PKMemory.getSettings().autoSave : true);
   const parts = [
     'You are Kon, the personal AI assistant and proactive workspace agent inside PK Note.',
     `Today's date is ${todayIso}.`,
     'Tone & Persona: You are Kon. Communicate naturally, concisely, and directly, like a sharp, highly capable colleague and personal executive assistant. Avoid sounding like a formulaic AI chatbot: do not use robotic greetings, canned flattery, repetitive filler, or rigid textbook structures. Write with clarity, nuance, and professional substance without being stiff or corporate. Zero emojis unless specifically requested by the user.',
-    'ACTION CAPABILITIES (YOU CAN DO THINGS FOR THE USER): You have full power to take real workspace actions directly in PK Note. When the user asks you to create a note, add todos, append notes, rename a note, tag a note, schedule an event, open a note, switch theme, or clear finished tasks: describe what you did concisely and append one or more executable action blocks at the very end of your response.\n' +
+    'UNLIMITED WORKSPACE AGENT (YOU CAN DO ANYTHING IN PK NOTE): You have full power to take real workspace actions directly in PK Note. When the user asks you to do anything—create notes, edit blocks, organize folders, tag notes, check off todos, schedule events, switch themes, study flashcards, export documents, or draw sketches—describe what you did concisely and append one or more executable action blocks at the very end of your response.\n' +
     'ACTION SPECIFICATION:\n' +
     'Append valid JSON inside ```pk-action ... ``` at the end of your response:\n' +
-    '1. Create a note:\n```pk-action\n{"action":"create_note","title":"Meeting Notes","folder":"Work","tags":["project"],"content":"## Discussion\\n- Key points here"}\n```\n' +
-    '2. Add todos to active note:\n```pk-action\n{"action":"add_todos","todos":["Buy groceries","Draft email to client","Review PR"]}\n```\n' +
-    '3. Append content to active note:\n```pk-action\n{"action":"append_content","content":"### New Ideas\\n- Point one\\n- Point two"}\n```\n' +
-    '4. Rename active note title:\n```pk-action\n{"action":"update_title","title":"New Note Title"}\n```\n' +
-    '5. Add tags to active note:\n```pk-action\n{"action":"add_tags","tags":["urgent","client"]}\n```\n' +
-    '6. Schedule calendar event:\n```pk-action\n{"action":"create_event","title":"Dentist Appointment","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":"Clinic"}\n```\n' +
-    '7. Open existing note:\n```pk-action\n{"action":"open_note","query":"workout"}\n```\n' +
-    '8. Switch theme:\n```pk-action\n{"action":"set_theme","theme":"dark"}\n``` (or "light")\n' +
-    '9. Clear completed todos in active note:\n```pk-action\n{"action":"clear_completed_todos"}\n```\n' +
-    '10. Star / favorite active note:\n```pk-action\n{"action":"star_note","favorite":true}\n```\n' +
-    'Always output valid JSON inside ```pk-action ... ```. Keep your conversational reply concise and helpful.',
+    '1. Create a note:\n```pk-action\n{"action":"create_note","title":"Meeting Notes","folder":"Work","tags":["project"],"content":"## Discussion\\n- Key points"}\n```\n' +
+    '2. Open an existing note:\n```pk-action\n{"action":"open_note","query":"workout"}\n```\n' +
+    '3. Rename active note:\n```pk-action\n{"action":"update_title","title":"Sprint 14"}\n```\n' +
+    '4. Move active note to folder:\n```pk-action\n{"action":"move_note","folder":"Archive"}\n```\n' +
+    '5. Add / set tags on active note:\n```pk-action\n{"action":"add_tags","tags":["urgent","client"]}\n```\n' +
+    '6. Remove tags from active note:\n```pk-action\n{"action":"remove_tags","tags":["draft"]}\n```\n' +
+    '7. Star / favorite active note:\n```pk-action\n{"action":"star_note","favorite":true}\n```\n' +
+    '8. Lock / unlock active note:\n```pk-action\n{"action":"lock_note","locked":true}\n```\n' +
+    '9. Duplicate active note:\n```pk-action\n{"action":"duplicate_note"}\n```\n' +
+    '10. Delete active note:\n```pk-action\n{"action":"delete_note"}\n```\n' +
+    '11. Export active note:\n```pk-action\n{"action":"export_note","format":"markdown"}\n``` (or "html")\n' +
+    '12. Add todos to active note:\n```pk-action\n{"action":"add_todos","todos":["Buy groceries","Draft email","Review PR"]}\n```\n' +
+    '13. Check / uncheck a todo item:\n```pk-action\n{"action":"check_todo","text":"Buy groceries","checked":true}\n```\n' +
+    '14. Check or uncheck all todos:\n```pk-action\n{"action":"check_all_todos"}\n``` (or "uncheck_all_todos")\n' +
+    '15. Clear completed todos in active note:\n```pk-action\n{"action":"clear_completed_todos"}\n```\n' +
+    '16. Append content to active note:\n```pk-action\n{"action":"append_content","content":"### Next Steps\\n- Task 1"}\n```\n' +
+    '17. Prepend content at top of active note:\n```pk-action\n{"action":"prepend_content","content":"> Important Note at top"}\n```\n' +
+    '18. Insert a block:\n```pk-action\n{"action":"insert_block","type":"h2","content":"Summary"}\n```\n' +
+    '19. Schedule calendar event:\n```pk-action\n{"action":"create_event","title":"Dentist","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":"Clinic"}\n```\n' +
+    '20. Delete calendar event:\n```pk-action\n{"action":"delete_event","title":"Dentist"}\n```\n' +
+    '21. Open calendar:\n```pk-action\n{"action":"open_calendar","view":"month"}\n```\n' +
+    '22. Create a folder in sidebar:\n```pk-action\n{"action":"create_folder","folder":"Projects"}\n```\n' +
+    '23. Open Study Deck flashcards:\n```pk-action\n{"action":"open_study_deck"}\n```\n' +
+    '24. Open Smart Draw canvas:\n```pk-action\n{"action":"open_smart_draw"}\n```\n' +
+    '25. Switch theme:\n```pk-action\n{"action":"set_theme","theme":"dark"}\n``` (or "light")\n' +
+    '26. Switch font:\n```pk-action\n{"action":"set_font","font":"serif"}\n``` (or "sans")\n' +
+    '27. Read active note aloud:\n```pk-action\n{"action":"read_aloud"}\n```\n' +
+    '28. Stop speech playback:\n```pk-action\n{"action":"stop_speech"}\n```\n' +
+    '29. Save version snapshot:\n```pk-action\n{"action":"create_snapshot","label":"Milestone 1"}\n```\n' +
+    '30. Quick fix typos & grammar in active note:\n```pk-action\n{"action":"quick_fix_note"}\n```\n' +
+    '31. Open settings:\n```pk-action\n{"action":"open_settings"}\n```\n' +
+    '32. Open command palette:\n```pk-action\n{"action":"open_command_palette"}\n```\n' +
+    '33. Replace active note content completely:\n```pk-action\n{"action":"replace_content","content":"# New Title\\n\\nNew content body..."}\n```\n' +
+    '34. Open or create today\'s Daily Note:\n```pk-action\n{"action":"open_daily_note"}\n```\n' +
+    '35. Open quick scratchpad drawer:\n```pk-action\n{"action":"open_scratchpad"}\n```\n' +
+    '36. Open interactive Knowledge Graph:\n```pk-action\n{"action":"open_graph"}\n```\n' +
+    '37. Open Vault Pulse statistics & analytics:\n```pk-action\n{"action":"open_vault_pulse"}\n```\n' +
+    '38. Open Soundscape ambient focus audio:\n```pk-action\n{"action":"open_soundscape"}\n```\n' +
+    '39. Open Math & LaTeX symbol palette:\n```pk-action\n{"action":"open_math_studio"}\n```\n' +
+    '40. Open Time Capsule version history:\n```pk-action\n{"action":"open_time_capsule"}\n```\n' +
+    '41. Open Special Studio workbench:\n```pk-action\n{"action":"open_studio"}\n```\n' +
+    '42. Toggle split pane editor:\n```pk-action\n{"action":"toggle_split"}\n```\n' +
+    '43. Toggle sidebar:\n```pk-action\n{"action":"toggle_sidebar"}\n```\n' +
+    'You may output multiple action blocks in sequence if the user asks for multiple tasks. Keep the conversational reply helpful, direct, and concise.',
     'TEXT REPLACEMENT & EDITING (CRITICAL): When asked to replace, fix, edit, proofread, translate, or rewrite text (or when target selection/block is specified below): Return ONLY the clean replacement text. Ensure the revised writing sounds authentic, articulate, and natural, free of cliché AI phrasing and without unsolicited emojis in the note content. NEVER add conversational introductions (e.g. do not say "Sure!", "Here is the revised text:", "Here is the correction:"). NEVER add conversational conclusions (e.g. do not say "Hope this helps!", "Let me know if you need more changes!"). NEVER add unsolicited changes to other parts of the text. Make ONLY the requested change. Do NOT wrap entire responses in markdown code block ticks (```).',
     'Flashcards: Only when asked to make flashcards or study cards, put each card on its own line as: Question :: Answer (no numbering needed).',
     'Calendar: ONLY when the user asks to schedule or add a calendar event, include one fenced block at the end like:\n```pk-event\n{"title":"Event Title","date":"YYYY-MM-DD","start":"14:00","end":"15:00","location":""}\n```',
     'API KEYS & CREDENTIAL SCANNING (EXPERT CAPABILITY): When asked to scan text or notes for API keys, identify providers, remove duplicates, organize into clean lists, or check security: You are an expert at detecting and categorizing API keys. Accurately identify providers by their format: Google Gemini (AIzaSy... or AQ....), Groq (gsk_...), OpenRouter (sk-or-v1-... or sk-or-...), NVIDIA NIM (nvapi-...), OpenAI Project (sk-proj-...), OpenAI Standard (sk-...), Anthropic Claude (sk-ant-api03-... or sk-ant-...), DeepSeek (sk-... followed by exactly 32 hex characters), Perplexity (pplx-...), Cerebras (csk-...), Hugging Face (hf_...), GitHub (ghp_... or github_pat_...), Mistral, Cohere, etc. Automatically deduplicate identical keys. Format your response with clean Markdown code blocks (```) grouped by provider for instant 1-click copying. Perform a security & formatting health check: flag if any key is truncated, contains accidental trailing punctuation (commas, quotes) or internal whitespace, or looks like an insecure dummy/placeholder value, and explain how to fix it.',
     'API KEY PROTECTION & ZERO RANDOM EDITS (CRITICAL): Always recognize when text contains an API key (e.g. gsk_..., AIzaSy..., sk-or-v1-..., sk-proj-..., sk-ant-..., nvapi-..., pplx-..., hf_..., csk-..., or hex secrets). When editing, rewriting, summarizing, or polishing notes or code: DO NOT touch, modify, truncate, censor, obfuscate, or alter any API key randomly! Keep every character of an API key 100% intact and verbatim. Never replace real API keys with placeholder text like "your-key-here" or fake strings unless the user explicitly asks to replace that specific key.'
   ];
+
+  if (typeof state !== 'undefined' && Array.isArray(state.notes) && state.notes.length > 0) {
+    const catalog = state.notes.slice(0, 30).map(n => `"${n.title || 'Untitled'}" [${n.folder || 'General'}]`).join(', ');
+    parts.push(`\nVAULT OVERVIEW (${state.notes.length} notes total): ${catalog}${state.notes.length > 30 ? '...' : ''}`);
+  }
 
   if (autoMemOn) {
     parts.push(
@@ -2106,7 +1965,278 @@ function executeKonAction(actionObj) {
     };
   }
 
-  // 2. Add todo checklist items to active note
+  // 2. Open an existing note
+  if (actionType === 'open_note' || actionType === 'find_note') {
+    if (typeof state === 'undefined' || !Array.isArray(state.notes)) return null;
+    const q = String(actionObj.query || actionObj.title || actionObj.noteId || '').trim().toLowerCase();
+    if (!q) return null;
+    const found = state.notes.find(n => n.id === actionObj.noteId)
+      || state.notes.find(n => (n.title || '').toLowerCase() === q)
+      || state.notes.find(n => (n.title || '').toLowerCase().includes(q))
+      || state.notes.find(n => (n.folder || '').toLowerCase() === q)
+      || state.notes.find(n => (n.tags || []).some(t => t.toLowerCase().includes(q)))
+      || state.notes.find(n => (n.blocks || []).some(b => (b.content || '').toLowerCase().includes(q)));
+    if (found) {
+      if (typeof selectNote === 'function') selectNote(found.id);
+      if (typeof setAppMode === 'function') setAppMode('workspace');
+      if (typeof showToast === 'function') showToast(`Kon opened: "${found.title}"`);
+      return {
+        success: true,
+        action: 'open_note',
+        description: `Opened note "${found.title}"`,
+        noteId: found.id
+      };
+    }
+    return null;
+  }
+
+  // 3. Rename active note
+  if (actionType === 'update_title' || actionType === 'set_title' || actionType === 'rename_note') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !actionObj.title) return null;
+    const oldTitle = note.title;
+    const newTitle = String(actionObj.title).trim();
+    note.title = newTitle;
+    note.updatedAt = new Date().toISOString();
+
+    const titleEl = document.getElementById('docTitleInput');
+    if (titleEl) titleEl.value = newTitle;
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon renamed note to "${newTitle}"`);
+
+    return {
+      success: true,
+      action: 'update_title',
+      description: `Renamed note to "${newTitle}"`,
+      noteId: note.id,
+      undo: () => {
+        note.title = oldTitle;
+        if (titleEl) titleEl.value = oldTitle;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast(`Restored title "${oldTitle}"`);
+      }
+    };
+  }
+
+  // 4. Move active note to folder
+  if (actionType === 'set_folder' || actionType === 'move_note') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !actionObj.folder) return null;
+    const oldFolder = note.folder || 'General';
+    const newFolder = String(actionObj.folder).trim();
+    note.folder = newFolder;
+    if (!state.folders.includes(newFolder)) state.folders.push(newFolder);
+    if (!state.expandedFolders) state.expandedFolders = {};
+    state.expandedFolders[newFolder] = true;
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon moved "${note.title}" to ${newFolder}`);
+    return {
+      success: true,
+      action: 'move_note',
+      description: `Moved "${note.title}" to ${newFolder}`,
+      noteId: note.id,
+      undo: () => {
+        note.folder = oldFolder;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+      }
+    };
+  }
+
+  // 5. Add / set tags on active note
+  if (actionType === 'add_tags' || actionType === 'set_tags') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) return null;
+    const oldTags = [...(note.tags || [])];
+    const newTags = Array.isArray(actionObj.tags)
+      ? actionObj.tags
+      : String(actionObj.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+    if (newTags.length === 0) return null;
+    if (!Array.isArray(note.tags)) note.tags = [];
+    newTags.forEach(t => {
+      if (!note.tags.includes(t)) note.tags.push(t);
+    });
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon added tags: ${newTags.join(', ')}`);
+
+    return {
+      success: true,
+      action: 'add_tags',
+      description: `Added tags [${newTags.join(', ')}] to "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.tags = oldTags;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast('Restored tags');
+      }
+    };
+  }
+
+  // 6. Remove tags from active note
+  if (actionType === 'remove_tags') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !Array.isArray(note.tags)) return null;
+    const oldTags = [...note.tags];
+    const toRemove = Array.isArray(actionObj.tags)
+      ? actionObj.tags
+      : String(actionObj.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    note.tags = note.tags.filter(t => !toRemove.includes(t));
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon removed tags from "${note.title}"`);
+    return {
+      success: true,
+      action: 'remove_tags',
+      description: `Removed tags [${toRemove.join(', ')}] from "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.tags = oldTags;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+      }
+    };
+  }
+
+  // 7. Star active note
+  if (actionType === 'star_note' || actionType === 'favorite_note') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) return null;
+    const prev = note.favorite;
+    note.favorite = actionObj.favorite !== false;
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon ${note.favorite ? 'starred' : 'unstarred'} "${note.title}"`);
+    return {
+      success: true,
+      action: 'star_note',
+      description: `${note.favorite ? 'Starred' : 'Unstarred'} "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.favorite = prev;
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+      }
+    };
+  }
+
+  // 8. Lock active note
+  if (actionType === 'lock_note' || actionType === 'unlock_note') {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    if (!note) return null;
+    const targetLock = actionType === 'lock_note' ? true : (actionObj.locked !== undefined ? !!actionObj.locked : false);
+    note.locked = targetLock;
+    if (typeof applyNoteLockVisuals === 'function') applyNoteLockVisuals(note);
+    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon ${targetLock ? 'locked' : 'unlocked'} "${note.title}"`);
+    return {
+      success: true,
+      action: 'lock_note',
+      description: `${targetLock ? 'Locked' : 'Unlocked'} "${note.title}"`,
+      noteId: note.id,
+      undo: () => {
+        note.locked = !targetLock;
+        if (typeof applyNoteLockVisuals === 'function') applyNoteLockVisuals(note);
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof persistState === 'function') persistState();
+      }
+    };
+  }
+
+  // 9. Duplicate active note
+  if (actionType === 'duplicate_note') {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    if (!note) return null;
+    if (typeof duplicateNoteById === 'function') {
+      duplicateNoteById(note.id);
+      const copy = state.notes[0];
+      return {
+        success: true,
+        action: 'duplicate_note',
+        description: `Duplicated note "${note.title}"`,
+        noteId: copy ? copy.id : null,
+        undo: () => {
+          if (copy) {
+            const idx = state.notes.findIndex(n => n.id === copy.id);
+            if (idx !== -1) {
+              state.notes.splice(idx, 1);
+              if (typeof selectNote === 'function') selectNote(note.id);
+              if (typeof renderAll === 'function') renderAll();
+              if (typeof persistState === 'function') persistState();
+            }
+          }
+        }
+      };
+    }
+  }
+
+  // 10. Delete active note
+  if (actionType === 'delete_note') {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    if (!note) return null;
+    const noteCopy = JSON.parse(JSON.stringify(note));
+    const noteId = note.id;
+    if (typeof deleteNoteById === 'function') {
+      deleteNoteById(noteId);
+    } else {
+      const idx = state.notes.findIndex(n => n.id === noteId);
+      if (idx !== -1) state.notes.splice(idx, 1);
+      if (state.notes.length > 0 && typeof selectNote === 'function') selectNote(state.notes[0].id);
+      if (typeof renderAll === 'function') renderAll();
+      if (typeof persistState === 'function') persistState();
+    }
+    if (typeof showToast === 'function') showToast(`Kon deleted "${noteCopy.title}"`);
+    return {
+      success: true,
+      action: 'delete_note',
+      description: `Deleted note "${noteCopy.title}"`,
+      undo: () => {
+        state.notes.unshift(noteCopy);
+        if (typeof selectNote === 'function') selectNote(noteCopy.id);
+        if (typeof renderAll === 'function') renderAll();
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast(`Restored note "${noteCopy.title}"`);
+      }
+    };
+  }
+
+  // 11. Export active note
+  if (actionType === 'export_note') {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    if (!note) return null;
+    const fmt = String(actionObj.format || 'markdown').toLowerCase();
+    if (fmt === 'html' && typeof exportActiveNoteAsStandaloneHtml === 'function') {
+      exportActiveNoteAsStandaloneHtml();
+    } else {
+      const mdText = (note.blocks || []).map(b => b.content || '').join('\n\n');
+      const blob = new Blob([`# ${note.title || 'Untitled'}\n\n${mdText}`], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(note.title || 'Note').replace(/[^a-zA-Z0-9_-]/g, '_')}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+    if (typeof showToast === 'function') showToast(`Kon exported "${note.title}"`);
+    return {
+      success: true,
+      action: 'export_note',
+      description: `Exported "${note.title}" as ${fmt.toUpperCase()}`
+    };
+  }
+
+  // 12. Add todos
   if (actionType === 'add_todos' || actionType === 'add_todo' || actionType === 'create_todos') {
     let note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
     if (!note) {
@@ -2150,7 +2280,101 @@ function executeKonAction(actionObj) {
     };
   }
 
-  // 3. Append markdown content to active note
+  // 13. Check / uncheck specific todo
+  if (actionType === 'check_todo' || actionType === 'uncheck_todo') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !Array.isArray(note.blocks)) return null;
+    const targetText = String(actionObj.text || actionObj.query || actionObj.todo || '').toLowerCase().trim();
+    const isCheck = actionType === 'check_todo' || actionObj.checked === true;
+    const match = (note.blocks || []).find(b => b.type === 'todo' && (b.content || '').toLowerCase().includes(targetText));
+    if (match) {
+      const prev = match.checked;
+      match.checked = isCheck;
+      note.updatedAt = new Date().toISOString();
+      if (typeof renderBlocks === 'function') renderBlocks(note);
+      if (typeof persistState === 'function') persistState();
+      if (typeof showToast === 'function') showToast(`Kon marked todo "${match.content}" as ${isCheck ? 'completed' : 'pending'}`);
+      return {
+        success: true,
+        action: isCheck ? 'check_todo' : 'uncheck_todo',
+        description: `Marked "${match.content}" as ${isCheck ? 'completed' : 'pending'}`,
+        noteId: note.id,
+        undo: () => {
+          match.checked = prev;
+          if (typeof renderBlocks === 'function') renderBlocks(note);
+          if (typeof persistState === 'function') persistState();
+        }
+      };
+    }
+  }
+
+  // 14. Check all todos / uncheck all todos
+  if (actionType === 'check_all_todos' || actionType === 'uncheck_all_todos') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !Array.isArray(note.blocks)) return null;
+    const isCheck = actionType === 'check_all_todos';
+    const prevStates = new Map();
+    let count = 0;
+    (note.blocks || []).forEach(b => {
+      if (b.type === 'todo') {
+        prevStates.set(b.id, b.checked);
+        b.checked = isCheck;
+        count++;
+      }
+    });
+    if (count === 0) return null;
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon marked ${count} todo(s) as ${isCheck ? 'completed' : 'pending'}`);
+    return {
+      success: true,
+      action: actionType,
+      description: `Marked all ${count} todo(s) as ${isCheck ? 'completed' : 'pending'}`,
+      noteId: note.id,
+      undo: () => {
+        (note.blocks || []).forEach(b => {
+          if (prevStates.has(b.id)) b.checked = prevStates.get(b.id);
+        });
+        if (typeof renderBlocks === 'function') renderBlocks(note);
+        if (typeof persistState === 'function') persistState();
+      }
+    };
+  }
+
+  // 15. Clear completed todos in active note
+  if (actionType === 'clear_completed_todos' || actionType === 'clean_todos') {
+    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !Array.isArray(note.blocks)) return null;
+    const removed = [];
+    note.blocks = note.blocks.filter(b => {
+      if (b && b.type === 'todo' && b.checked) {
+        removed.push(b);
+        return false;
+      }
+      return true;
+    });
+    if (removed.length === 0) return null;
+    note.updatedAt = new Date().toISOString();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
+    if (typeof persistState === 'function') persistState();
+    if (typeof showToast === 'function') showToast(`Kon cleared ${removed.length} completed todo(s)`);
+
+    return {
+      success: true,
+      action: 'clear_completed_todos',
+      description: `Cleared ${removed.length} completed todo item(s)`,
+      noteId: note.id,
+      undo: () => {
+        note.blocks.push(...removed);
+        if (typeof renderBlocks === 'function') renderBlocks(note);
+        if (typeof persistState === 'function') persistState();
+        if (typeof showToast === 'function') showToast('Restored cleared todos');
+      }
+    };
+  }
+
+  // 16. Append markdown content to active note
   if (actionType === 'append_content' || actionType === 'append_text' || actionType === 'insert_content') {
     let note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
     if (!note) {
@@ -2185,70 +2409,67 @@ function executeKonAction(actionObj) {
     };
   }
 
-  // 4. Update title of active note
-  if (actionType === 'update_title' || actionType === 'set_title' || actionType === 'rename_note') {
-    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
-    if (!note || !actionObj.title) return null;
-    const oldTitle = note.title;
-    const newTitle = String(actionObj.title).trim();
-    note.title = newTitle;
+  // 17. Prepend content to top of active note
+  if (actionType === 'prepend_content') {
+    let note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note || !Array.isArray(note.blocks)) return null;
+    const content = actionObj.content || actionObj.text || '';
+    const newBlocks = parseMarkdownToPKBlocks(content);
+    if (newBlocks.length === 0) return null;
+    const addedIds = newBlocks.map(b => b.id);
+    note.blocks.unshift(...newBlocks);
     note.updatedAt = new Date().toISOString();
-
-    const titleEl = document.getElementById('docTitleInput');
-    if (titleEl) titleEl.value = newTitle;
-    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
     if (typeof persistState === 'function') persistState();
-    if (typeof showToast === 'function') showToast(`Kon renamed note to "${newTitle}"`);
-
+    if (typeof showToast === 'function') showToast(`Kon prepended content to "${note.title}"`);
     return {
       success: true,
-      action: 'update_title',
-      description: `Renamed note to "${newTitle}"`,
+      action: 'prepend_content',
+      description: `Prepended ${newBlocks.length} block(s) to "${note.title}"`,
       noteId: note.id,
       undo: () => {
-        note.title = oldTitle;
-        if (titleEl) titleEl.value = oldTitle;
-        if (typeof renderSidebar === 'function') renderSidebar();
+        note.blocks = note.blocks.filter(b => !addedIds.includes(b.id));
+        if (typeof renderBlocks === 'function') renderBlocks(note);
         if (typeof persistState === 'function') persistState();
-        if (typeof showToast === 'function') showToast(`Restored title "${oldTitle}"`);
       }
     };
   }
 
-  // 5. Add or set tags on active note
-  if (actionType === 'add_tags' || actionType === 'set_tags') {
+  // 18. Insert a block
+  if (actionType === 'insert_block' || actionType === 'add_block') {
     const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
-    if (!note) return null;
-    const oldTags = [...(note.tags || [])];
-    const newTags = Array.isArray(actionObj.tags)
-      ? actionObj.tags
-      : String(actionObj.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-
-    if (newTags.length === 0) return null;
-    if (!Array.isArray(note.tags)) note.tags = [];
-    newTags.forEach(t => {
-      if (!note.tags.includes(t)) note.tags.push(t);
-    });
+    if (!note || !Array.isArray(note.blocks)) return null;
+    const bType = String(actionObj.type || 'paragraph').toLowerCase().trim();
+    const content = actionObj.content || '';
+    const newBlock = {
+      id: generateId('b'),
+      type: bType,
+      content: content
+    };
+    if (bType === 'todo') newBlock.checked = !!actionObj.checked;
+    const index = typeof actionObj.index === 'number' && actionObj.index >= 0 ? actionObj.index : note.blocks.length;
+    note.blocks.splice(index, 0, newBlock);
     note.updatedAt = new Date().toISOString();
-    if (typeof renderSidebar === 'function') renderSidebar();
+    if (typeof renderBlocks === 'function') renderBlocks(note);
     if (typeof persistState === 'function') persistState();
-    if (typeof showToast === 'function') showToast(`Kon added tags: ${newTags.join(', ')}`);
-
+    if (typeof showToast === 'function') showToast(`Kon inserted ${bType} block`);
     return {
       success: true,
-      action: 'add_tags',
-      description: `Added tags [${newTags.join(', ')}] to "${note.title}"`,
+      action: 'insert_block',
+      description: `Inserted ${bType} block into "${note.title}"`,
       noteId: note.id,
       undo: () => {
-        note.tags = oldTags;
-        if (typeof renderSidebar === 'function') renderSidebar();
-        if (typeof persistState === 'function') persistState();
-        if (typeof showToast === 'function') showToast('Restored tags');
+        const idx = note.blocks.findIndex(b => b.id === newBlock.id);
+        if (idx !== -1) {
+          note.blocks.splice(idx, 1);
+          if (typeof renderBlocks === 'function') renderBlocks(note);
+          if (typeof persistState === 'function') persistState();
+        }
       }
     };
   }
 
-  // 6. Schedule calendar event
+  // 19. Schedule calendar event
   if (actionType === 'create_event' || actionType === 'schedule_event') {
     if (typeof state === 'undefined' || !Array.isArray(state.events)) return null;
     const title = String(actionObj.title || 'Scheduled Event').slice(0, 80);
@@ -2288,28 +2509,100 @@ function executeKonAction(actionObj) {
     };
   }
 
-  // 7. Open an existing note
-  if (actionType === 'open_note' || actionType === 'find_note') {
-    if (typeof state === 'undefined' || !Array.isArray(state.notes)) return null;
-    const q = String(actionObj.query || actionObj.title || '').trim().toLowerCase();
-    if (!q) return null;
-    const found = state.notes.find(n => (n.title || '').toLowerCase().includes(q))
-      || state.notes.find(n => (n.blocks || []).some(b => (b.content || '').toLowerCase().includes(q)));
-    if (found) {
-      if (typeof selectNote === 'function') selectNote(found.id);
-      if (typeof setAppMode === 'function') setAppMode('workspace');
-      if (typeof showToast === 'function') showToast(`Kon opened: "${found.title}"`);
+  // 20. Delete calendar event
+  if (actionType === 'delete_event' || actionType === 'remove_event') {
+    if (typeof state === 'undefined' || !Array.isArray(state.events)) return null;
+    const q = String(actionObj.title || actionObj.query || '').toLowerCase().trim();
+    const idx = state.events.findIndex(e => (e.title || '').toLowerCase().includes(q));
+    if (idx !== -1) {
+      const removed = state.events.splice(idx, 1)[0];
+      if (typeof renderAll === 'function') renderAll();
+      if (typeof persistState === 'function') persistState();
+      if (typeof showToast === 'function') showToast(`Kon deleted event "${removed.title}"`);
       return {
         success: true,
-        action: 'open_note',
-        description: `Opened note "${found.title}"`,
-        noteId: found.id
+        action: 'delete_event',
+        description: `Deleted calendar event "${removed.title}"`,
+        undo: () => {
+          state.events.push(removed);
+          if (typeof renderAll === 'function') renderAll();
+          if (typeof persistState === 'function') persistState();
+        }
       };
     }
-    return null;
   }
 
-  // 8. Switch theme
+  // 21. Open calendar
+  if (actionType === 'open_calendar') {
+    if (typeof setAppMode === 'function') {
+      setAppMode('calendar');
+      if (actionObj.view && typeof setCalendarView === 'function') {
+        setCalendarView(actionObj.view);
+      }
+      if (typeof showToast === 'function') showToast('Kon opened Calendar');
+      return {
+        success: true,
+        action: 'open_calendar',
+        description: `Switched to Calendar (${actionObj.view || 'month'})`
+      };
+    }
+  }
+
+  // 22. Create a folder in sidebar
+  if (actionType === 'create_folder' || actionType === 'add_folder') {
+    if (typeof state === 'undefined' || !Array.isArray(state.folders)) return null;
+    const f = String(actionObj.folder || actionObj.name || '').trim();
+    if (!f) return null;
+    if (!state.folders.includes(f)) {
+      state.folders.push(f);
+      if (!state.expandedFolders) state.expandedFolders = {};
+      state.expandedFolders[f] = true;
+      if (typeof renderSidebar === 'function') renderSidebar();
+      if (typeof persistState === 'function') persistState();
+      if (typeof showToast === 'function') showToast(`Kon created folder "${f}"`);
+      return {
+        success: true,
+        action: 'create_folder',
+        description: `Created folder "${f}"`,
+        undo: () => {
+          const idx = state.folders.indexOf(f);
+          if (idx !== -1) {
+            state.folders.splice(idx, 1);
+            if (typeof renderSidebar === 'function') renderSidebar();
+            if (typeof persistState === 'function') persistState();
+          }
+        }
+      };
+    }
+  }
+
+  // 23. Open Study Deck flashcards
+  if (actionType === 'open_study_deck' || actionType === 'study_flashcards') {
+    if (typeof openStudyDeckModal === 'function') {
+      openStudyDeckModal(actionObj.scope || 'note');
+      if (typeof showToast === 'function') showToast('Kon opened Study Deck');
+      return {
+        success: true,
+        action: 'open_study_deck',
+        description: 'Opened Study Deck flashcards'
+      };
+    }
+  }
+
+  // 24. Open Smart Draw canvas
+  if (actionType === 'open_smart_draw' || actionType === 'open_canvas' || actionType === 'draw') {
+    if (typeof openSmartDrawModal === 'function') {
+      openSmartDrawModal(actionObj.targetBlockId || null);
+      if (typeof showToast === 'function') showToast('Kon opened Smart Draw');
+      return {
+        success: true,
+        action: 'open_smart_draw',
+        description: 'Opened Smart Draw canvas'
+      };
+    }
+  }
+
+  // 25. Switch theme
   if (actionType === 'set_theme' || actionType === 'switch_theme') {
     if (typeof state === 'undefined') return null;
     const target = String(actionObj.theme || '').toLowerCase();
@@ -2329,58 +2622,247 @@ function executeKonAction(actionObj) {
     return null;
   }
 
-  // 9. Clear completed todos in active note
-  if (actionType === 'clear_completed_todos' || actionType === 'clean_todos') {
-    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
-    if (!note || !Array.isArray(note.blocks)) return null;
-    const removed = [];
-    note.blocks = note.blocks.filter(b => {
-      if (b && b.type === 'todo' && b.checked) {
-        removed.push(b);
-        return false;
-      }
-      return true;
-    });
-    if (removed.length === 0) return null;
+  // 26. Switch font
+  if (actionType === 'set_font') {
+    if (typeof state !== 'undefined' && actionObj.font) {
+      state.fontStyle = actionObj.font === 'serif' ? 'serif' : 'sans';
+      if (typeof applyThemeAndLayout === 'function') applyThemeAndLayout();
+      if (typeof persistState === 'function') persistState();
+      if (typeof showToast === 'function') showToast(`Kon set font to ${state.fontStyle}`);
+      return {
+        success: true,
+        action: 'set_font',
+        description: `Switched font to ${state.fontStyle}`
+      };
+    }
+  }
+
+  // 27. Read active note aloud
+  if (actionType === 'read_aloud' || actionType === 'listen') {
+    const note = typeof getActiveNote === 'function' ? getActiveNote() : null;
+    if (note && typeof readWholeNoteAloud === 'function') {
+      readWholeNoteAloud();
+      if (typeof showToast === 'function') showToast(`Kon is reading "${note.title}" aloud`);
+      return {
+        success: true,
+        action: 'read_aloud',
+        description: `Reading "${note.title}" aloud`
+      };
+    }
+  }
+
+  // 28. Stop speech playback
+  if (actionType === 'stop_speech' || actionType === 'stop_reading') {
+    if (typeof stopReadingAloud === 'function') {
+      stopReadingAloud();
+      if (typeof showToast === 'function') showToast('Kon stopped speech playback');
+      return {
+        success: true,
+        action: 'stop_speech',
+        description: 'Stopped speech playback'
+      };
+    }
+  }
+
+  // 29. Save version snapshot
+  if (actionType === 'create_snapshot' || actionType === 'save_version') {
+    if (typeof stampNoteSnapshot === 'function') {
+      stampNoteSnapshot(true, actionObj.label || 'Kon Snapshot');
+      if (typeof showToast === 'function') showToast('Kon created note snapshot');
+      return {
+        success: true,
+        action: 'create_snapshot',
+        description: `Saved version snapshot: "${actionObj.label || 'Kon Snapshot'}"`
+      };
+    }
+  }
+
+  // 30. Quick fix typos & grammar in active note
+  if (actionType === 'quick_fix_note' || actionType === 'fix_note') {
+    if (typeof quickFixWholeNoteOffline === 'function') {
+      quickFixWholeNoteOffline();
+      if (typeof showToast === 'function') showToast('Kon ran offline text fix');
+      return {
+        success: true,
+        action: 'quick_fix_note',
+        description: 'Cleaned typos and formatting in active note'
+      };
+    }
+  }
+
+  // 31. Open settings
+  if (actionType === 'open_settings' || actionType === 'customize') {
+    if (typeof openCustomizerModal === 'function') {
+      openCustomizerModal(actionObj.tab || 'banner');
+      return {
+        success: true,
+        action: 'open_settings',
+        description: 'Opened workspace settings'
+      };
+    }
+  }
+
+  // 32. Open command palette
+  if (actionType === 'open_command_palette' || actionType === 'palette') {
+    if (typeof openCommandPalette === 'function') {
+      openCommandPalette();
+      return {
+        success: true,
+        action: 'open_command_palette',
+        description: 'Opened command palette'
+      };
+    }
+  }
+
+  // 33. Replace active note content completely
+  if (actionType === 'replace_content' || actionType === 'set_content' || actionType === 'rewrite_note') {
+    let note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
+    if (!note) return null;
+    const oldBlocks = JSON.parse(JSON.stringify(note.blocks || []));
+    const content = actionObj.content || actionObj.text || '';
+    const newBlocks = parseMarkdownToPKBlocks(content);
+    note.blocks = newBlocks.length > 0 ? newBlocks : [{ id: generateId('b'), type: 'paragraph', content: '' }];
     note.updatedAt = new Date().toISOString();
+    if (typeof setAppMode === 'function') setAppMode('workspace');
     if (typeof renderBlocks === 'function') renderBlocks(note);
     if (typeof persistState === 'function') persistState();
-    if (typeof showToast === 'function') showToast(`Kon cleared ${removed.length} completed todo(s)`);
-
+    if (typeof showToast === 'function') showToast(`Kon replaced content in "${note.title}"`);
     return {
       success: true,
-      action: 'clear_completed_todos',
-      description: `Cleared ${removed.length} completed todo item(s)`,
+      action: 'replace_content',
+      description: `Replaced content in "${note.title}"`,
       noteId: note.id,
       undo: () => {
-        note.blocks.push(...removed);
+        note.blocks = oldBlocks;
         if (typeof renderBlocks === 'function') renderBlocks(note);
         if (typeof persistState === 'function') persistState();
-        if (typeof showToast === 'function') showToast('Restored cleared todos');
+        if (typeof showToast === 'function') showToast(`Restored previous content in "${note.title}"`);
       }
     };
   }
 
-  // 10. Star / favorite active note
-  if (actionType === 'star_note' || actionType === 'favorite_note') {
-    const note = typeof guardActiveNoteEditable === 'function' ? guardActiveNoteEditable() : (typeof getActiveNote === 'function' ? getActiveNote() : null);
-    if (!note) return null;
-    const prev = note.favorite;
-    note.favorite = actionObj.favorite !== false;
-    if (typeof renderSidebar === 'function') renderSidebar();
-    if (typeof persistState === 'function') persistState();
-    if (typeof showToast === 'function') showToast(`Kon ${note.favorite ? 'starred' : 'unstarred'} "${note.title}"`);
-    return {
-      success: true,
-      action: 'star_note',
-      description: `${note.favorite ? 'Starred' : 'Unstarred'} "${note.title}"`,
-      noteId: note.id,
-      undo: () => {
-        note.favorite = prev;
-        if (typeof renderSidebar === 'function') renderSidebar();
-        if (typeof persistState === 'function') persistState();
-      }
-    };
+  // 34. Open or create today's Daily Note
+  if (actionType === 'open_daily_note' || actionType === 'daily_note') {
+    if (typeof openOrCreateDailyNote === 'function') {
+      openOrCreateDailyNote();
+      if (typeof showToast === 'function') showToast('Kon opened Daily Note');
+      return {
+        success: true,
+        action: 'open_daily_note',
+        description: "Opened today's Daily Note"
+      };
+    }
+  }
+
+  // 35. Open scratchpad drawer
+  if (actionType === 'open_scratchpad' || actionType === 'toggle_scratchpad' || actionType === 'scratchpad') {
+    if (typeof toggleScratchpadDrawer === 'function') {
+      toggleScratchpadDrawer(true);
+      if (typeof showToast === 'function') showToast('Kon opened Scratchpad');
+      return {
+        success: true,
+        action: 'open_scratchpad',
+        description: 'Opened Scratchpad drawer'
+      };
+    }
+  }
+
+  // 36. Open interactive Knowledge Graph
+  if (actionType === 'open_graph' || actionType === 'open_graph_view' || actionType === 'knowledge_graph') {
+    if (typeof openExpandedGraphModal === 'function') {
+      openExpandedGraphModal();
+      if (typeof showToast === 'function') showToast('Kon opened Knowledge Graph');
+      return {
+        success: true,
+        action: 'open_graph',
+        description: 'Opened Knowledge Graph view'
+      };
+    }
+  }
+
+  // 37. Open Vault Pulse statistics & analytics
+  if (actionType === 'open_vault_pulse' || actionType === 'vault_pulse' || actionType === 'statistics') {
+    if (typeof openVaultPulseModal === 'function') {
+      openVaultPulseModal();
+      if (typeof showToast === 'function') showToast('Kon opened Vault Pulse');
+      return {
+        success: true,
+        action: 'open_vault_pulse',
+        description: 'Opened Vault Pulse statistics'
+      };
+    }
+  }
+
+  // 38. Open Soundscape ambient focus audio player
+  if (actionType === 'open_soundscape' || actionType === 'toggle_soundscape' || actionType === 'ambient_sound') {
+    if (typeof openSoundscapeModal === 'function') {
+      openSoundscapeModal();
+      return {
+        success: true,
+        action: 'open_soundscape',
+        description: 'Opened Soundscape ambient focus player'
+      };
+    }
+  }
+
+  // 39. Open Math & LaTeX symbol palette
+  if (actionType === 'open_math_studio' || actionType === 'math_studio' || actionType === 'math_symbols') {
+    if (typeof openMathSymbolsModal === 'function') {
+      openMathSymbolsModal();
+      return {
+        success: true,
+        action: 'open_math_studio',
+        description: 'Opened Math & Science Studio formula palette'
+      };
+    }
+  }
+
+  // 40. Open Time Capsule version history
+  if (actionType === 'open_time_capsule' || actionType === 'time_capsule' || actionType === 'history') {
+    if (typeof openTimeCapsuleModal === 'function') {
+      openTimeCapsuleModal();
+      return {
+        success: true,
+        action: 'open_time_capsule',
+        description: 'Opened Time Capsule version history'
+      };
+    }
+  }
+
+  // 41. Open Special Studio workbench
+  if (actionType === 'open_studio' || actionType === 'special_studio') {
+    if (typeof openSpecialStudio === 'function') {
+      openSpecialStudio(actionObj.tab || 'habit');
+      return {
+        success: true,
+        action: 'open_studio',
+        description: 'Opened Special Studio'
+      };
+    }
+  }
+
+  // 42. Toggle split pane editor
+  if (actionType === 'toggle_split' || actionType === 'split_view') {
+    if (typeof toggleSplitNotePane === 'function') {
+      toggleSplitNotePane();
+      return {
+        success: true,
+        action: 'toggle_split',
+        description: 'Toggled split pane editor'
+      };
+    }
+  }
+
+  // 43. Toggle sidebar
+  if (actionType === 'toggle_sidebar') {
+    if (typeof toggleLeftSidebar === 'function') {
+      toggleLeftSidebar();
+      return {
+        success: true,
+        action: 'toggle_sidebar',
+        description: 'Toggled sidebar'
+      };
+    }
   }
 
   return null;
@@ -2989,7 +3471,7 @@ function renderGroqMessages() {
     } else if (ready) {
       helperCopy = `Connected to ${spec.name} (${data.model.split('/').pop()}). Ask anything about your active note, vault, or schedule — or tap a quick action above.`;
     } else {
-      helperCopy = `Add your ${spec.name} API key above (saved only on this device) — or switch to Groq, NVIDIA AI, or your Local Model in Setup.`;
+      helperCopy = `Add your ${spec.name} API key above (saved only on this device) — or switch to Gemini, Groq, OpenRouter, or your Local Model in Setup.`;
     }
 
     box.innerHTML = `
@@ -3362,7 +3844,7 @@ async function sendGroqPrompt(overrideText) {
         }
         if (!rotated && !res.ok) throw new Error(errMsg);
       } else if (spec.id === 'gemini' && res.status === 503) {
-        const gemFallbacks = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'].filter(m => m !== activeModel);
+        const gemFallbacks = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash'].filter(m => m !== activeModel);
         for (const fb of gemFallbacks) {
           activeModel = fb;
           if (typeof showToast === 'function') showToast(`Model busy (503) — trying ${fb}`, 'ochre');
@@ -3580,7 +4062,7 @@ function scanAndAnalyzeApiKeys(rawText) {
     {
       name: 'NVIDIA NIM',
       id: 'nvidia',
-      isSupportedInPk: true,
+      isSupportedInPk: false,
       regex: /nvapi-[A-Za-z0-9_-]{40,}/g,
       validate: () => []
     },
@@ -3729,7 +4211,7 @@ function scanAndAnalyzeApiKeys(rawText) {
     if (varName.includes('GEMINI')) { provName = 'Google Gemini'; provId = 'gemini'; isSupp = true; }
     else if (varName.includes('GROQ')) { provName = 'Groq Cloud'; provId = 'groq'; isSupp = true; }
     else if (varName.includes('OPENROUTER')) { provName = 'OpenRouter'; provId = 'openrouter'; isSupp = true; }
-    else if (varName.includes('NVIDIA')) { provName = 'NVIDIA NIM'; provId = 'nvidia'; isSupp = true; }
+    else if (varName.includes('NVIDIA')) { provName = 'NVIDIA NIM'; provId = 'nvidia'; }
     else if (varName.includes('OPENAI')) { provName = 'OpenAI'; provId = 'openai'; }
     else if (varName.includes('ANTHROPIC') || varName.includes('CLAUDE')) { provName = 'Anthropic Claude'; provId = 'anthropic'; }
     else if (varName.includes('DEEPSEEK')) { provName = 'DeepSeek'; provId = 'deepseek'; }
@@ -4029,7 +4511,7 @@ function importScannedKeysToPkNote() {
   if (!pkLastKeyScanResult || !pkLastKeyScanResult.allKeys) return;
   const supported = pkLastKeyScanResult.allKeys.filter(k => k.isSupportedInPk);
   if (supported.length === 0) {
-    if (typeof showToast === 'function') showToast('No PK Note-supported keys found (Gemini, Groq, OpenRouter, NVIDIA)', 'ochre');
+    if (typeof showToast === 'function') showToast('No PK Note-supported keys found (Gemini, Groq, OpenRouter)', 'ochre');
     return;
   }
   const cfg = loadAiConfig();

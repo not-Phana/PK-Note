@@ -725,13 +725,6 @@ select option:checked {
 /* =========================================================================
    1000X COOLER: AMBIENT AURA, ZEN FOCUS, SHIMMER & CELEBRATION PARTICLES
    ========================================================================= */
-/* Living Breathing Atmospheric Aura Glow */
-/* Ambient Cursor Spotlight disabled for zero-lag 60fps performance */
-#pkCursorSpotlight {
-  display: none !important;
-  pointer-events: none;
-}
-
 /* Right-Click Tactical Sonar Wave & Micro-Sparks */
 .pk-sonar-wave {
   position: absolute;
@@ -853,10 +846,6 @@ select option:checked {
   100% { transform: scaleY(1); opacity: 1; }
 }
 
-.animate-aura {
-  display: none !important;
-}
-
 /* Zen Focus Mode Styles */
 body.zen-active #leftSidebar,
 body.zen-active #rightSidebar,
@@ -881,12 +870,6 @@ body.zen-active .block-row:focus-within {
 /* Reading Progress Bar Glow */
 #docReadingProgressBar {
   box-shadow: 0 0 10px var(--accent-vermilion);
-}
-
-/* 3D Tilt Card Perspective */
-.tilt-card {
-  transform-style: preserve-3d;
-  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Silky Sidebar-Matching Slide Drawer (Pure GPU transform + opacity — 60fps even on 2019 phones!) */
@@ -924,11 +907,6 @@ body.zen-active .block-row:focus-within {
 }
 
 /* 2019-Phone / Low-RAM GPU Performance Engine (Zero Blur VRAM Overhead, 60fps Scroll, Anti-Crash) */
-html.pk-lite-gpu #ambientAuraGlow,
-html.pk-lite-gpu #pkCursorSpotlight {
-  display: none !important;
-  animation: none !important;
-}
 html.pk-lite-gpu *,
 html.pk-lite-gpu *::before,
 html.pk-lite-gpu *::after {
@@ -952,7 +930,6 @@ html.pk-lite-gpu #docReadingProgressBar {
   box-shadow: none !important;
 }
 /* CRITICAL FOR 2019 PHONE GPUs: Kill all filter:blur() & will-change:filter modal animations & infinite pulse/ping loops! */
-html.pk-lite-gpu .animate-aura,
 html.pk-lite-gpu .animate-backdrop,
 html.pk-lite-gpu .animate-modal-card,
 html.pk-lite-gpu .animate-cmd-card,
@@ -1242,16 +1219,6 @@ html.dark .pk-selection-toolbar-inner {
 /* =========================================================================
    ANTI-LAG HARDWARE ACCELERATION & ZERO-DROP-FRAME RENDERING
    ========================================================================= */
-.block-item {
-  contain: layout style;
-  content-visibility: auto;
-  contain-intrinsic-size: 0 38px;
-}
-
-.kanban-col {
-  contain: layout style;
-}
-
 #documentScrollArea,
 #calendarViewport,
 #kanbanViewport,

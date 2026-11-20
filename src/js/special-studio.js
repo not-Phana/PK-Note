@@ -336,7 +336,7 @@ function renderHabitsPanel() {
           <div class="font-sans text-xs font-medium text-[var(--text-primary)] truncate">${escapeHtml(h.name)}</div>
           <div class="flex items-center gap-1.5 shrink-0">
             <span class="font-mono text-[9.5px] text-[var(--accent-vermilion)] font-semibold">${streak}d streak</span>
-            <button type="button" onclick="deleteSpecialHabit('${escapeHtml(h.id)}')" title="Remove habit" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] cursor-pointer">✕</button>
+            <button type="button" onclick="deleteSpecialHabit('${escapeHtml(h.id)}')" title="Remove habit" class="w-5 h-5 rounded-[3px] text-[var(--text-tertiary)] hover:text-rose-500 font-mono text-[10px] cursor-pointer">x</button>
           </div>
         </div>
         <div class="flex items-center justify-between gap-1">${cells}</div>

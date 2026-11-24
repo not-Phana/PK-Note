@@ -782,7 +782,7 @@ function syncGroqHeaderAndSettingsUI() {
       headerTitle.textContent = 'AI Provider (Free, Cloud & Local)';
     }
     if ('caches' in window) {
-      caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('pk-note-') && !k.endsWith('v3.0.20')).map(k => caches.delete(k)))).catch(() => {});
+      caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('pk-note-') && !k.endsWith('v3.0.23')).map(k => caches.delete(k)))).catch(() => {});
     }
   }
 

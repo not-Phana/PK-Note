@@ -8393,30 +8393,9 @@ let activeContextMenuDateKey = null;
 let activeSubmenuTimeout = null;
 let contextFocusedIdx = -1;
 
-// Tactical Right-Click Sonar Wave & Micro-Spark Shockwave
+// Tactical Right-Click Feedback (Clean & Instant)
 function triggerRightClickShockwave(x, y) {
-  const container = document.getElementById('pkContextMenuShockwaveContainer');
-  if (!container) return;
-
-  const wave = document.createElement('div');
-  wave.className = 'pk-sonar-wave';
-  wave.style.left = `${x}px`;
-  wave.style.top = `${y}px`;
-
-  for (let i = 0; i < 6; i++) {
-    const angle = (i * 60) * (Math.PI / 180);
-    const dist = 18 + Math.random() * 12;
-    const px = Math.cos(angle) * dist;
-    const py = Math.sin(angle) * dist;
-    const spark = document.createElement('span');
-    spark.className = 'pk-sonar-spark';
-    spark.style.setProperty('--tx', `${px}px`);
-    spark.style.setProperty('--ty', `${py}px`);
-    wave.appendChild(spark);
-  }
-
-  container.appendChild(wave);
-  setTimeout(() => wave.remove(), 600);
+  // No-op for clean desktop experience
 }
 
 // =========================================================================

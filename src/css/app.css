@@ -18,7 +18,7 @@
   --code-bg: #F1EFEA;
   --code-text: #272725;
   --scrollbar-thumb: rgba(24, 24, 23, 0.16);
-  --popover-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --popover-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.12), 0 0 1px 1px var(--border-hairline);
 }
 
 html.dark {
@@ -38,7 +38,7 @@ html.dark {
   --code-bg: #151515;
   --code-text: #D6D6D1;
   --scrollbar-thumb: rgba(236, 236, 233, 0.14);
-  --popover-shadow: 0 4px 16px rgba(0, 0, 0, 0.36);
+  --popover-shadow: 0 14px 40px -4px rgba(0, 0, 0, 0.5), 0 0 1px 1px var(--border-hairline);
 }
 
 * {
@@ -149,16 +149,23 @@ body {
   --ease-in-out-smooth: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* Modal Backdrop Smooth Fade (Pure GPU opacity — zero backdrop-filter lag) */
+/* Modal Backdrop Smooth Fade In and Out (Pure GPU opacity) */
 @keyframes backdropFadeIn {
   0% { opacity: 0; }
   100% { opacity: 1; }
 }
+@keyframes backdropFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .animate-backdrop {
   animation: backdropFadeIn 0.18s ease-out forwards;
 }
+.animate-backdrop-out {
+  animation: backdropFadeOut 0.15s ease-in forwards;
+}
 
-/* Modal Spring Card Opening (Pure GPU transform + opacity — zero filter:blur lag) */
+/* Modal Spring Card Opening and Closing (Pure GPU transform + opacity) */
 @keyframes modalSpringIn {
   0% {
     opacity: 0;
@@ -169,11 +176,26 @@ body {
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
+@keyframes modalSpringOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.965);
+  }
+}
 .animate-modal-card {
   animation: modalSpringIn 0.22s var(--ease-spring) forwards;
+  will-change: transform, opacity;
+}
+.animate-modal-card-out {
+  animation: modalSpringOut 0.15s ease-in forwards;
+  will-change: transform, opacity;
 }
 
-/* Command Palette Opening (Pure GPU transform + opacity) */
+/* Command Palette and Spotlight Opening and Closing */
 @keyframes cmdPaletteIn {
   0% {
     opacity: 0;
@@ -184,11 +206,56 @@ body {
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
+@keyframes cmdPaletteOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.975);
+  }
+}
 .animate-cmd-card {
   animation: cmdPaletteIn 0.2s var(--ease-spring) forwards;
+  will-change: transform, opacity;
+}
+.animate-cmd-card-out {
+  animation: cmdPaletteOut 0.14s ease-in forwards;
+  will-change: transform, opacity;
 }
 
-/* Popovers, Menus & Dropdowns Spring Scale (Pure GPU) */
+/* Mobile Bottom Sheet Slide Up and Slide Down (Pure GPU) */
+@keyframes sheetSlideUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes sheetSlideDown {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+.animate-sheet-in {
+  animation: sheetSlideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+.animate-sheet-out {
+  animation: sheetSlideDown 0.18s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Popovers, Menus and Dropdowns Spring Scale (Pure GPU) */
 @keyframes popoverSpringIn {
   0% {
     opacity: 0;
@@ -199,9 +266,71 @@ body {
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
+@keyframes popoverSpringOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.96);
+  }
+}
 .animate-menu {
   animation: popoverSpringIn 0.16s var(--ease-spring) forwards;
   transform-origin: top right;
+  will-change: transform, opacity;
+}
+.animate-menu-out {
+  animation: popoverSpringOut 0.12s ease-in forwards;
+  transform-origin: top right;
+  will-change: transform, opacity;
+}
+
+/* Quick Scratchpad Corner Drawer */
+@keyframes scratchpadIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes scratchpadOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.96);
+  }
+}
+.animate-scratchpad-in {
+  animation: scratchpadIn 0.22s var(--ease-spring) forwards;
+  will-change: transform, opacity;
+}
+.animate-scratchpad-out {
+  animation: scratchpadOut 0.15s ease-in forwards;
+  will-change: transform, opacity;
+}
+
+/* Fullscreen Spotlight Distraction-Free Reader */
+@keyframes spotlightFadeIn {
+  0% { opacity: 0; transform: scale(1.008); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes spotlightFadeOut {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.995); }
+}
+.animate-spotlight-in {
+  animation: spotlightFadeIn 0.2s ease-out forwards;
+}
+.animate-spotlight-out {
+  animation: spotlightFadeOut 0.16s ease-in forwards;
 }
 
 /* Document Switch / Note Entry Smooth Glide (Pure GPU) */

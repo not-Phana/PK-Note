@@ -207,12 +207,17 @@ function openStudyDeckModal(scope) {
   buildStudyDeck();
   renderStudyDeckCard();
   const el = document.getElementById('pkStudyDeckBackdrop');
-  if (el) el.classList.remove('hidden');
+  if (typeof openModalWithAnimation === 'function') openModalWithAnimation(el);
+  else if (el) el.classList.remove('hidden');
 }
 
-function closeStudyDeckModal() {
-  const el = document.getElementById('pkStudyDeckBackdrop');
-  if (el) el.classList.add('hidden');
+function closeStudyDeckModal(e) {
+  if (e && e.target && e.target !== document.getElementById('pkStudyDeckBackdrop') && e.target !== e.currentTarget) return;
+  if (typeof closeModalWithAnimation === 'function') closeModalWithAnimation('pkStudyDeckBackdrop');
+  else {
+    const el = document.getElementById('pkStudyDeckBackdrop');
+    if (el) el.classList.add('hidden');
+  }
 }
 
 function setStudyDeckScope(scope) {
@@ -524,12 +529,17 @@ function updateSoundscapeUI() {
 function openSoundscapeModal() {
   updateSoundscapeUI();
   const el = document.getElementById('pkSoundscapeBackdrop');
-  if (el) el.classList.remove('hidden');
+  if (typeof openModalWithAnimation === 'function') openModalWithAnimation(el);
+  else if (el) el.classList.remove('hidden');
 }
 
-function closeSoundscapeModal() {
-  const el = document.getElementById('pkSoundscapeBackdrop');
-  if (el) el.classList.add('hidden');
+function closeSoundscapeModal(e) {
+  if (e && e.target && e.target !== document.getElementById('pkSoundscapeBackdrop') && e.target !== e.currentTarget) return;
+  if (typeof closeModalWithAnimation === 'function') closeModalWithAnimation('pkSoundscapeBackdrop');
+  else {
+    const el = document.getElementById('pkSoundscapeBackdrop');
+    if (el) el.classList.add('hidden');
+  }
 }
 
 // ============================================================================
@@ -767,12 +777,17 @@ function openVaultPulseModal() {
   `;
 
   const el = document.getElementById('pkVaultPulseBackdrop');
-  if (el) el.classList.remove('hidden');
+  if (typeof openModalWithAnimation === 'function') openModalWithAnimation(el);
+  else if (el) el.classList.remove('hidden');
 }
 
-function closeVaultPulseModal() {
-  const el = document.getElementById('pkVaultPulseBackdrop');
-  if (el) el.classList.add('hidden');
+function closeVaultPulseModal(e) {
+  if (e && e.target && e.target !== document.getElementById('pkVaultPulseBackdrop') && e.target !== e.currentTarget) return;
+  if (typeof closeModalWithAnimation === 'function') closeModalWithAnimation('pkVaultPulseBackdrop');
+  else {
+    const el = document.getElementById('pkVaultPulseBackdrop');
+    if (el) el.classList.add('hidden');
+  }
 }
 
 // ============================================================================
@@ -789,17 +804,31 @@ function toggleScratchpadDrawer(forceState) {
   const drawer = document.getElementById('pkScratchpadDrawer');
   const input = document.getElementById('pkScratchpadInput');
   if (!drawer) return;
-  const shouldOpen = typeof forceState === 'boolean' ? forceState : drawer.classList.contains('hidden');
+  const isCurrentlyOpen = !drawer.classList.contains('hidden') && drawer.getAttribute('data-closing') !== 'true';
+  const shouldOpen = typeof forceState === 'boolean' ? forceState : !isCurrentlyOpen;
+
   if (shouldOpen) {
     const saved = localStorage.getItem(PK_SCRATCHPAD_KEY) || '';
     if (input) {
       input.value = saved;
       updateScratchpadCounter(saved);
     }
-    drawer.classList.remove('hidden');
+    drawer.removeAttribute('data-closing');
+    drawer.classList.remove('animate-scratchpad-out', 'hidden');
+    drawer.classList.remove('animate-scratchpad-in');
+    void drawer.offsetWidth;
+    drawer.classList.add('animate-scratchpad-in');
     if (input && window.innerWidth >= 768) input.focus();
   } else {
-    drawer.classList.add('hidden');
+    if (drawer.classList.contains('hidden')) return;
+    drawer.setAttribute('data-closing', 'true');
+    drawer.classList.remove('animate-scratchpad-in');
+    drawer.classList.add('animate-scratchpad-out');
+    setTimeout(() => {
+      drawer.classList.add('hidden');
+      drawer.classList.remove('animate-scratchpad-out');
+      drawer.removeAttribute('data-closing');
+    }, 150);
   }
 }
 

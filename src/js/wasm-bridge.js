@@ -93,6 +93,65 @@
       return energy;
     },
 
+    // 1b. Native Rust 3D Force-Directed Knowledge Galaxy Physics (Zero-GC)
+    stepGraphPhysics3D(graphNodes, activeEdges, centerX, centerY, centerZ, draggedNodeId) {
+      if (!this.ready || !graphNodes || graphNodes.length === 0 || !this.exports || !this.exports.step_graph_physics_3d) return null;
+      const n = graphNodes.length;
+      const e = activeEdges ? activeEdges.length : 0;
+      const w = this.exports;
+      w.arena_reset();
+
+      const nodesPtr = w.arena_alloc(n * 24, 4); // 6 floats * 4 bytes = 24 bytes
+      const edgesPtr = e > 0 ? w.arena_alloc(e * 8, 4) : 0;
+      if (!nodesPtr) return null;
+
+      const nodeBuf = new Float32Array(this.memory.buffer, nodesPtr, n * 6);
+      const idToIdx = new Map();
+      let draggedIdx = -1;
+
+      for (let i = 0; i < n; i++) {
+        const nd = graphNodes[i];
+        idToIdx.set(nd.id, i);
+        if (draggedNodeId && nd.id === draggedNodeId) draggedIdx = i;
+        const b = i * 6;
+        nodeBuf[b] = typeof nd.x3 === 'number' ? nd.x3 : 0;
+        nodeBuf[b + 1] = typeof nd.y3 === 'number' ? nd.y3 : 0;
+        nodeBuf[b + 2] = typeof nd.z3 === 'number' ? nd.z3 : 0;
+        nodeBuf[b + 3] = typeof nd.vx3 === 'number' ? nd.vx3 : 0;
+        nodeBuf[b + 4] = typeof nd.vy3 === 'number' ? nd.vy3 : 0;
+        nodeBuf[b + 5] = typeof nd.vz3 === 'number' ? nd.vz3 : 0;
+      }
+
+      let validEdges = 0;
+      if (e > 0 && edgesPtr) {
+        const edgeBuf = new Uint32Array(this.memory.buffer, edgesPtr, e * 2);
+        for (let k = 0; k < e; k++) {
+          const edge = activeEdges[k];
+          const si = idToIdx.get(edge.source);
+          const ti = idToIdx.get(edge.target);
+          if (si !== undefined && ti !== undefined) {
+            edgeBuf[validEdges * 2] = si;
+            edgeBuf[validEdges * 2 + 1] = ti;
+            validEdges++;
+          }
+        }
+      }
+
+      const energy = w.step_graph_physics_3d(nodesPtr, n, edgesPtr, validEdges, centerX || 0, centerY || 0, centerZ || 0, draggedIdx);
+
+      for (let i = 0; i < n; i++) {
+        const nd = graphNodes[i];
+        const b = i * 6;
+        nd.x3 = nodeBuf[b];
+        nd.y3 = nodeBuf[b + 1];
+        nd.z3 = nodeBuf[b + 2];
+        nd.vx3 = nodeBuf[b + 3];
+        nd.vy3 = nodeBuf[b + 4];
+        nd.vz3 = nodeBuf[b + 5];
+      }
+      return energy;
+    },
+
     // 2. Native Rust Whisper PCM Resampling (48kHz -> 16kHz), DC Removal & Soft-Limiter
     resampleAndNormalizePcm(merged, sourceSampleRate, maxBoost) {
       if (!this.ready || !merged || merged.length === 0) return null;

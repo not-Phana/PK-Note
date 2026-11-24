@@ -358,6 +358,10 @@
                 <svg class="w-3 h-3 text-[var(--accent-vermilion)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 18h16M14 6l-4 12"/></svg>
                 <span class="truncate">Math Studio</span>
               </button>
+              <button type="button" onclick="closeDesktopToolsMenu(); openMath3DModal()" id="desktopMath3DBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer" title="3D Math & Function Grapher: Plot surfaces z = f(x, y)">
+                <svg class="w-3 h-3 text-[var(--accent-vermilion)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                <span class="truncate">3D Grapher</span>
+              </button>
               <button type="button" onclick="closeDesktopToolsMenu(); openSpecialStudio()" id="desktopSpecialStudioBtn" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-left text-[11px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer">
                 <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-vermilion)] shrink-0"></span><span class="truncate">Special Studio</span>
               </button>
@@ -1942,6 +1946,191 @@
         <span id="mathWorkbenchHint">Tip: Click any symbol card to insert it instantly into your document.</span>
         <button type="button" onclick="closeMathSymbolsModal()" class="px-3 py-1 rounded-[3px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] cursor-pointer">Done</button>
       </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       3D MATHEMATICAL & FUNCTION GRAPHER STUDIO MODAL
+       ===================================================================== -->
+  <div id="math3DModal" onclick="closeMath3DModal(event)" class="hidden fixed inset-0 bg-black/75 z-[980] flex items-center justify-center p-2 sm:p-4 select-none animate-backdrop">
+    <div id="math3DCard" onclick="event.stopPropagation()" class="w-full h-[100dvh] sm:h-auto max-w-6xl bg-[var(--bg-panel)] sm:popover-surface rounded-none sm:rounded-xl border-0 sm:border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col max-h-[100dvh] sm:max-h-[94vh] animate-modal-card outline-none">
+      
+      <!-- Modal Header -->
+      <div class="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center justify-between shrink-0 gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-7 h-7 rounded-md bg-[var(--accent-vermilion)] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 truncate">
+              <h3 class="font-serif text-sm font-semibold text-[var(--text-primary)]">3D Math Grapher</h3>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 shrink-0">Canvas 3D Core</span>
+              <span class="hidden sm:inline-block px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-hairline)] font-mono text-[9px] text-[var(--text-tertiary)]">z = f(x, y)</span>
+            </div>
+            <p class="hidden sm:block font-mono text-[10px] text-[var(--text-tertiary)]">Real-time 3D surface plotting · Parametric equations · Interactive coordinate probe</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button type="button" onclick="insertMath3DIntoNote()" title="Insert interactive 3D plot directly into current note" class="px-2.5 py-1 rounded bg-[var(--accent-vermilion)] hover:opacity-90 text-white font-mono text-[11px] font-semibold cursor-pointer flex items-center gap-1 shadow-xs">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span class="hidden sm:inline">Insert to Note</span>
+            <span class="sm:hidden">Insert</span>
+          </button>
+          <button type="button" onclick="copyMath3DFormulaLatex()" title="Copy LaTeX formula to clipboard" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
+            <span>LaTeX</span>
+          </button>
+          <button type="button" onclick="exportMath3DSnapshot()" title="Export high-resolution PNG snapshot" class="px-2 py-1 rounded bg-[var(--bg-canvas)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] font-mono text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span class="hidden sm:inline">PNG</span>
+          </button>
+          <button type="button" onclick="closeMath3DModal()" class="w-7 h-7 rounded hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer font-mono text-sm shrink-0">x</button>
+        </div>
+      </div>
+
+      <!-- Formula Input & Presets Bar -->
+      <div class="px-3 sm:px-4 py-2 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] flex flex-col gap-2 shrink-0">
+        <!-- Input Row -->
+        <div class="flex items-center gap-2">
+          <div class="flex items-center px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-strong)] font-mono text-xs font-semibold text-[var(--accent-vermilion)] shrink-0">
+            z =
+          </div>
+          <div class="flex-1 relative">
+            <input type="text" id="math3DFormulaInput" value="sin(sqrt(x^2 + y^2))" placeholder="e.g. sin(x) * cos(y), x^2 - y^2, 3*exp(-(x^2+y^2)/4)" spellcheck="false" class="w-full px-3 py-1.5 rounded bg-[var(--bg-panel)] border border-[var(--border-strong)] focus:border-[var(--accent-vermilion)] focus:ring-1 focus:ring-[var(--accent-vermilion)]/25 text-xs font-mono text-[var(--text-primary)] transition-all outline-none" oninput="handleMath3DFormulaInput(this.value)">
+            <span id="math3DFormulaStatus" class="absolute right-2.5 top-2 text-[10px] font-mono text-emerald-400">Valid</span>
+          </div>
+          <button type="button" id="math3DAnimateBtn" onclick="toggleMath3DAnimation()" title="Toggle time animation parameter t in formula" class="px-2.5 py-1.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] flex items-center gap-1.5 cursor-pointer shrink-0">
+            <span id="math3DAnimateDot" class="w-2 h-2 rounded-full bg-[var(--text-tertiary)]"></span>
+            <span id="math3DAnimateLabel">Animate t</span>
+          </button>
+        </div>
+
+        <!-- Presets Row -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px] font-mono">
+          <span class="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mr-1 shrink-0">Presets:</span>
+          <button type="button" onclick="setMath3DPreset('sombrero')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Sombrero</button>
+          <button type="button" onclick="setMath3DPreset('saddle')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Saddle</button>
+          <button type="button" onclick="setMath3DPreset('eggcarton')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Egg Carton</button>
+          <button type="button" onclick="setMath3DPreset('bell')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Gaussian Bell</button>
+          <button type="button" onclick="setMath3DPreset('monkeysaddle')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Monkey Saddle</button>
+          <button type="button" onclick="setMath3DPreset('ripple')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Ripples</button>
+          <button type="button" onclick="setMath3DPreset('volcano')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Volcano</button>
+          <button type="button" onclick="setMath3DPreset('wave')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Damped Wave</button>
+        </div>
+      </div>
+
+      <!-- Main Workspace: Viewport Canvas + Sidebar Parameters -->
+      <div class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+        <!-- 3D Canvas Viewport -->
+        <div class="flex-1 relative bg-[var(--bg-canvas)] overflow-hidden flex items-center justify-center min-h-[300px]">
+          <canvas id="math3DCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+          <!-- Floating Coordinates Probe HUD -->
+          <div id="math3DProbeHUD" class="absolute left-3 top-3 px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)]/85 border border-[var(--border-hairline)] backdrop-blur-md shadow-lg font-mono text-[11px] text-[var(--text-primary)] flex items-center gap-3 select-none pointer-events-none">
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span><span id="math3DProbeX">X: 0.00</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span><span id="math3DProbeY">Y: 0.00</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#3b82f6]"></span><span id="math3DProbeZ">Z: 0.00</span></div>
+          </div>
+
+          <!-- Bottom Viewport Controls Overlay -->
+          <div class="absolute left-3 bottom-3 flex items-center gap-1.5">
+            <button type="button" onclick="resetMath3DCamera()" title="Reset orbital view" class="px-2 py-1 rounded bg-[var(--bg-panel)]/90 hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] backdrop-blur-md font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-sm cursor-pointer">
+              Reset View
+            </button>
+            <button type="button" onclick="setMath3DCameraAngle('top')" title="Top Down Orthogonal View" class="px-2 py-1 rounded bg-[var(--bg-panel)]/90 hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] backdrop-blur-md font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-sm cursor-pointer">
+              Top
+            </button>
+            <button type="button" onclick="setMath3DCameraAngle('isometric')" title="Isometric 3D View" class="px-2 py-1 rounded bg-[var(--bg-panel)]/90 hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] backdrop-blur-md font-mono text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-sm cursor-pointer">
+              Isometric
+            </button>
+          </div>
+
+          <div class="absolute right-3 bottom-3 hidden sm:block font-mono text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-panel)]/70 px-2 py-0.5 rounded backdrop-blur-sm border border-[var(--border-hairline)] select-none">
+            Drag to Rotate · Wheel to Zoom · Shift+Drag to Pan
+          </div>
+        </div>
+
+        <!-- Right Configuration Strip -->
+        <div class="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-[var(--border-hairline)] bg-[var(--bg-panel)] p-3 overflow-y-auto space-y-3 shrink-0 text-xs font-sans">
+          
+          <!-- Render Style -->
+          <div>
+            <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5 font-semibold">Render Style</div>
+            <div class="grid grid-cols-2 gap-1 font-mono text-[11px]">
+              <button type="button" id="math3DStyleSurfaceBtn" onclick="setMath3DStyle('surface')" class="px-2 py-1.5 rounded bg-[var(--bg-elevated)] text-[var(--accent-vermilion)] font-semibold border border-[var(--accent-vermilion)]/30 text-center cursor-pointer">Surface</button>
+              <button type="button" id="math3DStyleWireframeBtn" onclick="setMath3DStyle('wireframe')" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer">Wireframe</button>
+              <button type="button" id="math3DStyleBothBtn" onclick="setMath3DStyle('both')" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer">Both</button>
+              <button type="button" id="math3DStylePointsBtn" onclick="setMath3DStyle('points')" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer">Points</button>
+            </div>
+          </div>
+
+          <!-- Color Palette -->
+          <div>
+            <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5 font-semibold">Color Palette</div>
+            <div class="grid grid-cols-2 gap-1 font-mono text-[11px]">
+              <button type="button" id="math3DThemeSpectralBtn" onclick="setMath3DTheme('spectral')" class="px-2 py-1.5 rounded bg-[var(--bg-elevated)] text-[var(--accent-vermilion)] font-semibold border border-[var(--accent-vermilion)]/30 text-center cursor-pointer">Spectral</button>
+              <button type="button" id="math3DThemeVermilionBtn" onclick="setMath3DTheme('vermilion')" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer">Vermilion</button>
+              <button type="button" id="math3DThemeCyberBtn" onclick="setMath3DTheme('cyber')" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer">Cyber Neon</button>
+              <button type="button" id="math3DThemeBlueprintBtn" onclick="setMath3DTheme('blueprint')" class="px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer">Blueprint</button>
+            </div>
+          </div>
+
+          <!-- Domain & Scale Sliders -->
+          <div class="space-y-2 pt-1 border-t border-[var(--border-hairline)]">
+            <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">Domain &amp; Dimensions</div>
+            
+            <div>
+              <div class="flex items-center justify-between text-[11px] font-mono text-[var(--text-secondary)] mb-1">
+                <span>X Bounds [-R, R]</span>
+                <span id="math3DXRangeLabel">±5</span>
+              </div>
+              <input type="range" id="math3DXRangeSlider" min="2" max="15" value="5" step="1" oninput="updateMath3DDomain(this.value, null, null)" class="w-full accent-[var(--accent-vermilion)]">
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between text-[11px] font-mono text-[var(--text-secondary)] mb-1">
+                <span>Y Bounds [-R, R]</span>
+                <span id="math3DYRangeLabel">±5</span>
+              </div>
+              <input type="range" id="math3DYRangeSlider" min="2" max="15" value="5" step="1" oninput="updateMath3DDomain(null, this.value, null)" class="w-full accent-[var(--accent-vermilion)]">
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between text-[11px] font-mono text-[var(--text-secondary)] mb-1">
+                <span>Z Amplitude Scale</span>
+                <span id="math3DZScaleLabel">1.0x</span>
+              </div>
+              <input type="range" id="math3DZScaleSlider" min="0.2" max="3.0" value="1.0" step="0.1" oninput="updateMath3DDomain(null, null, this.value)" class="w-full accent-[var(--accent-vermilion)]">
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between text-[11px] font-mono text-[var(--text-secondary)] mb-1">
+                <span>Mesh Density</span>
+                <span id="math3DResLabel">32 x 32</span>
+              </div>
+              <input type="range" id="math3DResSlider" min="16" max="48" value="32" step="4" oninput="updateMath3DResolution(this.value)" class="w-full accent-[var(--accent-vermilion)]">
+            </div>
+          </div>
+
+          <!-- Visual Toggles -->
+          <div class="space-y-1.5 pt-1 border-t border-[var(--border-hairline)] font-mono text-[11px]">
+            <label class="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              <input type="checkbox" id="math3DShowAxesCheckbox" checked onchange="toggleMath3DOption('axes', this.checked)" class="rounded text-[var(--accent-vermilion)] focus:ring-0">
+              <span>Coordinate Axes (X, Y, Z)</span>
+            </label>
+            <label class="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              <input type="checkbox" id="math3DShowBoxCheckbox" checked onchange="toggleMath3DOption('box', this.checked)" class="rounded text-[var(--accent-vermilion)] focus:ring-0">
+              <span>Bounding Cage</span>
+            </label>
+            <label class="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              <input type="checkbox" id="math3DShowGridCheckbox" checked onchange="toggleMath3DOption('grid', this.checked)" class="rounded text-[var(--accent-vermilion)] focus:ring-0">
+              <span>Floor Reference Grid</span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -3712,14 +3901,15 @@
 
       <!-- Collapsible Multi-Provider AI Settings Panel (Gemini · OpenRouter Free · Groq · Local Model) -->
       <div id="pkGroqSettingsPanel" class="hidden px-4 py-3 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)] space-y-2.5 text-xs shrink-0 max-h-[64vh] overflow-y-auto select-text">
-        <!-- 4-Way Free & Local AI Provider Switcher -->
+        <!-- 5-Way Free, Cloud & Local AI Provider Switcher -->
         <div class="space-y-1">
-          <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">AI Provider (Free &amp; Local)</div>
-          <div class="grid grid-cols-4 gap-1 font-mono text-[9.5px]">
-            <button type="button" id="pkAiProviderTabGemini" onclick="selectAiProvider('gemini')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Gemini</button>
+          <div class="font-mono text-[9.5px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">AI Provider (Free, Cloud &amp; Local)</div>
+          <div class="grid grid-cols-5 gap-1 font-mono text-[9.5px]">
+            <button type="button" id="pkAiProviderTabNvidia" onclick="selectAiProvider('nvidia')" title="NVIDIA NIM — Nemotron 3.5, Gemma 4, Mistral Large" class="px-1 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate">NVIDIA</button>
+            <button type="button" id="pkAiProviderTabGemini" onclick="selectAiProvider('gemini')" title="Google Gemini — Fast, Multimodal, 1M Context" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Gemini</button>
             <button type="button" id="pkAiProviderTabOpenrouter" onclick="selectAiProvider('openrouter')" title="OpenRouter — 15+ Free AI Models (Zero Proxy)" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Free OR</button>
-            <button type="button" id="pkAiProviderTabGroq" onclick="selectAiProvider('groq')" class="px-1 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate">Groq</button>
-            <button type="button" id="pkAiProviderTabLocal" onclick="selectAiProvider('local')" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Local</button>
+            <button type="button" id="pkAiProviderTabGroq" onclick="selectAiProvider('groq')" title="Groq Cloud — Ultra-Fast LPU Inference" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Groq</button>
+            <button type="button" id="pkAiProviderTabLocal" onclick="selectAiProvider('local')" title="Local Models — LM Studio, Ollama, llama.cpp" class="px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate">Local</button>
           </div>
         </div>
 

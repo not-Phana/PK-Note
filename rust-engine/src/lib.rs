@@ -180,6 +180,113 @@ pub extern "C" fn step_graph_physics(
 }
 
 // ============================================================================
+// 1b. 3D FORCE-DIRECTED KNOWLEDGE GALAXY PHYSICS (Zero-GC, 60-120fps SIMD)
+// 6 floats per node: [x, y, z, vx, vy, vz]
+// ============================================================================
+#[no_mangle]
+pub extern "C" fn step_graph_physics_3d(
+    nodes_ptr: *mut f32,
+    node_count: usize,
+    edges_ptr: *const u32,
+    edge_count: usize,
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+    dragged_idx: i32,
+) -> f32 {
+    if nodes_ptr.is_null() || node_count == 0 {
+        return 0.0;
+    }
+
+    let nodes = unsafe { core::slice::from_raw_parts_mut(nodes_ptr, node_count * 6) };
+
+    // Center gravity toward (center_x, center_y, center_z) + 3D Pairwise Coulomb repulsion
+    for i in 0..node_count {
+        let base_i = i * 6;
+        let ax = nodes[base_i];
+        let ay = nodes[base_i + 1];
+        let az = nodes[base_i + 2];
+        nodes[base_i + 3] += (center_x - ax) * 0.005;
+        nodes[base_i + 4] += (center_y - ay) * 0.005;
+        nodes[base_i + 5] += (center_z - az) * 0.005;
+
+        let mut j = i + 1;
+        while j < node_count {
+            let base_j = j * 6;
+            let dx = ax - nodes[base_j];
+            let dy = ay - nodes[base_j + 1];
+            let dz = az - nodes[base_j + 2];
+            let dist_sq = dx * dx + dy * dy + dz * dz + 0.1;
+            let force = 2100.0 / dist_sq;
+            let inv_dist = 1.0 / fast_sqrt(dist_sq);
+            let fx = dx * inv_dist * force;
+            let fy = dy * inv_dist * force;
+            let fz = dz * inv_dist * force;
+
+            nodes[base_i + 3] += fx;
+            nodes[base_i + 4] += fy;
+            nodes[base_i + 5] += fz;
+            nodes[base_j + 3] -= fx;
+            nodes[base_j + 4] -= fy;
+            nodes[base_j + 5] -= fz;
+            j += 1;
+        }
+    }
+
+    // Hooke's Law edge springs in 3D Euclidean space
+    if !edges_ptr.is_null() && edge_count > 0 {
+        let edges = unsafe { core::slice::from_raw_parts(edges_ptr, edge_count * 2) };
+        for e in 0..edge_count {
+            let s = edges[e * 2] as usize;
+            let t = edges[e * 2 + 1] as usize;
+            if s >= node_count || t >= node_count {
+                continue;
+            }
+            let bs = s * 6;
+            let bt = t * 6;
+            let dx = nodes[bt] - nodes[bs];
+            let dy = nodes[bt + 1] - nodes[bs + 1];
+            let dz = nodes[bt + 2] - nodes[bs + 2];
+            let dist_sq = dx * dx + dy * dy + dz * dz;
+            let dist = if dist_sq > 0.0 { fast_sqrt(dist_sq) } else { 1.0 };
+            let spring = (dist - 110.0) * 0.032;
+            let inv = 1.0 / dist;
+            let fx = dx * inv * spring;
+            let fy = dy * inv * spring;
+            let fz = dz * inv * spring;
+
+            nodes[bs + 3] += fx;
+            nodes[bs + 4] += fy;
+            nodes[bs + 5] += fz;
+            nodes[bt + 3] -= fx;
+            nodes[bt + 4] -= fy;
+            nodes[bt + 5] -= fz;
+        }
+    }
+
+    // Velocity damping & integration
+    let mut energy: f32 = 0.0;
+    for i in 0..node_count {
+        if dragged_idx >= 0 && (i as i32) == dragged_idx {
+            continue;
+        }
+        let b = i * 6;
+        let vx = nodes[b + 3] * 0.84;
+        let vy = nodes[b + 4] * 0.84;
+        let vz = nodes[b + 5] * 0.84;
+        nodes[b + 3] = vx;
+        nodes[b + 4] = vy;
+        nodes[b + 5] = vz;
+        nodes[b] += vx;
+        nodes[b + 1] += vy;
+        nodes[b + 2] += vz;
+        energy += vx * vx + vy * vy + vz * vz;
+    }
+
+    energy
+}
+
+// ============================================================================
 // 2. WHISPER AI PCM RESAMPLING (48kHz -> 16kHz), DC REMOVAL & SOFT-LIMITER
 // Returns: raw peak amplitude before normalization
 // ============================================================================

@@ -514,6 +514,7 @@ const SLASH_COMMANDS = [
   { type: 'quote', label: 'Blockquote', desc: 'Indented editorial citation', glyph: 'quote', shortcut: '"' },
   { type: 'code', label: 'Code Block', desc: 'Monospace syntax container', glyph: 'terminal', shortcut: '```' },
   { type: 'math', label: 'Math Equation', desc: 'Visual formula & equation (zero code needed)', glyph: 'terminal', shortcut: '$$' },
+  { type: 'plot3d', label: '3D Math Graph', desc: 'Plot 3D surfaces & functions z = f(x, y)', glyph: 'terminal', shortcut: '/graph3d' },
   { type: 'draw', label: 'Smart Draw (Handwriting)', desc: 'Draw numbers, fractions, equations & sketches by hand', glyph: 'terminal', shortcut: '/draw' },
   { type: 'divider', label: 'Horizontal Rule', desc: '1px structural section break', glyph: 'minus', shortcut: '---' },
   { type: 'fix', label: 'Quick Fix Block (No AI)', desc: 'Fix typos, punctuation & spacing instantly', glyph: 'sparkles', shortcut: '/fix' },
@@ -1196,13 +1197,25 @@ function applyThemeAndLayout() {
       left.style.maxWidth = '300px';
       left.style.transform = 'translateX(0)';
       left.style.opacity = '1';
-      mobileBackdrop.classList.remove('hidden');
+      if (mobileBackdrop) {
+        mobileBackdrop.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          mobileBackdrop.classList.remove('opacity-0');
+          mobileBackdrop.classList.add('opacity-100');
+        });
+      }
     } else {
       left.style.transform = 'translateX(-100%)';
-      mobileBackdrop.classList.add('hidden');
+      if (mobileBackdrop) {
+        mobileBackdrop.classList.remove('opacity-100');
+        mobileBackdrop.classList.add('opacity-0');
+        setTimeout(() => {
+          if (!state.leftSidebarOpen && mobileBackdrop) mobileBackdrop.classList.add('hidden');
+        }, 200);
+      }
     }
   } else {
-    mobileBackdrop.classList.add('hidden');
+    if (mobileBackdrop) mobileBackdrop.classList.add('hidden');
     left.style.maxWidth = '';
     left.style.transform = 'translateX(0)';
     if (state.leftSidebarOpen) {
@@ -1301,10 +1314,22 @@ function applyThemeAndLayout() {
         if (state.rightSidebarOpen) {
           rightSidebar.style.transform = 'translateX(0)';
           rightSidebar.style.opacity = '1';
-          if (inspectorBackdrop) inspectorBackdrop.classList.remove('hidden');
+          if (inspectorBackdrop) {
+            inspectorBackdrop.classList.remove('hidden');
+            requestAnimationFrame(() => {
+              inspectorBackdrop.classList.remove('opacity-0');
+              inspectorBackdrop.classList.add('opacity-100');
+            });
+          }
         } else {
           rightSidebar.style.transform = 'translateX(100%)';
-          if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+          if (inspectorBackdrop) {
+            inspectorBackdrop.classList.remove('opacity-100');
+            inspectorBackdrop.classList.add('opacity-0');
+            setTimeout(() => {
+              if (!state.rightSidebarOpen && inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
+            }, 200);
+          }
         }
       } else {
         if (inspectorBackdrop) inspectorBackdrop.classList.add('hidden');
@@ -2666,6 +2691,136 @@ function renderCalendarAgendaInspector() {
 }
 
 // =========================================================================
+// 9B. MODAL, DRAWER & POPOVER SMOOTH OPEN & CLOSE ANIMATION ENGINE
+// =========================================================================
+function openModalWithAnimation(modalOrId, onOpened) {
+  const modal = typeof modalOrId === 'string' ? document.getElementById(modalOrId) : modalOrId;
+  if (!modal) return;
+
+  if (modal._closeTimer) {
+    clearTimeout(modal._closeTimer);
+    modal._closeTimer = null;
+  }
+
+  modal.removeAttribute('data-closing');
+  modal.classList.remove('animate-backdrop-out', 'hidden');
+  modal.classList.add('animate-backdrop');
+
+  const card = modal.querySelector('.animate-modal-card, .animate-cmd-card, .animate-sheet-in, .animate-menu, .popover-surface, [data-modal-card]') 
+    || modal.firstElementChild;
+
+  if (card) {
+    card.classList.remove('animate-modal-card-out', 'animate-cmd-card-out', 'animate-sheet-out', 'animate-menu-out');
+
+    const isCmd = modal.id.includes('command') || modal.id.includes('vaultSearch');
+    const isSheet = modal.id.includes('mobileMoreSheet') || (window.innerWidth < 640 && (
+      modal.id.includes('templates') || modal.id.includes('focusTimer') || 
+      modal.id.includes('StudyDeck') || modal.id.includes('Soundscape') || 
+      modal.id.includes('VaultPulse') || modal.id.includes('voiceModel')
+    ));
+
+    const inClass = isSheet ? 'animate-sheet-in' : (isCmd ? 'animate-cmd-card' : 'animate-modal-card');
+
+    card.classList.remove('animate-modal-card', 'animate-cmd-card', 'animate-sheet-in', 'animate-menu');
+    void card.offsetWidth;
+    card.classList.add(inClass);
+  }
+
+  if (typeof onOpened === 'function') onOpened();
+}
+
+function closeModalWithAnimation(modalOrId, onClosed) {
+  const modal = typeof modalOrId === 'string' ? document.getElementById(modalOrId) : modalOrId;
+  if (!modal || modal.classList.contains('hidden') || modal.getAttribute('data-closing') === 'true') {
+    if (typeof onClosed === 'function') onClosed();
+    return;
+  }
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    modal.classList.add('hidden');
+    if (typeof onClosed === 'function') onClosed();
+    return;
+  }
+
+  modal.setAttribute('data-closing', 'true');
+  modal.classList.remove('animate-backdrop');
+  modal.classList.add('animate-backdrop-out');
+
+  const card = modal.querySelector('.animate-modal-card, .animate-cmd-card, .animate-sheet-in, .animate-menu, .popover-surface, [data-modal-card]') 
+    || modal.firstElementChild;
+
+  if (card) {
+    const isCmd = modal.id.includes('command') || modal.id.includes('vaultSearch');
+    const isSheet = modal.id.includes('mobileMoreSheet') || (window.innerWidth < 640 && (
+      modal.id.includes('templates') || modal.id.includes('focusTimer') || 
+      modal.id.includes('StudyDeck') || modal.id.includes('Soundscape') || 
+      modal.id.includes('VaultPulse') || modal.id.includes('voiceModel')
+    ));
+
+    const outClass = isSheet ? 'animate-sheet-out' : (isCmd ? 'animate-cmd-card-out' : 'animate-modal-card-out');
+
+    card.classList.remove('animate-modal-card', 'animate-cmd-card', 'animate-sheet-in', 'animate-menu');
+    void card.offsetWidth;
+    card.classList.add(outClass);
+  }
+
+  modal._closeTimer = setTimeout(() => {
+    modal.classList.add('hidden');
+    modal.classList.remove('animate-backdrop-out');
+    modal.removeAttribute('data-closing');
+    if (card) {
+      card.classList.remove('animate-modal-card-out', 'animate-cmd-card-out', 'animate-sheet-out', 'animate-menu-out');
+    }
+    modal._closeTimer = null;
+    if (typeof onClosed === 'function') onClosed();
+  }, 160);
+}
+
+function openPopoverWithAnimation(popoverOrId, onOpened) {
+  const popover = typeof popoverOrId === 'string' ? document.getElementById(popoverOrId) : popoverOrId;
+  if (!popover) return;
+
+  if (popover._closeTimer) {
+    clearTimeout(popover._closeTimer);
+    popover._closeTimer = null;
+  }
+
+  popover.removeAttribute('data-closing');
+  popover.classList.remove('animate-menu-out', 'hidden');
+  popover.classList.remove('animate-menu');
+  void popover.offsetWidth;
+  popover.classList.add('animate-menu');
+
+  if (typeof onOpened === 'function') onOpened();
+}
+
+function closePopoverWithAnimation(popoverOrId, onClosed) {
+  const popover = typeof popoverOrId === 'string' ? document.getElementById(popoverOrId) : popoverOrId;
+  if (!popover || popover.classList.contains('hidden') || popover.getAttribute('data-closing') === 'true') {
+    if (typeof onClosed === 'function') onClosed();
+    return;
+  }
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    popover.classList.add('hidden');
+    if (typeof onClosed === 'function') onClosed();
+    return;
+  }
+
+  popover.setAttribute('data-closing', 'true');
+  popover.classList.remove('animate-menu');
+  popover.classList.add('animate-menu-out');
+
+  popover._closeTimer = setTimeout(() => {
+    popover.classList.add('hidden');
+    popover.classList.remove('animate-menu-out');
+    popover.removeAttribute('data-closing');
+    popover._closeTimer = null;
+    if (typeof onClosed === 'function') onClosed();
+  }, 120);
+}
+
+// =========================================================================
 // 10. EVENT CREATION, EDITING, VALIDATION & DELETION MODAL
 // =========================================================================
 function openEventModal(options = {}) {
@@ -2739,19 +2894,14 @@ function openEventModal(options = {}) {
   toggleModalOpenNoteBtn();
   handleEventDateInputsChange();
 
-  backdrop.classList.remove('hidden');
-  const card = backdrop.querySelector('.animate-modal-card');
-  if (card) {
-    card.classList.remove('animate-modal-card');
-    void card.offsetWidth;
-    card.classList.add('animate-modal-card');
-  }
-  requestAnimationFrame(() => titleInput.focus());
+  openModalWithAnimation(backdrop, () => {
+    requestAnimationFrame(() => titleInput.focus());
+  });
 }
 
 function closeEventModal(e) {
-  if (e && e.target !== document.getElementById('eventModalBackdrop')) return;
-  document.getElementById('eventModalBackdrop').classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('eventModalBackdrop') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('eventModalBackdrop');
 }
 
 function toggleEventAllDayFields(isAllDay, convertExisting = true) {
@@ -3193,6 +3343,7 @@ function renderBlocks(note) {
   container.innerHTML = note.blocks.map((block, index) => renderSingleBlockHTML(block, index)).join('');
   renderDocKnowledgeRadar(note);
   if (typeof applyNoteLockVisuals === 'function') applyNoteLockVisuals(note);
+  if (typeof initInlinePlot3DCanvases === 'function') setTimeout(initInlinePlot3DCanvases, 40);
 }
 
 function renderSingleBlockHTML(block) {
@@ -3397,6 +3548,10 @@ function renderSingleBlockHTML(block) {
               <button type="button" onclick="openMathSymbolsModal('${block.id}')" title="Open Math Symbols Studio" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
                 <span>∑ Studio</span>
               </button>
+              <button type="button" onclick="openMath3DModal(null, '${escapeHtml(mathFormula)}')" title="Plot in 3D Math Grapher" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--accent-vermilion)] font-medium cursor-pointer flex items-center gap-1">
+                <svg class="w-3 h-3 text-[var(--accent-vermilion)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                <span>3D Plot</span>
+              </button>
               <button type="button" onclick="copyMathBlockAsImage('${block.id}')" title="Copy exact visual equation as PNG image" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)] text-white hover:opacity-90 text-[10px] font-semibold cursor-pointer flex items-center gap-1">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span>COPY</span>
@@ -3484,6 +3639,63 @@ function renderSingleBlockHTML(block) {
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'log')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">log</button>
                 <button type="button" onclick="insertEasyMathToken('${block.id}', 'ln')" class="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">ln</button>
               </div>
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case 'plot3d': {
+      const formula = block.formula || 'sin(sqrt(x^2 + y^2))';
+      const isEditing = block.isEditing === true;
+      const xRange = (block.domain && block.domain.xRange) || 5;
+      const yRange = (block.domain && block.domain.yRange) || 5;
+      const zScale = (block.domain && block.domain.zScale) || 1.0;
+      const styleMode = block.styleMode || 'surface';
+      const colorTheme = block.colorTheme || 'spectral';
+
+      innerBlock = `
+        <div class="flex-1 my-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-panel)] overflow-hidden group/plot3d">
+          <!-- Top Header -->
+          <div class="px-3 py-1.5 bg-[var(--bg-canvas)] border-b border-[var(--border-hairline)] flex items-center justify-between text-[11px] select-none">
+            <div class="flex items-center gap-2 font-semibold text-[var(--text-secondary)] min-w-0">
+              <svg class="w-3.5 h-3.5 text-[var(--accent-vermilion)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              <span class="shrink-0">3D MATH GRAPH</span>
+              <span class="font-mono text-[10px] text-[var(--text-tertiary)] truncate">z = ${escapeHtml(formula)}</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="openMath3DModal('${block.id}', '${escapeHtml(formula)}')" title="Expand to Fullscreen 3D Math Studio" class="px-2 py-0.5 rounded bg-[var(--accent-vermilion)]/15 hover:bg-[var(--accent-vermilion)]/25 text-[var(--accent-vermilion)] border border-[var(--accent-vermilion)]/30 text-[10px] font-medium cursor-pointer flex items-center gap-1 transition-colors">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                <span>Studio</span>
+              </button>
+              <button type="button" onclick="togglePlot3DEditMode('${block.id}')" class="px-2 py-0.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                ${isEditing ? 'Hide' : 'Formula'}
+              </button>
+              <button type="button" onclick="deleteBlock('${block.id}')" title="Delete 3D plot" class="hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded text-[var(--text-tertiary)] transition-colors cursor-pointer text-[10px] flex items-center gap-0.5">
+                <svg class="w-3 h-3 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Remove</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Formula Edit Bar -->
+          <div class="${isEditing ? 'block' : 'hidden'} px-3 py-2 bg-[var(--bg-canvas)] border-b border-[var(--border-hairline)] space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold text-[var(--accent-vermilion)] shrink-0">z =</span>
+              <input type="text" value="${escapeHtml(formula)}" onchange="updateBlockPlot3DFormula('${block.id}', this.value)" class="flex-1 px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-strong)] text-xs font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent-vermilion)]">
+            </div>
+            <div class="flex items-center justify-between text-[10px] font-mono text-[var(--text-tertiary)]">
+              <span>Domain: [-${xRange}, +${xRange}] x [-${yRange}, +${yRange}]</span>
+              <span>Theme: ${colorTheme} · Mode: ${styleMode}</span>
+            </div>
+          </div>
+
+          <!-- Interactive 3D Canvas Viewport -->
+          <div class="relative w-full h-[280px] sm:h-[340px] bg-[var(--bg-canvas)] overflow-hidden flex items-center justify-center">
+            <canvas id="inlinePlot3DCanvas_${block.id}" data-plot3d-id="${block.id}" class="plot3d-inline-canvas w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+            <div class="absolute right-2.5 bottom-2 font-mono text-[9px] text-[var(--text-tertiary)] bg-[var(--bg-panel)]/80 px-2 py-0.5 rounded backdrop-blur-sm border border-[var(--border-hairline)] select-none pointer-events-none">
+              Drag to Orbit · Wheel to Zoom
             </div>
           </div>
         </div>
@@ -4324,6 +4536,7 @@ function openSlashMenu(blockId, anchorEl, filterQuery = '') {
     if (item.shortcut && item.shortcut.toLowerCase().includes(q)) return true;
     if (item.desc && item.desc.toLowerCase().includes(q)) return true;
     if (item.type === 'draw' && ['smart', 'draw', 'sketch', 'paint', 'pen', 'handwriting', 'mathdraw'].some(k => k.includes(q) || q.includes(k))) return true;
+    if (item.type === 'plot3d' && ['3d', 'plot', 'graph', 'surface', 'function', 'math3d'].some(k => k.includes(q) || q.includes(k))) return true;
     return false;
   });
   if (filteredSlashItems.length === 0) {
@@ -4422,6 +4635,14 @@ function applySlashCommand(newType) {
     if (newType === 'math') {
       block.isEditing = true;
       if (!block.content) block.content = 'x^2 + 1/2 = 4';
+    }
+    if (newType === 'plot3d' || newType === 'graph3d') {
+      block.type = 'plot3d';
+      if (!block.formula) block.formula = 'sin(sqrt(x^2 + y^2))';
+      if (!block.domain) block.domain = { xRange: 5, yRange: 5, zScale: 1.0 };
+      if (!block.styleMode) block.styleMode = 'surface';
+      if (!block.colorTheme) block.colorTheme = 'spectral';
+      block.isEditing = false;
     }
     if (newType === 'toggle') { block.open = true; if (typeof block.body !== 'string') block.body = ''; }
     if (newType === 'table' && !Array.isArray(block.rows)) {
@@ -4760,22 +4981,35 @@ function clearTagFilter() {
   renderSidebar();
 }
 
+function closeGlyphPicker() {
+  closePopoverWithAnimation('glyphPickerPopover');
+}
+
 function toggleGlyphPicker(e) {
-  e.stopPropagation();
+  if (e && e.stopPropagation) e.stopPropagation();
   const pop = document.getElementById('glyphPickerPopover');
+  if (!pop) return;
+  if (!pop.classList.contains('hidden') && pop.getAttribute('data-closing') !== 'true') {
+    closeGlyphPicker();
+    return;
+  }
   const grid = document.getElementById('glyphGrid');
-  grid.innerHTML = GLYPH_KEYS.map(key => `
-    <button onclick="setPageGlyph('${key}')" class="p-1.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] flex items-center justify-center transition-colors">
-      ${getGlyphSVG(key)}
-    </button>
-  `).join('');
-  pop.classList.toggle('hidden');
+  if (grid) {
+    grid.innerHTML = GLYPH_KEYS.map(key => `
+      <button onclick="setPageGlyph('${key}')" class="p-1.5 rounded-[2px] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] flex items-center justify-center transition-colors">
+        ${getGlyphSVG(key)}
+      </button>
+    `).join('');
+  }
+  openPopoverWithAnimation(pop);
 }
 
 function setPageGlyph(glyphKey) {
   const note = getActiveNote();
-  note.glyph = glyphKey;
-  document.getElementById('glyphPickerPopover').classList.add('hidden');
+  if (note) {
+    note.glyph = glyphKey;
+  }
+  closeGlyphPicker();
   renderSidebar();
   renderActiveDocument();
   persistState();
@@ -5019,8 +5253,31 @@ function scrollToBlock(blockId) {
 }
 
 // =========================================================================
-// 14. INTERACTIVE TOPOLOGY GRAPH & MOUSE CONNECTION ENGINE
+// 14. INTERACTIVE TOPOLOGY GRAPH & MOUSE CONNECTION ENGINE (2D & 3D GALAXY)
 // =========================================================================
+let graphDimension = localStorage.getItem('pk_graph_dimension') || '2d';
+const graph3D = {
+  yaw: 0.45,
+  pitch: 0.28,
+  targetYaw: 0.45,
+  targetPitch: 0.28,
+  distance: 720,
+  targetDistance: 720,
+  panX: 0,
+  panY: 0,
+  isOrbiting: false,
+  lastPointerX: 0,
+  lastPointerY: 0,
+  lastClickNodeId: null,
+  lastClickTs: 0,
+  autoRotate: true,
+  hoveredNode: null,
+  selectedNodeId: null,
+  focusedClusterId: null,
+  clusterMode: 'galaxy', // 'galaxy' | 'tags' | 'recency'
+  projectedNodes: []
+};
+
 let graphNodes = [];
 let hoveredNode = null;
 let draggedNode = null;
@@ -5285,19 +5542,18 @@ function openLinkNotePicker(sourceId) {
   }
   const modal = document.getElementById('linkNotePickerModal');
   if (modal) {
-    modal.classList.remove('hidden');
     const input = document.getElementById('linkNotePickerSearch');
-    if (input) {
-      input.value = '';
-      setTimeout(() => input.focus(), 60);
-    }
+    if (input) input.value = '';
     renderLinkNotePickerResults('');
+    openModalWithAnimation(modal, () => {
+      if (input) setTimeout(() => input.focus(), 60);
+    });
   }
 }
 
-function closeLinkNotePicker() {
-  const modal = document.getElementById('linkNotePickerModal');
-  if (modal) modal.classList.add('hidden');
+function closeLinkNotePicker(e) {
+  if (e && e.target && e.target !== document.getElementById('linkNotePickerModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('linkNotePickerModal');
   linkPickerSourceId = null;
 }
 
@@ -5351,27 +5607,182 @@ function renderLinkNotePickerResults(query) {
 }
 
 // --- D. EXPANDED FULLSCREEN GRAPH STUDIO ---
+function toggleGraphDimension() {
+  setGraphDimension(graphDimension === '2d' ? '3d' : '2d');
+}
+
+function setGraphDimension(dim) {
+  graphDimension = dim === '3d' ? '3d' : '2d';
+  localStorage.setItem('pk_graph_dimension', graphDimension);
+  updateGraphDimensionUI();
+  reheatGraph();
+  wakeGraphLoop();
+}
+
+function updateGraphDimensionUI() {
+  const is3D = graphDimension === '3d';
+  const dimBtn = document.getElementById('graphDimBtn');
+  if (dimBtn) dimBtn.textContent = is3D ? '2D' : '3D';
+
+  const dim2DBtn = document.getElementById('expGraphDim2DBtn');
+  const dim3DBtn = document.getElementById('expGraphDim3DBtn');
+  if (dim2DBtn && dim3DBtn) {
+    if (is3D) {
+      dim2DBtn.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] font-semibold transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer';
+      dim3DBtn.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] font-semibold transition-all bg-[var(--bg-elevated)] text-[var(--accent-vermilion)] font-bold shadow-xs cursor-pointer flex items-center gap-1';
+    } else {
+      dim2DBtn.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] font-semibold transition-all bg-[var(--bg-elevated)] text-[var(--text-primary)] font-bold shadow-xs cursor-pointer';
+      dim3DBtn.className = 'px-2 py-0.5 rounded-[2px] font-mono text-[10px] font-semibold transition-all text-[var(--text-secondary)] hover:text-[var(--accent-vermilion)] cursor-pointer flex items-center gap-1';
+    }
+  }
+
+  const controlsGroup = document.getElementById('graph3DControlsGroup');
+  if (controlsGroup) controlsGroup.classList.toggle('hidden', !is3D);
+
+  const hint2D = document.getElementById('expGraph2DHint');
+  const hint3D = document.getElementById('expGraph3DHint');
+  if (hint2D) hint2D.classList.toggle('hidden', is3D);
+  if (hint3D) hint3D.classList.toggle('hidden', !is3D);
+
+  const card = document.getElementById('expGraph3DNodeCard');
+  if (!is3D && card) card.classList.add('hidden');
+}
+
+function toggleGraph3DAutoRotate() {
+  graph3D.autoRotate = !graph3D.autoRotate;
+  const btn = document.getElementById('expGraphAutoRotateBtn');
+  if (btn) {
+    btn.textContent = `Orbit: ${graph3D.autoRotate ? 'ON' : 'OFF'}`;
+    btn.className = `px-2 py-0.5 rounded-[2px] font-mono text-[10px] border border-[var(--border-hairline)] transition-colors cursor-pointer whitespace-nowrap ${
+      graph3D.autoRotate ? 'bg-[var(--bg-canvas)] text-[var(--accent-vermilion)] font-medium' : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+    }`;
+  }
+  wakeGraphLoop();
+}
+
+function cycleGraph3DClusterMode() {
+  const modes = ['galaxy', 'tags', 'recency'];
+  const nextIdx = (modes.indexOf(graph3D.clusterMode) + 1) % modes.length;
+  graph3D.clusterMode = modes[nextIdx];
+  const btn = document.getElementById('expGraphClusterModeBtn');
+  if (btn) {
+    const labels = { galaxy: 'Galaxy', tags: 'Tags', recency: 'Recency' };
+    btn.textContent = `Mode: ${labels[graph3D.clusterMode] || 'Galaxy'}`;
+  }
+  reheatGraph();
+  wakeGraphLoop();
+}
+
+function showGraph3DNodeCard(node) {
+  if (!node) return;
+  const card = document.getElementById('expGraph3DNodeCard');
+  if (!card) return;
+  const titleEl = document.getElementById('expGraph3DCardTitle');
+  const folderEl = document.getElementById('expGraph3DCardFolder');
+  const linksEl = document.getElementById('expGraph3DCardLinks');
+  const tagsEl = document.getElementById('expGraph3DCardTags');
+
+  const noteData = state.notes.find(n => n.id === node.id);
+  if (titleEl) titleEl.textContent = node.title || (noteData ? noteData.title : 'Untitled');
+  if (folderEl) folderEl.textContent = noteData ? (noteData.folder || 'Root') : 'Root';
+
+  const allLinks = computeVaultConnections();
+  const connCount = allLinks.filter(l => l.source === node.id || l.target === node.id).length;
+  if (linksEl) linksEl.textContent = `${connCount} links`;
+  if (tagsEl) tagsEl.textContent = (noteData && noteData.tags && noteData.tags.length) ? noteData.tags.join(', ') : 'None';
+
+  card.classList.remove('hidden');
+}
+
+function closeGraph3DNodeCard() {
+  const card = document.getElementById('expGraph3DNodeCard');
+  if (card) card.classList.add('hidden');
+  graph3D.selectedNodeId = null;
+  graph3D.focusedClusterId = null;
+  wakeGraphLoop();
+}
+
+function openGraph3DCurrentNote() {
+  if (!graph3D.selectedNodeId) return;
+  const id = graph3D.selectedNodeId;
+  closeExpandedGraphModal();
+  selectNote(id);
+}
+
+function toggleGraph3DClusterFocus() {
+  if (graph3D.focusedClusterId === graph3D.selectedNodeId) {
+    graph3D.focusedClusterId = null;
+    showToast('Cluster isolation cleared');
+  } else {
+    graph3D.focusedClusterId = graph3D.selectedNodeId;
+    showToast('Isolated connected cluster');
+  }
+  reheatGraph();
+  wakeGraphLoop();
+}
+
+function alignCameraToNode3D(node) {
+  if (!node) return;
+  const yaw = Math.atan2(node.x3 || 0, node.z3 || 1);
+  const distXZ = Math.hypot(node.x3 || 0, node.z3 || 0);
+  const pitch = -Math.atan2(node.y3 || 0, distXZ || 1) * 0.55;
+  graph3D.targetYaw = yaw;
+  graph3D.targetPitch = Math.max(-1.1, Math.min(1.1, pitch));
+  wakeGraphLoop();
+}
+
+function findNodeAt3D(screenX, screenY) {
+  if (!graph3D.projectedNodes || graph3D.projectedNodes.length === 0) return null;
+  let best = null;
+  let bestDepth = Infinity;
+  for (let i = 0; i < graph3D.projectedNodes.length; i++) {
+    const p = graph3D.projectedNodes[i];
+    if (!p.visible) continue;
+    const dx = screenX - p.screenX;
+    const dy = screenY - p.screenY;
+    const hitR = Math.max(14, p.radius + 6);
+    if (dx * dx + dy * dy <= hitR * hitR) {
+      if (p.depth < bestDepth) {
+        bestDepth = p.depth;
+        best = p.node;
+      }
+    }
+  }
+  return best;
+}
+
 function openExpandedGraphModal() {
   isExpandedGraphOpen = true;
   const modal = document.getElementById('expandedGraphModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
-  resizeExpandedGraphCanvas();
-  fitGraphView();
-  setGraphToolMode(graphToolMode);
-  if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
+  updateGraphDimensionUI();
+  openModalWithAnimation(modal, () => {
+    resizeExpandedGraphCanvas();
+    if (graphDimension === '2d') fitGraphView();
+    setGraphToolMode(graphToolMode);
+    if (typeof ensureGraphLoopRunning === 'function') ensureGraphLoopRunning();
+  });
   playWhooshSound();
 }
 
-function closeExpandedGraphModal() {
+function closeExpandedGraphModal(e) {
+  if (e && e.target && e.target !== document.getElementById('expandedGraphModal') && e.target !== e.currentTarget) return;
   isExpandedGraphOpen = false;
-  const modal = document.getElementById('expandedGraphModal');
-  if (modal) modal.classList.add('hidden');
+  closeGraph3DNodeCard();
+  closeModalWithAnimation('expandedGraphModal');
   cancelGraphConnection();
 }
 
 function handleExpandedGraphSearch(query) {
   expandedGraphFilter = (query || '').toLowerCase().trim();
+  if (graphDimension === '3d' && expandedGraphFilter) {
+    const match = graphNodes.find(n => (n.title || '').toLowerCase().includes(expandedGraphFilter));
+    if (match) {
+      alignCameraToNode3D(match);
+      showGraph3DNodeCard(match);
+    }
+  }
+  wakeGraphLoop();
 }
 
 function centerNodeInView(node) {
@@ -5404,16 +5815,31 @@ function syncGraphNodes() {
   }
 
   const existingMap = new Map(graphNodes.map(n => [n.id, n]));
+  const count = Math.max(1, visibleNotes.length);
+
   graphNodes = visibleNotes.map((note, idx) => {
     const prev = existingMap.get(note.id);
-    const angle = (idx / Math.max(1, visibleNotes.length)) * Math.PI * 2;
+    const angle = (idx / count) * Math.PI * 2;
+    // 3D Fibonacci sphere distribution for harmonious initial galaxy
+    const phi = Math.acos(1 - 2 * (idx + 0.5) / count);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * (idx + 0.5);
+    const r3 = 190 + (idx % 6) * 22;
+
     return {
       id: note.id,
       title: note.title,
+      folder: note.folder || 'root',
+      tags: note.tags || [],
       x: prev ? prev.x : w / 2 + Math.cos(angle) * 78,
       y: prev ? prev.y : h / 2 + Math.sin(angle) * 78,
       vx: prev ? prev.vx : 0,
       vy: prev ? prev.vy : 0,
+      x3: prev && typeof prev.x3 === 'number' ? prev.x3 : r3 * Math.sin(phi) * Math.cos(theta),
+      y3: prev && typeof prev.y3 === 'number' ? prev.y3 : r3 * Math.cos(phi),
+      z3: prev && typeof prev.z3 === 'number' ? prev.z3 : r3 * Math.sin(phi) * Math.sin(theta),
+      vx3: prev && typeof prev.vx3 === 'number' ? prev.vx3 : 0,
+      vy3: prev && typeof prev.vy3 === 'number' ? prev.vy3 : 0,
+      vz3: prev && typeof prev.vz3 === 'number' ? prev.vz3 : 0,
     };
   });
 }
@@ -5422,13 +5848,18 @@ function reheatGraph() {
   const canvas = document.getElementById('knowledgeGraphCanvas');
   const w = canvas ? (canvas.clientWidth || 300) : 300;
   const h = canvas ? (canvas.clientHeight || 280) : 280;
+  const count = Math.max(1, graphNodes.length);
   graphNodes.forEach((n, idx) => {
-    const angle = (idx / Math.max(1, graphNodes.length)) * Math.PI * 2;
+    const angle = (idx / count) * Math.PI * 2;
     n.vx += Math.cos(angle) * 2.4;
     n.vy += Math.sin(angle) * 2.4;
+    n.vx3 = (n.vx3 || 0) + (Math.random() - 0.5) * 2.5;
+    n.vy3 = (n.vy3 || 0) + (Math.random() - 0.5) * 2.5;
+    n.vz3 = (n.vz3 || 0) + (Math.random() - 0.5) * 2.5;
     if (n.id === state.activeNoteId) {
       n.x = (w / 2);
       n.y = (h / 2);
+      n.x3 = 0; n.y3 = 0; n.z3 = 0;
     }
   });
   if (typeof wakeGraphLoop === 'function') wakeGraphLoop();
@@ -5594,16 +6025,17 @@ function promptCreateNoteAtCanvas(gx, gy, screenX, screenY) {
   canvasCreateCoords = { gx, gy, screenX, screenY };
   const modal = document.getElementById('canvasCreateNoteModal');
   const input = document.getElementById('canvasCreateNoteTitle');
-  if (modal && input) {
-    input.value = '';
-    modal.classList.remove('hidden');
-    setTimeout(() => input.focus(), 60);
+  if (modal) {
+    if (input) input.value = '';
+    openModalWithAnimation(modal, () => {
+      if (input) setTimeout(() => input.focus(), 60);
+    });
   }
 }
 
-function closeCanvasCreateNoteModal() {
-  const modal = document.getElementById('canvasCreateNoteModal');
-  if (modal) modal.classList.add('hidden');
+function closeCanvasCreateNoteModal(e) {
+  if (e && e.target && e.target !== document.getElementById('canvasCreateNoteModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('canvasCreateNoteModal');
 }
 
 function confirmCanvasCreateNote() {
@@ -5667,6 +6099,27 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
 
   // Double-click empty space creates note at that spot!
   canvas.addEventListener('dblclick', e => {
+    if (graphDimension === '3d') {
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const hit = findNodeAt3D(screenX, screenY);
+      if (hit) {
+        if (isExpanded) {
+          closeExpandedGraphModal();
+        }
+        selectNote(hit.id);
+        playPopSound();
+      } else {
+        graph3D.targetYaw = 0.45;
+        graph3D.targetPitch = 0.28;
+        graph3D.targetDistance = 720;
+        wakeGraphLoop();
+        showToast('Reset 3D Galaxy View');
+      }
+      return;
+    }
+
     const pos = getGraphPointerPos(canvas, e);
     const hit = findNodeAt(pos);
     if (!hit) {
@@ -5677,6 +6130,45 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
   canvas.addEventListener('pointerdown', e => {
     if (typeof wakeGraphLoop === 'function') wakeGraphLoop();
     if (e.button === 2) return; // Right click handled by context menu
+
+    if (graphDimension === '3d') {
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const hit = findNodeAt3D(screenX, screenY);
+
+      if (hit) {
+        const now = Date.now();
+        if (graph3D.lastClickNodeId === hit.id && (now - graph3D.lastClickTs) < 320) {
+          if (isExpanded) {
+            closeExpandedGraphModal();
+          }
+          selectNote(hit.id);
+          playPopSound();
+          graph3D.lastClickNodeId = null;
+          return;
+        }
+        graph3D.lastClickNodeId = hit.id;
+        graph3D.lastClickTs = now;
+
+        graph3D.selectedNodeId = hit.id;
+        if (isExpanded) {
+          showGraph3DNodeCard(hit);
+        } else {
+          selectNote(hit.id);
+        }
+        alignCameraToNode3D(hit);
+        playPopSound();
+        return;
+      }
+
+      graph3D.isOrbiting = true;
+      graph3D.lastPointerX = e.clientX;
+      graph3D.lastPointerY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
 
     const pos = getGraphPointerPos(canvas, e);
     const allLinks = computeVaultConnections();
@@ -5741,6 +6233,27 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
   });
 
   canvas.addEventListener('pointermove', e => {
+    if (graphDimension === '3d') {
+      if (graph3D.isOrbiting) {
+        const dx = e.clientX - graph3D.lastPointerX;
+        const dy = e.clientY - graph3D.lastPointerY;
+        graph3D.lastPointerX = e.clientX;
+        graph3D.lastPointerY = e.clientY;
+        graph3D.targetYaw += dx * 0.0075;
+        graph3D.targetPitch = Math.max(-1.3, Math.min(1.3, graph3D.targetPitch + dy * 0.0075));
+        wakeGraphLoop();
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const hit = findNodeAt3D(screenX, screenY);
+      graph3D.hoveredNode = hit;
+      canvas.style.cursor = hit ? 'pointer' : 'grab';
+      wakeGraphLoop();
+      return;
+    }
+
     const pos = getGraphPointerPos(canvas, e);
     const allLinks = computeVaultConnections();
     const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
@@ -5806,6 +6319,14 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
   });
 
   canvas.addEventListener('pointerup', e => {
+    if (graphDimension === '3d') {
+      if (graph3D.isOrbiting) {
+        graph3D.isOrbiting = false;
+        canvas.style.cursor = graph3D.hoveredNode ? 'pointer' : 'grab';
+      }
+      return;
+    }
+
     const pos = getGraphPointerPos(canvas, e);
 
     // Finish Laser Slicing Gesture
@@ -5861,6 +6382,12 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
     if (typeof wakeGraphLoop === 'function') wakeGraphLoop();
+    if (graphDimension === '3d') {
+      const zoomFactor = e.deltaY < 0 ? 0.90 : 1.10;
+      graph3D.targetDistance = Math.max(260, Math.min(1800, graph3D.targetDistance * zoomFactor));
+      wakeGraphLoop();
+      return;
+    }
     hideGraphNodeHoverCard();
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -5876,6 +6403,7 @@ function setupCanvasInteractions(canvas, isExpanded = false) {
 }
 
 function initGraphInteractions() {
+  updateGraphDimensionUI();
   const canvasSidebar = document.getElementById('knowledgeGraphCanvas');
   if (canvasSidebar) setupCanvasInteractions(canvasSidebar, false);
 
@@ -6188,6 +6716,349 @@ function drawGraphOnCanvas(canvas, isExpanded = false) {
   ctx.restore();
 }
 
+function stepGraphPhysics3D_JS(nodes, edges, centerX = 0, centerY = 0, centerZ = 0) {
+  let totalEnergy = 0;
+  const count = nodes.length;
+
+  // Center gravity + 3D Pairwise repulsion
+  for (let i = 0; i < count; i++) {
+    const a = nodes[i];
+    a.vx3 = (a.vx3 || 0) + (centerX - (a.x3 || 0)) * 0.005;
+    a.vy3 = (a.vy3 || 0) + (centerY - (a.y3 || 0)) * 0.005;
+    a.vz3 = (a.vz3 || 0) + (centerZ - (a.z3 || 0)) * 0.005;
+
+    for (let j = i + 1; j < count; j++) {
+      const b = nodes[j];
+      const dx = (a.x3 || 0) - (b.x3 || 0);
+      const dy = (a.y3 || 0) - (b.y3 || 0);
+      const dz = (a.z3 || 0) - (b.z3 || 0);
+      const distSq = dx * dx + dy * dy + dz * dz + 0.1;
+      const force = 2100.0 / distSq;
+      const dist = Math.sqrt(distSq);
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      const fz = (dz / dist) * force;
+
+      a.vx3 += fx;
+      a.vy3 += fy;
+      a.vz3 += fz;
+      b.vx3 -= fx;
+      b.vy3 -= fy;
+      b.vz3 -= fz;
+    }
+  }
+
+  // Hooke's Law edge springs
+  if (edges && edges.length > 0) {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    edges.forEach(edge => {
+      const s = nodeMap.get(edge.source);
+      const t = nodeMap.get(edge.target);
+      if (!s || !t) return;
+      const dx = (t.x3 || 0) - (s.x3 || 0);
+      const dy = (t.y3 || 0) - (s.y3 || 0);
+      const dz = (t.z3 || 0) - (s.z3 || 0);
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      const spring = (dist - 110.0) * 0.032;
+      const fx = (dx / dist) * spring;
+      const fy = (dy / dist) * spring;
+      const fz = (dz / dist) * spring;
+
+      s.vx3 += fx;
+      s.vy3 += fy;
+      s.vz3 += fz;
+      t.vx3 -= fx;
+      t.vy3 -= fy;
+      t.vz3 -= fz;
+    });
+  }
+
+  // Damping & integration
+  for (let i = 0; i < count; i++) {
+    const n = nodes[i];
+    n.vx3 = (n.vx3 || 0) * 0.84;
+    n.vy3 = (n.vy3 || 0) * 0.84;
+    n.vz3 = (n.vz3 || 0) * 0.84;
+    n.x3 = (n.x3 || 0) + n.vx3;
+    n.y3 = (n.y3 || 0) + n.vy3;
+    n.z3 = (n.z3 || 0) + n.vz3;
+    totalEnergy += n.vx3 * n.vx3 + n.vy3 * n.vy3 + n.vz3 * n.vz3;
+  }
+  return totalEnergy;
+}
+
+function drawGraphOnCanvas3D(canvas, isExpanded = false) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (w <= 0 || h <= 0) return;
+
+  const isDark = document.documentElement.classList.contains('dark') ||
+    document.body.classList.contains('dark') ||
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  ctx.save();
+  ctx.clearRect(0, 0, w, h);
+
+  // Smooth orbital camera dynamics & auto-drift
+  if (graph3D.autoRotate && !graph3D.isOrbiting) {
+    graph3D.targetYaw += 0.0035;
+  }
+  graph3D.yaw += (graph3D.targetYaw - graph3D.yaw) * 0.12;
+  graph3D.pitch += (graph3D.targetPitch - graph3D.pitch) * 0.12;
+  graph3D.distance += (graph3D.targetDistance - graph3D.distance) * 0.12;
+
+  const cx = w / 2;
+  const cy = h / 2;
+  const fov = isExpanded ? 540 : 380;
+  const camDist = graph3D.distance;
+  const cosY = Math.cos(graph3D.yaw);
+  const sinY = Math.sin(graph3D.yaw);
+  const cosP = Math.cos(graph3D.pitch);
+  const sinP = Math.sin(graph3D.pitch);
+
+  function project3D(x, y, z) {
+    const x1 = x * cosY - z * sinY;
+    const z1 = z * cosY + x * sinY;
+    const y2 = y * cosP - z1 * sinP;
+    const z2 = z1 * cosP + y * sinP;
+
+    const depth = z2 + camDist;
+    if (depth <= 20) return null;
+    const scale = fov / depth;
+    return {
+      screenX: cx + x1 * scale,
+      screenY: cy + y2 * scale,
+      depth: depth,
+      scale: scale
+    };
+  }
+
+  // Draw 3D Celestial Equator & Spatial Orientation Rings
+  ctx.save();
+  const ringRadii = [220, 420];
+  ringRadii.forEach(r => {
+    ctx.beginPath();
+    let started = false;
+    const segs = 48;
+    for (let s = 0; s <= segs; s++) {
+      const theta = (s / segs) * Math.PI * 2;
+      const rx = Math.cos(theta) * r;
+      const rz = Math.sin(theta) * r;
+      const p = project3D(rx, 0, rz);
+      if (p) {
+        if (!started) {
+          ctx.moveTo(p.screenX, p.screenY);
+          started = true;
+        } else {
+          ctx.lineTo(p.screenX, p.screenY);
+        }
+      }
+    }
+    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  const allLinks = computeVaultConnections();
+  const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
+  const connCountMap = new Map();
+  allLinks.forEach(l => {
+    connCountMap.set(l.source, (connCountMap.get(l.source) || 0) + 1);
+    connCountMap.set(l.target, (connCountMap.get(l.target) || 0) + 1);
+  });
+
+  const activeEdges = allLinks.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target));
+  const nowTs = performance.now();
+
+  // Render 3D Edges with Synapse Photon Pulses
+  activeEdges.forEach((edge, edgeIdx) => {
+    const s = nodeMap.get(edge.source);
+    const t = nodeMap.get(edge.target);
+    if (!s || !t) return;
+
+    const isClusterFocused = graph3D.focusedClusterId && (edge.source === graph3D.focusedClusterId || edge.target === graph3D.focusedClusterId);
+    const isDimmed = graph3D.focusedClusterId && !isClusterFocused;
+
+    const pS = project3D(s.x3 || 0, s.y3 || 0, s.z3 || 0);
+    const pT = project3D(t.x3 || 0, t.y3 || 0, t.z3 || 0);
+    if (!pS || !pT) return;
+
+    const avgDepth = (pS.depth + pT.depth) * 0.5;
+    const baseAlpha = Math.max(0.08, Math.min(0.65, 460 / avgDepth));
+    const alpha = isDimmed ? 0.03 : (isClusterFocused ? Math.min(1.0, baseAlpha * 2.2) : baseAlpha);
+
+    ctx.beginPath();
+    ctx.moveTo(pS.screenX, pS.screenY);
+    ctx.lineTo(pT.screenX, pT.screenY);
+
+    if (isClusterFocused) {
+      ctx.strokeStyle = `rgba(224, 82, 56, ${alpha})`;
+      ctx.lineWidth = Math.max(1.2, 2.4 * pS.scale);
+    } else {
+      ctx.strokeStyle = isDark ? `rgba(220, 220, 225, ${alpha * 0.7})` : `rgba(60, 60, 70, ${alpha * 0.7})`;
+      ctx.lineWidth = Math.max(0.6, 1.2 * pS.scale);
+    }
+    ctx.stroke();
+
+    // Traveling Synapse Photon Pulse
+    if (!isDimmed) {
+      const progress = ((nowTs * 0.0007) + (edgeIdx * 0.19)) % 1.0;
+      const px = (s.x3 || 0) + ((t.x3 || 0) - (s.x3 || 0)) * progress;
+      const py = (s.y3 || 0) + ((t.y3 || 0) - (s.y3 || 0)) * progress;
+      const pz = (s.z3 || 0) + ((t.z3 || 0) - (s.z3 || 0)) * progress;
+      const pPulse = project3D(px, py, pz);
+      if (pPulse) {
+        const photonR = Math.max(1.2, 2.2 * pPulse.scale);
+        ctx.beginPath();
+        ctx.arc(pPulse.screenX, pPulse.screenY, photonR, 0, Math.PI * 2);
+        ctx.fillStyle = isClusterFocused ? 'rgba(255, 120, 90, 0.95)' : (isDark ? 'rgba(255, 255, 255, 0.85)' : 'rgba(224, 82, 56, 0.8)');
+        ctx.fill();
+      }
+    }
+  });
+
+  // Project Nodes and Sort by Depth (Painter's Algorithm)
+  const projectedList = [];
+  for (let i = 0; i < graphNodes.length; i++) {
+    const n = graphNodes[i];
+    const p = project3D(n.x3 || 0, n.y3 || 0, n.z3 || 0);
+    if (!p) continue;
+    const conn = connCountMap.get(n.id) || 0;
+    const baseR = Math.max(5.5, Math.min(16, 5.5 + conn * 1.5));
+    const r = Math.max(3.2, baseR * p.scale);
+    projectedList.push({
+      node: n,
+      screenX: p.screenX,
+      screenY: p.screenY,
+      radius: r,
+      depth: p.depth,
+      scale: p.scale,
+      visible: true,
+      conn: conn
+    });
+  }
+
+  // Sort descending: farthest first
+  projectedList.sort((a, b) => b.depth - a.depth);
+  graph3D.projectedNodes = projectedList;
+
+  // Render 3D Spherical Nodes
+  projectedList.forEach(p => {
+    const n = p.node;
+    const isActive = n.id === state.activeNoteId;
+    const isSelected = n.id === graph3D.selectedNodeId;
+    const isHovered = graph3D.hoveredNode && n.id === graph3D.hoveredNode.id;
+    const isClusterFocused = graph3D.focusedClusterId && (n.id === graph3D.focusedClusterId || allLinks.some(l => (l.source === graph3D.focusedClusterId && l.target === n.id) || (l.target === graph3D.focusedClusterId && l.source === n.id)));
+    const isDimmed = graph3D.focusedClusterId && !isClusterFocused;
+
+    const alpha = isDimmed ? 0.15 : 1.0;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const r = p.radius;
+    const sx = p.screenX;
+    const sy = p.screenY;
+
+    // Outer Orbital Rings for Active or Selected node
+    if (isActive || isSelected) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 1.65, 0, Math.PI * 2);
+      ctx.strokeStyle = isActive ? 'rgba(224, 82, 56, 0.85)' : 'rgba(245, 158, 11, 0.85)';
+      ctx.lineWidth = Math.max(1.2, 1.8 * p.scale);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 2.1, 0, Math.PI * 2);
+      ctx.strokeStyle = isActive ? 'rgba(224, 82, 56, 0.35)' : 'rgba(245, 158, 11, 0.35)';
+      ctx.lineWidth = Math.max(0.8, 1.2 * p.scale);
+      ctx.stroke();
+    }
+
+    // Outer Atmospheric Glow
+    if (isActive || isHovered || isSelected) {
+      const glowR = r * 1.8;
+      const glowGrad = ctx.createRadialGradient(sx, sy, r * 0.8, sx, sy, glowR);
+      const glowColor = isActive ? 'rgba(224, 82, 56, ' : (isSelected ? 'rgba(245, 158, 11, ' : 'rgba(255, 255, 255, ');
+      glowGrad.addColorStop(0, glowColor + '0.45)');
+      glowGrad.addColorStop(1, glowColor + '0)');
+      ctx.beginPath();
+      ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
+      ctx.fillStyle = glowGrad;
+      ctx.fill();
+    }
+
+    // 3D Spherical Radial Gradient (Offset light source at top-left)
+    const grad = ctx.createRadialGradient(sx - r * 0.35, sy - r * 0.35, r * 0.05, sx, sy, r);
+    if (isActive) {
+      grad.addColorStop(0, 'rgba(255, 150, 125, 1)');
+      grad.addColorStop(0.4, '#e05238');
+      grad.addColorStop(1, '#94220e');
+    } else if (isSelected) {
+      grad.addColorStop(0, 'rgba(254, 240, 138, 1)');
+      grad.addColorStop(0.4, '#f59e0b');
+      grad.addColorStop(1, '#92400e');
+    } else if (isHovered) {
+      grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      grad.addColorStop(0.5, isDark ? '#D4D4CE' : '#73736E');
+      grad.addColorStop(1, isDark ? '#52524E' : '#262624');
+    } else if (n.favorite) {
+      grad.addColorStop(0, 'rgba(253, 224, 71, 1)');
+      grad.addColorStop(0.5, '#eab308');
+      grad.addColorStop(1, '#854d0e');
+    } else {
+      if (isDark) {
+        grad.addColorStop(0, 'rgba(215, 215, 220, 1)');
+        grad.addColorStop(0.5, '#73736E');
+        grad.addColorStop(1, '#2D2D2D');
+      } else {
+        grad.addColorStop(0, 'rgba(120, 120, 130, 1)');
+        grad.addColorStop(0.5, '#404044');
+        grad.addColorStop(1, '#18181B');
+      }
+    }
+
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Spherical rim stroke
+    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.18)';
+    ctx.lineWidth = Math.max(0.6, 0.9 * p.scale);
+    ctx.stroke();
+
+    // Floating 3D Typography Label
+    const showLabel = isActive || isSelected || isHovered || (isExpanded && p.depth < 820) || (!isExpanded && p.depth < 680);
+    if (showLabel && !isDimmed) {
+      const fontSize = Math.max(9, Math.min(12, 10.5 * p.scale));
+      ctx.font = `${(isActive || isSelected) ? 'bold' : 'normal'} ${fontSize}px var(--font-sans, system-ui, sans-serif)`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const labelText = n.title || 'Untitled';
+      const textY = sy + r + 4;
+      const textMetrics = ctx.measureText(labelText);
+      const textW = textMetrics.width;
+
+      // Label pill background
+      ctx.fillStyle = isDark ? 'rgba(20, 20, 22, 0.78)' : 'rgba(255, 255, 255, 0.82)';
+      ctx.fillRect(sx - textW / 2 - 4, textY - 1, textW + 8, fontSize + 3);
+
+      ctx.fillStyle = (isActive || isSelected)
+        ? (isActive ? 'var(--accent-vermilion)' : '#f59e0b')
+        : (isDark ? '#E5E5E0' : '#1F1F1E');
+      ctx.fillText(labelText, sx, textY);
+    }
+
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
 let graphLoopRafId = null;
 let graphLastFrameTs = 0;
 
@@ -6236,75 +7107,146 @@ function runGraphLoop(ts) {
     const nodeMap = new Map(graphNodes.map(n => [n.id, n]));
     const activeEdges = allLinks.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target));
 
-    const centerX = w / 2;
-    const centerY = h / 2;
-
-    // Native Rust WebAssembly Force Simulation Physics (5-15x faster, zero-GC) with seamless JS fallback
-    const wasmEnergy = (window.PKWasm && window.PKWasm.ready)
-      ? window.PKWasm.stepGraphPhysics(graphNodes, activeEdges, centerX, centerY, draggedNode ? draggedNode.id : null)
-      : null;
-
-    if (wasmEnergy === null) {
-      for (let i = 0; i < graphNodes.length; i++) {
-        const a = graphNodes[i];
-        a.vx += (centerX - a.x) * 0.007;
-        a.vy += (centerY - a.y) * 0.007;
-        for (let j = i + 1; j < graphNodes.length; j++) {
-          const b = graphNodes[j];
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-          const distSq = dx * dx + dy * dy + 0.1;
-          const force = 1450 / distSq;
-          const dist = Math.sqrt(distSq);
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          a.vx += fx;
-          a.vy += fy;
-          b.vx -= fx;
-          b.vy -= fy;
-        }
+    if (graphDimension === '3d') {
+      // 3D Cluster biasing for Semantic Modes
+      if (graph3D.clusterMode === 'tags') {
+        const tagMap = new Map();
+        let tagIndex = 0;
+        graphNodes.forEach(n => {
+          if (n.tags && n.tags.length > 0) {
+            n.tags.forEach(t => {
+              if (!tagMap.has(t)) {
+                tagMap.set(t, {
+                  x: 180 * Math.cos(tagIndex * 2.39),
+                  y: 120 * Math.sin(tagIndex * 1.73),
+                  z: 180 * Math.cos(tagIndex * 1.15)
+                });
+                tagIndex++;
+              }
+            });
+          }
+        });
+        graphNodes.forEach(n => {
+          if (n.tags && n.tags.length > 0) {
+            n.tags.forEach(t => {
+              const anchor = tagMap.get(t);
+              if (anchor) {
+                n.vx3 = (n.vx3 || 0) + (anchor.x - (n.x3 || 0)) * 0.003;
+                n.vy3 = (n.vy3 || 0) + (anchor.y - (n.y3 || 0)) * 0.003;
+                n.vz3 = (n.vz3 || 0) + (anchor.z - (n.z3 || 0)) * 0.003;
+              }
+            });
+          }
+        });
+      } else if (graph3D.clusterMode === 'recency') {
+        const sorted = [...graphNodes].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+        const total = Math.max(1, sorted.length);
+        sorted.forEach((n, idx) => {
+          const ratio = idx / total;
+          const targetDist = 50 + ratio * 240;
+          const curDist = Math.hypot(n.x3 || 0, n.y3 || 0, n.z3 || 0) || 1;
+          const pull = (targetDist - curDist) * 0.003;
+          n.vx3 = (n.vx3 || 0) + ((n.x3 || 0) / curDist) * pull;
+          n.vy3 = (n.vy3 || 0) + ((n.y3 || 0) / curDist) * pull;
+          n.vz3 = (n.vz3 || 0) + ((n.z3 || 0) / curDist) * pull;
+        });
       }
 
-      activeEdges.forEach(edge => {
-        const s = nodeMap.get(edge.source);
-        const t = nodeMap.get(edge.target);
-        if (!s || !t) return;
-        const dx = t.x - s.x;
-        const dy = t.y - s.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const spring = (dist - 94) * 0.035;
-        const fx = (dx / dist) * spring;
-        const fy = (dy / dist) * spring;
-        s.vx += fx;
-        s.vy += fy;
-        t.vx -= fx;
-        t.vy -= fy;
-      });
+      // Native Rust WebAssembly 3D Physics (5-15x faster, zero-GC) with seamless JS fallback
+      const wasmEnergy = (window.PKWasm && window.PKWasm.ready)
+        ? window.PKWasm.stepGraphPhysics3D(graphNodes, activeEdges, 0, 0, 0, null)
+        : null;
 
-      graphNodes.forEach(n => {
-        if (draggedNode && draggedNode.id === n.id) return;
-        n.vx *= 0.82;
-        n.vy *= 0.82;
-        n.x += n.vx;
-        n.y += n.vy;
-        totalVelocity += Math.abs(n.vx) + Math.abs(n.vy);
-      });
+      if (wasmEnergy === null) {
+        totalVelocity = stepGraphPhysics3D_JS(graphNodes, activeEdges, 0, 0, 0);
+      } else {
+        totalVelocity = wasmEnergy;
+      }
+
+      // Draw on Active Viewport(s) in 3D
+      if (isSidebarActive && canvasSidebar) {
+        drawGraphOnCanvas3D(canvasSidebar, false);
+      }
+      if (isExpandedActive && canvasExpanded) {
+        drawGraphOnCanvas3D(canvasExpanded, true);
+      }
+
+      // Anti-Lag Sleep: If not auto-rotating and velocity negligible, sleep loop
+      if (!graph3D.autoRotate && !graph3D.isOrbiting && totalVelocity < 0.08) {
+        isGraphSleeping = true;
+        return;
+      }
     } else {
-      totalVelocity = wasmEnergy;
-    }
+      const centerX = w / 2;
+      const centerY = h / 2;
 
-    // Draw on Active Viewport(s)
-    if (isSidebarActive && canvasSidebar) {
-      drawGraphOnCanvas(canvasSidebar, false);
-    }
-    if (isExpandedActive && canvasExpanded) {
-      drawGraphOnCanvas(canvasExpanded, true);
-    }
+      // Native Rust WebAssembly Force Simulation Physics (5-15x faster, zero-GC) with seamless JS fallback
+      const wasmEnergy = (window.PKWasm && window.PKWasm.ready)
+        ? window.PKWasm.stepGraphPhysics(graphNodes, activeEdges, centerX, centerY, draggedNode ? draggedNode.id : null)
+        : null;
 
-    // Anti-Lag Sleep Threshold: If kinetic energy is negligible and user isn't interacting, pause the loop!
-    if (totalVelocity < 0.08 && !draggedNode && !connectingSourceNode && !isCuttingGesture) {
-      isGraphSleeping = true;
-      return; // Sleep until user touches or clicks!
+      if (wasmEnergy === null) {
+        for (let i = 0; i < graphNodes.length; i++) {
+          const a = graphNodes[i];
+          a.vx += (centerX - a.x) * 0.007;
+          a.vy += (centerY - a.y) * 0.007;
+          for (let j = i + 1; j < graphNodes.length; j++) {
+            const b = graphNodes[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const distSq = dx * dx + dy * dy + 0.1;
+            const force = 1450 / distSq;
+            const dist = Math.sqrt(distSq);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            a.vx += fx;
+            a.vy += fy;
+            b.vx -= fx;
+            b.vy -= fy;
+          }
+        }
+
+        activeEdges.forEach(edge => {
+          const s = nodeMap.get(edge.source);
+          const t = nodeMap.get(edge.target);
+          if (!s || !t) return;
+          const dx = t.x - s.x;
+          const dy = t.y - s.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const spring = (dist - 94) * 0.035;
+          const fx = (dx / dist) * spring;
+          const fy = (dy / dist) * spring;
+          s.vx += fx;
+          s.vy += fy;
+          t.vx -= fx;
+          t.vy -= fy;
+        });
+
+        graphNodes.forEach(n => {
+          if (draggedNode && draggedNode.id === n.id) return;
+          n.vx *= 0.82;
+          n.vy *= 0.82;
+          n.x += n.vx;
+          n.y += n.vy;
+          totalVelocity += Math.abs(n.vx) + Math.abs(n.vy);
+        });
+      } else {
+        totalVelocity = wasmEnergy;
+      }
+
+      // Draw on Active Viewport(s)
+      if (isSidebarActive && canvasSidebar) {
+        drawGraphOnCanvas(canvasSidebar, false);
+      }
+      if (isExpandedActive && canvasExpanded) {
+        drawGraphOnCanvas(canvasExpanded, true);
+      }
+
+      // Anti-Lag Sleep Threshold: If kinetic energy is negligible and user isn't interacting, pause the loop!
+      if (totalVelocity < 0.08 && !draggedNode && !connectingSourceNode && !isCuttingGesture) {
+        isGraphSleeping = true;
+        return; // Sleep until user touches or clicks!
+      }
     }
   }
 
@@ -6336,34 +7278,28 @@ function setCmdScope(scope) {
 function openCommandPalette() {
   playWhooshSound();
   const backdrop = document.getElementById('commandPaletteBackdrop');
-  const card = backdrop.querySelector('.animate-cmd-card');
   const input = document.getElementById('commandPaletteInput');
-  backdrop.classList.remove('hidden');
-  if (card) {
-    card.classList.remove('animate-cmd-card');
-    void card.offsetWidth;
-    card.classList.add('animate-cmd-card');
-  }
   input.value = '';
   setCmdScope('all');
   renderCommandPaletteResults('');
-  requestAnimationFrame(() => input.focus());
+  openModalWithAnimation(backdrop, () => {
+    requestAnimationFrame(() => input.focus());
+  });
 }
 
 function closeCommandPalette(e) {
-  if (e && e.target !== document.getElementById('commandPaletteBackdrop')) return;
-  document.getElementById('commandPaletteBackdrop').classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('commandPaletteBackdrop') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('commandPaletteBackdrop');
 }
 
 function promptStartFresh() {
   closeCommandPalette();
-  const modal = document.getElementById('startFreshModal');
-  if (modal) modal.classList.remove('hidden');
+  openModalWithAnimation('startFreshModal');
 }
 
-function closeStartFreshModal() {
-  const modal = document.getElementById('startFreshModal');
-  if (modal) modal.classList.add('hidden');
+function closeStartFreshModal(e) {
+  if (e && e.target && e.target !== document.getElementById('startFreshModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('startFreshModal');
 }
 
 function executeStartFresh() {
@@ -6383,6 +7319,7 @@ function renderCommandPaletteResults(query) {
   const q = query.toLowerCase().trim();
 
   const allActions = [
+    { kind: 'action', label: '3D Math Grapher: Plot Surfaces & Functions', hint: 'Interactive 3D surfaces z = f(x, y), coordinate probe & export', glyph: 'terminal', shortcut: '3D Graph', run: () => openMath3DModal() },
     { kind: 'action', label: 'Math Studio: LaTeX Equation & Symbols Workbench', hint: 'Formulas, Greek symbols, chemistry & live calculator (Alt+M)', glyph: 'terminal', shortcut: 'Alt+M', run: () => openMathSymbolsModal() },
     { kind: 'action', label: 'Smart Draw: Handwrite Math & Numbers (Alt+D)', hint: 'Canvas to draw numbers, formulas, fractions & sketches with finger/mouse', glyph: 'terminal', shortcut: 'Alt+D', run: () => openSmartDrawModal() },
     { kind: 'action', label: 'Insert Math Formula Block ($$)', hint: 'Add dedicated KaTeX display equation block', glyph: 'terminal', shortcut: '$$', run: () => insertNewMathBlockIntoNote() },
@@ -6651,13 +7588,13 @@ function handleCommandPaletteKeydown(e) {
     executeCommandItem(cmdSelectedIndex);
   } else if (e.key === 'Escape') {
     e.preventDefault();
-    document.getElementById('commandPaletteBackdrop').classList.add('hidden');
+    closeCommandPalette();
   }
 }
 
 function executeCommandItem(idx) {
   const item = cmdItems[idx];
-  document.getElementById('commandPaletteBackdrop').classList.add('hidden');
+  closeCommandPalette();
   if (item && item.run) item.run();
 }
 
@@ -6810,27 +7747,64 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+function closeTopmostModal() {
+  const modalCheckers = [
+    { id: 'pkInlineAiCopilot', close: () => typeof closeInlineAiCopilot === 'function' && closeInlineAiCopilot() },
+    { id: 'smartDrawModal', close: closeSmartDrawModal },
+    { id: 'inlineMathPopover', close: closeInlineMathPopover },
+    { id: 'startFreshModal', close: closeStartFreshModal },
+    { id: 'commandPaletteBackdrop', close: closeCommandPalette },
+    { id: 'pkApiKeyScannerModal', close: () => typeof closeApiKeyScannerModal === 'function' && closeApiKeyScannerModal() },
+    { id: 'pkDatabaseBackdrop', close: () => typeof closeDatabaseModal === 'function' && closeDatabaseModal() },
+    { id: 'pwaInstallModal', close: closeInstallModal },
+    { id: 'pkStudyDeckBackdrop', close: () => typeof closeStudyDeckModal === 'function' && closeStudyDeckModal() },
+    { id: 'pkSoundscapeBackdrop', close: () => typeof closeSoundscapeModal === 'function' && closeSoundscapeModal() },
+    { id: 'pkVaultPulseBackdrop', close: () => typeof closeVaultPulseModal === 'function' && closeVaultPulseModal() },
+    { id: 'templatesModalBackdrop', close: closeTemplatesModal },
+    { id: 'focusTimerModalBackdrop', close: closeFocusTimerModal },
+    { id: 'voiceModelModalBackdrop', close: closeVoiceModelModal },
+    { id: 'mobileMoreSheetBackdrop', close: closeMobileMoreSheet },
+    { id: 'vaultExportModal', close: closeVaultExportModal },
+    { id: 'revisionHistoryModal', close: closeRevisionHistoryModal },
+    { id: 'quickCaptureModal', close: closeQuickCaptureModal },
+    { id: 'vaultSearchModal', close: closeVaultSearchModal },
+    { id: 'mathSymbolsModal', close: closeMathSymbolsModal },
+    { id: 'spatialWhiteboardModal', close: closeSpatialWhiteboardModal },
+    { id: 'mindMapModal', close: closeMindMapModal },
+    { id: 'vaultHeatmapModal', close: closeVaultHeatmapModal },
+    { id: 'imageLightboxModal', close: closeImageLightbox },
+    { id: 'bannerPickerModal', close: closeBannerPickerModal },
+    { id: 'userGuideModal', close: closeUserGuideModal },
+    { id: 'workspaceCustomizerModal', close: closeCustomizerModal },
+    { id: 'canvasCreateNoteModal', close: closeCanvasCreateNoteModal },
+    { id: 'linkNotePickerModal', close: closeLinkNotePicker },
+    { id: 'expandedGraphModal', close: closeExpandedGraphModal },
+    { id: 'eventModalBackdrop', close: closeEventModal },
+    { id: 'pkScratchpadDrawer', close: () => typeof toggleScratchpadDrawer === 'function' && toggleScratchpadDrawer(false) },
+    { id: 'calQuickAddPopover', close: closeQuickAddPopover },
+    { id: 'calEventPreviewPopover', close: closeEventPreviewPopover },
+    { id: 'calDayOverflowPopover', close: closeDayOverflowPopover },
+    { id: 'noteActionsPopover', close: closeNoteActionsMenu },
+    { id: 'typographyPopover', close: closeTypographyPopover },
+    { id: 'glyphPickerPopover', close: closeGlyphPicker },
+    { id: 'desktopToolsMenuPopover', close: closeDesktopToolsMenu },
+    { id: 'folderDropdownMenu', close: closeFolderDropdown }
+  ];
+
+  for (const item of modalCheckers) {
+    const el = document.getElementById(item.id);
+    if (el && !el.classList.contains('hidden') && el.getAttribute('data-closing') !== 'true') {
+      item.close();
+      return true;
+    }
+  }
+  return false;
+}
+
   // Visual Modals Escape Key Handler
   if (e.key === 'Escape') {
-    const ic = document.getElementById('pkInlineAiCopilot');
-    if (ic && !ic.classList.contains('hidden')) { if (typeof closeInlineAiCopilot === 'function') closeInlineAiCopilot(); return; }
-    const sd = document.getElementById('smartDrawModal');
-    if (sd && !sd.classList.contains('hidden')) { closeSmartDrawModal(); return; }
-    const imp = document.getElementById('inlineMathPopover');
-    if (imp && !imp.classList.contains('hidden')) { closeInlineMathPopover(); return; }
     if (typeof hideInlineMathSolveBadge === 'function') { hideInlineMathSolveBadge(); }
-    const ms = document.getElementById('mathSymbolsModal');
-    if (ms && !ms.classList.contains('hidden')) { closeMathSymbolsModal(); return; }
-    const wb = document.getElementById('spatialWhiteboardModal');
-    if (wb && !wb.classList.contains('hidden')) { closeSpatialWhiteboardModal(); return; }
-    const mm = document.getElementById('mindMapModal');
-    if (mm && !mm.classList.contains('hidden')) { closeMindMapModal(); return; }
-    const hm = document.getElementById('vaultHeatmapModal');
-    if (hm && !hm.classList.contains('hidden')) { closeVaultHeatmapModal(); return; }
-    const lb = document.getElementById('imageLightboxModal');
-    if (lb && !lb.classList.contains('hidden')) { closeImageLightbox(); return; }
-    const bp = document.getElementById('bannerPickerModal');
-    if (bp && !bp.classList.contains('hidden')) { closeBannerPickerModal(); return; }
+    if (closeTopmostModal()) return;
   }
 
   // Modal Shortcuts
@@ -6877,8 +7851,8 @@ document.addEventListener('click', e => {
 
   const glyphPop = document.getElementById('glyphPickerPopover');
   const glyphBtn = document.getElementById('pageGlyphBtn');
-  if (!glyphPop.contains(e.target) && !glyphBtn.contains(e.target)) {
-    glyphPop.classList.add('hidden');
+  if (glyphPop && glyphBtn && !glyphPop.contains(e.target) && !glyphBtn.contains(e.target)) {
+    closeGlyphPicker();
   }
   const slashMenu = document.getElementById('slashMenu');
   if (!slashMenu.contains(e.target)) {
@@ -7002,11 +7976,12 @@ function openInstallModal() {
     instructions.innerHTML = 'To install on desktop: Click the <strong>Install</strong> icon in your browser address bar (Edge / Chrome / Brave) or use the browser menu &rarr; <em>Apps &rarr; Install PK Note</em>.';
     triggerBtn.style.display = 'none';
   }
-  modal.classList.remove('hidden');
+  openModalWithAnimation(modal);
 }
 
-function closeInstallModal() {
-  document.getElementById('pwaInstallModal').classList.add('hidden');
+function closeInstallModal(e) {
+  if (e && e.target && e.target !== document.getElementById('pwaInstallModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('pwaInstallModal');
 }
 
 function triggerPwaInstall() {
@@ -7026,13 +8001,16 @@ function toggleFolderDropdown(e) {
   if (e) e.stopPropagation();
   const menu = document.getElementById('folderDropdownMenu');
   const chevron = document.getElementById('folderDropdownChevron');
+  if (!menu) return;
   const isClosed = menu.classList.contains('hidden');
   closeAllCustomDropdowns();
   if (isClosed) {
-    menu.classList.remove('hidden');
+    openPopoverWithAnimation(menu);
     if (chevron) chevron.style.transform = 'rotate(180deg)';
     const note = getActiveNote();
     renderFolderDropdownUI(note);
+  } else {
+    closeFolderDropdown();
   }
 }
 
@@ -7041,7 +8019,7 @@ function closeFolderDropdown() {
   const chevron = document.getElementById('folderDropdownChevron');
   const newFolderBox = document.getElementById('dropdownNewFolderBox');
   const addBtn = document.getElementById('dropdownAddFolderBtn');
-  if (menu) menu.classList.add('hidden');
+  if (menu) closePopoverWithAnimation(menu);
   if (chevron) chevron.style.transform = 'rotate(0deg)';
   if (newFolderBox) newFolderBox.classList.add('hidden');
   if (addBtn) addBtn.classList.remove('hidden');
@@ -8862,7 +9840,7 @@ function openVoiceModelModal() {
   renderVoiceCardsList();
   const backdrop = document.getElementById('voiceModelModalBackdrop');
   if (backdrop) {
-    backdrop.classList.remove('hidden');
+    openModalWithAnimation(backdrop);
   }
   if (getVoiceSettings().engine === 'kokoro') {
     checkKokoroCacheStatus().then(cached => {
@@ -8874,9 +9852,9 @@ function openVoiceModelModal() {
   }
 }
 
-function closeVoiceModelModal() {
-  const backdrop = document.getElementById('voiceModelModalBackdrop');
-  if (backdrop) backdrop.classList.add('hidden');
+function closeVoiceModelModal(e) {
+  if (e && e.target && e.target !== document.getElementById('voiceModelModalBackdrop') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('voiceModelModalBackdrop');
 }
 
 function syncVoiceStudioInputs() {
@@ -11099,21 +12077,21 @@ function toggleDesktopToolsMenu(e) {
   const isHidden = menu.classList.contains('hidden');
   if (typeof closeAllPopovers === 'function') closeAllPopovers();
   if (isHidden) {
-    menu.classList.remove('hidden');
+    openPopoverWithAnimation(menu);
   } else {
-    menu.classList.add('hidden');
+    closeDesktopToolsMenu();
   }
 }
 
 function closeDesktopToolsMenu() {
   const menu = document.getElementById('desktopToolsMenuPopover');
-  if (menu) menu.classList.add('hidden');
+  if (menu) closePopoverWithAnimation(menu);
 }
 
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('desktopToolsMenuPopover');
   if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !e.target.closest('#desktopToolsMenuBtn')) {
-    menu.classList.add('hidden');
+    closeDesktopToolsMenu();
   }
 });
 
@@ -11657,8 +12635,12 @@ function openQuickAddPopover(e, options = {}) {
     </button>
   `).join('');
 
+  popover.removeAttribute('data-closing');
+  popover.classList.remove('animate-menu-out', 'hidden');
   popover.style.display = 'block';
-  popover.classList.remove('hidden');
+  popover.classList.remove('animate-menu');
+  void popover.offsetWidth;
+  popover.classList.add('animate-menu');
 
   const popRect = popover.getBoundingClientRect();
   const clientX = e && e.clientX ? e.clientX : window.innerWidth / 2;
@@ -11706,10 +12688,10 @@ function selectQuickAddColor(hex) {
 
 function closeQuickAddPopover() {
   const popover = document.getElementById('calQuickAddPopover');
-  if (popover) {
-    popover.classList.add('hidden');
+  if (!popover || popover.classList.contains('hidden') || popover.getAttribute('data-closing') === 'true') return;
+  closePopoverWithAnimation(popover, () => {
     popover.style.display = 'none';
-  }
+  });
 }
 
 function submitQuickAddEvent(e) {
@@ -11840,8 +12822,12 @@ function openEventPreview(e, eventId) {
     noteBtnText.textContent = evt.linkedNoteId ? 'Open Note' : '+ Note';
   }
 
+  popover.removeAttribute('data-closing');
+  popover.classList.remove('animate-menu-out', 'hidden');
   popover.style.display = 'block';
-  popover.classList.remove('hidden');
+  popover.classList.remove('animate-menu');
+  void popover.offsetWidth;
+  popover.classList.add('animate-menu');
 
   const popRect = popover.getBoundingClientRect();
   let posX = window.innerWidth / 2 - popRect.width / 2;
@@ -11871,10 +12857,13 @@ function openEventPreview(e, eventId) {
 
 function closeEventPreviewPopover() {
   const popover = document.getElementById('calEventPreviewPopover');
-  if (popover) {
-    popover.classList.add('hidden');
-    popover.style.display = 'none';
+  if (!popover || popover.classList.contains('hidden') || popover.getAttribute('data-closing') === 'true') {
+    activePreviewEventId = null;
+    return;
   }
+  closePopoverWithAnimation(popover, () => {
+    popover.style.display = 'none';
+  });
   activePreviewEventId = null;
 }
 
@@ -12145,8 +13134,12 @@ function openDayOverflowPopover(e, dateKey) {
     `;
   }).join('');
 
+  popover.removeAttribute('data-closing');
+  popover.classList.remove('animate-menu-out', 'hidden');
   popover.style.display = 'block';
-  popover.classList.remove('hidden');
+  popover.classList.remove('animate-menu');
+  void popover.offsetWidth;
+  popover.classList.add('animate-menu');
 
   const popRect = popover.getBoundingClientRect();
   let posX = window.innerWidth / 2 - popRect.width / 2;
@@ -12176,10 +13169,10 @@ function openDayOverflowPopover(e, dateKey) {
 
 function closeDayOverflowPopover() {
   const popover = document.getElementById('calDayOverflowPopover');
-  if (popover) {
-    popover.classList.add('hidden');
+  if (!popover || popover.classList.contains('hidden') || popover.getAttribute('data-closing') === 'true') return;
+  closePopoverWithAnimation(popover, () => {
     popover.style.display = 'none';
-  }
+  });
 }
 
 // Dismiss floating popovers on outside click or Escape
@@ -12469,19 +13462,14 @@ function openUserGuideModal(initialTab = 'overview') {
   playWhooshSound();
   const modal = document.getElementById('userGuideModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
-  const card = modal.querySelector('.animate-modal-card');
-  if (card) {
-    card.classList.remove('animate-modal-card');
-    void card.offsetWidth;
-    card.classList.add('animate-modal-card');
-  }
-  switchUserGuideTab(initialTab);
+  openModalWithAnimation(modal, () => {
+    switchUserGuideTab(initialTab);
+  });
 }
 
-function closeUserGuideModal() {
-  const modal = document.getElementById('userGuideModal');
-  if (modal) modal.classList.add('hidden');
+function closeUserGuideModal(e) {
+  if (e && e.target && e.target !== document.getElementById('userGuideModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('userGuideModal');
 }
 
 function switchUserGuideTab(tabKey) {
@@ -12513,8 +13501,12 @@ function openNoteActionsMenu(e) {
   const popover = document.getElementById('noteActionsPopover');
   if (!popover) return;
 
-  popover.classList.remove('hidden');
+  popover.removeAttribute('data-closing');
+  popover.classList.remove('animate-menu-out', 'hidden');
   popover.style.display = 'block';
+  popover.classList.remove('animate-menu');
+  void popover.offsetWidth;
+  popover.classList.add('animate-menu');
 
   const targetBtn = e && (e.currentTarget || e.target);
   const rect = targetBtn && targetBtn.getBoundingClientRect ? targetBtn.getBoundingClientRect() : { right: window.innerWidth - 20, bottom: 44 };
@@ -12531,10 +13523,10 @@ function openNoteActionsMenu(e) {
 
 function closeNoteActionsMenu() {
   const popover = document.getElementById('noteActionsPopover');
-  if (popover) {
-    popover.classList.add('hidden');
+  if (!popover || popover.classList.contains('hidden') || popover.getAttribute('data-closing') === 'true') return;
+  closePopoverWithAnimation(popover, () => {
     popover.style.display = 'none';
-  }
+  });
 }
 
 function exportCurrentNoteMarkdown() {
@@ -14074,15 +15066,12 @@ function toggleTypographyPopover(e) {
   if (e) e.stopPropagation();
   const popover = document.getElementById('typographyPopover');
   if (!popover) return;
-  if (!popover.classList.contains('hidden')) {
+  if (!popover.classList.contains('hidden') && popover.getAttribute('data-closing') !== 'true') {
     closeTypographyPopover();
     return;
   }
   renderTypographyPopover();
-  popover.classList.remove('hidden');
-  popover.classList.remove('animate-menu');
-  void popover.offsetWidth;
-  popover.classList.add('animate-menu');
+  openPopoverWithAnimation(popover);
 
   const btn = document.getElementById('fontToggleBtn');
   if (btn) {
@@ -14095,8 +15084,7 @@ function toggleTypographyPopover(e) {
 }
 
 function closeTypographyPopover() {
-  const popover = document.getElementById('typographyPopover');
-  if (popover) popover.classList.add('hidden');
+  closePopoverWithAnimation('typographyPopover');
 }
 
 function setTypographyCategory(cat) {
@@ -14345,19 +15333,14 @@ function renderTypographyPopover() {
     playWhooshSound();
     const modal = document.getElementById('workspaceCustomizerModal');
     if (!modal) return;
-    modal.classList.remove('hidden');
-    const card = modal.querySelector('.animate-modal-card');
-    if (card) {
-      card.classList.remove('animate-modal-card');
-      void card.offsetWidth;
-      card.classList.add('animate-modal-card');
-    }
-    switchCustomizerTab(tab);
+    openModalWithAnimation(modal, () => {
+      switchCustomizerTab(tab);
+    });
   }
 
-  function closeCustomizerModal() {
-    const modal = document.getElementById('workspaceCustomizerModal');
-    if (modal) modal.classList.add('hidden');
+  function closeCustomizerModal(e) {
+    if (e && e.target && e.target !== document.getElementById('workspaceCustomizerModal') && e.target !== e.currentTarget) return;
+    closeModalWithAnimation('workspaceCustomizerModal');
   }
 
   function switchCustomizerTab(tabKey) {
@@ -15189,14 +16172,14 @@ function openMobileMoreSheet() {
   }
   const sheet = document.getElementById('mobileMoreSheetBackdrop');
   if (sheet) {
-    sheet.classList.remove('hidden');
+    openModalWithAnimation(sheet);
     playWhooshSound();
   }
 }
 
-function closeMobileMoreSheet() {
-  const sheet = document.getElementById('mobileMoreSheetBackdrop');
-  if (sheet) sheet.classList.add('hidden');
+function closeMobileMoreSheet(e) {
+  if (e && e.target && e.target !== document.getElementById('mobileMoreSheetBackdrop') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('mobileMoreSheetBackdrop');
 }
 
 
@@ -16595,14 +17578,14 @@ function openTemplatesModal() {
   }
   const backdrop = document.getElementById('templatesModalBackdrop');
   if (backdrop) {
-    backdrop.classList.remove('hidden');
+    openModalWithAnimation(backdrop);
     playWhooshSound();
   }
 }
 
-function closeTemplatesModal() {
-  const backdrop = document.getElementById('templatesModalBackdrop');
-  if (backdrop) backdrop.classList.add('hidden');
+function closeTemplatesModal(e) {
+  if (e && e.target && e.target !== document.getElementById('templatesModalBackdrop') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('templatesModalBackdrop');
 }
 
 function applyNoteTemplate(templateId, mode = 'new') {
@@ -16696,14 +17679,14 @@ function openFocusTimerModal() {
   syncFocusTimerUI();
   const backdrop = document.getElementById('focusTimerModalBackdrop');
   if (backdrop) {
-    backdrop.classList.remove('hidden');
+    openModalWithAnimation(backdrop);
     playWhooshSound();
   }
 }
 
-function closeFocusTimerModal() {
-  const backdrop = document.getElementById('focusTimerModalBackdrop');
-  if (backdrop) backdrop.classList.add('hidden');
+function closeFocusTimerModal(e) {
+  if (e && e.target && e.target !== document.getElementById('focusTimerModalBackdrop') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('focusTimerModalBackdrop');
 }
 
 function setFocusTimerPreset(mins, label) {
@@ -18214,20 +19197,20 @@ let vaultSearchRegex = false;
 function openVaultSearchModal() {
   const modal = document.getElementById('vaultSearchModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
   const input = document.getElementById('vaultSearchInput');
-  if (input) {
-    input.focus();
-    input.select();
-    executeVaultSearch(input.value);
-  }
+  openModalWithAnimation(modal, () => {
+    if (input) {
+      input.focus();
+      input.select();
+      executeVaultSearch(input.value);
+    }
+  });
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
 function closeVaultSearchModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('vaultSearchModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('vaultSearchModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('vaultSearchModal');
 }
 
 function toggleVaultSearchCase() {
@@ -18464,12 +19447,13 @@ let quickCaptureFormat = 'note';
 function openQuickCaptureModal() {
   const modal = document.getElementById('quickCaptureModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
   const textarea = document.getElementById('quickCaptureText');
-  if (textarea) {
-    textarea.value = '';
-    textarea.focus();
-  }
+  openModalWithAnimation(modal, () => {
+    if (textarea) {
+      textarea.value = '';
+      textarea.focus();
+    }
+  });
   setQuickCaptureDest('daily');
   quickCaptureFormat = 'note';
   const fmtBtn = document.getElementById('qcFormatTodo');
@@ -18478,9 +19462,8 @@ function openQuickCaptureModal() {
 }
 
 function closeQuickCaptureModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('quickCaptureModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('quickCaptureModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('quickCaptureModal');
 }
 
 function setQuickCaptureDest(dest) {
@@ -18609,13 +19592,13 @@ function openRevisionHistoryModal() {
   }).reverse().join('');
 
   selectRevisionSnapshot(stack.length - 1);
+  openModalWithAnimation(modal);
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
 function closeRevisionHistoryModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('revisionHistoryModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('revisionHistoryModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('revisionHistoryModal');
 }
 
 function selectRevisionSnapshot(idx) {
@@ -18839,14 +19822,13 @@ class SimpleZip {
 
 function openVaultExportModal() {
   const modal = document.getElementById('vaultExportModal');
-  if (modal) modal.classList.remove('hidden');
+  if (modal) openModalWithAnimation(modal);
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
 function closeVaultExportModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('vaultExportModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('vaultExportModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('vaultExportModal');
 }
 
 function noteToMarkdown(note) {
@@ -18998,17 +19980,18 @@ let wbEventsInitialized = false;
 function openSpatialWhiteboardModal() {
   const modal = document.getElementById('spatialWhiteboardModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
-  initWhiteboardEvents();
-  renderWhiteboardCards();
-  renderWhiteboardLinks();
+  openModalWithAnimation(modal, () => {
+    initWhiteboardEvents();
+    renderWhiteboardCards();
+    renderWhiteboardLinks();
+  });
   if (typeof pkHaptic === 'function') pkHaptic(10);
   if (typeof playWhooshSound === 'function') playWhooshSound();
 }
 
-function closeSpatialWhiteboardModal() {
-  const modal = document.getElementById('spatialWhiteboardModal');
-  if (modal) modal.classList.add('hidden');
+function closeSpatialWhiteboardModal(e) {
+  if (e && e.target && e.target !== document.getElementById('spatialWhiteboardModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('spatialWhiteboardModal');
 }
 
 function zoomWhiteboard(delta) {
@@ -19218,15 +20201,16 @@ function openWbNoteInEditor(noteId) {
 function openMindMapModal() {
   const modal = document.getElementById('mindMapModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
-  renderMindMapForActiveNote();
+  openModalWithAnimation(modal, () => {
+    renderMindMapForActiveNote();
+  });
   if (typeof pkHaptic === 'function') pkHaptic(10);
   if (typeof playWhooshSound === 'function') playWhooshSound();
 }
 
-function closeMindMapModal() {
-  const modal = document.getElementById('mindMapModal');
-  if (modal) modal.classList.add('hidden');
+function closeMindMapModal(e) {
+  if (e && e.target && e.target !== document.getElementById('mindMapModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('mindMapModal');
 }
 
 function renderMindMapForActiveNote() {
@@ -19374,15 +20358,15 @@ function exportMindMapSvg() {
 function openVaultHeatmapModal() {
   const modal = document.getElementById('vaultHeatmapModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
-  renderVaultHeatmapAndClock();
+  openModalWithAnimation(modal, () => {
+    renderVaultHeatmapAndClock();
+  });
   if (typeof pkHaptic === 'function') pkHaptic(10);
 }
 
 function closeVaultHeatmapModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('vaultHeatmapModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('vaultHeatmapModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('vaultHeatmapModal');
 }
 
 function renderVaultHeatmapAndClock() {
@@ -19515,14 +20499,13 @@ function openImageLightbox(src, caption) {
   img.src = src;
   img.style.transform = 'scale(1.0)';
   if (cap) cap.textContent = caption || '';
-  modal.classList.remove('hidden');
+  openModalWithAnimation(modal);
   if (typeof pkHaptic === 'function') pkHaptic(10);
 }
 
 function closeImageLightbox(e) {
-  if (e && e.target && e.target !== e.currentTarget && e.target.id !== 'imageLightboxModal') return;
-  const modal = document.getElementById('imageLightboxModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('imageLightboxModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('imageLightboxModal');
 }
 
 function zoomLightboxImage(delta) {
@@ -19559,14 +20542,13 @@ document.addEventListener('click', (e) => {
 // -------------------------------------------------------------------------
 function openBannerPickerModal() {
   const modal = document.getElementById('bannerPickerModal');
-  if (modal) modal.classList.remove('hidden');
+  if (modal) openModalWithAnimation(modal);
   if (typeof pkHaptic === 'function') pkHaptic(8);
 }
 
 function closeBannerPickerModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('bannerPickerModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('bannerPickerModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('bannerPickerModal');
 }
 
 function applyBannerPreset(presetName) {
@@ -20525,16 +21507,964 @@ function openMathSymbolsModal(targetBlockId) {
   mathTargetBlockId = targetBlockId || null;
   const modal = document.getElementById('mathSymbolsModal');
   if (!modal) return;
-  modal.classList.remove('hidden');
-  renderMathTabContent();
+  openModalWithAnimation(modal, () => {
+    renderMathTabContent();
+  });
   if (typeof pkHaptic === 'function') pkHaptic(10);
   if (typeof playWhooshSound === 'function') playWhooshSound();
 }
 
 function closeMathSymbolsModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('mathSymbolsModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('mathSymbolsModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('mathSymbolsModal');
+}
+
+// =========================================================================
+// 3D MATHEMATICAL & FUNCTION GRAPHER ENGINE (Zero-Lag, Real-Time Surfaces)
+// Plots z = f(x, y), parametric equations, coordinate probe & export
+// =========================================================================
+
+const MATH_3D_PRESETS = {
+  sombrero: {
+    name: 'Sombrero',
+    formula: 'sin(sqrt(x^2 + y^2)) / (sqrt(x^2 + y^2) + 0.1)',
+    domain: { xRange: 6, yRange: 6, zScale: 1.2 }
+  },
+  saddle: {
+    name: 'Saddle',
+    formula: '(x^2 - y^2) / 4',
+    domain: { xRange: 5, yRange: 5, zScale: 0.8 }
+  },
+  eggcarton: {
+    name: 'Egg Carton',
+    formula: 'sin(x) * cos(y)',
+    domain: { xRange: 6, yRange: 6, zScale: 1.0 }
+  },
+  bell: {
+    name: 'Gaussian Bell',
+    formula: '3 * exp(-(x^2 + y^2) / 4)',
+    domain: { xRange: 4, yRange: 4, zScale: 1.1 }
+  },
+  monkeysaddle: {
+    name: 'Monkey Saddle',
+    formula: '(x^3 - 3*x*y^2) / 6',
+    domain: { xRange: 4, yRange: 4, zScale: 0.7 }
+  },
+  ripple: {
+    name: 'Ripples',
+    formula: 'cos(x) + sin(y)',
+    domain: { xRange: 6, yRange: 6, zScale: 0.9 }
+  },
+  volcano: {
+    name: 'Volcano',
+    formula: '4 / (1 + x^2 + y^2)',
+    domain: { xRange: 5, yRange: 5, zScale: 1.0 }
+  },
+  wave: {
+    name: 'Damped Wave',
+    formula: 'cos(x)*exp(-abs(x)/3) * cos(y)*exp(-abs(y)/3)',
+    domain: { xRange: 6, yRange: 6, zScale: 1.0 }
+  }
+};
+
+function compileMathExpression(exprStr) {
+  if (!exprStr || typeof exprStr !== 'string') return () => 0;
+  let clean = exprStr.trim().toLowerCase();
+  clean = clean.replace(/^(z|f\s*\(\s*x\s*,\s*y\s*\))\s*=\s*/, '');
+  clean = clean.replace(/\^/g, '**');
+  clean = clean.replace(/\bpi\b/g, 'Math.PI');
+  clean = clean.replace(/\be\b/g, 'Math.E');
+
+  const mathFuncs = [
+    'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+    'sinh', 'cosh', 'tanh', 'sqrt', 'cbrt', 'exp', 'log', 'log10', 'log2',
+    'abs', 'floor', 'ceil', 'round', 'min', 'max'
+  ];
+  mathFuncs.forEach(fn => {
+    const reg = new RegExp(`\\b${fn}\\s*\\(`, 'g');
+    clean = clean.replace(reg, `Math.${fn}(`);
+  });
+
+  clean = clean.replace(/(\d)([a-zMath])/g, '$1 * $2');
+  clean = clean.replace(/([xyt])\s*([xyt])/g, '$1 * $2');
+  clean = clean.replace(/(\))\s*(\()/g, '$1 * $2');
+  clean = clean.replace(/(\))\s*([xytMath])/g, '$1 * $2');
+  clean = clean.replace(/([xyt])\s*(\()/g, '$1 * $2');
+
+  const allowedTokens = /^[0-9xytMath\.\+\-\*\/\(\)\,\s\?\:\>\<\=\!]+$/;
+  if (!allowedTokens.test(clean)) {
+    throw new Error('Invalid mathematical characters');
+  }
+
+  try {
+    const fn = new Function('x', 'y', 't', `try { const r = ${clean}; return isFinite(r) ? r : 0; } catch (e) { return 0; }`);
+    fn(0, 0, 0);
+    return fn;
+  } catch (err) {
+    throw new Error('Expression syntax error: ' + err.message);
+  }
+}
+
+const math3DState = {
+  formula: 'sin(sqrt(x^2 + y^2))',
+  parsedFn: compileMathExpression('sin(sqrt(x^2 + y^2))'),
+  domain: { xRange: 5, yRange: 5, zScale: 1.0 },
+  resolution: 32,
+  styleMode: 'surface',
+  colorTheme: 'spectral',
+  showAxes: true,
+  showBox: true,
+  showGrid: true,
+  camera: {
+    yaw: 0.78,
+    pitch: 0.42,
+    targetYaw: 0.78,
+    targetPitch: 0.42,
+    distance: 460,
+    targetDistance: 460,
+    panX: 0,
+    panY: 0,
+    isDragging: false,
+    lastX: 0,
+    lastY: 0
+  },
+  animateTime: false,
+  time: 0,
+  rafId: null,
+  probe: { screenX: 0, screenY: 0, active: false },
+  targetBlockId: null,
+  initialized: false
+};
+
+function getMath3DColorRGB(normH, theme) {
+  const t = Math.max(0, Math.min(1, normH));
+  if (theme === 'vermilion') {
+    if (t < 0.5) {
+      const u = t * 2;
+      return [
+        Math.round(40 + (220 - 40) * u),
+        Math.round(42 + (120 - 42) * u),
+        Math.round(50 + (60 - 50) * u)
+      ];
+    } else {
+      const u = (t - 0.5) * 2;
+      return [
+        Math.round(220 + (245 - 220) * u),
+        Math.round(120 + (82 - 120) * u),
+        Math.round(60 + (56 - 60) * u)
+      ];
+    }
+  } else if (theme === 'cyber') {
+    if (t < 0.5) {
+      const u = t * 2;
+      return [
+        Math.round(20 + (0 - 20) * u),
+        Math.round(30 + (240 - 30) * u),
+        Math.round(90 + (255 - 90) * u)
+      ];
+    } else {
+      const u = (t - 0.5) * 2;
+      return [
+        Math.round(0 + (255 - 0) * u),
+        Math.round(240 + (40 - 240) * u),
+        Math.round(255 + (200 - 255) * u)
+      ];
+    }
+  } else if (theme === 'blueprint') {
+    const r = Math.round(15 + 225 * t);
+    const g = Math.round(45 + 200 * t);
+    const b = Math.round(110 + 145 * t);
+    return [r, g, b];
+  } else {
+    if (t < 0.25) {
+      const u = t / 0.25;
+      return [Math.round(120 * (1 - u) + 20 * u), Math.round(50 * (1 - u) + 160 * u), Math.round(220)];
+    } else if (t < 0.5) {
+      const u = (t - 0.25) / 0.25;
+      return [Math.round(20 * (1 - u) + 30 * u), Math.round(160 * (1 - u) + 200 * u), Math.round(220 * (1 - u) + 80 * u)];
+    } else if (t < 0.75) {
+      const u = (t - 0.5) / 0.25;
+      return [Math.round(30 * (1 - u) + 245 * u), Math.round(200 * (1 - u) + 190 * u), Math.round(80 * (1 - u) + 20 * u)];
+    } else {
+      const u = (t - 0.75) / 0.25;
+      return [Math.round(245 * (1 - u) + 235 * u), Math.round(190 * (1 - u) + 50 * u), Math.round(20 * (1 - u) + 35 * u)];
+    }
+  }
+}
+
+function renderMath3DSurface(canvas, stateObj) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.clientWidth || canvas.width;
+  const h = canvas.clientHeight || canvas.height;
+  if (w <= 0 || h <= 0) return;
+
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+
+  const isDark = document.documentElement.classList.contains('dark') ||
+    document.body.classList.contains('dark') ||
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  ctx.save();
+  ctx.clearRect(0, 0, w, h);
+
+  const cam = stateObj.camera;
+  cam.yaw += (cam.targetYaw - cam.yaw) * 0.15;
+  cam.pitch += (cam.targetPitch - cam.pitch) * 0.15;
+  cam.distance += (cam.targetDistance - cam.distance) * 0.15;
+
+  const cx = w / 2;
+  const cy = h / 2;
+  const cosY = Math.cos(cam.yaw);
+  const sinY = Math.sin(cam.yaw);
+  const cosP = Math.cos(cam.pitch);
+  const sinP = Math.sin(cam.pitch);
+  const fov = 440;
+
+  function project(wx, wy, wz) {
+    const x1 = wx * cosY - wz * sinY;
+    const z1 = wz * cosY + wx * sinY;
+    const y2 = wy * cosP - z1 * sinP;
+    const z2 = z1 * cosP + wy * sinP;
+
+    const depth = z2 + cam.distance;
+    if (depth <= 15) return null;
+    const scale = fov / depth;
+    return {
+      screenX: cx + (x1 + cam.panX) * scale,
+      screenY: cy + (y2 + cam.panY) * scale,
+      depth: depth,
+      scale: scale,
+      wx, wy, wz
+    };
+  }
+
+  const N = Math.max(16, Math.min(50, stateObj.resolution || 32));
+  const xR = stateObj.domain.xRange || 5;
+  const yR = stateObj.domain.yRange || 5;
+  const zScale = stateObj.domain.zScale || 1.0;
+  const boxDim = Math.min(w, h) * 0.28;
+
+  const fn = stateObj.parsedFn || (() => 0);
+  const t = stateObj.time || 0;
+
+  const grid = [];
+  let zMin = Infinity;
+  let zMax = -Infinity;
+
+  for (let i = 0; i < N; i++) {
+    const row = [];
+    const u = (i / (N - 1)) * 2 - 1;
+    const x = u * xR;
+    for (let j = 0; j < N; j++) {
+      const v = (j / (N - 1)) * 2 - 1;
+      const y = v * yR;
+      let zVal = 0;
+      try {
+        zVal = fn(x, y, t);
+        if (!isFinite(zVal)) zVal = 0;
+      } catch (e) {
+        zVal = 0;
+      }
+      if (zVal < zMin) zMin = zVal;
+      if (zVal > zMax) zMax = zVal;
+      row.push({ x, y, z: zVal, u, v });
+    }
+    grid.push(row);
+  }
+
+  if (zMin === zMax) {
+    zMin -= 1;
+    zMax += 1;
+  }
+  const zRange = zMax - zMin;
+
+  const vertexProj = [];
+  for (let i = 0; i < N; i++) {
+    const row = [];
+    for (let j = 0; j < N; j++) {
+      const pt = grid[i][j];
+      const wx = pt.u * boxDim;
+      const wz = pt.v * boxDim;
+      const normZ = (pt.z - (zMin + zMax) / 2) / (zRange / 2 || 1);
+      const wy = -normZ * (boxDim * 0.65 * zScale);
+      const p = project(wx, wy, wz);
+      row.push({
+        p,
+        pt,
+        wx, wy, wz
+      });
+    }
+    vertexProj.push(row);
+  }
+
+  if (stateObj.showGrid || stateObj.showBox) {
+    ctx.save();
+    const floorY = (boxDim * 0.75 * zScale);
+    const ceilY = -(boxDim * 0.75 * zScale);
+
+    if (stateObj.showGrid) {
+      ctx.beginPath();
+      const gridSteps = 6;
+      for (let g = 0; g <= gridSteps; g++) {
+        const gu = (g / gridSteps) * 2 - 1;
+        const pA1 = project(gu * boxDim, floorY, -boxDim);
+        const pA2 = project(gu * boxDim, floorY, boxDim);
+        if (pA1 && pA2) {
+          ctx.moveTo(pA1.screenX, pA1.screenY);
+          ctx.lineTo(pA2.screenX, pA2.screenY);
+        }
+        const pB1 = project(-boxDim, floorY, gu * boxDim);
+        const pB2 = project(boxDim, floorY, gu * boxDim);
+        if (pB1 && pB2) {
+          ctx.moveTo(pB1.screenX, pB1.screenY);
+          ctx.lineTo(pB2.screenX, pB2.screenY);
+        }
+      }
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    if (stateObj.showBox) {
+      ctx.beginPath();
+      const corners = [
+        [-boxDim, floorY, -boxDim], [boxDim, floorY, -boxDim],
+        [boxDim, floorY, boxDim], [-boxDim, floorY, boxDim],
+        [-boxDim, ceilY, -boxDim], [boxDim, ceilY, -boxDim],
+        [boxDim, ceilY, boxDim], [-boxDim, ceilY, boxDim]
+      ].map(c => project(c[0], c[1], c[2]));
+
+      if (corners[0] && corners[1] && corners[2] && corners[3]) {
+        ctx.moveTo(corners[0].screenX, corners[0].screenY);
+        ctx.lineTo(corners[1].screenX, corners[1].screenY);
+        ctx.lineTo(corners[2].screenX, corners[2].screenY);
+        ctx.lineTo(corners[3].screenX, corners[3].screenY);
+        ctx.closePath();
+      }
+      if (corners[4] && corners[5] && corners[6] && corners[7]) {
+        ctx.moveTo(corners[4].screenX, corners[4].screenY);
+        ctx.lineTo(corners[5].screenX, corners[5].screenY);
+        ctx.lineTo(corners[6].screenX, corners[6].screenY);
+        ctx.lineTo(corners[7].screenX, corners[7].screenY);
+        ctx.closePath();
+      }
+      for (let k = 0; k < 4; k++) {
+        if (corners[k] && corners[k + 4]) {
+          ctx.moveTo(corners[k].screenX, corners[k].screenY);
+          ctx.lineTo(corners[k + 4].screenX, corners[k + 4].screenY);
+        }
+      }
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
+  if (stateObj.showAxes) {
+    ctx.save();
+    const pO = project(0, 0, 0);
+    const pX = project(boxDim * 1.25, 0, 0);
+    const pY = project(0, 0, boxDim * 1.25);
+    const pZ = project(0, -boxDim * 1.15 * zScale, 0);
+
+    if (pO) {
+      ctx.lineWidth = 1.5;
+      if (pX) {
+        ctx.beginPath();
+        ctx.moveTo(pO.screenX, pO.screenY);
+        ctx.lineTo(pX.screenX, pX.screenY);
+        ctx.strokeStyle = '#ef4444';
+        ctx.stroke();
+
+        ctx.font = 'bold 11px system-ui, sans-serif';
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('+X', pX.screenX + 4, pX.screenY);
+      }
+      if (pY) {
+        ctx.beginPath();
+        ctx.moveTo(pO.screenX, pO.screenY);
+        ctx.lineTo(pY.screenX, pY.screenY);
+        ctx.strokeStyle = '#10b981';
+        ctx.stroke();
+
+        ctx.font = 'bold 11px system-ui, sans-serif';
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('+Y', pY.screenX + 4, pY.screenY);
+      }
+      if (pZ) {
+        ctx.beginPath();
+        ctx.moveTo(pO.screenX, pO.screenY);
+        ctx.lineTo(pZ.screenX, pZ.screenY);
+        ctx.strokeStyle = '#3b82f6';
+        ctx.stroke();
+
+        ctx.font = 'bold 11px system-ui, sans-serif';
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText('+Z', pZ.screenX + 4, pZ.screenY - 2);
+      }
+    }
+    ctx.restore();
+  }
+
+  const quads = [];
+  const lx = 0.45;
+  const ly = -0.75;
+  const lz = 0.48;
+  const lLen = Math.hypot(lx, ly, lz);
+  const nlx = lx / lLen;
+  const nly = ly / lLen;
+  const nlz = lz / lLen;
+
+  for (let i = 0; i < N - 1; i++) {
+    for (let j = 0; j < N - 1; j++) {
+      const v00 = vertexProj[i][j];
+      const v10 = vertexProj[i + 1][j];
+      const v11 = vertexProj[i + 1][j + 1];
+      const v01 = vertexProj[i][j + 1];
+
+      if (!v00.p || !v10.p || !v11.p || !v01.p) continue;
+
+      const avgDepth = (v00.p.depth + v10.p.depth + v11.p.depth + v01.p.depth) * 0.25;
+      const avgZ = (v00.pt.z + v10.pt.z + v11.pt.z + v01.pt.z) * 0.25;
+      const normH = (avgZ - zMin) / (zRange || 1);
+
+      const d1x = v10.wx - v00.wx;
+      const d1y = v10.wy - v00.wy;
+      const d1z = v10.wz - v00.wz;
+
+      const d2x = v01.wx - v00.wx;
+      const d2y = v01.wy - v00.wy;
+      const d2z = v01.wz - v00.wz;
+
+      let nx = d1y * d2z - d1z * d2y;
+      let ny = d1z * d2x - d1x * d2z;
+      let nz = d1x * d2y - d1y * d2x;
+      const nLen = Math.hypot(nx, ny, nz) || 1;
+      nx /= nLen;
+      ny /= nLen;
+      nz /= nLen;
+
+      const dot = Math.abs(nx * nlx + ny * nly + nz * nlz);
+      const light = Math.max(0.35, Math.min(1.0, 0.42 + 0.58 * dot));
+
+      quads.push({
+        p00: v00.p,
+        p10: v10.p,
+        p11: v11.p,
+        p01: v01.p,
+        depth: avgDepth,
+        normH,
+        light
+      });
+    }
+  }
+
+  quads.sort((a, b) => b.depth - a.depth);
+
+  const styleMode = stateObj.styleMode || 'surface';
+  const theme = stateObj.colorTheme || 'spectral';
+
+  if (styleMode === 'points') {
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const v = vertexProj[i][j];
+        if (!v.p) continue;
+        const normH = (v.pt.z - zMin) / (zRange || 1);
+        const rgb = getMath3DColorRGB(normH, theme);
+        const r = Math.max(1.5, 2.5 * v.p.scale);
+        ctx.beginPath();
+        ctx.arc(v.p.screenX, v.p.screenY, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        ctx.fill();
+      }
+    }
+  } else {
+    quads.forEach(q => {
+      ctx.beginPath();
+      ctx.moveTo(q.p00.screenX, q.p00.screenY);
+      ctx.lineTo(q.p10.screenX, q.p10.screenY);
+      ctx.lineTo(q.p11.screenX, q.p11.screenY);
+      ctx.lineTo(q.p01.screenX, q.p01.screenY);
+      ctx.closePath();
+
+      const rgb = getMath3DColorRGB(q.normH, theme);
+      const litR = Math.round(rgb[0] * q.light);
+      const litG = Math.round(rgb[1] * q.light);
+      const litB = Math.round(rgb[2] * q.light);
+
+      if (styleMode === 'surface') {
+        ctx.fillStyle = `rgb(${litR}, ${litG}, ${litB})`;
+        ctx.fill();
+      } else if (styleMode === 'wireframe') {
+        ctx.strokeStyle = `rgb(${litR}, ${litG}, ${litB})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (styleMode === 'both') {
+        ctx.fillStyle = `rgb(${litR}, ${litG}, ${litB})`;
+        ctx.fill();
+        ctx.strokeStyle = isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 0.75;
+        ctx.stroke();
+      }
+    });
+  }
+
+  if (stateObj.probe && stateObj.probe.active) {
+    let closestV = null;
+    let closestDist = Infinity;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const v = vertexProj[i][j];
+        if (!v.p) continue;
+        const dx = v.p.screenX - stateObj.probe.screenX;
+        const dy = v.p.screenY - stateObj.probe.screenY;
+        const d = Math.hypot(dx, dy);
+        if (d < closestDist && d < 28) {
+          closestDist = d;
+          closestV = v;
+        }
+      }
+    }
+
+    if (closestV && closestV.p) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(closestV.p.screenX, closestV.p.screenY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      const pFloor = project(closestV.wx, (boxDim * 0.75 * zScale), closestV.wz);
+      if (pFloor) {
+        ctx.beginPath();
+        ctx.moveTo(closestV.p.screenX, closestV.p.screenY);
+        ctx.lineTo(pFloor.screenX, pFloor.screenY);
+        ctx.strokeStyle = '#ef4444';
+        ctx.setLineDash([2, 2]);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      const probeX = document.getElementById('math3DProbeX');
+      const probeY = document.getElementById('math3DProbeY');
+      const probeZ = document.getElementById('math3DProbeZ');
+      if (probeX) probeX.textContent = `X: ${closestV.pt.x.toFixed(2)}`;
+      if (probeY) probeY.textContent = `Y: ${closestV.pt.y.toFixed(2)}`;
+      if (probeZ) probeZ.textContent = `Z: ${closestV.pt.z.toFixed(2)}`;
+    }
+  }
+
+  ctx.restore();
+}
+
+function setupMath3DInteractions(canvas, stateObj, onUpdate) {
+  if (!canvas) return;
+
+  canvas.addEventListener('pointerdown', e => {
+    stateObj.camera.isDragging = true;
+    stateObj.camera.lastX = e.clientX;
+    stateObj.camera.lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    const rect = canvas.getBoundingClientRect();
+    stateObj.probe.screenX = e.clientX - rect.left;
+    stateObj.probe.screenY = e.clientY - rect.top;
+    stateObj.probe.active = true;
+
+    if (stateObj.camera.isDragging) {
+      const dx = e.clientX - stateObj.camera.lastX;
+      const dy = e.clientY - stateObj.camera.lastY;
+      stateObj.camera.lastX = e.clientX;
+      stateObj.camera.lastY = e.clientY;
+
+      if (e.shiftKey || e.button === 1) {
+        stateObj.camera.panX += dx * 0.8;
+        stateObj.camera.panY += dy * 0.8;
+      } else {
+        stateObj.camera.targetYaw += dx * 0.009;
+        stateObj.camera.targetPitch = Math.max(-1.45, Math.min(1.45, stateObj.camera.targetPitch + dy * 0.009));
+      }
+    }
+    if (typeof onUpdate === 'function') onUpdate();
+  });
+
+  canvas.addEventListener('pointerup', () => {
+    stateObj.camera.isDragging = false;
+  });
+
+  canvas.addEventListener('pointerleave', () => {
+    stateObj.probe.active = false;
+    stateObj.camera.isDragging = false;
+    if (typeof onUpdate === 'function') onUpdate();
+  });
+
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 0.90 : 1.10;
+    stateObj.camera.targetDistance = Math.max(160, Math.min(1200, stateObj.camera.targetDistance * factor));
+    if (typeof onUpdate === 'function') onUpdate();
+  }, { passive: false });
+
+  canvas.addEventListener('dblclick', () => {
+    stateObj.camera.targetYaw = 0.78;
+    stateObj.camera.targetPitch = 0.42;
+    stateObj.camera.targetDistance = 460;
+    stateObj.camera.panX = 0;
+    stateObj.camera.panY = 0;
+    if (typeof onUpdate === 'function') onUpdate();
+  });
+}
+
+function runMath3DLoop() {
+  if (math3DState.animateTime) {
+    math3DState.time += 0.035;
+  }
+  const canvas = document.getElementById('math3DCanvas');
+  const modal = document.getElementById('math3DModal');
+  if (canvas && modal && !modal.classList.contains('hidden')) {
+    renderMath3DSurface(canvas, math3DState);
+    math3DState.rafId = requestAnimationFrame(runMath3DLoop);
+  } else {
+    math3DState.rafId = null;
+  }
+}
+
+function triggerMath3DRender() {
+  const canvas = document.getElementById('math3DCanvas');
+  if (canvas) renderMath3DSurface(canvas, math3DState);
+}
+
+function openMath3DModal(targetBlockId = null, initialFormula = null) {
+  math3DState.targetBlockId = targetBlockId || null;
+  if (initialFormula && typeof initialFormula === 'string') {
+    math3DState.formula = initialFormula.trim();
+    try {
+      math3DState.parsedFn = compileMathExpression(math3DState.formula);
+    } catch (e) {}
+  }
+
+  const modal = document.getElementById('math3DModal');
+  const input = document.getElementById('math3DFormulaInput');
+  if (input) input.value = math3DState.formula;
+
+  const canvas = document.getElementById('math3DCanvas');
+  if (canvas && !math3DState.initialized) {
+    math3DState.initialized = true;
+    setupMath3DInteractions(canvas, math3DState, () => {
+      if (!math3DState.rafId) triggerMath3DRender();
+    });
+  }
+
+  openModalWithAnimation(modal, () => {
+    triggerMath3DRender();
+    if (!math3DState.rafId) {
+      math3DState.rafId = requestAnimationFrame(runMath3DLoop);
+    }
+  });
+
+  if (typeof pkHaptic === 'function') pkHaptic(10);
+  if (typeof playWhooshSound === 'function') playWhooshSound();
+}
+
+function closeMath3DModal(e) {
+  if (e && e.target && e.target !== document.getElementById('math3DModal') && e.target !== e.currentTarget) return;
+  closeModalWithAnimation('math3DModal');
+  if (math3DState.rafId) {
+    cancelAnimationFrame(math3DState.rafId);
+    math3DState.rafId = null;
+  }
+}
+
+function setMath3DPreset(presetKey) {
+  const p = MATH_3D_PRESETS[presetKey];
+  if (!p) return;
+  math3DState.formula = p.formula;
+  math3DState.domain = { ...p.domain };
+
+  const input = document.getElementById('math3DFormulaInput');
+  if (input) input.value = p.formula;
+
+  const xSlider = document.getElementById('math3DXRangeSlider');
+  const ySlider = document.getElementById('math3DYRangeSlider');
+  const zSlider = document.getElementById('math3DZScaleSlider');
+  if (xSlider) xSlider.value = p.domain.xRange;
+  if (ySlider) ySlider.value = p.domain.yRange;
+  if (zSlider) zSlider.value = p.domain.zScale;
+
+  const xLabel = document.getElementById('math3DXRangeLabel');
+  const yLabel = document.getElementById('math3DYRangeLabel');
+  const zLabel = document.getElementById('math3DZScaleLabel');
+  if (xLabel) xLabel.textContent = `±${p.domain.xRange}`;
+  if (yLabel) yLabel.textContent = `±${p.domain.yRange}`;
+  if (zLabel) zLabel.textContent = `${p.domain.zScale.toFixed(1)}x`;
+
+  handleMath3DFormulaInput(p.formula);
+  if (typeof playPopSound === 'function') playPopSound();
+}
+
+function handleMath3DFormulaInput(val) {
+  math3DState.formula = val;
+  const statusEl = document.getElementById('math3DFormulaStatus');
+  try {
+    math3DState.parsedFn = compileMathExpression(val);
+    if (statusEl) {
+      statusEl.textContent = 'Valid';
+      statusEl.className = 'absolute right-2.5 top-2 text-[10px] font-mono text-emerald-400';
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = 'Syntax Error';
+      statusEl.className = 'absolute right-2.5 top-2 text-[10px] font-mono text-rose-400';
+    }
+  }
+  triggerMath3DRender();
+}
+
+function toggleMath3DAnimation() {
+  math3DState.animateTime = !math3DState.animateTime;
+  const dot = document.getElementById('math3DAnimateDot');
+  const btn = document.getElementById('math3DAnimateBtn');
+  if (dot && btn) {
+    dot.className = `w-2 h-2 rounded-full ${math3DState.animateTime ? 'bg-[var(--accent-vermilion)] animate-pulse' : 'bg-[var(--text-tertiary)]'}`;
+    btn.className = `px-2.5 py-1.5 rounded border text-xs font-mono flex items-center gap-1.5 cursor-pointer shrink-0 ${
+      math3DState.animateTime ? 'bg-[var(--accent-vermilion)]/10 border-[var(--accent-vermilion)] text-[var(--accent-vermilion)] font-medium' : 'bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border-[var(--border-hairline)] text-[var(--text-secondary)]'
+    }`;
+  }
+  if (!math3DState.rafId) {
+    math3DState.rafId = requestAnimationFrame(runMath3DLoop);
+  }
+}
+
+function resetMath3DCamera() {
+  math3DState.camera.targetYaw = 0.78;
+  math3DState.camera.targetPitch = 0.42;
+  math3DState.camera.targetDistance = 460;
+  math3DState.camera.panX = 0;
+  math3DState.camera.panY = 0;
+  triggerMath3DRender();
+}
+
+function setMath3DCameraAngle(mode) {
+  if (mode === 'top') {
+    math3DState.camera.targetYaw = 0;
+    math3DState.camera.targetPitch = Math.PI / 2 - 0.05;
+  } else if (mode === 'isometric') {
+    math3DState.camera.targetYaw = Math.PI / 4;
+    math3DState.camera.targetPitch = Math.PI / 6;
+  }
+  triggerMath3DRender();
+}
+
+function setMath3DStyle(styleMode) {
+  math3DState.styleMode = styleMode;
+  ['surface', 'wireframe', 'both', 'points'].forEach(s => {
+    const btn = document.getElementById('math3DStyle' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+    if (btn) {
+      if (s === styleMode) {
+        btn.className = 'px-2 py-1.5 rounded bg-[var(--bg-elevated)] text-[var(--accent-vermilion)] font-semibold border border-[var(--accent-vermilion)]/30 text-center cursor-pointer';
+      } else {
+        btn.className = 'px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer';
+      }
+    }
+  });
+  triggerMath3DRender();
+}
+
+function setMath3DTheme(themeName) {
+  math3DState.colorTheme = themeName;
+  ['spectral', 'vermilion', 'cyber', 'blueprint'].forEach(th => {
+    const btn = document.getElementById('math3DTheme' + th.charAt(0).toUpperCase() + th.slice(1) + 'Btn');
+    if (btn) {
+      if (th === themeName) {
+        btn.className = 'px-2 py-1.5 rounded bg-[var(--bg-elevated)] text-[var(--accent-vermilion)] font-semibold border border-[var(--accent-vermilion)]/30 text-center cursor-pointer';
+      } else {
+        btn.className = 'px-2 py-1.5 rounded bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-hairline)] text-center cursor-pointer';
+      }
+    }
+  });
+  triggerMath3DRender();
+}
+
+function updateMath3DDomain(xVal, yVal, zVal) {
+  if (xVal !== null && xVal !== undefined) {
+    math3DState.domain.xRange = parseFloat(xVal) || 5;
+    const lbl = document.getElementById('math3DXRangeLabel');
+    if (lbl) lbl.textContent = `±${math3DState.domain.xRange}`;
+  }
+  if (yVal !== null && yVal !== undefined) {
+    math3DState.domain.yRange = parseFloat(yVal) || 5;
+    const lbl = document.getElementById('math3DYRangeLabel');
+    if (lbl) lbl.textContent = `±${math3DState.domain.yRange}`;
+  }
+  if (zVal !== null && zVal !== undefined) {
+    math3DState.domain.zScale = parseFloat(zVal) || 1.0;
+    const lbl = document.getElementById('math3DZScaleLabel');
+    if (lbl) lbl.textContent = `${math3DState.domain.zScale.toFixed(1)}x`;
+  }
+  triggerMath3DRender();
+}
+
+function updateMath3DResolution(resVal) {
+  math3DState.resolution = parseInt(resVal, 10) || 32;
+  const lbl = document.getElementById('math3DResLabel');
+  if (lbl) lbl.textContent = `${math3DState.resolution} x ${math3DState.resolution}`;
+  triggerMath3DRender();
+}
+
+function toggleMath3DOption(optKey, isChecked) {
+  if (optKey === 'axes') math3DState.showAxes = isChecked;
+  if (optKey === 'box') math3DState.showBox = isChecked;
+  if (optKey === 'grid') math3DState.showGrid = isChecked;
+  triggerMath3DRender();
+}
+
+function insertMath3DIntoNote() {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+
+  if (math3DState.targetBlockId) {
+    const existing = note.blocks.find(b => b.id === math3DState.targetBlockId);
+    if (existing) {
+      existing.type = 'plot3d';
+      existing.formula = math3DState.formula;
+      existing.domain = { ...math3DState.domain };
+      existing.styleMode = math3DState.styleMode;
+      existing.colorTheme = math3DState.colorTheme;
+      closeMath3DModal();
+      persistState();
+      renderBlocks(note);
+      showToast('Updated 3D Math Graph block');
+      return;
+    }
+  }
+
+  const newBlock = {
+    id: generateId('b'),
+    type: 'plot3d',
+    formula: math3DState.formula,
+    domain: { ...math3DState.domain },
+    styleMode: math3DState.styleMode,
+    colorTheme: math3DState.colorTheme,
+    isEditing: false
+  };
+
+  note.blocks.push(newBlock);
+  note.updatedAt = TODAY_KEY;
+  closeMath3DModal();
+  persistState();
+  renderBlocks(note);
+  if (typeof playPopSound === 'function') playPopSound();
+  showToast('Inserted 3D Math Graph into note');
+}
+
+function copyMath3DFormulaLatex() {
+  let expr = math3DState.formula || 'sin(sqrt(x^2 + y^2))';
+  let latex = 'z = ' + expr
+    .replace(/sin\(/g, '\\sin(')
+    .replace(/cos\(/g, '\\cos(')
+    .replace(/tan\(/g, '\\tan(')
+    .replace(/sqrt\(/g, '\\sqrt{')
+    .replace(/exp\(/g, 'e^{')
+    .replace(/\*/g, ' \\cdot ');
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`$$${latex}$$`).then(() => {
+      showToast('Copied LaTeX: ' + latex);
+    });
+  }
+}
+
+function exportMath3DSnapshot() {
+  const canvas = document.getElementById('math3DCanvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = `3d-plot-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('Downloaded 3D plot PNG');
+}
+
+// Inline Plot3D Document Blocks Engine
+const inlinePlot3DCache = new Map();
+
+function initInlinePlot3DCanvases() {
+  const canvases = document.querySelectorAll('.plot3d-inline-canvas');
+  if (!canvases || canvases.length === 0) return;
+
+  const note = getActiveNote();
+  if (!note) return;
+
+  canvases.forEach(canvas => {
+    const blockId = canvas.getAttribute('data-plot3d-id');
+    const block = note.blocks.find(b => b.id === blockId);
+    if (!block) return;
+
+    let inlineState = inlinePlot3DCache.get(blockId);
+    if (!inlineState) {
+      inlineState = {
+        formula: block.formula || 'sin(sqrt(x^2 + y^2))',
+        parsedFn: compileMathExpression(block.formula || 'sin(sqrt(x^2 + y^2))'),
+        domain: block.domain || { xRange: 5, yRange: 5, zScale: 1.0 },
+        resolution: 28,
+        styleMode: block.styleMode || 'surface',
+        colorTheme: block.colorTheme || 'spectral',
+        showAxes: true,
+        showBox: true,
+        showGrid: true,
+        camera: {
+          yaw: 0.78,
+          pitch: 0.42,
+          targetYaw: 0.78,
+          targetPitch: 0.42,
+          distance: 440,
+          targetDistance: 440,
+          panX: 0,
+          panY: 0,
+          isDragging: false
+        },
+        time: 0,
+        probe: { screenX: 0, screenY: 0, active: false }
+      };
+      inlinePlot3DCache.set(blockId, inlineState);
+      setupMath3DInteractions(canvas, inlineState, () => {
+        renderMath3DSurface(canvas, inlineState);
+      });
+    }
+
+    renderMath3DSurface(canvas, inlineState);
+  });
+}
+
+function togglePlot3DEditMode(blockId) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  block.isEditing = !block.isEditing;
+  renderBlocks(note);
+}
+
+function updateBlockPlot3DFormula(blockId, newFormula) {
+  const note = guardActiveNoteEditable();
+  if (!note) return;
+  const block = note.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  block.formula = newFormula.trim();
+  inlinePlot3DCache.delete(blockId);
+  persistState();
+  renderBlocks(note);
+  showToast('Updated 3D formula');
 }
 
 // =========================================================================
@@ -20641,25 +22571,25 @@ function openSmartDrawModal(targetBlockId) {
   updateSmartDrawPreview();
 
   smartDrawRedoStrokes = [];
-  setTimeout(() => {
-    initSmartDrawCanvas();
-    redrawSmartDrawCanvas();
-    const card = document.getElementById('smartDrawCard');
-    if (card) { card.focus(); }
-  }, 50);
-  setTimeout(() => {
-    resizeSmartDrawCanvas();
-    redrawSmartDrawCanvas();
-  }, 260);
+  openModalWithAnimation(modal, () => {
+    setTimeout(() => {
+      initSmartDrawCanvas();
+      redrawSmartDrawCanvas();
+      const card = document.getElementById('smartDrawCard');
+      if (card) { card.focus(); }
+    }, 50);
+    setTimeout(() => {
+      resizeSmartDrawCanvas();
+      redrawSmartDrawCanvas();
+    }, 260);
+  });
 
   if (typeof pkHaptic === 'function') pkHaptic(10);
   if (typeof playWhooshSound === 'function') playWhooshSound();
 }
 
 function closeSmartDrawModal(e) {
-  if (e && e.target && e.target !== e.currentTarget) return;
-  const modal = document.getElementById('smartDrawModal');
-  if (modal) modal.classList.add('hidden');
+  if (e && e.target && e.target !== document.getElementById('smartDrawModal') && e.target !== e.currentTarget) return;
   document.body.classList.remove('overflow-hidden');
   smartDrawCurrentStroke = null;
   smartDrawActivePointerId = null;
@@ -20668,6 +22598,7 @@ function closeSmartDrawModal(e) {
   if (smartDrawNeuralAbortController) {
     try { smartDrawNeuralAbortController.abort(); } catch (err) {}
   }
+  closeModalWithAnimation('smartDrawModal');
 }
 
 function setSmartDrawMode(mode) {

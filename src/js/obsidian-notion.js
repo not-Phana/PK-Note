@@ -613,14 +613,20 @@ function openDatabaseModal(mode) {
   if (mode === 'table' || mode === 'board') pkDatabaseMode = mode;
   pkDatabaseOpen = true;
   const bd = document.getElementById('pkDatabaseBackdrop');
-  if (bd) bd.classList.remove('hidden');
+  if (typeof openModalWithAnimation === 'function') openModalWithAnimation(bd);
+  else if (bd) bd.classList.remove('hidden');
   renderDatabaseView();
 }
 
-function closeDatabaseModal() {
+function closeDatabaseModal(e) {
+  if (e && e.target && e.target !== document.getElementById('pkDatabaseBackdrop') && e.target !== e.currentTarget) return;
   pkDatabaseOpen = false;
-  const bd = document.getElementById('pkDatabaseBackdrop');
-  if (bd) bd.classList.add('hidden');
+  if (typeof closeModalWithAnimation === 'function') {
+    closeModalWithAnimation('pkDatabaseBackdrop');
+  } else {
+    const bd = document.getElementById('pkDatabaseBackdrop');
+    if (bd) bd.classList.add('hidden');
+  }
 }
 
 function setDatabaseViewMode(mode) {

@@ -680,7 +680,11 @@ function launchSpotlightReader() {
   if (scroller) scroller.scrollTop = 0;
 
   closeSpecialStudio();
-  overlay.classList.remove('hidden');
+  overlay.removeAttribute('data-closing');
+  overlay.classList.remove('animate-spotlight-out', 'hidden');
+  overlay.classList.remove('animate-spotlight-in');
+  void overlay.offsetWidth;
+  overlay.classList.add('animate-spotlight-in');
   pkSpotlightOpen = true;
   pkSpotlightScrolling = false;
   syncSpotlightControlsUI();
@@ -691,7 +695,16 @@ function closeSpotlightReader() {
   pkSpotlightScrolling = false;
   if (pkSpotlightRafId) { cancelAnimationFrame(pkSpotlightRafId); pkSpotlightRafId = null; }
   const overlay = document.getElementById('pkSpotlightOverlay');
-  if (overlay) overlay.classList.add('hidden');
+  if (overlay) {
+    overlay.setAttribute('data-closing', 'true');
+    overlay.classList.remove('animate-spotlight-in');
+    overlay.classList.add('animate-spotlight-out');
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('animate-spotlight-out');
+      overlay.removeAttribute('data-closing');
+    }, 160);
+  }
 }
 
 function syncSpotlightControlsUI() {

@@ -66,6 +66,19 @@ try {
   console.warn('KaTeX asset sync skipped:', err.message);
 }
 
+// 4. Compute live version & buildId for compile-time embedding
+const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+const swVerMatch = swSrc.match(/const\s+CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
+const appVersion = swVerMatch ? swVerMatch[1] : 'pk-note-latest';
+const buildId = `${appVersion}-${Date.now().toString(36)}`;
+const versionPayload = {
+  version: appVersion,
+  buildId,
+  builtAt: new Date().toISOString()
+};
+fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify(versionPayload, null, 2) + '\n', 'utf8');
+console.log('4a. Live update manifest stamped -> version.json (' + buildId + ')');
+
 // 4. Minify JS modules (preserve top-level global functions for HTML onclick handlers; strip all comments & dead whitespace)
 fs.mkdirSync(path.join(ROOT, 'js'), { recursive: true });
 const jsFiles = [
@@ -85,7 +98,11 @@ for (const [src, dst] of jsFiles) {
     minifySyntax: true,
     minifyIdentifiers: false, // Keep global function names callable from HTML onclick attributes!
     legalComments: 'none',
-    target: 'es2020'
+    target: 'es2020',
+    define: {
+      '__PK_BUILD_ID__': JSON.stringify(buildId),
+      '__PK_APP_VERSION__': JSON.stringify(appVersion)
+    }
   });
   fs.writeFileSync(path.join(ROOT, dst), out.code, 'utf8');
   console.log(`4. JS minified -> ${dst} (${kb(raw.length)} -> ${kb(out.code.length)})`);
@@ -117,16 +134,4 @@ if (styleTags > 0 || inlineScripts > 0) {
 }
 fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(ROOT, 'pk_note_workspace.html'));
 console.log('5. Pure HTML verified & synced -> index.html (' + kb(html.length) + ', 0 <style>, 0 inline <script>)');
-
-// 6. Stamp version.json for automatic live-refresh on GitHub Pages (https://not-phana.github.io/PK-Note/)
-const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-const swVerMatch = swSrc.match(/const\s+CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
-const appVersion = swVerMatch ? swVerMatch[1] : 'pk-note-latest';
-const buildId = `${appVersion}-${Date.now().toString(36)}`;
-const versionPayload = {
-  version: appVersion,
-  buildId,
-  builtAt: new Date().toISOString()
-};
-fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify(versionPayload, null, 2) + '\n', 'utf8');
-console.log('6. Live update manifest stamped -> version.json (' + buildId + ')');
+console.log('Build completed successfully for ' + buildId);

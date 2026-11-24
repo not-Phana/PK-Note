@@ -8316,6 +8316,15 @@ window.addEventListener('load', () => {
         if (!res.ok) return;
         const data = await res.json();
         if (!data || !data.buildId) return;
+
+        // If compile-time buildId is embedded, check if currently running code is older than server manifest!
+        const runningBuildId = typeof __PK_BUILD_ID__ !== 'undefined' ? __PK_BUILD_ID__ : currentBuildId;
+        if (runningBuildId && data.buildId !== runningBuildId) {
+          if (swReg) swReg.update().catch(() => {});
+          triggerSafeAutoReload(data.version || 'latest');
+          return;
+        }
+
         if (!currentBuildId) {
           currentBuildId = data.buildId;
           return;

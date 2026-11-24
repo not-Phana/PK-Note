@@ -277,23 +277,32 @@ function loadAiConfig() {
     if (rawV2) {
       const parsed = JSON.parse(rawV2);
       let provider = parsed.provider;
-      if (!PK_AI_PROVIDERS[provider] || (provider === 'groq' && !(parsed.groq && parsed.groq.apiKey))) {
+      if (!PK_AI_PROVIDERS[provider] || ((provider === 'groq' || provider === 'gemini') && !(parsed[provider] && parsed[provider].apiKey))) {
         provider = 'nvidia';
       }
       ['nvidia', 'gemini', 'openrouter', 'groq', 'local'].forEach(pid => {
         const src = parsed[pid] || {};
         const normKeys = normalizeProviderKeys(src);
+        normKeys.keys.forEach(slot => {
+          slot.key = cleanApiKeyString(slot.key, pid);
+        });
+        const cleanMainKey = cleanApiKeyString(normKeys.apiKey, pid);
         def[pid] = {
-          apiKey: normKeys.apiKey || (pid === 'nvidia' ? defaultNvidiaKey : ''),
+          apiKey: cleanMainKey || (pid === 'nvidia' ? defaultNvidiaKey : ''),
           activeKeyId: normKeys.activeKeyId,
           keys: normKeys.keys.length > 0 && normKeys.keys[0].key ? normKeys.keys : [{ id: 'k_1', label: 'Key 1', key: pid === 'nvidia' ? defaultNvidiaKey : '' }],
-          baseUrl: typeof src.baseUrl === 'string' && src.baseUrl.trim() ? src.baseUrl.trim() : PK_AI_PROVIDERS[pid].defaultBaseUrl,
+          baseUrl: pid === 'nvidia' ? PK_AI_PROVIDERS.nvidia.defaultBaseUrl : (typeof src.baseUrl === 'string' && src.baseUrl.trim() ? src.baseUrl.trim() : PK_AI_PROVIDERS[pid].defaultBaseUrl),
           model: typeof src.model === 'string' && src.model.trim() ? src.model.trim() : PK_AI_PROVIDERS[pid].defaultModel,
           discoveredModels: Array.isArray(src.discoveredModels) ? src.discoveredModels.filter(x => typeof x === 'string' && x.trim()) : []
         };
       });
       def.provider = provider || 'nvidia';
       let migrated = false;
+      // Guarantee NVIDIA baseUrl always routes via Cloudflare Edge Proxy to prevent CORS/401 blocks
+      if (def.nvidia.baseUrl !== PK_AI_PROVIDERS.nvidia.defaultBaseUrl) {
+        def.nvidia.baseUrl = PK_AI_PROVIDERS.nvidia.defaultBaseUrl;
+        migrated = true;
+      }
       // Upgrade retired, slow reasoning, or non-working NVIDIA models to verified #1 Bolt E4B default
       if (!def.nvidia.model || def.nvidia.model === 'meta/llama-3.3-70b-instruct' || def.nvidia.model === 'nvidia/nemotron-3.5-super-vl-120b-a12b' || PK_NVIDIA_EXCLUDED_MODELS.has(def.nvidia.model)) {
         def.nvidia.model = PK_AI_PROVIDERS.nvidia.defaultModel;
@@ -351,9 +360,38 @@ function getActiveProviderSpec(cfg) {
   };
 }
 
+function cleanApiKeyString(rawKey, pid = '') {
+  if (!rawKey) return '';
+  let k = String(rawKey).trim();
+  k = k.replace(/^["'`]+|["'`]+$/g, '');
+  k = k.replace(/^bearer\s+/i, '');
+  k = k.replace(/^[A-Za-z0-9_]*key\s*[:=]\s*/i, '');
+  k = k.replace(/[,;.]+$/, '');
+  k = k.trim();
+
+  if (pid === 'nvidia' || k.includes('nvapi-')) {
+    const m = k.match(/nvapi-[A-Za-z0-9_-]+/);
+    if (m) return m[0];
+  }
+  if (pid === 'gemini' || k.includes('AIzaSy')) {
+    const m = k.match(/AIzaSy[A-Za-z0-9_-]+/);
+    if (m) return m[0];
+  }
+  if (pid === 'groq' || k.includes('gsk_')) {
+    const m = k.match(/gsk_[A-Za-z0-9]+/);
+    if (m) return m[0];
+  }
+  if (pid === 'openrouter' || k.includes('sk-or-')) {
+    const m = k.match(/sk-or-[A-Za-z0-9_-]+/);
+    if (m) return m[0];
+  }
+  return k.replace(/\s+/g, '');
+}
+
 function isProviderReady(pid, data) {
   const spec = PK_AI_PROVIDERS[pid];
   if (!spec || !data) return false;
+  if (pid === 'nvidia') return true;
   if (spec.requiresKey) return !!data.apiKey;
   return !!(data.baseUrl && data.baseUrl.trim());
 }
@@ -410,10 +448,11 @@ function buildProviderEndpoints(pid, rawBaseUrl) {
 
 function buildAuthHeaders(apiKey, pid) {
   const headers = { 'Content-Type': 'application/json' };
-  if (apiKey && apiKey.trim()) {
-    headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+  const clean = cleanApiKeyString(apiKey, pid);
+  if (clean) {
+    headers['Authorization'] = `Bearer ${clean}`;
     if (pid === 'gemini') {
-      headers['x-goog-api-key'] = apiKey.trim();
+      headers['x-goog-api-key'] = clean;
     }
   }
   return headers;
@@ -702,6 +741,30 @@ function syncGroqHeaderAndSettingsUI() {
   // Provider tabs highlight
   const activeTabCls = 'px-1 py-1.5 rounded-[3px] bg-[var(--accent-vermilion)] text-white font-semibold cursor-pointer truncate';
   const idleTabCls = 'px-1 py-1.5 rounded-[3px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-hairline)] text-[var(--text-secondary)] cursor-pointer truncate';
+
+  // Self-healing: if index.html was cached prior to NVIDIA's addition, restore the NVIDIA tab immediately!
+  let nvidiaTab = document.getElementById('pkAiProviderTabNvidia');
+  const geminiTab = document.getElementById('pkAiProviderTabGemini');
+  if (!nvidiaTab && geminiTab && geminiTab.parentElement) {
+    const parent = geminiTab.parentElement;
+    nvidiaTab = document.createElement('button');
+    nvidiaTab.type = 'button';
+    nvidiaTab.id = 'pkAiProviderTabNvidia';
+    nvidiaTab.setAttribute('onclick', "selectAiProvider('nvidia')");
+    nvidiaTab.title = 'NVIDIA NIM — Nemotron 3.5, Gemma 4, Mistral Large';
+    nvidiaTab.className = cfg.provider === 'nvidia' ? activeTabCls : idleTabCls;
+    nvidiaTab.textContent = 'NVIDIA';
+    parent.insertBefore(nvidiaTab, geminiTab);
+    parent.className = 'grid grid-cols-5 gap-1 font-mono text-[9.5px]';
+    const headerTitle = parent.previousElementSibling;
+    if (headerTitle && headerTitle.textContent.includes('AI Provider')) {
+      headerTitle.textContent = 'AI Provider (Free, Cloud & Local)';
+    }
+    if ('caches' in window) {
+      caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('pk-note-') && !k.endsWith('v3.0.20')).map(k => caches.delete(k)))).catch(() => {});
+    }
+  }
+
   const tabs = [
     ['nvidia', 'pkAiProviderTabNvidia'],
     ['gemini', 'pkAiProviderTabGemini'],
@@ -773,6 +836,16 @@ function syncGroqHeaderAndSettingsUI() {
   if (keyInput) {
     keyInput.value = data.apiKey || '';
     keyInput.placeholder = spec.keyPlaceholder;
+    if (!keyInput.dataset.boundAutoSave) {
+      keyInput.dataset.boundAutoSave = 'true';
+      const autoSaveKey = () => {
+        const c = loadAiConfig();
+        captureCurrentProviderInputsIntoConfig(c);
+        saveAiConfig(c);
+      };
+      keyInput.addEventListener('input', autoSaveKey);
+      keyInput.addEventListener('change', autoSaveKey);
+    }
   }
   if (clearBtn) {
     clearBtn.textContent = spec.id === 'local' ? 'Clear Token' : 'Remove Key';
@@ -1300,7 +1373,7 @@ async function pasteAiApiKey() {
   if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
     try {
       const raw = await navigator.clipboard.readText();
-      const cleaned = String(raw || '').trim().replace(/\s+/g, '');
+      const cleaned = cleanApiKeyString(raw);
       if (!cleaned) {
         if (typeof showToast === 'function') showToast('Clipboard is empty — copy your API key first', 'ochre');
         return;
@@ -1360,7 +1433,7 @@ async function pasteAiBaseUrl() {
   if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
     try {
       const raw = await navigator.clipboard.readText();
-      const cleaned = String(raw || '').trim().replace(/\s+/g, '');
+      const cleaned = cleanApiKeyString(raw);
       if (!cleaned) {
         if (typeof showToast === 'function') showToast('Clipboard is empty', 'ochre');
         return;
@@ -1674,9 +1747,10 @@ async function fetchAiProviderModels() {
 async function testGroqConnection() {
   const cfg = loadAiConfig();
   captureCurrentProviderInputsIntoConfig(cfg);
+  saveAiConfig(cfg);
   const { spec, data } = getActiveProviderSpec(cfg);
 
-  if (spec.requiresKey && !data.apiKey) {
+  if (spec.requiresKey && !data.apiKey && spec.id !== 'nvidia') {
     if (typeof showToast === 'function') showToast(`Paste your ${spec.shortName} API key (${spec.keyPlaceholder}) first`, 'ochre');
     return;
   }
@@ -5387,13 +5461,15 @@ function parseSseDataLine(line, stateObj) {
 async function sendGroqPrompt(overrideText) {
   if (pkGroqIsStreaming) return;
   const cfg = loadAiConfig();
+  captureCurrentProviderInputsIntoConfig(cfg);
+  saveAiConfig(cfg);
   const { spec, data } = getActiveProviderSpec(cfg);
 
   const promptEl = document.getElementById('pkGroqPromptInput');
   const userText = (typeof overrideText === 'string' ? overrideText : (promptEl ? promptEl.value : '')).trim();
   if (!userText) return;
 
-  if (spec.requiresKey && !data.apiKey) {
+  if (spec.requiresKey && !data.apiKey && spec.id !== 'nvidia') {
     if (typeof matchOfflineIntent === 'function') {
       const offlineAction = matchOfflineIntent(userText);
       if (offlineAction) {

@@ -33,22 +33,22 @@ const PK_AI_PROVIDERS = {
     shortName: 'NVIDIA',
     defaultBaseUrl: 'https://pk-ai-proxy.vsrong926.workers.dev/v1',
     officialBaseUrl: 'https://integrate.api.nvidia.com/v1',
-    defaultModel: 'nvidia/nemotron-3.5-super-vl-120b-a12b',
+    defaultModel: 'nvidia/nemotron-3.5-bolt-e4b',
     requiresKey: true,
     keyPlaceholder: 'nvapi-...',
     keyLabel: 'NVIDIA API Key (Saved Locally)',
     keyUrl: 'https://build.nvidia.com',
     keyLinkText: 'Get free key (1,000 credits)',
     models: [
-      { id: 'nvidia/nemotron-3.5-super-vl-120b-a12b', label: '#1 nemotron-3.5-super-vl-120b (Best Overall · 120B Flagship · 720ms)' },
-      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: '#2 nemotron-3.5-lightning-30b (Top Reasoning · Deep Thinking · 1.0s)' },
-      { id: 'nvidia/nemotron-3.5-bolt-e4b', label: '#3 nemotron-3.5-bolt-e4b (Fastest Response · Ultra-Low Latency · 980ms)' },
-      { id: 'mistralai/mistral-large-4-1t-a52b', label: '#4 mistral-large-4-1t (Deep Writing & Architecture · Mistral 1T)' },
-      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: '#5 nemotron-3-ultra-550b (Frontier Scale · 550B Parameter Heavyweight)' },
-      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: '#6 nemotron-3-nano-omni-30b (Omni Multimodal Reasoning · 30B)' },
-      { id: 'stepfun-ai/step-5-preview', label: '#7 step-5-preview (Step-5 Reasoning & Knowledge · 1.0s)' },
-      { id: 'meta/muse-glimmer-30b', label: '#8 muse-glimmer-30b (Meta Muse 30B · Creative & Drafting)' },
-      { id: 'minimaxai/minimax-m3.1-flash', label: '#9 minimax-m3.1-flash (MiniMax M3.1 · Fast Multilingual)' }
+      { id: 'nvidia/nemotron-3.5-bolt-e4b', label: '#1 nemotron-3.5-bolt-e4b (Fast & Direct Chat · Recommended)' },
+      { id: 'nvidia/nemotron-3.5-super-vl-120b-a12b', label: '#2 nemotron-3.5-super-vl-120b (120B Flagship · Deep Reasoning)' },
+      { id: 'nvidia/nemotron-3.5-lightning-30b-a3b', label: '#3 nemotron-3.5-lightning-30b (Top Reasoning · Deep Thinking)' },
+      { id: 'mistralai/mistral-large-4-1t-a52b', label: '#4 mistral-large-4-1t (Mistral 1T Architecture & Writing)' },
+      { id: 'minimaxai/minimax-m3.1-flash', label: '#5 minimax-m3.1-flash (MiniMax M3.1 · Fast Multilingual)' },
+      { id: 'stepfun-ai/step-5-preview', label: '#6 step-5-preview (Step-5 Reasoning & Knowledge)' },
+      { id: 'meta/muse-glimmer-30b', label: '#7 muse-glimmer-30b (Meta Muse 30B · Creative & Drafting)' },
+      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: '#8 nemotron-3-ultra-550b (550B Heavyweight Frontier)' },
+      { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: '#9 nemotron-3-nano-omni-30b (Omni Multimodal Reasoning)' }
     ]
   },
   openrouter: {
@@ -294,8 +294,8 @@ function loadAiConfig() {
       });
       def.provider = provider || 'nvidia';
       let migrated = false;
-      // Upgrade retired or non-working NVIDIA models to verified #1 default
-      if (def.nvidia.model === 'meta/llama-3.3-70b-instruct' || PK_NVIDIA_EXCLUDED_MODELS.has(def.nvidia.model)) {
+      // Upgrade retired, slow reasoning, or non-working NVIDIA models to verified #1 Bolt E4B default
+      if (!def.nvidia.model || def.nvidia.model === 'meta/llama-3.3-70b-instruct' || def.nvidia.model === 'nvidia/nemotron-3.5-super-vl-120b-a12b' || PK_NVIDIA_EXCLUDED_MODELS.has(def.nvidia.model)) {
         def.nvidia.model = PK_AI_PROVIDERS.nvidia.defaultModel;
         migrated = true;
       }
@@ -1566,15 +1566,15 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
       if (pid === 'nvidia') {
         ids = ids.filter(id => !PK_NVIDIA_EXCLUDED_MODELS.has(id));
         const rankedOrder = [
+          'nvidia/nemotron-3.5-bolt-e4b',
           'nvidia/nemotron-3.5-super-vl-120b-a12b',
           'nvidia/nemotron-3.5-lightning-30b-a3b',
-          'nvidia/nemotron-3.5-bolt-e4b',
           'mistralai/mistral-large-4-1t-a52b',
-          'nvidia/nemotron-3-ultra-550b-a55b',
-          'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+          'minimaxai/minimax-m3.1-flash',
           'stepfun-ai/step-5-preview',
           'meta/muse-glimmer-30b',
-          'minimaxai/minimax-m3.1-flash'
+          'nvidia/nemotron-3-ultra-550b-a55b',
+          'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
         ];
         ids.sort((a, b) => {
           const idxA = rankedOrder.indexOf(a);
@@ -1701,11 +1701,11 @@ async function testGroqConnection() {
     const endpoints = buildProviderEndpoints(spec.id, data.baseUrl);
     const runPing = (modelId) => fetch(endpoints.chatUrl, {
       method: 'POST',
-      headers: buildAuthHeaders(data.apiKey),
+      headers: buildAuthHeaders(data.apiKey, spec.id),
       body: JSON.stringify({
         model: modelId,
         messages: [{ role: 'user', content: 'Reply with OK.' }],
-        max_tokens: 64,
+        max_tokens: 256,
         temperature: 0,
         stream: false
       })
@@ -5253,9 +5253,20 @@ function renderGroqMessages() {
       </div>
     ` : '';
 
+    const thinkingSection = (m.reasoning && !m.streaming) ? `
+      <details class="mb-2 rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] px-2.5 py-1.5 font-mono text-[9.5px] text-[var(--text-tertiary)] select-text group">
+        <summary class="cursor-pointer hover:text-[var(--text-primary)] font-semibold flex items-center justify-between">
+          <span>Thinking Process</span>
+          <span class="text-[9px] text-[var(--text-tertiary)] group-open:rotate-180 transition-transform">&#9662;</span>
+        </summary>
+        <div class="mt-1.5 pt-1.5 border-t border-[var(--border-hairline)] text-[10px] leading-relaxed whitespace-pre-wrap font-mono text-[var(--text-secondary)] opacity-85 max-h-48 overflow-y-auto">${escapeHtml(m.reasoning)}</div>
+      </details>
+    ` : '';
+
     return `
       <div class="flex justify-start">
         <div class="max-w-[94%] w-full px-3 py-2.5 rounded-xl rounded-bl-[3px] border ${bubbleBorder} text-[var(--text-primary)]">
+          ${thinkingSection}
           <div id="pkGroqMsgBody_${idx}" class="text-xs leading-relaxed whitespace-pre-wrap break-words font-sans">${escapeHtml(display || placeholderStatus)}</div>
           ${actionCards}
           ${memoryBadges}
@@ -5499,6 +5510,7 @@ async function sendGroqPrompt(overrideText) {
   ];
 
   let rafPending = false;
+  let streamStateRef = null;
   const flushStreamDom = () => {
     rafPending = false;
     const msgObj = pkGroqHistory[assistantIdx];
@@ -5507,7 +5519,15 @@ async function sendGroqPrompt(overrideText) {
     const box = document.getElementById('pkGroqMessages');
     if (bodyEl) {
       const visible = stripSpecialBlocksForDisplay(msgObj.content, true);
-      bodyEl.textContent = visible || (msgObj.isReasoning ? 'Reasoning...' : 'Thinking...');
+      if (visible) {
+        bodyEl.textContent = visible;
+      } else if (msgObj.isReasoning && streamStateRef && streamStateRef.reasoning) {
+        const cleanSnippet = streamStateRef.reasoning.trim().replace(/\s+/g, ' ');
+        const tail = cleanSnippet.length > 70 ? '...' + cleanSnippet.slice(-70) : cleanSnippet;
+        bodyEl.textContent = `Thinking: ${tail}`;
+      } else {
+        bodyEl.textContent = msgObj.isReasoning ? 'Thinking...' : 'Thinking...';
+      }
     }
     if (box) box.scrollTop = box.scrollHeight;
   };
@@ -5524,7 +5544,7 @@ async function sendGroqPrompt(overrideText) {
         messages,
         stream: true,
         temperature: 0.75,
-        max_tokens: 2048
+        max_tokens: 4096
       })
     });
 
@@ -5639,6 +5659,7 @@ async function sendGroqPrompt(overrideText) {
       let buffer = '';
       let rawFallback = '';
       const streamState = { content: '', reasoning: '', isReasoning: false };
+      streamStateRef = streamState;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -5678,14 +5699,32 @@ async function sendGroqPrompt(overrideText) {
           streamState.content =
             parsedObj?.choices?.[0]?.message?.content ||
             parsedObj?.message?.content ||
-            parsedObj?.choices?.[0]?.message?.reasoning_content ||
             '';
+          if (!streamState.reasoning && parsedObj?.choices?.[0]?.message?.reasoning_content) {
+            streamState.reasoning = parsedObj.choices[0].message.reasoning_content;
+          }
         } catch (e) {
           if (e && e.message && !/JSON|Unexpected/i.test(e.message)) throw e;
         }
       }
 
-      pkGroqHistory[assistantIdx].content = streamState.content || streamState.reasoning || '';
+      if (streamState.content && streamState.content.trim()) {
+        pkGroqHistory[assistantIdx].content = streamState.content.trim();
+        if (streamState.reasoning && streamState.reasoning.trim()) {
+          pkGroqHistory[assistantIdx].reasoning = streamState.reasoning.trim();
+        }
+      } else if (streamState.reasoning && streamState.reasoning.trim()) {
+        const rawReason = streamState.reasoning.trim();
+        const ansMatch = rawReason.match(/(?:(?:final\s+)?answer|response|conclusion|output|therefore|in summary|thus)[:\s*\n]+([\s\S]+)$/i);
+        if (ansMatch && ansMatch[1].trim().length > 15) {
+          pkGroqHistory[assistantIdx].content = ansMatch[1].trim();
+          pkGroqHistory[assistantIdx].reasoning = rawReason;
+        } else {
+          pkGroqHistory[assistantIdx].content = rawReason;
+        }
+      } else {
+        pkGroqHistory[assistantIdx].content = '';
+      }
     }
 
     if (!stripSpecialBlocksForDisplay(pkGroqHistory[assistantIdx].content, false)) {

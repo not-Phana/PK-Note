@@ -232,11 +232,27 @@ const PK_RETIRED_GROQ_MODELS = new Set([
 const PK_RETIRED_GEMINI_MODELS = new Set([
   'gemini-1.0-pro',
   'gemini-1.0-pro-vision',
+  'gemini-1.0-pro-latest',
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash-preview',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash-latest',
+  'gemini-2.5-pro-preview',
+  'gemini-2.5-pro-latest',
   'gemini-3-flash-preview',
-  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
   'gemini-4-hydrogen'
 ]);
+
+function isRetiredGeminiModel(modelId) {
+  const m = String(modelId || '').toLowerCase().replace(/^models\//i, '').trim();
+  if (!m) return true;
+  if (PK_RETIRED_GEMINI_MODELS.has(m)) return true;
+  if (/^gemini-2\.5/i.test(m)) return true;
+  if (/^gemini-1\.0/i.test(m)) return true;
+  return false;
+}
 
 const PK_NVIDIA_EXCLUDED_MODELS = new Set([
   'fastino/gliner2-pii',
@@ -314,10 +330,11 @@ function loadAiConfig() {
         migrated = true;
       }
       // Upgrade retired Gemini presets automatically to live active default
-      if (PK_RETIRED_GEMINI_MODELS.has(def.gemini.model)) {
+      if (!def.gemini.model || isRetiredGeminiModel(def.gemini.model)) {
         def.gemini.model = PK_AI_PROVIDERS.gemini.defaultModel;
         migrated = true;
       }
+      def.gemini.discoveredModels = (def.gemini.discoveredModels || []).filter(m => !isRetiredGeminiModel(m));
       // Upgrade OpenRouter legacy preset to openrouter/auto
       if (def.openrouter.model === 'openrouter/free' || !def.openrouter.model) {
         def.openrouter.model = PK_AI_PROVIDERS.openrouter.defaultModel;
@@ -1561,7 +1578,8 @@ function isNonChatModelId(id) {
 }
 
 function isModelNotFoundError(status, msg) {
-  return status === 404 || status === 410 || /does not exist|not found|decommissioned|retired|no access|not have access/i.test(String(msg || ''));
+  const str = String(msg || '');
+  return status === 404 || status === 410 || /does not exist|not found|decommissioned|retired|no access|not have access|no longer available|not available|unavailable to new users/i.test(str);
 }
 
 async function probeLocalBaseUrl(baseUrl, apiKey) {
@@ -1658,10 +1676,22 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
           return a.localeCompare(b);
         });
       } else if (pid === 'gemini') {
-        ids = ids.filter(id => !PK_RETIRED_GEMINI_MODELS.has(id));
-        const geminiFirst = ids.filter(id => /^gemini-/i.test(id));
-        const others = ids.filter(id => !/^gemini-/i.test(id));
-        ids = [...geminiFirst, ...others];
+        ids = ids.filter(id => !isRetiredGeminiModel(id));
+        const geminiRanked = [
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'gemini-2.0-pro-exp-02-05'
+        ];
+        ids.sort((a, b) => {
+          const idxA = geminiRanked.indexOf(a);
+          const idxB = geminiRanked.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.localeCompare(b);
+        });
       } else if (pid === 'openrouter') {
         const routerFirst = ids.filter(id => id === 'openrouter/free');
         const rest = ids.filter(id => id !== 'openrouter/free');
@@ -1796,9 +1826,20 @@ async function testGroqConnection() {
     if (!res.ok && spec.id !== 'local') {
       const errData = await res.json().catch(() => ({}));
       const msg = extractApiErrMsg(errData, res.status);
-      if (isModelNotFoundError(res.status, msg)) {
+      if (spec.id === 'gemini') {
+        const gemFallbacks = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'].filter(m => m !== data.model);
+        for (const fb of gemFallbacks) {
+          const retryRes = await runPing(fb);
+          if (retryRes.ok) {
+            data.model = fb;
+            res = retryRes;
+            break;
+          }
+        }
+      }
+      if (!res.ok && isModelNotFoundError(res.status, msg)) {
         const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
-        const fallbackModel = liveModels.find(m => m !== data.model);
+        const fallbackModel = liveModels.find(m => m !== data.model && !(spec.id === 'gemini' && isRetiredGeminiModel(m)));
         if (fallbackModel) {
           data.discoveredModels = liveModels;
           data.model = fallbackModel;
@@ -1806,7 +1847,7 @@ async function testGroqConnection() {
         } else {
           throw new Error(msg);
         }
-      } else {
+      } else if (!res.ok) {
         throw new Error(msg);
       }
     }
@@ -5684,17 +5725,25 @@ async function sendGroqPrompt(overrideText) {
           }
         }
         if (!rotated && !res.ok) throw new Error(errMsg);
-      } else if (spec.id === 'gemini' && res.status === 503) {
-        const gemFallbacks = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash'].filter(m => m !== activeModel);
+      } else if (spec.id === 'gemini' && (res.status === 503 || isRetiredGeminiModel(activeModel) || isModelNotFoundError(res.status, errMsg))) {
+        const gemFallbacks = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'].filter(m => m !== activeModel);
+        let recovered = false;
         for (const fb of gemFallbacks) {
           activeModel = fb;
-          if (typeof showToast === 'function') showToast(`Model busy (503) — trying ${fb}`, 'ochre');
+          data.model = fb;
+          if (typeof showToast === 'function') showToast(`Switching to working model: ${fb}`, 'ochre');
           res = await doChatFetch(endpoints.chatUrl, activeModel);
-          if (res.ok || res.status !== 503) break;
+          if (res.ok) {
+            recovered = true;
+            saveAiConfig(cfg);
+            syncGroqHeaderAndSettingsUI();
+            break;
+          }
         }
+        if (!recovered && !res.ok) throw new Error(errMsg);
       } else if (isModelNotFoundError(res.status, errMsg)) {
         const liveModels = await discoverModelsForProvider(spec.id, data.baseUrl, data.apiKey).catch(() => []);
-        const fallbackModel = liveModels.find(m => m !== activeModel && !(spec.id === 'gemini' && PK_RETIRED_GEMINI_MODELS.has(m)));
+        const fallbackModel = liveModels.find(m => m !== activeModel && !(spec.id === 'gemini' && isRetiredGeminiModel(m)));
         if (fallbackModel) {
           activeModel = fallbackModel;
           data.model = fallbackModel;

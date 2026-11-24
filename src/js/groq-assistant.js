@@ -13,18 +13,19 @@ const PK_AI_PROVIDERS = {
     name: 'Gemini AI',
     shortName: 'Gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3.8-flash',
     requiresKey: true,
     keyPlaceholder: 'AIzaSy... or AQ....',
     keyLabel: 'Gemini API Key (Saved Locally)',
     keyUrl: 'https://aistudio.google.com/apikey',
     keyLinkText: 'Get free key',
     models: [
-      { id: 'gemini-2.0-flash', label: '#1 gemini-2.0-flash (Fast & Multimodal · 1M Ctx · Best Free)' },
-      { id: 'gemini-2.0-flash-lite', label: '#2 gemini-2.0-flash-lite (Lowest Latency · Fast Lite)' },
-      { id: 'gemini-1.5-flash', label: '#3 gemini-1.5-flash (Stable Production Flash · 1M Ctx)' },
-      { id: 'gemini-1.5-pro', label: '#4 gemini-1.5-pro (Deep Reasoning & Analysis · 2M Ctx)' },
-      { id: 'gemini-2.0-pro-exp-02-05', label: '#5 gemini-2.0-pro-exp-02-05 (Experimental Pro)' }
+      { id: 'gemini-3.8-flash', label: '#1 gemini-3.8-flash (Flagship Flash · Advanced Reasoning & Coding · Recommended)' },
+      { id: 'gemini-3.5-flash', label: '#2 gemini-3.5-flash (High Intelligence Flash · Fast Agentic)' },
+      { id: 'gemini-3.1-pro-preview', label: '#3 gemini-3.1-pro-preview (Deep Reasoning & Software Engineering · Pro)' },
+      { id: 'gemini-3.1-flash-lite', label: '#4 gemini-3.1-flash-lite (Ultra-Low Latency · Fast Lite)' },
+      { id: 'gemini-2.0-flash', label: '#5 gemini-2.0-flash (Multimodal Flash · 1M Ctx)' },
+      { id: 'gemini-2.0-flash-lite', label: '#6 gemini-2.0-flash-lite (Lightweight Flash)' }
     ]
   },
   nvidia: {
@@ -233,6 +234,11 @@ const PK_RETIRED_GEMINI_MODELS = new Set([
   'gemini-1.0-pro',
   'gemini-1.0-pro-vision',
   'gemini-1.0-pro-latest',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+  'gemini-1.5-pro-latest',
   'gemini-2.5-flash',
   'gemini-2.5-pro',
   'gemini-2.5-flash-preview',
@@ -240,8 +246,6 @@ const PK_RETIRED_GEMINI_MODELS = new Set([
   'gemini-2.5-flash-latest',
   'gemini-2.5-pro-preview',
   'gemini-2.5-pro-latest',
-  'gemini-3-flash-preview',
-  'gemini-3.5-flash-lite',
   'gemini-4-hydrogen'
 ]);
 
@@ -250,7 +254,7 @@ function isRetiredGeminiModel(modelId) {
   if (!m) return true;
   if (PK_RETIRED_GEMINI_MODELS.has(m)) return true;
   if (/^gemini-2\.5/i.test(m)) return true;
-  if (/^gemini-1\.0/i.test(m)) return true;
+  if (/^gemini-1\.[05]/i.test(m)) return true;
   return false;
 }
 
@@ -742,7 +746,7 @@ function populateModelSelectForProvider(pid, data) {
         : pid === 'openrouter'
           ? 'e.g. openrouter/auto, deepseek/deepseek-r1:free'
           : pid === 'gemini'
-            ? 'e.g. gemini-2.0-flash, gemini-1.5-pro'
+            ? 'e.g. gemini-3.8-flash, gemini-3.1-pro-preview'
             : pid === 'nvidia'
               ? 'e.g. nvidia/nemotron-3.5-lightning-30b-a3b, google/gemma-4-31b-it'
               : 'e.g. llama-3.3-70b-versatile';
@@ -1678,11 +1682,13 @@ async function discoverModelsForProvider(pid, baseUrl, apiKey) {
       } else if (pid === 'gemini') {
         ids = ids.filter(id => !isRetiredGeminiModel(id));
         const geminiRanked = [
+          'gemini-3.8-flash',
+          'gemini-3.5-flash',
+          'gemini-3.1-pro-preview',
+          'gemini-3.1-pro',
+          'gemini-3.1-flash-lite',
           'gemini-2.0-flash',
-          'gemini-2.0-flash-lite',
-          'gemini-1.5-flash',
-          'gemini-1.5-pro',
-          'gemini-2.0-pro-exp-02-05'
+          'gemini-2.0-flash-lite'
         ];
         ids.sort((a, b) => {
           const idxA = geminiRanked.indexOf(a);
@@ -1827,7 +1833,7 @@ async function testGroqConnection() {
       const errData = await res.json().catch(() => ({}));
       const msg = extractApiErrMsg(errData, res.status);
       if (spec.id === 'gemini') {
-        const gemFallbacks = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'].filter(m => m !== data.model);
+        const gemFallbacks = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.0-flash'].filter(m => m !== data.model);
         for (const fb of gemFallbacks) {
           const retryRes = await runPing(fb);
           if (retryRes.ok) {
@@ -5726,7 +5732,7 @@ async function sendGroqPrompt(overrideText) {
         }
         if (!rotated && !res.ok) throw new Error(errMsg);
       } else if (spec.id === 'gemini' && (res.status === 503 || isRetiredGeminiModel(activeModel) || isModelNotFoundError(res.status, errMsg))) {
-        const gemFallbacks = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'].filter(m => m !== activeModel);
+        const gemFallbacks = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.0-flash'].filter(m => m !== activeModel);
         let recovered = false;
         for (const fb of gemFallbacks) {
           activeModel = fb;
